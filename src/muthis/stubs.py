@@ -25,7 +25,8 @@ async def stub_stt() -> str:
 
 
 async def stub_tts(text: str) -> None:
-    # STUB — replaced in a later phase (tts/elevenlabs_streamer.py).
+    # Default seam only — production injects the REAL muthis.tts.TTS().speak
+    # (same TtsFn shape); returning None keeps Optional[TTSResult] honest.
     logger.info("[stub:tts] would speak %d chars", len(text))
 
 

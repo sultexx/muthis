@@ -113,8 +113,9 @@ async def test_normal_turn_flows_end_to_end(tmp_path):
 
     result = await orchestrator.run_turn("وين زر الحفظ؟")
 
-    # Text reached the TTS stub chunk by chunk and was accumulated.
-    assert recorder.spoken == ["زر الحفظ ", "فوق يسار"]
+    # Buffer-then-speak: the whole assistant message reached the TTS ONCE
+    # (per-delta speaking would produce choppy half-word audio).
+    assert recorder.spoken == ["زر الحفظ فوق يسار"]
     assert result.spoken_text == "زر الحفظ فوق يسار"
 
     # highlight_target reached the overlay stub — and nothing else did.

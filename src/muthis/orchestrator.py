@@ -7,24 +7,23 @@ asyncio event loop, the single event queue (Law 3.3), all locks, the session
 lifecycle, and the conversation history. ClaudeAgent.run() is one blind
 provider turn; Budget is an accounting gate; both are only ever *asked*.
 
-STUB-FIRST BUILD: no real microphone, STT, TTS playback, or screen capture
-is wired here yet. Every external dependency is an injected async callable;
-the defaults below log in English and return canned data. The only real
-integrations are the CloudReasoner protocol (cloud/protocol.py) and the
-Budget gate (budget.py) — both stdlib-only, so this module stays importable
-in isolation (no SDK imports).
+STUB-FIRST BUILD: STT, screen capture, and the hotkey are still injected
+stubs. TTS is the first REAL integration — production injects
+tts.TTS().speak (already matches TtsFn; stub→real is a one-line injection
+change at startup) while tests keep injecting fakes. Playback is
+buffer-then-speak per assistant message (per-delta synthesis would produce
+choppy half-word audio). TODO(follow-up): sentence-by-sentence streaming
+playback — deliberately NOT built in this step. Module stays importable in
+isolation (tts.py imports only stdlib at module level; no SDK imports).
 
-Turn pipeline (run_turn):
-    budget.can_afford()  ← BEFORE every provider call (Rule 10)
-    → reasoner.run(user_input, screenshot, history)
-    → TextDelta  → tts stub        (and accumulated into TurnResult)
-    → ToolCall   → highlight_target → overlay stub (LOOK-only — nothing else
-                   ever reaches the overlay); request_screen_refresh →
-                   answered internally with a tool_result + fresh screenshot
-    → TurnComplete → budget.record_turn(), history grows
-    All bounded by the 90 s session timeout; cancelling the run_turn task
-    propagates through the stream and closes the provider generator cleanly
-    (the wrapper holds no state, so nothing leaks).
+Turn pipeline (run_turn), bounded by the 90 s session timeout (audio
+playback included; cancellation closes the provider generator cleanly):
+    budget.can_afford() BEFORE every provider call (Rule 10)
+    → reasoner.run() → TextDelta accumulated into the message buffer;
+      highlight_target → overlay (LOOK-only — nothing else ever reaches it);
+      request_screen_refresh → answered with a tool_result + fresh screenshot
+    → TurnComplete → budget.record_turn(), speak the buffered message via
+      the injected TTS, history grows.
 """
 
 from __future__ import annotations
@@ -45,6 +44,7 @@ from .cloud.protocol import (
 )
 # STUB defaults — each is replaced by its real component in a later phase.
 from .stubs import stub_overlay, stub_screen_capture, stub_stt, stub_tts
+from .tts import TTSResult
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -54,15 +54,13 @@ logger = logging.getLogger("muthis.orchestrator")
 # Hard wall-clock bound for one whole turn, follow-ups included (v4.1 §9.3).
 SESSION_TIMEOUT_S = 90.0
 
-# One refresh follow-up is enough to un-stale a view; more is a model loop
-# that would burn the budget.
+# One follow-up un-stales a view; more is a model loop burning the budget.
 MAX_REFRESH_FOLLOWUPS = 1
 
 ALLOWED_OVERLAY_TOOL = "highlight_target"
 REFRESH_TOOL = "request_screen_refresh"
 
-# User-facing Arabic — the ONLY Arabic surfaces in this module (logs stay
-# English, Law §17.5).
+# User-facing Arabic — the ONLY Arabic in this module (English logs, §17.5).
 BUDGET_REFUSAL_AR = "عذراً، استهلكنا ميزانية اليوم كاملة. نكمل بكرة إن شاء الله."
 REFRESH_FOLLOWUP_TEXT_AR = "هذه لقطة الشاشة المحدثة."
 NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
@@ -71,7 +69,7 @@ NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جدي
 # ─── Injected dependency signatures ───────────────────────────────────────────
 
 SttFn = Callable[[], Awaitable[str]]
-TtsFn = Callable[[str], Awaitable[None]]
+TtsFn = Callable[[str], Awaitable[Optional[TTSResult]]]  # = tts.TTS.speak
 ScreenCaptureFn = Callable[[], Awaitable[Optional[bytes]]]
 OverlayFn = Callable[[ToolCall], Awaitable[None]]
 
@@ -115,12 +113,11 @@ class Orchestrator:
         self._overlay = overlay
         self._session_timeout_s = session_timeout_s
 
-        # Conversation history, Claude message-dict format. Owned HERE and
+        # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
         self.history: list[dict[str, Any]] = []
 
-        # The single event queue (Law 3.3). Placeholder until the hotkey
-        # listener phase wires a real dispatcher through it.
+        # The single event queue (Law 3.3) — placeholder until hotkey phase.
         self.event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
 
     # ─────────────────────────── Public API ───────────────────────────
@@ -167,8 +164,7 @@ class Orchestrator:
                 return
 
             # History grows here and only here. User text WITHOUT the
-            # screenshot — images are passed fresh per turn, never replayed
-            # from history (replaying them would multiply token cost).
+            # screenshot — images are never replayed (token-cost multiplier).
             self.history.append({
                 "role": "user",
                 "content": [{"type": "text", "text": user_input.text}],
@@ -189,9 +185,7 @@ class Orchestrator:
             followups_left -= 1
 
             # Answer request_screen_refresh: tool_result + FRESH screenshot,
-            # then one more gated provider turn. The wrapper will append its
-            # own user text message after this tool_result message; the API
-            # merges consecutive user-role messages.
+            # then one more gated provider turn.
             fresh = await self._screen_capture()
             self.history.append(self._build_refresh_tool_result(refresh_call, fresh))
             user_input = UserInput(text=REFRESH_FOLLOWUP_TEXT_AR)
@@ -208,11 +202,12 @@ class Orchestrator:
         screenshot and the pipeline must answer it."""
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
+        message_text = ""  # buffer-then-speak: spoken once, after the stream
 
         async for event in self._reasoner.run(user_input, screenshot, list(self.history)):
             if isinstance(event, TextDelta):
                 result.spoken_text += event.text
-                await self._tts(event.text)
+                message_text += event.text
             elif isinstance(event, ToolCall):
                 if event.name == ALLOWED_OVERLAY_TOOL:
                     result.tool_calls.append(event)
@@ -221,9 +216,8 @@ class Orchestrator:
                     result.tool_calls.append(event)
                     refresh_call = event
                 else:
-                    # LOOK-only hard boundary: action tools are never offered
-                    # in the schema, so one arriving is a provider-contract
-                    # violation. Never executed, never forwarded.
+                    # LOOK-only hard boundary: an action tool arriving is a
+                    # provider-contract violation. Never executed/forwarded.
                     logger.error(
                         "[orchestrator] LOOK-only violation: refusing tool %r",
                         event.name,
@@ -239,10 +233,27 @@ class Orchestrator:
         result.output_tokens += turn_complete.output_tokens
         result.cost_usd = round(result.cost_usd + turn_complete.cost_usd, 6)
         result.stop_reason = turn_complete.stop_reason
+        # Cost recorded BEFORE speaking — playback takes seconds and the
+        # session timeout must never cancel the accounting.
         self._budget.record_turn(turn_complete)
+        await self._speak(message_text)
         return turn_complete, refresh_call
 
     # ───────────────────────── Helpers ─────────────────────────
+
+    async def _speak(self, text: str) -> None:
+        """Privacy boundary: ONLY assistant-authored Arabic may pass here —
+        never the user transcript, never tool JSON. speak() never raises;
+        a failed TTSResult is logged and the turn continues regardless."""
+        if not text:
+            return
+        tts_result = await self._tts(text)
+        if tts_result is not None:
+            log = logger.info if tts_result.success else logger.warning
+            log(
+                "[orchestrator] tts provider=%s success=%s (%d chars)",
+                tts_result.provider, tts_result.success, len(text),
+            )
 
     async def _refuse_for_budget(self, result: TurnResult) -> None:
         """Refuse the turn out loud — no provider call is made."""
@@ -252,7 +263,7 @@ class Orchestrator:
             "turn refused, no provider call",
             self._budget.spent_today_usd(), self._budget.daily_limit_usd,
         )
-        await self._tts(BUDGET_REFUSAL_AR)
+        await self._speak(BUDGET_REFUSAL_AR)
 
     @staticmethod
     def _build_refresh_tool_result(
@@ -261,9 +272,8 @@ class Orchestrator:
     ) -> dict[str, Any]:
         """User message carrying the tool_result for request_screen_refresh."""
         if screenshot:
-            # Minimal PNG/JPEG sniff, deliberately NOT imported from
-            # claude_agent: that module pulls in the SDK stack and this one
-            # must stay importable in isolation.
+            # Minimal PNG/JPEG sniff — NOT imported from claude_agent, which
+            # pulls in the SDK stack (this module stays importable alone).
             media_type = ("image/png" if screenshot[:4] == b"\x89PNG"
                           else "image/jpeg")
             inner: list[dict[str, Any]] = [{
@@ -286,10 +296,5 @@ class Orchestrator:
         }
 
 
-__all__ = [
-    "Orchestrator",
-    "TurnResult",
-    "BUDGET_REFUSAL_AR",
-    "SESSION_TIMEOUT_S",
-    "MAX_REFRESH_FOLLOWUPS",
-]
+__all__ = ["Orchestrator", "TurnResult", "BUDGET_REFUSAL_AR",
+           "SESSION_TIMEOUT_S", "MAX_REFRESH_FOLLOWUPS"]
