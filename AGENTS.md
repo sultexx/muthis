@@ -64,9 +64,12 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `tests/cloud/test_claude_agent.py` | ~169 | Fake-session integration test (§15 step 8): asserts event sequence, partial-JSON buffering, cost math, and that no action tool is offered. |
 | `src/muthis/budget.py` | ~229 | Sovereign daily spend gate (Rule 10): UTC-date-keyed `budget.json` ledger, `can_afford` pre-flight + `record_turn` consuming `TurnComplete.cost_usd`, limit from `MUTHIS_DAILY_BUDGET_USD`. Boolean contract, no exceptions. |
 | `tests/test_budget.py` | ~150 | Deterministic budget tests: limit gating, accumulation + persistence, date rollover via injected clock, corrupt-ledger recovery, env-driven limit. |
+| `src/muthis/orchestrator.py` | ~295 | The heart: owns the loop, queue, history, 90 s session bound. Stubbed pipeline — budget gate before EVERY provider call, TextDelta→TTS, highlight_target→overlay (LOOK-only enforced), request_screen_refresh answered via tool_result follow-up. |
+| `src/muthis/stubs.py` | ~44 | Canned default deps (stt/tts/screen_capture/overlay) for the stub-first build; each deleted as its real component lands. |
+| `tests/test_orchestrator.py` | ~215 | Scripted FakeReasoner pipeline tests: end-to-end turn, budget-blocked refusal (provider never called), history growth, refresh follow-up with fresh screenshot. |
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
-Planned next (do not create until their build step): `orchestrator.py`,
+Planned next (do not create until their build step):
 `activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py`, `stt/elevenlabs_scribe.py`,
 `overlay/sidekick_window.py`, `overlay/rectangle_widget.py`, `vision/screen_capture.py`.
 
