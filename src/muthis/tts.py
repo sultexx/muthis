@@ -1,38 +1,39 @@
-# src/safeguard/audio/tts.py
+# src/muthis/tts.py
 """
-TTS — text-to-speech with ElevenLabs WebSocket primary + local SAPI fallback.
+TTS — text-to-speech for Mut'his v4.1: ElevenLabs WebSocket primary + local
+SAPI fallback.
 
-This is the "tongue" of the system — the boundary where the agent's response
-becomes audible. It implements §8 Decision 1 (Hybrid: local Vision/ASR +
-cloud TTS) plus the §14.2 recovery procedures for when the network drops.
+This is the "tongue" of Mut'his — the boundary where the agent's Arabic
+response becomes audible. Everything heavy is cloud (ElevenLabs); the local
+paths exist only so the sidekick can still speak when the network drops.
 
 Design contract:
   - Stateless across calls. API key + voice config are injected at __init__.
-  - Concurrency: DOES NOT acquire gpu_lock. TTS uses network + audio output,
-    NOT the GPU, so it must run OUTSIDE the orchestrator's gpu_lock — that
-    way it can overlap freely with the next GPU pipeline.
+  - Uses network + audio output only — zero GPU/VRAM, so it never contends
+    with the user's Blender/YOLO workloads and can overlap freely with any
+    other pipeline stage.
   - Blocking audio playback (winsound) and blocking SAPI are wrapped in
     asyncio.to_thread so the event loop never freezes.
   - Never raises from `speak()` — returns TTSResult with a clear success/
     provider field so the orchestrator can react (log, mark "صوت احتياطي",
     etc.) without try/except sprawl.
 
-Resilience cascade (§14.2 Recovery):
+Resilience cascade:
   Path A : ElevenLabs WebSocket  (low-latency cloud, Arabic-capable model)
   Path B : Windows SAPI via win32com.client  (offline; Arabic voice if installed)
   Path C : pyttsx3                            (cross-platform SAPI wrapper)
   None   : TTSResult(success=False, provider="none")
 
-Privacy (§17.5 — Golden Rule #5):
+Privacy:
   This wrapper is the LAST place before text leaves the device. The caller
   MUST pass only the agent's synthesized response — never user transcriptions,
   account numbers, or any PII. We do not inspect the text here; that policy
   is the orchestrator's responsibility.
 
-Environment variables (§7.2 — Golden Rule #12):
+Environment variables (.env is loaded once at process entry, before imports):
   ELEVENLABS_API_KEY   : required for cloud TTS (absent → local fallback only)
-  ELEVENLABS_VOICE_ID  : optional override (default voice selection pending §13.4)
-  ELEVENLABS_MODEL_ID  : optional override (default = eleven_turbo_v2_5)
+  ELEVENLABS_VOICE_ID  : optional override (final Arabic voice selection pending)
+  ELEVENLABS_MODEL_ID  : optional override (default = eleven_flash_v2_5)
 """
 
 from __future__ import annotations
@@ -56,11 +57,11 @@ logger = logging.getLogger("tts")
 ELEVENLABS_WS_BASE = "wss://api.elevenlabs.io/v1/text-to-speech"
 
 # Placeholder voice — override via .env (ELEVENLABS_VOICE_ID) or constructor.
-# Final voice selection is pending §13.4 (will try 2-3 Arabic voices live).
+# Final voice selection is pending (will try 2-3 Arabic voices live).
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # "Rachel" — multilingual capable
 
-# Turbo v2.5 = lowest latency multilingual model — best for §14.3 demo budget.
-DEFAULT_MODEL_ID = "eleven_turbo_v2_5"
+# Flash v2.5 = lowest-latency multilingual model — the v4.1 streaming choice.
+DEFAULT_MODEL_ID = "eleven_flash_v2_5"
 
 # PCM is simpler than MP3 (no decoder needed; ship straight to winsound).
 DEFAULT_OUTPUT_FORMAT = "pcm_22050"
@@ -103,7 +104,7 @@ class TTS:
         sample_rate:    int            = DEFAULT_SAMPLE_RATE,
         voice_settings: Optional[dict] = None,
     ) -> None:
-        # §7.2 — load via os.getenv (orchestrator already called load_dotenv).
+        # Load via os.getenv — .env was loaded once at process entry.
         self.api_key       = api_key  or os.getenv("ELEVENLABS_API_KEY")
         self.voice_id      = voice_id or os.getenv("ELEVENLABS_VOICE_ID") or DEFAULT_VOICE_ID
         self.model_id      = model_id or os.getenv("ELEVENLABS_MODEL_ID") or DEFAULT_MODEL_ID
@@ -122,7 +123,7 @@ class TTS:
     async def speak(self, text: str) -> TTSResult:
         """
         Speak `text`. Never raises — returns TTSResult.
-        Caller MUST be OUTSIDE orchestrator.gpu_lock (TTS uses no GPU).
+        Uses no GPU; safe to run alongside any other pipeline stage.
         """
         text = (text or "").strip()
         if not text:
@@ -169,7 +170,7 @@ class TTS:
 
         pcm_buffer = bytearray()
 
-        # Hard timeout caps the demo-day worst case (§14.3).
+        # Hard timeout caps the worst case — fall back instead of hanging.
         async with asyncio.timeout(WS_TOTAL_TIMEOUT_SEC):
             async with websockets.connect(
                 uri, open_timeout=WS_CONNECT_TIMEOUT_SEC,
@@ -181,7 +182,7 @@ class TTS:
                     "xi_api_key":     self.api_key,
                 }))
 
-                # The actual text — single chunk (concierge responses are short)
+                # The actual text — single chunk (spoken responses are short)
                 await ws.send(json.dumps({
                     "text":                   text + " ",
                     "try_trigger_generation": True,

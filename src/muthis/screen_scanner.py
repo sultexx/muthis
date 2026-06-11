@@ -1,56 +1,35 @@
-# src/safeguard/safeguard/screen_scanner.py
+# src/muthis/screen_scanner.py
 """
 ScreenScanner — periodic UIA text extraction → SCREEN_SCAN_TICK events.
 
-The producer side of the SafeGuard loop:
+The screen-reading producer of Mut'his v4.1: every few seconds it harvests
+the foreground window's visible text and hands it to the orchestrator as an
+event, giving the LOOK pipeline fresh on-screen context without OCR.
 
-    ┌────────────────┐    text     ┌─────────────────┐
-    │ ScreenScanner  │ ─────────► │ Orchestrator    │
-    │ (every 4 s)    │    event    │ event_queue     │
-    └────────────────┘             └────────┬────────┘
-                                            │
-                                            ▼
-                                  ┌───────────────────┐
-                                  │ SafeGuardDetector │  Tier 0 (CPU)
-                                  └───────────────────┘
-                                            │ if score ≥ 0.6
-                                            ▼
-                                  SAFEGUARD_ALERT event
-                                            │
-                                            ▼
-                                  Qwen verify (Tier 1, GPU)
-
-Why UIAutomation, not OCR (§17.6 spirit, §8 Decision 8 spirit):
+Why UIAutomation, not OCR:
   - OCR (Tesseract, PaddleOCR) would burn 200-800 ms per scan and consume
-    VRAM that's reserved for Tier 1 / Concierge.
+    VRAM that Mut'his must leave entirely free for the user's own
+    Blender/YOLO workloads.
   - UIA reads text DIRECTLY from each window's accessibility tree — the
     same source screen readers use. Latency target: <30 ms even on busy
     screens. Zero VRAM.
   - Trade-off: UIA misses text rendered as bitmaps (some custom UIs,
-    PDF viewers, video). Acceptable for Saudi banking apps which are
-    accessibility-compliant. If a target app proves opaque, we can layer
-    a tiny CPU OCR fallback in a later iteration — out of scope for v3.0.
+    PDF viewers, video). If a target app proves opaque, a tiny CPU OCR
+    fallback can be layered in a later iteration — out of scope for now.
 
 Design rules:
-  - CPU only. No torch, no CUDA, no gpu_lock.
+  - CPU only. No torch, no CUDA, zero VRAM.
   - Fully async producer. start() returns immediately; the loop runs as a
     background task and is cancelled cleanly by stop().
   - Every blocking UIA call goes through asyncio.to_thread — the
-    orchestrator event loop is NEVER frozen.
-  - Privacy (§17.5, §17.6 Golden Rule #6):
+    orchestrator event loop is NEVER frozen. COM is initialized per worker
+    thread (see _scan_once_blocking for the WHY).
+  - Privacy:
       • Extracted text is held only as a Python str inside the event payload.
       • NEVER written to disk, NEVER printed in logs.
       • Logs contain only counts and timing — no content.
-      • Sensitive windows (banking app passwords, system dialogs) can be
-        blocked via WINDOW_TITLE_DENYLIST.
-
-Architectural references:
-  §1, §8.8   Decision 8 — Tier 0 needs text fast and free.
-  §12 Step 6 — wires this scanner into the orchestrator.
-  §14.3      Demo budget — keeping scans well under 30 ms protects the
-              event loop's responsiveness for ASR/Qwen handlers.
-  §17.5      Never log raw screen text.
-  §17.6      Local-only — UIA is purely on-device.
+      • Sensitive windows (password managers, credential dialogs, OS lock
+        screens) are blocked via WINDOW_TITLE_DENYLIST.
 """
 
 from __future__ import annotations
@@ -72,16 +51,16 @@ _IS_WINDOWS = sys.platform == "win32"
 
 # ─── Tunables ─────────────────────────────────────────────────────────────────
 
-# Scan cadence. 4 s = roughly one Tier 0 sweep per natural user pause.
-# Too fast → CPU pressure during voice handling; too slow → late detection.
+# Scan cadence. 4 s = roughly one sweep per natural user pause.
+# Too fast → CPU pressure during voice handling; too slow → stale context.
 DEFAULT_SCAN_INTERVAL_S = 4.0
 
 # Soft budget per scan. We don't kill a slow scan mid-flight (UIA traversal
 # isn't safely interruptible), but we log a warning so regressions surface.
 SLOW_SCAN_WARN_MS = 200.0
 
-# Maximum characters per scan we forward to Tier 0. A pathological window
-# (logs viewer, huge document) shouldn't drown the detector or memory.
+# Maximum characters per scan we forward downstream. A pathological window
+# (logs viewer, huge document) shouldn't drown the consumer or memory.
 MAX_FORWARDED_CHARS = 20_000
 
 # Concatenation glue between text fragments — newline keeps regex word
@@ -110,7 +89,7 @@ WINDOW_TITLE_DENYLIST: Set[str] = {
 class ScreenScanPayload:
     """
     Carried as event.data for SCREEN_SCAN_TICK.
-    `text` lives only for the duration of one detector.scan() call.
+    `text` lives only for the duration of one consumer callback.
     """
     text:               str       # concatenated visible text from foreground
     window_title:       str       # for context only; NOT logged
@@ -219,7 +198,7 @@ class ScreenScanner:
         """Single UIA traversal. ALWAYS invoked via asyncio.to_thread."""
         if not _IS_WINDOWS:
             # On Linux/Mac CI: produce empty ticks so the loop is testable
-            # but Tier 0 sees nothing to flag.
+            # but consumers see nothing to act on.
             return ScreenScanPayload(
                 text="", window_title="", captured_at_ms=time.perf_counter() * 1000,
                 elapsed_ms=0.0,
@@ -232,13 +211,23 @@ class ScreenScanner:
             logger.warning("[scanner] UIA load failed: %s", e)
             return None
 
+        # COM must be initialized PER THREAD before any UIA call.
+        # asyncio.to_thread runs this function on an arbitrary worker-pool
+        # thread that has NOT called CoInitialize — calling UIA there raises
+        # [WinError -2147221008] "CoInitialize has not been called" (the
+        # documented crash in the previous project's error log). The
+        # uiautomation library's own thread-init mechanism,
+        # UIAutomationInitializerInThread, calls CoInitializeEx on entry and
+        # CoUninitialize on exit, so every scan is self-contained no matter
+        # which pool thread executes it.
         try:
-            window_title, fragments = self._extract_foreground_text(uia)
+            with uia.UIAutomationInitializerInThread():
+                window_title, fragments = self._extract_foreground_text(uia)
         except Exception as e:
             logger.debug("[scanner] extraction error: %s", e)
             return None
 
-        # Denylist enforcement (§17.5)
+        # Denylist enforcement — never forward text from sensitive windows.
         title_lc = (window_title or "").lower()
         if any(blocked in title_lc for blocked in WINDOW_TITLE_DENYLIST):
             elapsed = (time.perf_counter() - t0) * 1000
@@ -254,7 +243,7 @@ class ScreenScanner:
 
         elapsed_ms = (time.perf_counter() - t0) * 1000
         if elapsed_ms > SLOW_SCAN_WARN_MS:
-            # Log only the duration, not the content (§17.5).
+            # Log only the duration, not the content (privacy rule).
             logger.warning(
                 "[scanner] slow scan: %.1fms (fragments=%d)",
                 elapsed_ms, len(fragments),
