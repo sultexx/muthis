@@ -62,9 +62,11 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `src/muthis/cloud/protocol.py` | ~98 | `CloudReasoner` protocol + the three response events. Zero third-party deps; importable in isolation. |
 | `src/muthis/cloud/claude_agent.py` | ~278 | Quality-path wrapper: `anthropic` SDK streaming, vision payload build, media-type sniffing, LOOK-only tool schemas, Arabic system prompt, TLS warmup, cost annotation. |
 | `tests/cloud/test_claude_agent.py` | ~169 | Fake-session integration test (§15 step 8): asserts event sequence, partial-JSON buffering, cost math, and that no action tool is offered. |
+| `src/muthis/budget.py` | ~229 | Sovereign daily spend gate (Rule 10): UTC-date-keyed `budget.json` ledger, `can_afford` pre-flight + `record_turn` consuming `TurnComplete.cost_usd`, limit from `MUTHIS_DAILY_BUDGET_USD`. Boolean contract, no exceptions. |
+| `tests/test_budget.py` | ~150 | Deterministic budget tests: limit gating, accumulation + persistence, date rollover via injected clock, corrupt-ledger recovery, env-driven limit. |
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
-Planned next (do not create until their build step): `orchestrator.py`, `budget.py`,
+Planned next (do not create until their build step): `orchestrator.py`,
 `activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py`, `stt/elevenlabs_scribe.py`,
 `overlay/sidekick_window.py`, `overlay/rectangle_widget.py`, `vision/screen_capture.py`.
 
