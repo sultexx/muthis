@@ -23,8 +23,10 @@ Blender/YOLO workloads. Everything heavy is cloud.
 ## Architecture
 
 ```
-PTT press → mic capture → STT (ElevenLabs Scribe) → ClaudeAgent.run()
-   → TextDelta stream → ElevenLabs Flash v2.5 TTS (streaming playback)
+PTT press → mic capture (fixed window until the hotkey phase) →
+   STT (ElevenLabs Scribe, language pinned "ar") → ClaudeAgent.run()
+   → TextDelta stream → ElevenLabs Flash v2.5 TTS (buffer-then-speak today;
+     sentence streaming is the follow-up; Gemini TTS = voice-only fallback)
    → ToolCall(highlight_target) → cyan rectangle + Arabic caption (Tk overlay)
    → TurnComplete(usage, cost) → budget.py
 ```
@@ -33,7 +35,8 @@ PTT press → mic capture → STT (ElevenLabs Scribe) → ClaudeAgent.run()
 - **CloudReasoner protocol** (`cloud/protocol.py`): every provider hides behind the same three events —
   `TextDelta`, `ToolCall`, `TurnComplete`. The orchestrator never knows which vendor answered (Law §3.7).
 - **Single-path v1**: Claude only. The speed-path (Gemini) and the router are deferred until the single path
-  is boringly reliable in daily use.
+  is boringly reliable in daily use. The Gemini **TTS voice fallback** (`tts_gemini.py`) is NOT that
+  speed-path — it synthesizes audio only and must never gain text/vision calls.
 - **Keys**: `.env` only, loaded once at process entry before any SDK import (Law §5.1-3). A Cloudflare Worker
   proxy is the planned production key home (Clicky pattern); `MUTHIS_ANTHROPIC_BASE_URL` already supports it.
 
@@ -64,23 +67,34 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `tests/cloud/test_claude_agent.py` | ~169 | Fake-session integration test (§15 step 8): asserts event sequence, partial-JSON buffering, cost math, and that no action tool is offered. |
 | `src/muthis/budget.py` | ~229 | Sovereign daily spend gate (Rule 10): UTC-date-keyed `budget.json` ledger, `can_afford` pre-flight + `record_turn` consuming `TurnComplete.cost_usd`, limit from `MUTHIS_DAILY_BUDGET_USD`. Boolean contract, no exceptions. |
 | `tests/test_budget.py` | ~150 | Deterministic budget tests: limit gating, accumulation + persistence, date rollover via injected clock, corrupt-ledger recovery, env-driven limit. |
-| `src/muthis/orchestrator.py` | ~295 | The heart: owns the loop, queue, history, 90 s session bound. Stubbed pipeline — budget gate before EVERY provider call, TextDelta→TTS, highlight_target→overlay (LOOK-only enforced), request_screen_refresh answered via tool_result follow-up. |
-| `src/muthis/stubs.py` | ~44 | Canned default deps (stt/tts/screen_capture/overlay) for the stub-first build; each deleted as its real component lands. |
+| `src/muthis/orchestrator.py` | ~297 | The heart: owns the loop, queue, history, 90 s session bound. Budget gate before EVERY provider call; handle_activation: mic→STT→run_turn with Arabic-spoken early aborts; buffered TextDelta→TTS per message; highlight_target→overlay (LOOK-only enforced); request_screen_refresh answered via tool_result follow-up. |
+| `src/muthis/turn.py` | ~57 | TurnResult + injected-dependency type aliases (MicFn/SttFn/TtsFn/...) + user-facing Arabic constants. Split from orchestrator under the ≤300-line law; orchestrator re-exports. |
+| `src/muthis/tts.py` | ~291 | The tongue: ElevenLabs Flash v2.5 WebSocket TTS (collect-then-play) cascading to Gemini TTS; `speak()` never raises, returns TTSResult(provider="elevenlabs"\|"gemini"\|"none"). SAPI/pyttsx3 removed. |
+| `src/muthis/tts_gemini.py` | ~112 | Gemini TTS REST voice fallback — VOICE ONLY, never reasoning/vision. stdlib urllib (blocking, run via to_thread), returns 24 kHz PCM. |
+| `src/muthis/stt.py` | ~107 | The ears: ElevenLabs Scribe cloud STT (default `scribe_v2`, language pinned `ar` against Whisper-style code-switching); `transcribe()` never raises, "" on failure; httpx lazy. |
+| `src/muthis/mic.py` | ~87 | Fixed-window mic capture (lazy sounddevice → in-memory WAV 16 kHz mono); interim PTT stand-in until the hotkey phase; `record()` never raises, None on failure. |
+| `src/muthis/stubs.py` | ~58 | Canned default deps (mic/stt/tts/screen_capture/overlay) for the stub-first build; each deleted as its real component lands. |
 | `tests/test_orchestrator.py` | ~215 | Scripted FakeReasoner pipeline tests: end-to-end turn, budget-blocked refusal (provider never called), history growth, refresh follow-up with fresh screenshot. |
+| `tests/test_orchestrator_tts.py` | ~170 | Real-TTS wiring tests: buffer-then-speak exactly once, privacy boundary (no transcript/tool JSON to TTS), spoken budget refusal, turn survives TTS failure. |
+| `tests/test_orchestrator_stt.py` | ~180 | Activation tests: mic→STT→provider wiring, early Arabic-spoken aborts (mic None / empty transcript) with zero provider calls, lazy-import CI safety. |
+| `tests/test_tts_cascade.py` | ~110 | Cascade tests: ElevenLabs failure → Gemini tried; both keys absent → provider="none" no crash; sys.modules sentinels prove SAPI/pyttsx3 never touched. |
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
 Planned next (do not create until their build step):
-`activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py`, `stt/elevenlabs_scribe.py`,
+`activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py` (sentence-streaming playback),
 `overlay/sidekick_window.py`, `overlay/rectangle_widget.py`, `vision/screen_capture.py`.
+(`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent.)
 
 ## Build & Run
 
 ```bash
 # Windows 11, Python 3.11.x venv (separate from the frozen v3.0 SafeGuard venv)
 python -m venv .venv && .venv\Scripts\activate
-pip install "anthropic>=0.40" httpx pydantic python-dotenv pytest pytest-asyncio
+pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio
 
-# .env (never committed): ANTHROPIC_API_KEY=...   optional: MUTHIS_CLAUDE_MODEL, MUTHIS_ANTHROPIC_BASE_URL
+# .env (never committed): ANTHROPIC_API_KEY=...  ELEVENLABS_API_KEY=... (TTS+STT)
+#   GEMINI_API_KEY=... (TTS voice fallback ONLY)
+#   optional: MUTHIS_CLAUDE_MODEL, MUTHIS_ANTHROPIC_BASE_URL, MUTHIS_RECORD_SECONDS
 
 # Tests (no network needed)
 set PYTHONPATH=src && python -m pytest tests/ -q

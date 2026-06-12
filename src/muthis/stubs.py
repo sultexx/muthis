@@ -18,9 +18,21 @@ from .cloud.protocol import ToolCall
 logger = logging.getLogger("muthis.stubs")
 
 
-async def stub_stt() -> str:
-    # STUB — replaced in a later phase (stt/elevenlabs_scribe.py).
-    logger.info("[stub:stt] returning canned Arabic utterance")
+async def stub_mic() -> Optional[bytes]:
+    # STUB default — production injects muthis.mic.Mic().record. Returning
+    # None keeps CI device-free; handle_activation speaks the Arabic
+    # failure line and aborts the turn early.
+    logger.info("[stub:mic] no microphone in stub mode")
+    return None
+
+
+async def stub_stt(audio_wav: bytes) -> str:
+    # Default seam only — production injects muthis.stt.STT().transcribe
+    # (same SttFn shape: WAV bytes in, Arabic text out).
+    logger.info(
+        "[stub:stt] returning canned Arabic utterance (%d audio bytes)",
+        len(audio_wav),
+    )
     return "وين زر الحفظ؟"
 
 
@@ -42,4 +54,5 @@ async def stub_overlay(tool_call: ToolCall) -> None:
                 tool_call.tool_use_id)
 
 
-__all__ = ["stub_stt", "stub_tts", "stub_screen_capture", "stub_overlay"]
+__all__ = ["stub_mic", "stub_stt", "stub_tts", "stub_screen_capture",
+           "stub_overlay"]

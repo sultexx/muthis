@@ -7,14 +7,16 @@ asyncio event loop, the single event queue (Law 3.3), all locks, the session
 lifecycle, and the conversation history. ClaudeAgent.run() is one blind
 provider turn; Budget is an accounting gate; both are only ever *asked*.
 
-STUB-FIRST BUILD: STT, screen capture, and the hotkey are still injected
-stubs. TTS is the first REAL integration — production injects
-tts.TTS().speak (already matches TtsFn; stub→real is a one-line injection
-change at startup) while tests keep injecting fakes. Playback is
+STUB-FIRST BUILD: screen capture and the hotkey are still injected stubs.
+TTS, STT, and mic capture are REAL via injection — production wires
+Orchestrator(mic=Mic().record, stt=STT().transcribe, tts=TTS().speak);
+tests inject fakes through the same seams. handle_activation: mic → STT
+(Scribe, Arabic-pinned) → run_turn, with mic/STT failures spoken in Arabic
+and ending the turn EARLY (no provider call, no budget burn). Playback is
 buffer-then-speak per assistant message (per-delta synthesis would produce
 choppy half-word audio). TODO(follow-up): sentence-by-sentence streaming
-playback — deliberately NOT built in this step. Module stays importable in
-isolation (tts.py imports only stdlib at module level; no SDK imports).
+playback — deliberately NOT built yet. Contracts + TurnResult live in
+turn.py (≤300-line split); this module stays importable in isolation.
 
 Turn pipeline (run_turn), bounded by the 90 s session timeout (audio
 playback included; cancellation closes the provider generator cleanly):
@@ -31,8 +33,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Optional
 
 from .budget import Budget
 from .cloud.protocol import (
@@ -43,8 +44,14 @@ from .cloud.protocol import (
     UserInput,
 )
 # STUB defaults — each is replaced by its real component in a later phase.
-from .stubs import stub_overlay, stub_screen_capture, stub_stt, stub_tts
-from .tts import TTSResult
+from .stubs import stub_mic, stub_overlay, stub_screen_capture, stub_stt, stub_tts
+# Contracts, Arabic surface strings, and TurnResult live in turn.py
+# (≤300-line split); re-exported below so existing imports keep working.
+from .turn import (
+    BUDGET_REFUSAL_AR, MIC_FAILED_AR, NO_SCREENSHOT_TOOL_RESULT_AR,
+    REFRESH_FOLLOWUP_TEXT_AR, STT_EMPTY_AR,
+    MicFn, OverlayFn, ScreenCaptureFn, SttFn, TtsFn, TurnResult,
+)
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -60,34 +67,6 @@ MAX_REFRESH_FOLLOWUPS = 1
 ALLOWED_OVERLAY_TOOL = "highlight_target"
 REFRESH_TOOL = "request_screen_refresh"
 
-# User-facing Arabic — the ONLY Arabic in this module (English logs, §17.5).
-BUDGET_REFUSAL_AR = "عذراً، استهلكنا ميزانية اليوم كاملة. نكمل بكرة إن شاء الله."
-REFRESH_FOLLOWUP_TEXT_AR = "هذه لقطة الشاشة المحدثة."
-NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
-
-
-# ─── Injected dependency signatures ───────────────────────────────────────────
-
-SttFn = Callable[[], Awaitable[str]]
-TtsFn = Callable[[str], Awaitable[Optional[TTSResult]]]  # = tts.TTS.speak
-ScreenCaptureFn = Callable[[], Awaitable[Optional[bytes]]]
-OverlayFn = Callable[[ToolCall], Awaitable[None]]
-
-
-# ─── Turn result ──────────────────────────────────────────────────────────────
-
-@dataclass
-class TurnResult:
-    """Everything the caller needs to know about one completed turn."""
-    spoken_text: str = ""                  # concatenated TextDelta stream
-    tool_calls: list[ToolCall] = field(default_factory=list)  # executed only
-    input_tokens: int = 0                  # summed across follow-ups
-    output_tokens: int = 0
-    cost_usd: float = 0.0
-    budget_blocked: bool = False
-    timed_out: bool = False
-    stop_reason: Optional[str] = None      # last provider stop_reason
-
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
 
@@ -99,6 +78,7 @@ class Orchestrator:
         *,
         reasoner: CloudReasoner,
         budget: Budget,
+        mic: MicFn = stub_mic,
         stt: SttFn = stub_stt,
         tts: TtsFn = stub_tts,
         screen_capture: ScreenCaptureFn = stub_screen_capture,
@@ -107,6 +87,7 @@ class Orchestrator:
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
+        self._mic = mic
         self._stt = stt
         self._tts = tts
         self._screen_capture = screen_capture
@@ -123,9 +104,24 @@ class Orchestrator:
     # ─────────────────────────── Public API ───────────────────────────
 
     async def handle_activation(self) -> TurnResult:
-        """PTT entry point. # STUB — the real Ctrl+Shift+Space listener and
-        mic capture arrive in the activation phase; for now STT is canned."""
-        user_text = await self._stt()
+        """PTT entry point: mic → STT → run_turn. Mic/STT failures are
+        spoken in Arabic and end the turn EARLY — no provider call, no
+        budget burn. The transcript's ONLY consumer is run_turn → Claude;
+        it must never be routed to the TTS (privacy boundary).
+        # STUB — the real Ctrl+Shift+Space listener arrives in the hotkey
+        phase; until then callers invoke this directly."""
+        audio = await self._mic()
+        if not audio:
+            logger.warning("[orchestrator] mic capture failed — turn aborted")
+            await self._speak(MIC_FAILED_AR)
+            return TurnResult()
+
+        user_text = (await self._stt(audio)).strip()
+        if not user_text:
+            logger.warning("[orchestrator] empty transcript — turn aborted")
+            await self._speak(STT_EMPTY_AR)
+            return TurnResult()
+
         return await self.run_turn(user_text)
 
     async def run_turn(self, user_text: str) -> TurnResult:
@@ -297,4 +293,5 @@ class Orchestrator:
 
 
 __all__ = ["Orchestrator", "TurnResult", "BUDGET_REFUSAL_AR",
+           "MIC_FAILED_AR", "STT_EMPTY_AR",
            "SESSION_TIMEOUT_S", "MAX_REFRESH_FOLLOWUPS"]

@@ -1,27 +1,29 @@
 # src/muthis/tts.py
 """
-TTS — text-to-speech for Mut'his v4.1: ElevenLabs WebSocket primary + local
-SAPI fallback.
+TTS — text-to-speech for Mut'his v4.1: ElevenLabs WebSocket primary +
+Gemini TTS cloud fallback (voice fallback only — NOT a reasoning path).
 
 This is the "tongue" of Mut'his — the boundary where the agent's Arabic
-response becomes audible. Everything heavy is cloud (ElevenLabs); the local
-paths exist only so the sidekick can still speak when the network drops.
+response becomes audible. Everything heavy is cloud. The old Windows
+SAPI/pyttsx3 local paths are REMOVED (robotic, no real Arabic); when both
+cloud providers are unavailable the sidekick stays silent and reports
+provider="none" — the orchestrator handles that honestly.
 
 Design contract:
-  - Stateless across calls. API key + voice config are injected at __init__.
+  - Stateless across calls. API keys + voice config are injected at __init__.
   - Uses network + audio output only — zero GPU/VRAM, so it never contends
     with the user's Blender/YOLO workloads and can overlap freely with any
     other pipeline stage.
-  - Blocking audio playback (winsound) and blocking SAPI are wrapped in
-    asyncio.to_thread so the event loop never freezes.
+  - Blocking audio playback (winsound) and the blocking Gemini HTTP call
+    are wrapped in asyncio.to_thread so the event loop never freezes.
   - Never raises from `speak()` — returns TTSResult with a clear success/
     provider field so the orchestrator can react (log, mark "صوت احتياطي",
     etc.) without try/except sprawl.
 
 Resilience cascade:
   Path A : ElevenLabs WebSocket  (low-latency cloud, Arabic-capable model)
-  Path B : Windows SAPI via win32com.client  (offline; Arabic voice if installed)
-  Path C : pyttsx3                            (cross-platform SAPI wrapper)
+  Path B : Gemini TTS REST       (intelligent Arabic voice — VOICE FALLBACK
+                                  ONLY, never reasoning; see tts_gemini.py)
   None   : TTSResult(success=False, provider="none")
 
 Privacy:
@@ -31,9 +33,11 @@ Privacy:
   is the orchestrator's responsibility.
 
 Environment variables (.env is loaded once at process entry, before imports):
-  ELEVENLABS_API_KEY   : required for cloud TTS (absent → local fallback only)
+  ELEVENLABS_API_KEY   : primary cloud TTS (absent → Gemini fallback only)
   ELEVENLABS_VOICE_ID  : optional override (final Arabic voice selection pending)
   ELEVENLABS_MODEL_ID  : optional override (default = eleven_flash_v2_5)
+  GEMINI_API_KEY       : fallback voice (absent → no fallback, provider="none")
+  GEMINI_TTS_MODEL / GEMINI_TTS_VOICE : optional overrides (see tts_gemini.py)
 """
 
 from __future__ import annotations
@@ -47,7 +51,9 @@ import os
 import sys
 import wave
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
+
+from . import tts_gemini
 
 logger = logging.getLogger("tts")
 
@@ -82,7 +88,7 @@ WS_TOTAL_TIMEOUT_SEC   = 30.0
 @dataclass(frozen=True)
 class TTSResult:
     success:  bool
-    provider: str               # "elevenlabs" | "local" | "none"
+    provider: str               # "elevenlabs" | "gemini" | "none"
     error:    Optional[str] = None
 
 
@@ -90,14 +96,16 @@ class TTSResult:
 
 class TTS:
     """
-    Speak text through ElevenLabs WebSocket (primary) or local SAPI
-    (fallback). Stateless beyond config; safe to share across the process.
+    Speak text through ElevenLabs WebSocket (primary) or Gemini TTS REST
+    (voice fallback only — NOT a reasoning path). Stateless beyond config;
+    safe to share across the process.
     """
 
     def __init__(
         self,
         *,
         api_key:        Optional[str]  = None,
+        gemini_api_key: Optional[str]  = None,
         voice_id:       Optional[str]  = None,
         model_id:       Optional[str]  = None,
         output_format:  str            = DEFAULT_OUTPUT_FORMAT,
@@ -105,17 +113,22 @@ class TTS:
         voice_settings: Optional[dict] = None,
     ) -> None:
         # Load via os.getenv — .env was loaded once at process entry.
-        self.api_key       = api_key  or os.getenv("ELEVENLABS_API_KEY")
+        self.api_key        = api_key  or os.getenv("ELEVENLABS_API_KEY")
+        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
         self.voice_id      = voice_id or os.getenv("ELEVENLABS_VOICE_ID") or DEFAULT_VOICE_ID
         self.model_id      = model_id or os.getenv("ELEVENLABS_MODEL_ID") or DEFAULT_MODEL_ID
         self.output_format = output_format
         self.sample_rate   = sample_rate
         self.voice_settings = voice_settings or dict(DEFAULT_VOICE_SETTINGS)
 
-        if not self.api_key:
+        if not self.api_key and not self.gemini_api_key:
             logger.warning(
-                "[TTS] No ELEVENLABS_API_KEY in environment — "
-                "every speak() will use local fallback only."
+                "[TTS] No ELEVENLABS_API_KEY and no GEMINI_API_KEY — "
+                "every speak() will return provider='none'."
+            )
+        elif not self.api_key:
+            logger.warning(
+                "[TTS] No ELEVENLABS_API_KEY — Gemini voice fallback only."
             )
 
     # ─────────────────────────── Public API ───────────────────────────
@@ -129,6 +142,8 @@ class TTS:
         if not text:
             return TTSResult(success=False, provider="none", error="empty text")
 
+        last_error: Optional[str] = None
+
         # ── Path A: ElevenLabs ───────────────────────────────────────
         if self.api_key:
             try:
@@ -136,20 +151,33 @@ class TTS:
                 logger.info("[TTS] ElevenLabs OK (%d chars)", len(text))
                 return TTSResult(success=True, provider="elevenlabs")
             except Exception as e:
+                last_error = f"{type(e).__name__}: {e}"
                 logger.warning(
-                    "[TTS] ElevenLabs failed (%s: %s) — falling back to local.",
-                    type(e).__name__, e,
+                    "[TTS] ElevenLabs failed (%s) — falling back to Gemini.",
+                    last_error,
                 )
                 logger.debug("ElevenLabs error detail", exc_info=True)
 
-        # ── Path B & C: local TTS ────────────────────────────────────
-        try:
-            await self._speak_local(text)
-            logger.info("[TTS] Local TTS OK (%d chars)", len(text))
-            return TTSResult(success=True, provider="local")
-        except Exception as e:
-            logger.error("[TTS] All TTS providers failed: %s", e)
-            return TTSResult(success=False, provider="none", error=str(e))
+        # ── Path B: Gemini TTS (voice fallback only — NOT reasoning) ─
+        if self.gemini_api_key:
+            try:
+                pcm = await asyncio.to_thread(
+                    tts_gemini.synthesize_pcm_blocking, text, self.gemini_api_key,
+                )
+                wav_bytes = self._pcm_to_wav(pcm, tts_gemini.GEMINI_SAMPLE_RATE)
+                await asyncio.to_thread(self._play_wav_blocking, wav_bytes)
+                logger.info("[TTS] Gemini fallback OK (%d chars)", len(text))
+                return TTSResult(success=True, provider="gemini")
+            except Exception as e:
+                last_error = f"{type(e).__name__}: {e}"
+                logger.error("[TTS] Gemini fallback failed (%s)", last_error)
+                logger.debug("Gemini error detail", exc_info=True)
+
+        logger.error("[TTS] No TTS provider available/working.")
+        return TTSResult(
+            success=False, provider="none",
+            error=last_error or "no cloud TTS provider configured",
+        )
 
     # ───────────────────── ElevenLabs WebSocket (Path A) ─────────────────────
 
@@ -221,13 +249,14 @@ class TTS:
         wav_bytes = self._pcm_to_wav(bytes(pcm_buffer))
         await asyncio.to_thread(self._play_wav_blocking, wav_bytes)
 
-    def _pcm_to_wav(self, pcm: bytes) -> bytes:
-        """Wrap raw 16-bit mono PCM in a WAV container (in-memory)."""
+    def _pcm_to_wav(self, pcm: bytes, sample_rate: Optional[int] = None) -> bytes:
+        """Wrap raw 16-bit mono PCM in a WAV container (in-memory).
+        sample_rate: 22050 (ElevenLabs default) or 24000 (Gemini)."""
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)              # 16-bit
-            wf.setframerate(self.sample_rate)
+            wf.setframerate(sample_rate or self.sample_rate)
             wf.writeframes(pcm)
         return buf.getvalue()
 
@@ -255,80 +284,6 @@ class TTS:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-
-    # ───────────────────── Local SAPI fallback (Paths B & C) ─────────────────
-
-    async def _speak_local(self, text: str) -> None:
-        await asyncio.to_thread(self._speak_local_blocking, text)
-
-    def _speak_local_blocking(self, text: str) -> None:
-        """Try SAPI via win32com first (Path B); pyttsx3 as Path C."""
-        last_error: Optional[Exception] = None
-
-        # ── Path B: direct Windows SAPI through COM ──
-        if sys.platform == "win32":
-            try:
-                self._sapi_speak_blocking(text)
-                return
-            except Exception as e:
-                last_error = e
-                logger.debug("SAPI direct failed: %s", e)
-
-        # ── Path C: pyttsx3 (cross-platform SAPI / eSpeak wrapper) ──
-        try:
-            import pyttsx3
-            engine = pyttsx3.init()
-            self._try_set_arabic_voice_pyttsx3(engine)
-            engine.say(text)
-            engine.runAndWait()
-            engine.stop()
-            return
-        except Exception as e:
-            last_error = e
-
-        raise RuntimeError(
-            f"All local TTS engines failed; last error: {last_error}"
-        )
-
-    def _sapi_speak_blocking(self, text: str) -> None:
-        """Windows SAPI via COM. Picks an Arabic voice if one is installed."""
-        import win32com.client
-        speaker = win32com.client.Dispatch("SAPI.SpVoice")
-        self._try_set_arabic_voice_sapi(speaker)
-        speaker.Speak(text)
-
-    @staticmethod
-    def _try_set_arabic_voice_sapi(speaker: Any) -> None:
-        try:
-            voices = speaker.GetVoices()
-            for i in range(voices.Count):
-                voice = voices.Item(i)
-                desc = (voice.GetDescription() or "").lower()
-                if (
-                    "arabic" in desc
-                    or "naayf" in desc
-                    or "hoda"   in desc
-                    or "ar-"    in desc
-                ):
-                    speaker.Voice = voice
-                    return
-        except Exception:
-            pass  # leave default voice
-
-    @staticmethod
-    def _try_set_arabic_voice_pyttsx3(engine: Any) -> None:
-        try:
-            for v in engine.getProperty("voices"):
-                blob = (
-                    str(getattr(v, "id", "")) + " "
-                    + str(getattr(v, "name", ""))
-                ).lower()
-                if "arabic" in blob or "ar-" in blob or "ar_" in blob:
-                    engine.setProperty("voice", v.id)
-                    return
-        except Exception:
-            pass
-
 
 __all__ = [
     "TTS",
