@@ -4,19 +4,20 @@ Manual smoke test — ONE live PTT turn end to end. NEVER run in CI.
 
 Simulates a single push-to-talk press, then drives the REAL pipeline:
     real mic  →  ElevenLabs Scribe STT (Arabic)
+              →  real primary-monitor screen capture (mss + Pillow, DPI-aware)
               →  Claude (claude-sonnet-4-6) WITH the Saudi persona injected
               →  real TTS (ElevenLabs, Gemini voice fallback)
-with screenshot=None (screen capture stays stubbed). You should HEAR مطحس
-answer in Saudi dialect.
+مطحس now SEES the screen each turn. You should HEAR it answer in Saudi dialect.
 
 This is the production composition root in miniature: it resolves the persona
 and injects it through ClaudeAgent's EXISTING system_prompt parameter, then
-wires the Orchestrator with the real mic/STT/TTS seams. Screen capture, the
-overlay, and the hotkey stay as stubs (not wired here).
+wires the Orchestrator with the real mic/STT/TTS/screen-capture seams. The
+overlay and the hotkey stay as stubs (not wired here).
 
-Privacy: the user transcript goes ONLY to Claude. This script never prints it
-(handle_activation does not even return it); it prints مطحس's own reply, the
-tool-call count, token usage, and cost — never the transcript.
+Privacy: the user transcript goes ONLY to Claude, and the screenshot is sent to
+Claude for the turn only — never written to disk. This script never prints the
+transcript (handle_activation does not even return it); it prints مطحس's own
+reply, the tool-call count, token usage, and cost — never the transcript.
 
 Needs in .env:
     ANTHROPIC_API_KEY     (reasoning)
@@ -47,6 +48,7 @@ from muthis.orchestrator import Orchestrator                        # noqa: E402
 from muthis.persona import resolve_system_prompt                    # noqa: E402
 from muthis.stt import STT                                          # noqa: E402
 from muthis.tts import TTS                                          # noqa: E402
+from muthis.vision.screen_capture import ScreenCapture             # noqa: E402
 
 
 async def main() -> None:
@@ -68,10 +70,11 @@ async def main() -> None:
     orchestrator = Orchestrator(
         reasoner=agent,
         budget=budget,
-        mic=mic.record,          # REAL mic
-        stt=STT().transcribe,    # REAL Scribe STT (Arabic-pinned)
-        tts=TTS().speak,         # REAL TTS (ElevenLabs → Gemini fallback)
-        # screen_capture / overlay stay stubs → screenshot=None, no overlay.
+        mic=mic.record,                          # REAL mic
+        stt=STT().transcribe,                    # REAL Scribe STT (Arabic-pinned)
+        tts=TTS().speak,                         # REAL TTS (ElevenLabs → Gemini fallback)
+        screen_capture=ScreenCapture().capture,  # REAL primary-monitor PNG (DPI-aware)
+        # overlay stays a stub → no cyan rectangle drawn yet (overlay phase).
     )
 
     print(f"محاكاة ضغطة PTT — سجّل {mic.record_seconds:.0f} ثوانٍ. تكلّم بالعربية الآن...")

@@ -75,25 +75,29 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `src/muthis/tts_gemini.py` | ~112 | Gemini TTS REST voice fallback — VOICE ONLY, never reasoning/vision. stdlib urllib (blocking, run via to_thread), returns 24 kHz PCM. |
 | `src/muthis/stt.py` | ~107 | The ears: ElevenLabs Scribe cloud STT (default `scribe_v2`, language pinned `ar` against Whisper-style code-switching); `transcribe()` never raises, "" on failure; httpx lazy. |
 | `src/muthis/mic.py` | ~87 | Fixed-window mic capture (lazy sounddevice → in-memory WAV 16 kHz mono); interim PTT stand-in until the hotkey phase; `record()` never raises, None on failure. |
+| `src/muthis/vision/screen_capture.py` | ~157 | The eyes: primary-monitor screenshot → PNG bytes via mss + Pillow, DPI-aware (PER_MONITOR_AWARE_V2) for true physical pixels on scaled Windows 11; lazy imports; blocking grab/encode via asyncio.to_thread; `capture()` never raises, None on failure; pixels never logged or persisted. Injected as `ScreenCapture().capture` at the composition root (constructor default stays the stub). |
 | `src/muthis/stubs.py` | ~58 | Canned default deps (mic/stt/tts/screen_capture/overlay) for the stub-first build; each deleted as its real component lands. |
 | `tests/test_orchestrator.py` | ~215 | Scripted FakeReasoner pipeline tests: end-to-end turn, budget-blocked refusal (provider never called), history growth, refresh follow-up with fresh screenshot. |
 | `tests/test_orchestrator_tts.py` | ~170 | Real-TTS wiring tests: buffer-then-speak exactly once, privacy boundary (no transcript/tool JSON to TTS), spoken budget refusal, turn survives TTS failure. |
 | `tests/test_orchestrator_stt.py` | ~180 | Activation tests: mic→STT→provider wiring, early Arabic-spoken aborts (mic None / empty transcript) with zero provider calls, lazy-import CI safety. |
 | `tests/test_orchestrator_persona.py` | ~155 | Orchestrator-driven wire test: the Saudi persona (NOT LOOK_SYSTEM_PROMPT) is what ClaudeAgent sends as `system=`; screenshot=None carries no image block; LOOK-only tools only; transcript never reaches TTS. SDK stream faked. |
+| `tests/test_screen_capture.py` | ~208 | ScreenCapture unit tests (fakes only, no real screen): faked-mss grab → real-Pillow PNG, primary monitor (not the `[0]` union), DPI awareness pinned at construction, blocking grab offloaded to a worker thread, None on failure (no raise), pixels never written to disk or logged. |
+| `tests/test_screen_capture_wiring.py` | ~146 | Vision through the injected seam: the orchestrator passes the exact captured bytes (not None) into the reasoner, and re-captures + answers request_screen_refresh via assistant_content + a tool_result image; captured bytes never logged during a turn. |
 | `tests/test_tts_cascade.py` | ~110 | Cascade tests: ElevenLabs failure → Gemini tried; both keys absent → provider="none" no crash; sys.modules sentinels prove SAPI/pyttsx3 never touched. |
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
 Planned next (do not create until their build step):
 `activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py` (sentence-streaming playback),
-`overlay/sidekick_window.py`, `overlay/rectangle_widget.py`, `vision/screen_capture.py`.
-(`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent.)
+`overlay/sidekick_window.py`, `overlay/rectangle_widget.py`.
+(`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent;
+`vision/screen_capture.py` landed as a package module under `src/muthis/vision/`.)
 
 ## Build & Run
 
 ```bash
 # Windows 11, Python 3.11.x venv (separate from the frozen v3.0 SafeGuard venv)
 python -m venv .venv && .venv\Scripts\activate
-pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio
+pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio mss pillow
 
 # .env (never committed): ANTHROPIC_API_KEY=...  ELEVENLABS_API_KEY=... (TTS+STT)
 #   GEMINI_API_KEY=... (TTS voice fallback ONLY)
