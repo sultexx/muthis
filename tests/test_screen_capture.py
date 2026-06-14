@@ -206,3 +206,29 @@ async def test_capture_logs_dimensions_not_pixels(monkeypatch, caplog):
     assert encoded not in caplog.text             # no base64 pixels in logs
     assert distinctive.hex() not in caplog.text   # no raw pixels in logs
     assert "captured primary monitor" in caplog.text  # size/timing IS allowed
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# primary_monitor_size(): physical geometry probe (no pixels grabbed)
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def test_primary_monitor_size_returns_physical_dims(monkeypatch):
+    monkeypatch.setattr(screen_capture, "_ensure_process_dpi_awareness", lambda: None)
+    union = {"left": 0, "top": 0, "width": 99, "height": 99}
+    primary = {"left": 0, "top": 0, "width": 1920, "height": 1080}
+    sct = _FakeSct([union, primary], _FakeScreenShot(1, 1, b"\x00\x00\x00\xff"))
+    monkeypatch.setitem(sys.modules, "mss", _FakeMssModule(sct))
+
+    assert screen_capture.primary_monitor_size() == (1920, 1080)
+    assert sct.grabbed == []  # geometry only — NO pixels grabbed
+
+
+def test_primary_monitor_size_none_when_no_primary(monkeypatch):
+    monkeypatch.setattr(screen_capture, "_ensure_process_dpi_awareness", lambda: None)
+    # Only the [0] union present — no physical monitor at index 1.
+    sct = _FakeSct([{"left": 0, "top": 0, "width": 10, "height": 10}],
+                   _FakeScreenShot(1, 1, b"\x00\x00\x00\xff"))
+    monkeypatch.setitem(sys.modules, "mss", _FakeMssModule(sct))
+
+    assert screen_capture.primary_monitor_size() is None

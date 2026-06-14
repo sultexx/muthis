@@ -7,9 +7,9 @@ asyncio event loop, the single event queue (Law 3.3), all locks, the session
 lifecycle, and the conversation history. ClaudeAgent.run() is one blind
 provider turn; Budget is an accounting gate; both are only ever *asked*.
 
-STUB-FIRST BUILD: screen capture and the hotkey are still injected stubs.
-TTS, STT, and mic capture are REAL via injection — production wires
-Orchestrator(mic=Mic().record, stt=STT().transcribe, tts=TTS().speak);
+STUB-FIRST BUILD: the hotkey is the last injected stub. Mic, STT, TTS, screen
+capture, downscale, and the cyan-rectangle overlay are REAL via injection —
+production wires Orchestrator(mic=Mic().record, ..., overlay=SidekickOverlay());
 tests inject fakes through the same seams. handle_activation: mic → STT
 (Scribe, Arabic-pinned) → run_turn, with mic/STT failures spoken in Arabic
 and ending the turn EARLY (no provider call, no budget burn). Playback is
@@ -22,7 +22,8 @@ Turn pipeline (run_turn), bounded by the 90 s session timeout (audio
 playback included; cancellation closes the provider generator cleanly):
     budget.can_afford() BEFORE every provider call (Rule 10)
     → reasoner.run() → TextDelta accumulated into the message buffer;
-      highlight_target → overlay (LOOK-only — nothing else ever reaches it);
+      highlight_target → coords scaled sent→physical → overlay.show (LOOK-only,
+        nothing else reaches it; the overlay is hidden before each capture);
       request_screen_refresh → answered with a tool_result + fresh screenshot
     → TurnComplete → budget.record_turn(), speak the buffered message via
       the injected TTS, history grows.
@@ -31,7 +32,6 @@ playback included; cancellation closes the provider generator cleanly):
 from __future__ import annotations
 
 import asyncio
-import base64
 import logging
 from typing import Any, Optional
 
@@ -44,13 +44,15 @@ from .cloud.protocol import (
     UserInput,
 )
 # STUB defaults — each is replaced by its real component in a later phase.
-from .stubs import stub_mic, stub_overlay, stub_screen_capture, stub_stt, stub_tts
-# Contracts, Arabic surface strings, and TurnResult live in turn.py
-# (≤300-line split); re-exported below so existing imports keep working.
+from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
+                    stub_stt, stub_tts)
+# Contracts, Arabic surface strings, TurnResult, and the refresh tool_result
+# builder live in turn.py (≤300-line split); re-exported below so existing
+# imports keep working.
 from .turn import (
-    BUDGET_REFUSAL_AR, MIC_FAILED_AR, NO_SCREENSHOT_TOOL_RESULT_AR,
-    REFRESH_FOLLOWUP_TEXT_AR, STT_EMPTY_AR,
-    MicFn, OverlayFn, ScreenCaptureFn, SttFn, TtsFn, TurnResult,
+    BUDGET_REFUSAL_AR, MIC_FAILED_AR, REFRESH_FOLLOWUP_TEXT_AR, STT_EMPTY_AR,
+    DownscaleFn, MicFn, Overlay, ScreenCaptureFn, SttFn, TtsFn, TurnResult,
+    build_refresh_tool_result, scale_bbox_to_physical,
 )
 
 logger = logging.getLogger("muthis.orchestrator")
@@ -67,6 +69,10 @@ MAX_REFRESH_FOLLOWUPS = 1
 ALLOWED_OVERLAY_TOOL = "highlight_target"
 REFRESH_TOOL = "request_screen_refresh"
 
+# Hide our rectangle, then yield this long before grabbing so the Tk thread has
+# cleared it — Claude never sees a ghost of the previous highlight. 50 ms is ample.
+OVERLAY_SETTLE_S = 0.05
+
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
 
@@ -82,7 +88,8 @@ class Orchestrator:
         stt: SttFn = stub_stt,
         tts: TtsFn = stub_tts,
         screen_capture: ScreenCaptureFn = stub_screen_capture,
-        overlay: OverlayFn = stub_overlay,
+        downscale: DownscaleFn = stub_downscale,
+        overlay: Overlay = stub_overlay,
         session_timeout_s: float = SESSION_TIMEOUT_S,
     ) -> None:
         self._reasoner = reasoner
@@ -91,6 +98,7 @@ class Orchestrator:
         self._stt = stt
         self._tts = tts
         self._screen_capture = screen_capture
+        self._downscale = downscale
         self._overlay = overlay
         self._session_timeout_s = session_timeout_s
 
@@ -143,7 +151,7 @@ class Orchestrator:
 
     async def _run_turn_pipeline(self, user_text: str, result: TurnResult) -> None:
         user_input = UserInput(text=user_text)
-        screenshot = await self._screen_capture()
+        screenshot = await self._capture_downscaled(result)
         followups_left = MAX_REFRESH_FOLLOWUPS
 
         while True:
@@ -180,10 +188,10 @@ class Orchestrator:
                 return
             followups_left -= 1
 
-            # Answer request_screen_refresh: tool_result + FRESH screenshot,
-            # then one more gated provider turn.
-            fresh = await self._screen_capture()
-            self.history.append(self._build_refresh_tool_result(refresh_call, fresh))
+            # Answer request_screen_refresh: tool_result + FRESH (downscaled)
+            # screenshot, then one more gated provider turn.
+            fresh = await self._capture_downscaled(result)
+            self.history.append(build_refresh_tool_result(refresh_call, fresh))
             user_input = UserInput(text=REFRESH_FOLLOWUP_TEXT_AR)
             screenshot = None  # the fresh image rides inside the tool_result
 
@@ -207,7 +215,10 @@ class Orchestrator:
             elif isinstance(event, ToolCall):
                 if event.name == ALLOWED_OVERLAY_TOOL:
                     result.tool_calls.append(event)
-                    await self._overlay(event)
+                    # Scale sent→physical HERE; the overlay never rescales.
+                    bbox = scale_bbox_to_physical(
+                        event.args, result.scale_x, result.scale_y)
+                    await self._overlay.show(bbox, event.args.get("label_ar", ""))
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
@@ -261,37 +272,23 @@ class Orchestrator:
         )
         await self._speak(BUDGET_REFUSAL_AR)
 
-    @staticmethod
-    def _build_refresh_tool_result(
-        refresh_call: ToolCall,
-        screenshot: Optional[bytes],
-    ) -> dict[str, Any]:
-        """User message carrying the tool_result for request_screen_refresh."""
-        if screenshot:
-            # Minimal PNG/JPEG sniff — NOT imported from claude_agent, which
-            # pulls in the SDK stack (this module stays importable alone).
-            media_type = ("image/png" if screenshot[:4] == b"\x89PNG"
-                          else "image/jpeg")
-            inner: list[dict[str, Any]] = [{
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": base64.standard_b64encode(screenshot).decode("ascii"),
-                },
-            }]
-        else:
-            inner = [{"type": "text", "text": NO_SCREENSHOT_TOOL_RESULT_AR}]
-        return {
-            "role": "user",
-            "content": [{
-                "type": "tool_result",
-                "tool_use_id": refresh_call.tool_use_id,
-                "content": inner,
-            }],
-        }
+    async def _capture_downscaled(self, result: TurnResult) -> Optional[bytes]:
+        """Capture physical pixels, then build the downscaled COPY that is the
+        ONLY thing sent to the provider, and record the physical↔sent scale
+        factors on the turn so highlight coords can be mapped back. Physical
+        pixels stay the source of truth; only the COPY leaves here.
+
+        Ghosting fix: hide our rectangle BEFORE every grab — the single
+        chokepoint for the initial capture AND each refresh recapture. Order is
+        load-bearing: hide → settle → capture."""
+        await self._overlay.hide()
+        await asyncio.sleep(OVERLAY_SETTLE_S)
+        sent = await self._downscale(await self._screen_capture())
+        result.sent_width, result.sent_height = sent.sent_width, sent.sent_height
+        result.scale_x, result.scale_y = sent.scale_x, sent.scale_y
+        return sent.sent_bytes
 
 
 __all__ = ["Orchestrator", "TurnResult", "BUDGET_REFUSAL_AR",
            "MIC_FAILED_AR", "STT_EMPTY_AR",
-           "SESSION_TIMEOUT_S", "MAX_REFRESH_FOLLOWUPS"]
+           "SESSION_TIMEOUT_S", "MAX_REFRESH_FOLLOWUPS", "OVERLAY_SETTLE_S"]

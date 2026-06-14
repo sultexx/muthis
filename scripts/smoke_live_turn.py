@@ -11,8 +11,9 @@ Simulates a single push-to-talk press, then drives the REAL pipeline:
 
 This is the production composition root in miniature: it resolves the persona
 and injects it through ClaudeAgent's EXISTING system_prompt parameter, then
-wires the Orchestrator with the real mic/STT/TTS/screen-capture seams. The
-overlay and the hotkey stay as stubs (not wired here).
+wires the Orchestrator with the real mic/STT/TTS/screen-capture/overlay seams.
+Only the hotkey stays a stub (not wired here) — you SEE the cyan rectangle when
+مطحس points, and it is hidden before every screenshot so Claude never sees it.
 
 Privacy: the user transcript goes ONLY to Claude, and the screenshot is sent to
 Claude for the turn only — never written to disk. This script never prints the
@@ -48,14 +49,35 @@ from muthis.orchestrator import Orchestrator                        # noqa: E402
 from muthis.persona import resolve_system_prompt                    # noqa: E402
 from muthis.stt import STT                                          # noqa: E402
 from muthis.tts import TTS                                          # noqa: E402
-from muthis.vision.screen_capture import ScreenCapture             # noqa: E402
+from muthis.vision.downscale import (                               # noqa: E402
+    DEFAULT_VISION_MAX_WIDTH, compute_scale_factors, downscale_to_max_width,
+)
+from muthis.vision.screen_capture import (                          # noqa: E402
+    ScreenCapture, primary_monitor_size,
+)
+from muthis.overlay import SidekickOverlay                          # noqa: E402
 
 
 async def main() -> None:
-    # Resolve the persona and inject it through the existing seam. If the
-    # builder ever returns empty, resolve_system_prompt logs a LOUD English
-    # warning and falls back to LOOK_SYSTEM_PROMPT — watch the log for it.
-    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT)
+    # Size the persona's coordinate space ONCE at startup: probe the primary
+    # monitor's physical resolution (geometry only — no pixels grabbed) and
+    # derive the EXACT dims of the downscaled COPY that every turn will send.
+    # The resolution is static for the session, so these dims never change and
+    # don't need re-injecting per turn. If the probe fails (headless host),
+    # fall back to a 16:9 frame at the configured max width.
+    physical = primary_monitor_size()
+    if physical is not None:
+        sent_width, sent_height, _scale_x, _scale_y = compute_scale_factors(
+            physical[0], physical[1], DEFAULT_VISION_MAX_WIDTH,
+        )
+    else:
+        sent_width = DEFAULT_VISION_MAX_WIDTH
+        sent_height = round(DEFAULT_VISION_MAX_WIDTH * 9 / 16)
+
+    # Resolve the persona (with the sent-image dims) and inject it through the
+    # existing seam. If the builder ever returns empty, resolve_system_prompt
+    # logs a LOUD English warning and falls back to LOOK_SYSTEM_PROMPT.
+    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_width, sent_height)
 
     agent = ClaudeAgent(system_prompt=persona_prompt)  # reads ANTHROPIC_API_KEY
     await agent.warm_up_tls()  # optional: warm the TLS session before the call
@@ -67,6 +89,7 @@ async def main() -> None:
         return
 
     mic = Mic()
+    overlay = SidekickOverlay()                  # REAL cyan rectangle (DPI-aware, click-through)
     orchestrator = Orchestrator(
         reasoner=agent,
         budget=budget,
@@ -74,7 +97,8 @@ async def main() -> None:
         stt=STT().transcribe,                    # REAL Scribe STT (Arabic-pinned)
         tts=TTS().speak,                         # REAL TTS (ElevenLabs → Gemini fallback)
         screen_capture=ScreenCapture().capture,  # REAL primary-monitor PNG (DPI-aware)
-        # overlay stays a stub → no cyan rectangle drawn yet (overlay phase).
+        downscale=downscale_to_max_width,        # REAL payload COPY (≤ max width)
+        overlay=overlay,                         # REAL overlay (hidden before each capture)
     )
 
     print(f"محاكاة ضغطة PTT — سجّل {mic.record_seconds:.0f} ثوانٍ. تكلّم بالعربية الآن...")
@@ -93,6 +117,13 @@ async def main() -> None:
     print(f"التكلفة: {result.cost_usd:.6f} USD | المتبقي اليوم: {budget.remaining_usd():.4f} USD")
     print(f"انتهت بسبب timeout؟ {result.timed_out}")
 
+    if result.tool_calls:
+        # Keep the cyan rectangle on screen briefly so you can SEE where مطحس
+        # pointed before we tear the overlay down.
+        print("المستطيل معروض الآن — انظر للشاشة... (3 ثوانٍ)")
+        await asyncio.sleep(3.0)
+
+    overlay.close()       # stop the overlay's Tk thread
     await agent.aclose()  # release the shared httpx client (composition root owns shutdown)
 
 

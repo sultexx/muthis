@@ -36,6 +36,7 @@ from muthis.tts import TTSResult
 
 USER_TEXT_AR = "وين زر الـ Sketch في Fusion؟"
 ASSISTANT_TEXT_AR = "أبشر، زر Sketch فوق"
+SENT_W, SENT_H = 1280, 720  # sent-image dims injected into the persona
 
 
 # ──────────────────────── Fake SDK stream plumbing ────────────────────────
@@ -105,7 +106,7 @@ class FakeTTS:
 async def test_saudi_persona_reaches_claude_system_param(tmp_path):
     # Production wiring: resolve the persona, hand it to ClaudeAgent through
     # the EXISTING system_prompt seam (claude_agent.py untouched).
-    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT)
+    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT, SENT_W, SENT_H)
     agent = ClaudeAgent(api_key="test-key", system_prompt=persona_prompt)
 
     captured: dict = {}
@@ -136,7 +137,7 @@ async def test_saudi_persona_reaches_claude_system_param(tmp_path):
         result = await orchestrator.run_turn(USER_TEXT_AR)
 
     # ── The point of the test: the Saudi persona is what Claude received ──
-    assert captured["system"] == build_saudi_persona_prompt()
+    assert captured["system"] == build_saudi_persona_prompt(SENT_W, SENT_H)
     assert captured["system"] != LOOK_SYSTEM_PROMPT       # not the MSA fallback
     for marker in ("أبشر", "طال عمرك", "وشلونك", "عاد"):
         assert marker in captured["system"]

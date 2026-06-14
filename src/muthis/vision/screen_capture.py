@@ -154,4 +154,32 @@ class ScreenCapture:
         return buffer.getvalue()
 
 
-__all__ = ["ScreenCapture"]
+def primary_monitor_size(
+    monitor_index: int = PRIMARY_MONITOR_INDEX,
+) -> Optional[tuple[int, int]]:
+    """Return the primary monitor's TRUE physical (width, height) in pixels, or
+    None if unavailable. Geometry only — grabs NO pixels (privacy-trivial), so
+    the composition root can size the persona's coordinate space ONCE at startup
+    (the primary-monitor resolution is static for the session) without a full
+    capture. DPI awareness is pinned first so the size is physical, matching
+    capture() and the later overlay draw space. Never raises — None on failure.
+    """
+    _ensure_process_dpi_awareness()
+    try:
+        import mss  # lazy: importable in isolation; only the real path needs it
+
+        with mss.mss() as sct:
+            monitors = sct.monitors
+            if monitor_index >= len(monitors):
+                logger.warning(
+                    "[vision] no monitor at index %d for size probe", monitor_index,
+                )
+                return None
+            monitor = monitors[monitor_index]
+            return int(monitor["width"]), int(monitor["height"])
+    except Exception as exc:  # noqa: BLE001 — a startup probe must never raise
+        logger.warning("[vision] monitor size probe failed (%s)", type(exc).__name__)
+        return None
+
+
+__all__ = ["ScreenCapture", "primary_monitor_size"]

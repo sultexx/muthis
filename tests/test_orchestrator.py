@@ -41,21 +41,32 @@ class FakeReasoner:
 
 
 class Recorder:
-    """Async stub bundle that records everything routed through it."""
+    """Async stub bundle that records everything routed through it. Doubles as
+    the Overlay seam (show/hide) — the orchestrator injects the recorder itself
+    as `overlay=`, plus its tts/screen_capture bound methods as the other seams."""
 
     def __init__(self):
         self.spoken = []        # every text chunk handed to TTS
-        self.highlights = []    # every ToolCall handed to the overlay
+        self.shows = []         # (bbox, label_ar) per overlay.show — ALREADY physical
+        self.hides = 0          # overlay.hide() count
         self.captures = 0       # screen_capture invocations
+        self.events = []        # ordered "hide"/"capture"/"show" for ghosting checks
 
     async def tts(self, text):
         self.spoken.append(text)
 
-    async def overlay(self, tool_call):
-        self.highlights.append(tool_call)
+    # ── Overlay protocol (show/hide); bbox arrives ALREADY physical ──
+    async def show(self, bbox, label_ar):
+        self.shows.append((bbox, label_ar))
+        self.events.append("show")
+
+    async def hide(self):
+        self.hides += 1
+        self.events.append("hide")
 
     async def screen_capture(self):
         self.captures += 1
+        self.events.append("capture")
         return PNG_BYTES
 
 
@@ -90,7 +101,7 @@ def _orchestrator(tmp_path, scripts, daily_limit_usd=1.0):
         reasoner=reasoner,
         budget=budget,
         tts=recorder.tts,
-        overlay=recorder.overlay,
+        overlay=recorder,
         screen_capture=recorder.screen_capture,
     )
     return orchestrator, reasoner, budget, recorder
@@ -118,8 +129,9 @@ async def test_normal_turn_flows_end_to_end(tmp_path):
     assert recorder.spoken == ["زر الحفظ فوق يسار"]
     assert result.spoken_text == "زر الحفظ فوق يسار"
 
-    # highlight_target reached the overlay stub — and nothing else did.
-    assert [c.name for c in recorder.highlights] == ["highlight_target"]
+    # highlight_target reached the overlay as ALREADY-PHYSICAL coords. The
+    # default downscale stub is identity (scale 1.0), so the bbox is unchanged.
+    assert recorder.shows == [((10, 20, 110, 60), "زر الحفظ")]
     assert result.tool_calls[0].args["label_ar"] == "زر الحفظ"
 
     # budget.record_turn consumed the exact provider cost.
@@ -146,7 +158,7 @@ async def test_budget_blocked_turn_never_calls_provider(tmp_path):
     assert result.budget_blocked
     assert reasoner.calls == []                  # provider NEVER touched
     assert recorder.spoken == [BUDGET_REFUSAL_AR]  # Arabic refusal spoken
-    assert recorder.highlights == []
+    assert recorder.shows == []                  # no rectangle drawn
     assert orchestrator.history == []            # a refused turn leaves no trace
     assert result.cost_usd == 0.0
 
@@ -217,6 +229,7 @@ async def test_request_screen_refresh_triggers_follow_up(tmp_path):
     assert image_source["media_type"] == "image/png"
     assert base64.standard_b64decode(image_source["data"]) == PNG_BYTES
 
-    # The refresh tool stayed internal — the overlay saw only the highlight.
-    assert [c.name for c in recorder.highlights] == ["highlight_target"]
+    # The refresh tool stayed internal — the overlay saw only the highlight
+    # (physical coords; identity downscale stub leaves the bbox unchanged).
+    assert recorder.shows == [((10, 20, 110, 60), "زر الحفظ")]
     assert result.spoken_text == "زر الحفظ هنا"

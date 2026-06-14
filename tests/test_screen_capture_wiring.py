@@ -52,8 +52,15 @@ async def _silent_tts(text):
     return None
 
 
-async def _silent_overlay(tool_call):
-    return None
+class _SilentOverlay:
+    """Overlay protocol double that does nothing — these tests pin the screen-
+    capture wiring, not the overlay."""
+
+    async def show(self, bbox, label_ar):
+        return None
+
+    async def hide(self):
+        return None
 
 
 def _turn_complete(cost_usd=0.001, stop_reason="end_turn", assistant_content=None):
@@ -75,7 +82,7 @@ def _orchestrator(tmp_path, scripts, capture):
         reasoner=reasoner,
         budget=budget,
         tts=_silent_tts,
-        overlay=_silent_overlay,
+        overlay=_SilentOverlay(),
         screen_capture=capture.capture,
     )
     return orchestrator, reasoner
