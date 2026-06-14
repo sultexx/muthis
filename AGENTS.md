@@ -8,7 +8,8 @@
 
 ## Overview
 
-Arabic-first voice sidekick for Windows 11. The user presses **Ctrl+Shift+Space** (push-to-talk), speaks Arabic,
+Arabic-first voice sidekick for Windows 11. The user presses the **push-to-talk hotkey** (default **F9**,
+configurable via `MUTHIS_HOTKEY`), speaks Arabic,
 and Mut'his answers with streamed Arabic speech (ElevenLabs) while pointing at on-screen UI elements with a
 **cyan rectangle overlay**. Reasoning + vision: **Claude Sonnet** (`claude-sonnet-4-6`) via the official
 `anthropic` SDK with SSE streaming.
@@ -80,6 +81,10 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `src/muthis/overlay/__init__.py` | ~20 | Overlay package root: exports `SidekickOverlay`. DRAW-ONLY (never moves mouse / clicks / types); tkinter/ctypes load lazily on the Tk thread so importing the package — and the orchestrator — stays headless-safe. |
 | `src/muthis/overlay/sidekick_window.py` | ~190 | `SidekickOverlay` — the real Win11 cyan rectangle: own daemon Tk thread (§11.5), commands via queue.Queue (show/hide never block the asyncio loop), per-monitor-v2 DPI awareness so PHYSICAL coords land 1:1 on scaled displays, click-through / no-activate ex-styles (WS_EX_LAYERED\|TRANSPARENT\|NOACTIVATE\|TOOLWINDOW) + a transparentcolor key. Resilient: show/hide/close never raise; failed init → no-op. Implements the turn.Overlay protocol. |
 | `src/muthis/overlay/rectangle_widget.py` | ~81 | Pure VIEW on the Tk thread: draws ONE cyan rectangle (unfilled, so the element stays visible) + a short Arabic caption on a dark plate at ALREADY-PHYSICAL coords; `clear()` erases it. Never scales. |
+| `src/muthis/hotkey.py` | ~115 | The activation: global push-to-talk listener (pynput, LISTEN-only → no Win11 elevation). Configurable key (`MUTHIS_HOTKEY`, default `f9`) on its OWN background thread; on press it does the ONLY safe thread→loop crossing — `loop.call_soon_threadsafe(on_activate)` — never a coroutine from the keyboard thread. Owns NO business logic (Law 11): just loop + target key + a thread-safe callback. pynput imported lazily in `start()` (CI/headless-safe). |
+| `src/muthis/main.py` | ~187 | The production composition root + run-forever entry (`python -m muthis.main`). Builds the FULL real graph via the existing DI seams (real mic/STT/TTS-cascade/screen_capture/overlay + ClaudeAgent with the Saudi persona + sovereign Budget), sizes the sent-image coordinate space once, warms TLS once, registers the hotkey, runs until Ctrl+C. `ActivationController` owns the `is_processing` guard (Orchestrator stays untouched): overlapping presses are dropped; the flag is reset in a `finally` so a turn that RAISES never wedges F9. Clean shutdown: stop listener → close overlay → `agent.aclose()`. `.env` loaded first (Law 5.1). |
+| `tests/test_hotkey.py` | ~91 | Bridge tests (fakes only, no real keyboard): a matching press schedules via a FakeLoop's `call_soon_threadsafe` (never a direct call), non-matching keys are ignored, the configurable char hotkey matches case-insensitively, and constructing/handling a press loads no pynput backend (lazy-import CI safety). |
+| `tests/test_main_activation.py` | ~100 | Concurrency-guard tests (fakes only): a second activation is dropped while `is_processing` is True, the flag clears and activation works again after a turn completes, and a turn that RAISES still resets the flag in `finally` so activation recovers. |
 | `src/muthis/stubs.py` | ~82 | Canned default deps (mic/stt/tts/screen_capture/downscale/overlay) for the stub-first build; each replaced by its real component via injection at the composition root. The overlay default is `StubOverlay` (show/hide no-op, logs only); the downscale default is a passthrough (bytes unchanged, identity scale) so CI never decodes an image. |
 | `tests/test_orchestrator.py` | ~235 | Scripted FakeReasoner pipeline tests: end-to-end turn, budget-blocked refusal (provider never called), history growth, refresh follow-up with fresh screenshot. The Recorder doubles as the Overlay seam (show/hide), asserting highlights reach the overlay as physical coords. |
 | `tests/test_overlay_orchestration.py` | ~219 | Overlay step at the orchestrator↔overlay seam (fake overlay, no Tk/screen): sent→physical scale mapping (incl. per-axis scale_x≠scale_y), hide-before-EVERY-capture ordering (initial + refresh), and the LOOK-only boundary (only highlight geometry reaches the overlay; a non-highlight tool is refused). |
@@ -94,8 +99,10 @@ inside the wrapper — history is the orchestrator's (Law 11: wrappers own no li
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
 Planned next (do not create until their build step):
-`activation/hotkey_listener.py`, `tts/elevenlabs_streamer.py` (sentence-streaming playback).
+`tts/elevenlabs_streamer.py` (sentence-streaming playback).
 (`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent;
+the planned `activation/hotkey_listener.py` landed flat as `src/muthis/hotkey.py` with `src/muthis/main.py`
+as its composition root — completing the LOOK phase;
 `vision/screen_capture.py` and the overlay (`overlay/sidekick_window.py` + `overlay/rectangle_widget.py`)
 landed as package modules under `src/muthis/`.)
 
@@ -104,14 +111,19 @@ landed as package modules under `src/muthis/`.)
 ```bash
 # Windows 11, Python 3.11.x venv (separate from the frozen v3.0 SafeGuard venv)
 python -m venv .venv && .venv\Scripts\activate
-pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio mss pillow
+pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio mss pillow "pynput==1.7.7"
 
 # .env (never committed): ANTHROPIC_API_KEY=...  ELEVENLABS_API_KEY=... (TTS+STT)
 #   GEMINI_API_KEY=... (TTS voice fallback ONLY)
-#   optional: MUTHIS_CLAUDE_MODEL, MUTHIS_ANTHROPIC_BASE_URL, MUTHIS_RECORD_SECONDS
+#   optional: MUTHIS_CLAUDE_MODEL, MUTHIS_ANTHROPIC_BASE_URL, MUTHIS_RECORD_SECONDS,
+#             MUTHIS_HOTKEY (push-to-talk key, default "f9")
 
 # Tests (no network needed)
 set PYTHONPATH=src && python -m pytest tests/ -q
+
+# Run Mut'his — the live hands-free app (LOOK phase). Idles until you press the
+# hotkey (default F9), then runs ONE full real turn; Ctrl+C to quit.
+set PYTHONPATH=src && python -m muthis.main
 ```
 
 Smoke-test the pinned model string against the live API within 24 h of starting real integration
