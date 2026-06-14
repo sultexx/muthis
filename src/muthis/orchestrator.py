@@ -54,6 +54,7 @@ from .turn import (
     DownscaleFn, MicFn, Overlay, ScreenCaptureFn, SttFn, TtsFn, TurnResult,
     build_refresh_tool_result, scale_bbox_to_physical,
 )
+from .overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -91,6 +92,7 @@ class Orchestrator:
         downscale: DownscaleFn = stub_downscale,
         overlay: Overlay = stub_overlay,
         session_timeout_s: float = SESSION_TIMEOUT_S,
+        overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -101,6 +103,7 @@ class Orchestrator:
         self._downscale = downscale
         self._overlay = overlay
         self._session_timeout_s = session_timeout_s
+        self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
 
         # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
@@ -219,6 +222,7 @@ class Orchestrator:
                     bbox = scale_bbox_to_physical(
                         event.args, result.scale_x, result.scale_y)
                     await self._overlay.show(bbox, event.args.get("label_ar", ""))
+                    self._auto_hide.schedule()  # arm auto-hide (cancel-and-replace)
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
@@ -281,6 +285,7 @@ class Orchestrator:
         Ghosting fix: hide our rectangle BEFORE every grab — the single
         chokepoint for the initial capture AND each refresh recapture. Order is
         load-bearing: hide → settle → capture."""
+        self._auto_hide.cancel()  # drop any stale auto-hide before the explicit hide
         await self._overlay.hide()
         await asyncio.sleep(OVERLAY_SETTLE_S)
         sent = await self._downscale(await self._screen_capture())

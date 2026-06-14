@@ -48,6 +48,13 @@ GENERAL_PURPOSE_MARKERS = ["VS Code", "الويب", "الملفات"]
 # Action tools that LOOK-only forbids — none may even be NAMED in the prompt.
 FORBIDDEN_ACTION_TOOLS = ["type_text", "press_hotkey", "real_click", "set_trust_mode"]
 
+# Intent-aware tool guidance: the three rules the prompt must spell out so مطحس
+# points only when asked WHERE, speaks only when asked to EXPLAIN, and does both
+# when asked for both. Exact clauses (asserted verbatim).
+WHERE_RULE = "أشّر على مكانه عبر highlight_target"            # WHERE → point
+EXPLAIN_RULE = "جاوب بالكلام فقط ولا تستخدم highlight_target"  # EXPLAIN → speak only
+BOTH_RULE = "سوِّ الاثنين: أشّر عبر highlight_target واشرح بصوتك"  # BOTH → point AND explain
+
 
 def _prompt() -> str:
     return build_saudi_persona_prompt(SENT_W, SENT_H)
@@ -110,6 +117,18 @@ def test_prompt_is_look_only_and_honest():
     # …and no action-tool name leaks in (LOOK-only hard boundary).
     for tool in FORBIDDEN_ACTION_TOOLS:
         assert tool not in prompt, f"forbidden action tool leaked into prompt: {tool!r}"
+
+
+def test_prompt_has_intent_aware_tool_guidance():
+    prompt = _prompt()
+    # The three intent rules are all present and explicit…
+    assert WHERE_RULE in prompt, "missing WHERE→point rule"
+    assert EXPLAIN_RULE in prompt, "missing EXPLAIN→speak-only rule"
+    assert BOTH_RULE in prompt, "missing BOTH→point-and-explain rule"
+    # …and they COEXIST with the unchanged persona pillars in the same prompt:
+    assert "أبشر" in prompt                      # still casual Saudi dialect
+    assert "بالإنجليزية" in prompt               # UI names still stay English
+    assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
 
 
 # ──────────────────────────── Resolver ────────────────────────────
