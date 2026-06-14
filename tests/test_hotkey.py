@@ -1,11 +1,16 @@
 """
-test_hotkey.py — the thread→loop bridge, with fakes only (no real keyboard).
+test_hotkey.py — the hold/release thread→loop discipline, fakes only (no real
+keyboard).
 
-The single property under test: a hotkey press must be handed to the asyncio
-loop via call_soon_threadsafe — NEVER run directly on the keyboard thread. We
-drive _handle_press with a plain stand-in key (the same two attributes pynput
-keys expose) and assert the bridge, the key matching, and that importing/using
-the listener pulls in no input backend (pynput stays lazy).
+Two properties under test:
+  * key-DOWN starts recording DIRECTLY on the keyboard thread (on_press is
+    loop-agnostic — it only opens the mic) and is NOT scheduled on the loop;
+  * key-UP is handed to the asyncio loop via call_soon_threadsafe — NEVER run
+    directly on the keyboard thread (scheduling a turn off the loop is illegal).
+Plus: auto-repeat is debounced (one start per physical hold), a release with no
+matching press is ignored, non-target keys are ignored, the configurable char
+hotkey matches case-insensitively, and using the listener pulls in no input
+backend (pynput stays lazy).
 
 Run:  pytest tests/test_hotkey.py -q
 """
@@ -40,39 +45,92 @@ def _char_key(char):
     return SimpleNamespace(char=char)
 
 
-def test_matching_press_bridges_via_call_soon_threadsafe():
-    activated = []
-    loop = FakeLoop()
+def _listener(loop, *, hotkey="f9"):
+    presses, releases = [], []
     listener = HotkeyListener(
-        loop=loop, on_activate=lambda: activated.append(True), hotkey="f9",
+        loop=loop,
+        on_press=lambda: presses.append(True),
+        on_release=lambda: releases.append(True),
+        hotkey=hotkey,
     )
+    return listener, presses, releases
+
+
+def test_press_starts_recording_directly_not_on_loop():
+    loop = FakeLoop()
+    listener, presses, releases = _listener(loop)
 
     listener._handle_press(_special_key("f9"))
 
-    # Scheduled onto the loop exactly once, with the callback itself...
+    # on_press ran on the keyboard thread (it only starts the mic)...
+    assert presses == [True]
+    # ...and a press scheduled NOTHING on the loop.
+    assert loop.scheduled == []
+    assert releases == []
+
+
+def test_release_bridges_via_call_soon_threadsafe():
+    loop = FakeLoop()
+    listener, presses, releases = _listener(loop)
+
+    listener._handle_press(_special_key("f9"))
+    listener._handle_release(_special_key("f9"))
+
+    # The turn is scheduled onto the loop exactly once, with the on_release
+    # callback itself — NEVER invoked directly on the keyboard thread.
     assert len(loop.scheduled) == 1
     callback, args = loop.scheduled[0]
-    assert callback is listener._on_activate and args == ()
-    # ...and NOT invoked directly on the keyboard thread.
-    assert activated == []
+    assert callback is listener._on_release and args == ()
+    assert releases == []   # not called directly on the keyboard thread
 
 
-def test_non_matching_key_does_not_bridge():
+def test_autorepeat_press_starts_recording_once_per_hold():
     loop = FakeLoop()
-    listener = HotkeyListener(loop=loop, on_activate=lambda: None, hotkey="f9")
+    listener, presses, _releases = _listener(loop)
 
-    listener._handle_press(_special_key("f8"))
+    # pynput fires on_press repeatedly while the key is held — debounce it.
+    listener._handle_press(_special_key("f9"))
+    listener._handle_press(_special_key("f9"))
+    listener._handle_press(_special_key("f9"))
+
+    assert presses == [True]                 # exactly one start for the hold
+    listener._handle_release(_special_key("f9"))
+    assert len(loop.scheduled) == 1          # one turn for the hold
+
+    # A fresh hold works again.
+    listener._handle_press(_special_key("f9"))
+    assert presses == [True, True]
+
+
+def test_release_without_press_is_ignored():
+    loop = FakeLoop()
+    listener, presses, _releases = _listener(loop)
+
+    listener._handle_release(_special_key("f9"))   # spurious release
 
     assert loop.scheduled == []
+    assert presses == []
 
 
-def test_configurable_char_hotkey_matches():
+def test_non_matching_key_does_nothing():
     loop = FakeLoop()
-    listener = HotkeyListener(loop=loop, on_activate=lambda: None, hotkey="K")
+    listener, presses, releases = _listener(loop)
 
-    # Case-insensitive: configured "K" matches a "k" KeyCode press.
+    listener._handle_press(_special_key("f8"))
+    listener._handle_release(_special_key("f8"))
+
+    assert presses == [] and releases == [] and loop.scheduled == []
+
+
+def test_configurable_char_hotkey_matches_case_insensitively():
+    loop = FakeLoop()
+    listener, presses, _releases = _listener(loop, hotkey="K")
+
+    # Case-insensitive: configured "K" matches a "k" KeyCode press/release.
     listener._handle_press(_char_key("k"))
+    listener._handle_release(_char_key("k"))
 
+    assert presses == [True]
     assert len(loop.scheduled) == 1
 
 
@@ -80,12 +138,13 @@ def test_default_hotkey_is_f9():
     assert DEFAULT_HOTKEY == "f9"
 
 
-def test_listener_construction_imports_no_input_backend():
-    """CI safety: building a listener and handling a press loads no pynput —
-    the input backend is touched only inside start(), like mic/stt's lazy
+def test_using_listener_imports_no_input_backend():
+    """CI safety: building a listener and handling press/release loads no pynput
+    — the input backend is touched only inside start(), like mic/stt's lazy
     imports. We never call start() in tests, so no real hook is installed."""
     loop = FakeLoop()
-    listener = HotkeyListener(loop=loop, on_activate=lambda: None, hotkey="f9")
+    listener, _presses, _releases = _listener(loop)
     listener._handle_press(_special_key("f9"))
+    listener._handle_release(_special_key("f9"))
 
     assert "pynput" not in sys.modules

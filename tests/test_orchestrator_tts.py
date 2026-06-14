@@ -7,6 +7,10 @@ is the same one production uses: Orchestrator(..., tts=TTS().speak).
 
 Covers:
   - one assistant message → exactly one speak() with the full TextDelta text
+  - THREE separate sentences → ONE speak() with the full concatenated text
+    (the anti-streaming regression guard: streaming would have spoken 3×)
+  - a stream that ends WITHOUT TurnComplete returns promptly — no never-arriving
+    signal to await (the no-hang guard that keeps is_processing releasable)
   - privacy boundary: the TTS never sees the user transcript or tool JSON
   - a budget-blocked turn still speaks the Arabic refusal (provider untouched)
   - a failing TTSResult(success=False, provider="none") never breaks the turn
@@ -15,6 +19,8 @@ Run:  pytest tests/test_orchestrator_tts.py -q
 """
 
 from __future__ import annotations
+
+import asyncio
 
 import pytest
 
@@ -176,3 +182,48 @@ async def test_turn_continues_when_tts_reports_total_failure(tmp_path):
     assert not result.timed_out and not result.budget_blocked
     assert budget.spent_today_usd() == 0.0025
     assert len(orchestrator.history) == 2          # user + assistant recorded
+
+
+@pytest.mark.asyncio
+async def test_three_sentences_reach_tts_in_a_single_call(tmp_path):
+    # The anti-streaming regression guard. Under the (now reverted) sentence-level
+    # streaming, these THREE terminated sentences would have produced THREE speak()
+    # calls. Buffer-then-speak accumulates the whole reply and speaks it ONCE.
+    script = [
+        TextDelta("الجملة الأولى. "),
+        TextDelta("الجملة الثانية؟ "),
+        TextDelta("الجملة الثالثة!"),
+        _turn_complete(),
+    ]
+    fake_tts = FakeTTS()
+    orchestrator, _reasoner, _budget = _orchestrator(
+        tmp_path, [script], fake_tts=fake_tts,
+    )
+
+    result = await orchestrator.run_turn(USER_TEXT_AR)
+
+    full_text = "الجملة الأولى. الجملة الثانية؟ الجملة الثالثة!"
+    assert len(fake_tts.spoken) == 1               # ONE call, NOT three
+    assert fake_tts.spoken == [full_text]          # the full concatenated reply
+    assert fake_tts.spoken[0] == result.spoken_text
+
+
+@pytest.mark.asyncio
+async def test_stream_without_turncomplete_returns_promptly_without_hanging(tmp_path):
+    # The no-hang guard. The reverted streaming path awaited a background consumer
+    # that drained a queue until a None sentinel; a stream dying WITHOUT a
+    # TurnComplete was the exact "never-arriving signal" that could leave the turn
+    # (and thus main's is_processing) wedged. Buffer-then-speak awaits no such task,
+    # so this path returns at once. wait_for turns any regression into a fast
+    # failure instead of a hung test run.
+    script = [TextDelta("رد بدون اكتمال")]  # NO TurnComplete — provider died mid-stream
+    fake_tts = FakeTTS()
+    orchestrator, _reasoner, _budget = _orchestrator(
+        tmp_path, [script], fake_tts=fake_tts,
+    )
+
+    result = await asyncio.wait_for(orchestrator.run_turn(USER_TEXT_AR), timeout=5.0)
+
+    assert result.timed_out is False               # returned normally, NOT via the 90 s bound
+    assert fake_tts.spoken == []                   # death path speaks nothing (no cost, no audio)
+    assert orchestrator.history == []              # nothing recorded on an incomplete turn

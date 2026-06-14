@@ -1,12 +1,13 @@
 # src/muthis/hotkey.py
 """
-hotkey.py — the global push-to-talk activation listener (LOOK phase, final step).
+hotkey.py — the global push-to-talk listener (hold to talk, release to send).
 
-A background keyboard listener that turns a single physical keypress into ONE
-scheduled turn on the asyncio loop — and nothing more. It owns NO business logic
-(Law 11): it knows the loop, the target key, and a thread-safe callback. Mic,
-STT, Claude, TTS, and the overlay are all someone else's job (the composition
-root wires them; this listener never sees them).
+A background keyboard listener that turns a physical HOLD into two signals:
+key-down starts recording, key-up schedules ONE turn on the asyncio loop — and
+nothing more. It owns NO business logic (Law 11): it knows the loop, the target
+key, and two thread-safe callbacks. Mic, STT, Claude, TTS, and the overlay are
+all someone else's job (the composition root wires them; this listener never
+sees them).
 
 Why pynput (listen-only) and not `keyboard`: the `keyboard` library needs an
 elevated (Administrator) process to install a system-wide low-level hook on
@@ -14,14 +15,22 @@ Windows 11. pynput's `keyboard.Listener` reads global key events WITHOUT
 elevation, so Mut'his runs as a normal user process. Trade-off accepted: we only
 LISTEN, we never inject keystrokes (which suits LOOK-only perfectly).
 
-THE ONE SAFE THREAD→LOOP BRIDGE: pynput delivers key events on its OWN
-background thread. asyncio loops are NOT thread-safe — calling a coroutine, or
-`asyncio.create_task`, from the keyboard thread would mutate loop-internal state
-from the wrong thread and corrupt it (RuntimeError / dropped tasks / undefined
-behavior). `loop.call_soon_threadsafe(callback)` is the SINGLE blessed crossing:
-it enqueues the callback on the loop's own thread and wakes the loop safely from
-any thread. So `_handle_press` does exactly that — it schedules, it never runs
-the turn itself.
+TWO callbacks, TWO thread disciplines — both events arrive on pynput's OWN
+background thread:
+  * on_press  → invoked DIRECTLY on the keyboard thread. It only starts the mic
+    (no asyncio), so it needs no loop crossing and we want the LOWEST latency to
+    catch the first syllable.
+  * on_release → invoked via loop.call_soon_threadsafe. It schedules an asyncio
+    task (the turn); asyncio loops are NOT thread-safe, so calling a coroutine
+    or asyncio.create_task from the keyboard thread would mutate loop-internal
+    state from the wrong thread and corrupt it (RuntimeError / dropped tasks /
+    undefined behavior). call_soon_threadsafe is the SINGLE blessed crossing: it
+    enqueues the callback on the loop's own thread and wakes the loop from any
+    thread.
+
+Auto-repeat: while a key is held, pynput fires on_press REPEATEDLY. `_held`
+debounces it so on_press runs exactly once per physical hold, and a release with
+no matching press is ignored.
 
 pynput is imported LAZILY inside start() so importing this module (and building a
 listener) stays headless/CI-safe and triggers no input-device backend.
@@ -56,34 +65,53 @@ def _key_to_name(key: Any) -> Optional[str]:
 
 
 class HotkeyListener:
-    """Background global-key listener. On the configured key it bridges to the
+    """Background global-key listener. Hold the configured key to record, release
+    to send: key-down starts the mic directly, key-up bridges ONE turn onto the
     asyncio loop via call_soon_threadsafe — that is its entire job."""
 
     def __init__(
         self,
         *,
         loop: Any,
-        on_activate: Callable[[], None],
+        on_press: Callable[[], None],
+        on_release: Callable[[], None],
         hotkey: str = DEFAULT_HOTKEY,
     ) -> None:
-        # `loop` is the running asyncio loop; `on_activate` is a PLAIN (sync)
-        # callback that the loop will run on its own thread — never a coroutine.
+        # `loop` is the running asyncio loop. `on_press`/`on_release` are PLAIN
+        # (sync) callbacks — never coroutines. on_press runs on the keyboard
+        # thread; on_release is handed to the loop's thread (see _handle_release).
         self._loop = loop
-        self._on_activate = on_activate
+        self._on_press = on_press
+        self._on_release = on_release
         self._target = hotkey.strip().lower()
-        self._listener: Any = None  # the pynput listener, created in start()
+        self._listener: Any = None   # the pynput listener, created in start()
+        self._held = False           # physical key state; keyboard-thread only
 
     def _handle_press(self, key: Any) -> None:
-        """pynput key-press handler — runs on the KEYBOARD thread.
+        """pynput key-down handler — runs on the KEYBOARD thread.
 
-        It does the bare minimum on this foreign thread: match the key, then
-        hand off to the loop via the one safe bridge. No async, no work here."""
+        Debounce auto-repeat, then start the mic DIRECTLY: this touches no
+        asyncio state, so no loop crossing is needed and latency stays minimal."""
         if _key_to_name(key) != self._target:
             return
-        logger.info("[hotkey] %r pressed — scheduling a turn on the loop", self._target)
-        # The ONLY safe thread→loop crossing. on_activate runs on the loop's
-        # own thread, where create_task is legal.
-        self._loop.call_soon_threadsafe(self._on_activate)
+        if self._held:               # auto-repeat while held — ignore
+            return
+        self._held = True
+        logger.info("[hotkey] %r down — start recording", self._target)
+        self._on_press()
+
+    def _handle_release(self, key: Any) -> None:
+        """pynput key-up handler — runs on the KEYBOARD thread.
+
+        Bridge to the loop via the ONE safe crossing; the scheduled callback
+        launches the turn on the loop's own thread, where create_task is legal."""
+        if _key_to_name(key) != self._target:
+            return
+        if not self._held:           # release with no matching press — ignore
+            return
+        self._held = False
+        logger.info("[hotkey] %r up — scheduling the turn on the loop", self._target)
+        self._loop.call_soon_threadsafe(self._on_release)
 
     def start(self) -> None:
         """Spawn the pynput listener on its own background thread.
@@ -94,10 +122,15 @@ class HotkeyListener:
             return
         from pynput import keyboard  # lazy: input backend touched only at start
 
-        self._listener = keyboard.Listener(on_press=self._handle_press)
+        self._listener = keyboard.Listener(
+            on_press=self._handle_press,
+            on_release=self._handle_release,
+        )
         self._listener.daemon = True  # never block process exit
         self._listener.start()
-        logger.info("[hotkey] listening for %r (global, no elevation)", self._target)
+        logger.info(
+            "[hotkey] listening for %r (hold to talk, release to send)", self._target,
+        )
 
     def stop(self) -> None:
         """Stop the listener thread. Never raises — shutdown must stay clean."""

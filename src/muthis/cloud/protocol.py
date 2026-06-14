@@ -22,7 +22,8 @@ from typing import Any, AsyncIterator, Protocol, runtime_checkable
 
 @dataclass(frozen=True)
 class TextDelta:
-    """A chunk of streamed assistant text. Feed it to the TTS streamer."""
+    """A chunk of streamed assistant text. The orchestrator buffers these and
+    speaks the whole message once at end-of-turn (buffer-then-speak)."""
     text: str
 
 

@@ -98,3 +98,76 @@ async def test_failed_turn_resets_flag_and_activation_recovers():
     await controller._task
     assert orch.calls == 2
     assert controller.is_processing is False
+
+
+# ─── key-DOWN guard: start recording only when truly idle ─────────────────────
+
+class FakeMicControl:
+    """The mic seams the controller drives on key-down: start() opens a hold,
+    is_recording reports it. No audio, no device — just the booleans the guard
+    reads (same shapes production wires as mic.start / lambda: mic.is_recording)."""
+
+    def __init__(self, *, recording=False):
+        self.starts = 0
+        self._recording = recording
+
+    def start(self):
+        self.starts += 1
+        self._recording = True
+
+    @property
+    def is_recording(self):
+        return self._recording
+
+
+def _controller_with_mic(handle_activation, mic):
+    return ActivationController(
+        handle_activation,
+        start_recording=mic.start,
+        is_recording=lambda: mic.is_recording,
+    )
+
+
+@pytest.mark.asyncio
+async def test_press_starts_recording_when_idle():
+    orch = GatedOrchestrator()
+    mic = FakeMicControl()
+    controller = _controller_with_mic(orch.handle_activation, mic)
+
+    controller.on_press()
+
+    assert mic.starts == 1
+    assert orch.calls == 0                  # a press starts NO turn (release does)
+    assert controller.is_processing is False
+
+
+@pytest.mark.asyncio
+async def test_press_while_processing_starts_no_recording_then_recovers():
+    orch = GatedOrchestrator()
+    mic = FakeMicControl()
+    controller = _controller_with_mic(orch.handle_activation, mic)
+
+    controller.on_activate()                # turn 1 in flight
+    await asyncio.sleep(0)
+    assert controller.is_processing is True
+
+    controller.on_press()                   # press DURING the turn — refused
+    assert mic.starts == 0                   # no recording started
+
+    orch.gate.set()
+    await controller._task                   # turn done, flag cleared in finally
+    assert controller.is_processing is False
+
+    controller.on_press()                    # the same key works again afterward
+    assert mic.starts == 1
+
+
+@pytest.mark.asyncio
+async def test_press_while_already_recording_does_not_restart():
+    orch = GatedOrchestrator()
+    mic = FakeMicControl(recording=True)     # a hold is already open
+    controller = _controller_with_mic(orch.handle_activation, mic)
+
+    controller.on_press()                    # auto-repeat / double-down — ignored
+
+    assert mic.starts == 0

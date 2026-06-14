@@ -10,18 +10,27 @@ persona injected, and the sovereign Budget. It sizes the persona's coordinate
 space ONCE at startup, warms TLS once, registers the global F9 hotkey, and then
 runs forever until Ctrl+C — hands-free.
 
-Activation flow, per the design:
-    F9 (keyboard thread) → loop.call_soon_threadsafe(on_activate)
+Activation flow (true push-to-talk: hold to talk, release to send):
+    F9 DOWN (keyboard thread) → controller.on_press(): start the mic stream
+      DIRECTLY on that thread (no loop crossing — it touches no asyncio state),
+      unless a turn is running or a hold is already open.
+    F9 UP   (keyboard thread) → loop.call_soon_threadsafe(controller.on_activate)
       → on_activate (loop thread): guarded by is_processing
         → asyncio.create_task(one full real turn)
-          → orchestrator.handle_activation(): mic → STT → capture → Claude
-            → TTS → overlay
+          → orchestrator.handle_activation(): mic.stop() (flush + return the
+            held audio) → STT → capture → Claude → TTS → overlay
 
-CONCURRENCY: ActivationController owns the is_processing flag (the Orchestrator
-stays clean and untouched). A press while a turn is in flight is logged and
-dropped. The flag is reset in a finally block so a turn that RAISES never
-freezes activation permanently — without it, one failed turn would wedge F9
-until restart.
+mic.stop() IS the orchestrator's mic seam, so the turn's FIRST step ends the
+hold. The stream keeps recording across the release→turn gap, which also closes
+the concurrency window (is_recording stays True until the turn stops it) with no
+extra flag.
+
+CONCURRENCY: ActivationController owns BOTH guards — is_processing (a turn is in
+flight) and, via the injected is_recording predicate, an open hold. A press is
+refused while either is set; a release while a turn runs is dropped. The
+Orchestrator stays clean and untouched. is_processing is reset in a finally so a
+turn that RAISES never freezes activation — without it, one failed turn would
+wedge F9 until restart.
 
 PRIVACY: nothing here logs transcripts, audio, or screenshots. The orchestrator
 keeps the transcript away from the TTS; main only ever prints/loges English
@@ -60,12 +69,25 @@ logger = logging.getLogger("muthis.main")
 # ─── Activation controller (owns the concurrency guard) ────────────────────────
 
 class ActivationController:
-    """Runs on the asyncio loop. Bridges one hotkey signal to exactly one turn,
-    refusing overlaps. Constructed with the orchestrator's handle_activation seam
-    only, so it is testable with a fake — it never touches mic/Claude directly."""
+    """The single activation gate. Runs on the asyncio loop (plus on_press on the
+    keyboard thread): it starts recording on key-down and bridges one key-up to
+    exactly one turn, refusing overlaps on BOTH counts. Constructed with the
+    orchestrator's handle_activation seam plus the mic's start / is_recording
+    seams, so it is fully testable with fakes — it never imports the mic, Claude,
+    or the keyboard."""
 
-    def __init__(self, handle_activation) -> None:
+    def __init__(
+        self,
+        handle_activation,
+        *,
+        start_recording=None,
+        is_recording=None,
+    ) -> None:
         self._handle_activation = handle_activation
+        # Mic seams, injected so the controller stays mic-agnostic and testable.
+        # The defaults keep it usable for turn-only tests (no recording wired).
+        self._start_recording = start_recording or (lambda: None)
+        self._is_recording = is_recording or (lambda: False)
         self._is_processing = False
         # Kept so a clean shutdown (and tests) can await the in-flight turn.
         self._task = None
@@ -74,12 +96,24 @@ class ActivationController:
     def is_processing(self) -> bool:
         return self._is_processing
 
-    def on_activate(self) -> None:
-        """Scheduled via call_soon_threadsafe — therefore runs on the LOOP
-        thread, where asyncio.create_task is legal. Drops the press if a turn is
-        already running; otherwise claims the flag and launches ONE turn."""
+    def on_press(self) -> None:
+        """Key-DOWN. Runs DIRECTLY on the keyboard thread (start_recording only
+        opens the audio stream — no asyncio). Refused while a turn is in progress
+        or a hold is already open; otherwise it starts recording."""
         if self._is_processing:
-            logger.info("[main] hotkey ignored — a turn is already in progress")
+            logger.info("[main] hotkey press ignored — a turn is in progress")
+            return
+        if self._is_recording():
+            return  # auto-repeat / a hold is already open — nothing to do
+        self._start_recording()
+
+    def on_activate(self) -> None:
+        """Key-UP, scheduled via call_soon_threadsafe — therefore runs on the
+        LOOP thread, where asyncio.create_task is legal. Drops the release if a
+        turn is already running; otherwise claims the flag and launches ONE turn
+        (whose first step, mic.stop(), ends the hold and returns the audio)."""
+        if self._is_processing:
+            logger.info("[main] hotkey release ignored — a turn is already in progress")
             return
         self._is_processing = True
         self._task = asyncio.create_task(self._run_one_turn())
@@ -94,6 +128,9 @@ class ActivationController:
             # ESSENTIAL: a turn that raised must still release the guard, or F9
             # stays wedged until restart. finally guarantees the reset.
             self._is_processing = False
+            # Make the lock state observable in muthis_app.log: this line fires on
+            # EVERY turn end (success or failure), pairing with the "ignored" logs.
+            logger.info("[main] turn ended — is_processing reset; F9 ready")
 
 
 # ─── Composition root ──────────────────────────────────────────────────────────
@@ -112,13 +149,17 @@ def _size_sent_image() -> tuple[int, int]:
     return DEFAULT_VISION_MAX_WIDTH, round(DEFAULT_VISION_MAX_WIDTH * 9 / 16)
 
 
-def _build_orchestrator(agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay) -> Orchestrator:
+def _build_orchestrator(
+    agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay, mic_seam,
+) -> Orchestrator:
     """Wire the FULL production graph through the existing DI seams. Tests inject
-    fakes through these very same seams — production just passes the real ones."""
+    fakes through these very same seams — production just passes the real ones.
+    `mic_seam` is Mic().stop: the turn ENDS the hold and gets the audio as its
+    first step (the hotkey already started the stream on key-down)."""
     return Orchestrator(
         reasoner=agent,
         budget=budget,
-        mic=Mic().record,                        # REAL mic
+        mic=mic_seam,                            # REAL mic (Mic().stop — ends the hold)
         stt=STT().transcribe,                    # REAL Scribe STT (Arabic-pinned)
         tts=TTS().speak,                         # REAL TTS cascade (Gemini voice)
         screen_capture=ScreenCapture().capture,  # REAL primary-monitor PNG (DPI-aware)
@@ -146,15 +187,25 @@ async def run() -> None:
         logger.warning("[main] daily budget already exhausted — turns will be refused aloud")
 
     overlay = SidekickOverlay()  # REAL cyan rectangle (DPI-aware, click-through)
-    orchestrator = _build_orchestrator(agent, budget, overlay)
+    mic = Mic()                  # REAL streaming mic (hold to talk, release to send)
+    orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop)
 
-    controller = ActivationController(orchestrator.handle_activation)
+    controller = ActivationController(
+        orchestrator.handle_activation,
+        start_recording=mic.start,                # key-down opens the stream
+        is_recording=lambda: mic.is_recording,    # refuse a second overlapping hold
+    )
     loop = asyncio.get_running_loop()
     hotkey = os.getenv("MUTHIS_HOTKEY", DEFAULT_HOTKEY)
-    listener = HotkeyListener(loop=loop, on_activate=controller.on_activate, hotkey=hotkey)
+    listener = HotkeyListener(
+        loop=loop,
+        on_press=controller.on_press,       # key-down (direct): start recording
+        on_release=controller.on_activate,  # key-up (bridged): run the turn
+        hotkey=hotkey,
+    )
     listener.start()
 
-    print(f"مطحس جاهز. اضغط {hotkey.upper()} وتكلّم بالعربية — مطحس يشوف، يفكّر، يرد، ويأشّر. (Ctrl+C للخروج)")
+    print(f"مطحس جاهز. اضغط مع الاستمرار على {hotkey.upper()} وتكلّم بالعربية، ثم اترك الزر ليرد. (Ctrl+C للخروج)")
 
     # Run forever. KeyboardInterrupt (Ctrl+C) propagates out of the wait and into
     # the finally below, which tears everything down in order.
