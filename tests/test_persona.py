@@ -13,6 +13,14 @@ down the contract the wider system relies on:
   * the EXACT sent-image pixel dimensions are injected (the coordinate space),
   * LOOK-only honesty: it points via highlight_target and NEVER claims it
     clicked / typed / executed — and no action-tool name leaks into the prompt,
+  * dual-action intent (TWO-PASS): a WHERE question points (highlight_target) on
+    pass 1, then explains on the NEXT turn starting with the info (no filler) —
+    pointing never replaces explaining,
+  * verbosity SHORT cap (~40-60 words): concise small-talk, a snappy WHAT/WHY
+    answer (~40-60 words / 3-4 short sentences) when asked to point / explain /
+    analyze, with an explicit offer-to-elaborate — the earlier ~250-word soft cap
+    (and the older 2-3 sentence / ~180-char cap) is GONE,
+  * anti-laziness: a pointing reply never collapses to a bare acknowledgement,
   * resolve_system_prompt uses the persona on the normal path and falls back
     LOUDLY (English warning) only when the builder is empty or raises — and the
     dims clause is appended even on the fallback path.
@@ -48,12 +56,48 @@ GENERAL_PURPOSE_MARKERS = ["VS Code", "الويب", "الملفات"]
 # Action tools that LOOK-only forbids — none may even be NAMED in the prompt.
 FORBIDDEN_ACTION_TOOLS = ["type_text", "press_hotkey", "real_click", "set_trust_mode"]
 
-# Intent-aware tool guidance: the three rules the prompt must spell out so مطحس
-# points only when asked WHERE, speaks only when asked to EXPLAIN, and does both
-# when asked for both. Exact clauses (asserted verbatim).
-WHERE_RULE = "أشّر على مكانه عبر highlight_target"            # WHERE → point
-EXPLAIN_RULE = "جاوب بالكلام فقط ولا تستخدم highlight_target"  # EXPLAIN → speak only
-BOTH_RULE = "سوِّ الاثنين: أشّر عبر highlight_target واشرح بصوتك"  # BOTH → point AND explain
+# Dual-action intent is now TWO-PASS: a WHERE question is answered across two
+# turns — pass 1 points, pass 2 dives straight into the explanation (start with
+# the info, NO filler). An EXPLAIN-only question speaks with no highlight.
+WHERE_RULE = "أشّر على مكانه عبر highlight_target"             # WHERE → still points
+EXPLAIN_RULE = "جاوب بالكلام فقط ولا تستخدم highlight_target"   # EXPLAIN-only → speak only
+TWO_PASS_NEXT_TURN = "في دورك التالي"                          # explain on the NEXT turn
+TWO_PASS_START_WITH_INFO = "ابدأ بالمعلومة"                    # pass 2 starts with the info
+DUAL_ACTION_NOT_ENOUGH = "مجرّد التأشير بدون شرح ما يكفي"       # pointing alone never suffices
+# The OLD single-response wording must be GONE (it conflicted with the two-pass flow).
+REMOVED_SAME_TURN_RULE = "لازم تسوّي الاثنين في نفس الدور"
+
+# PASS 1 is point-ONLY (one job per pass): at most a one/two-word ack then the
+# tool call, and NEVER any screen-narration — the leak that put the explanation
+# into pass 1 and left pass 2 empty. The exact leaked phrases ("أشوف..."/"بأشّر
+# على...") are now NAMED as forbidden examples.
+ONE_JOB_PER_PASS = "ولكلّ دور وظيفة واحدة فقط"
+PASS1_ACK_ONLY = "كلمة أو كلمتين"                       # the one/two-word ack cap
+PASS1_NO_NARRATION = "ممنوع تصف الشاشة"                  # no screen-narration in pass 1
+PASS1_FORBIDDEN_NARRATION = ["أشوف شاشتك", "بأشّر على"]  # the leaked phrases, now forbidden
+
+# Anti-laziness: the explanation turn must never collapse to a bare ack.
+ANTI_LAZINESS_RULE = "ممنوع الكسل"
+ANTI_LAZINESS_PHRASE = "أشرت لك"   # a filler ack the rule now forbids by name
+
+# The verbosity SHORT cap (~40-60 words) REPLACES the earlier ~250-word soft cap:
+# a snappy WHAT/WHY answer (3-4 short sentences) with an explicit offer-to-
+# elaborate when the topic needs more — natural for voice, never a lazy one-liner.
+VERBOSITY_SECTION = "قاعدة الإسهاب — مختصر ومركّز (حوالي 40-60 كلمة)"
+VERBOSITY_SMALLTALK = "في الدردشة العامة والتأكيدات البسيطة"
+SHORT_CAP_TARGET = "في حدود 40-60 كلمة"                # the ~40-60-word target
+WHAT_RULE = "الـ WHAT"                                  # still covers WHAT…
+WHY_RULE = "والـ WHY"                                   # …and WHY
+ELABORATE_OFFER = "أكمّل لك أكثر؟"                      # the explicit offer-to-elaborate
+
+# The earlier ~250-word soft-cap wording is GONE now that the cap is ~40-60 words.
+REMOVED_250_FIGURE = "250"
+REMOVED_OLD_SOFT_SECTION = "كثيف ومفيد بسقف ليّن حوالي 250 كلمة"
+
+# The exact OLD strict-brevity cap strings — these must STILL be absent.
+REMOVED_CAP_BUDGET = "بحدود 180 حرف"
+REMOVED_CAP_SENTENCES = "جملتين أو ثلاث"
+REMOVED_CAP_SECTION = "قاعدة صارمة — الاختصار"
 
 
 def _prompt() -> str:
@@ -119,16 +163,82 @@ def test_prompt_is_look_only_and_honest():
         assert tool not in prompt, f"forbidden action tool leaked into prompt: {tool!r}"
 
 
-def test_prompt_has_intent_aware_tool_guidance():
+def test_prompt_requires_point_then_explain_across_two_passes():
+    # (a) A WHERE question is answered across TWO turns: pass 1 points, pass 2
+    # dives STRAIGHT into the explanation (next turn, start with the info, no
+    # filler). The old single-response "do both in the SAME turn" wording is GONE.
     prompt = _prompt()
-    # The three intent rules are all present and explicit…
-    assert WHERE_RULE in prompt, "missing WHERE→point rule"
-    assert EXPLAIN_RULE in prompt, "missing EXPLAIN→speak-only rule"
-    assert BOTH_RULE in prompt, "missing BOTH→point-and-explain rule"
-    # …and they COEXIST with the unchanged persona pillars in the same prompt:
+    assert WHERE_RULE in prompt, "missing WHERE→point clause"
+    assert TWO_PASS_NEXT_TURN in prompt, "missing the 'explain on your NEXT turn' wording"
+    assert TWO_PASS_START_WITH_INFO in prompt, "missing the 'start with the info' wording"
+    assert DUAL_ACTION_NOT_ENOUGH in prompt, "missing 'pointing alone is not enough'"
+    # The conflicting single-response instruction must NOT survive.
+    assert REMOVED_SAME_TURN_RULE not in prompt, "old single-response wording survived"
+    # The EXPLAIN-only path still exists (speak with no highlight)…
+    assert EXPLAIN_RULE in prompt, "missing EXPLAIN-only→speak clause"
+    # …and the rules COEXIST with the unchanged persona pillars in the same prompt:
     assert "أبشر" in prompt                      # still casual Saudi dialect
     assert "بالإنجليزية" in prompt               # UI names still stay English
     assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+
+
+def test_pass1_is_ack_only_and_forbids_narration():
+    # The dual-action FIX: pass 1 (the pointing turn) is ACK-ONLY — at most a
+    # one/two-word ack then highlight_target, and it must NEVER describe the
+    # screen or narrate the action. This is what stopped the explanation leaking
+    # into pass 1 (which then left the forced-text pass 2 empty).
+    prompt = _prompt()
+    assert ONE_JOB_PER_PASS in prompt, "missing the one-job-per-pass framing"
+    assert PASS1_ACK_ONLY in prompt, "missing the pass-1 one/two-word ack cap"
+    assert PASS1_NO_NARRATION in prompt, "missing the pass-1 no-narration rule"
+    for phrase in PASS1_FORBIDDEN_NARRATION:
+        assert phrase in prompt, f"missing forbidden pass-1 narration example: {phrase!r}"
+    # Pass 2 still owns the explanation (next turn, start with the info); the two
+    # passes never collapse into one response.
+    assert TWO_PASS_NEXT_TURN in prompt and TWO_PASS_START_WITH_INFO in prompt
+    assert REMOVED_SAME_TURN_RULE not in prompt, "old single-response wording survived"
+    # …and it coexists with the unchanged pillars in the SAME prompt:
+    assert "أبشر" in prompt                                      # casual Saudi dialect
+    assert "بالإنجليزية" in prompt                               # UI names stay English
+    assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+
+
+def test_prompt_drops_the_old_brevity_cap():
+    # (c) The old 2-3 sentence / ~180-char strict-brevity cap is GONE — neither
+    # the section header, the sentence count, nor the char budget survive.
+    prompt = _prompt()
+    assert REMOVED_CAP_BUDGET not in prompt, "old ~180-char cap still present"
+    assert REMOVED_CAP_SENTENCES not in prompt, "old 2-3 sentence cap still present"
+    assert REMOVED_CAP_SECTION not in prompt, "old strict-brevity section still present"
+
+
+def test_prompt_has_short_word_cap_policy():
+    # (d) The verbosity policy is now a SHORT ~40-60-word cap: concise small-talk,
+    # a snappy WHAT/WHY answer (~40-60 words / 3-4 short sentences) with an explicit
+    # offer to elaborate — and the earlier ~250-word figure is GONE.
+    prompt = _prompt()
+    assert VERBOSITY_SECTION in prompt, "missing short-cap verbosity section header"
+    assert VERBOSITY_SMALLTALK in prompt, "missing the concise small-talk tier"
+    assert SHORT_CAP_TARGET in prompt, "missing the ~40-60-word target clause"
+    assert WHAT_RULE in prompt and WHY_RULE in prompt, "missing the WHAT/WHY coverage"
+    assert ELABORATE_OFFER in prompt, "missing the explicit offer-to-elaborate"
+    # The earlier ~250-word soft cap is fully gone (figure + section wording).
+    assert REMOVED_250_FIGURE not in prompt, "old ~250-word figure survived the short-cap change"
+    assert REMOVED_OLD_SOFT_SECTION not in prompt, "old soft-cap section header survived"
+    # …and it coexists with EVERY existing pillar in the SAME prompt:
+    for marker in SAUDI_DIALECT_MARKERS:
+        assert marker in prompt, f"verbosity policy dropped Saudi marker {marker!r}"
+    assert "بالإنجليزية" in prompt                               # UI names stay English
+    assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+    assert WHERE_RULE in prompt and EXPLAIN_RULE in prompt        # intent rules survive
+
+
+def test_prompt_has_anti_laziness_rule():
+    # (b) The anti-laziness rule forbids collapsing the EXPLANATION turn to a bare
+    # filler ack ("أشرت لك" / "تم") — مطحس must start with the info (WHAT + WHY).
+    prompt = _prompt()
+    assert ANTI_LAZINESS_RULE in prompt, "missing the anti-laziness rule"
+    assert ANTI_LAZINESS_PHRASE in prompt, "anti-laziness rule must name a forbidden filler ack"
 
 
 # ──────────────────────────── Resolver ────────────────────────────
