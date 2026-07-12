@@ -132,6 +132,14 @@ class HotkeyListener:
             "[hotkey] listening for %r (hold to talk, release to send)", self._target,
         )
 
+    def reset(self) -> None:
+        """Clear the held-key debounce so the NEXT key-down is treated as a fresh
+        press, not auto-repeat. Called from the turn's reset_turn_state() so a
+        lost key-up (which would leave _held stuck True and wedge every later
+        press at _handle_press) can never permanently disable the hotkey. A bool
+        write is atomic in CPython; by turn-end the key is physically released."""
+        self._held = False
+
     def stop(self) -> None:
         """Stop the listener thread. Never raises — shutdown must stay clean."""
         if self._listener is None:

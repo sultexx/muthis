@@ -15,6 +15,8 @@ Production swaps the stub for SidekickOverlay at the composition root; tests
 inject fakes through the same seam.
 """
 
+from .pointer_animator import DEFAULT_POINTER_ANIM_MS
 from .sidekick_window import SidekickOverlay
+from .style import OverlayStyle
 
-__all__ = ["SidekickOverlay"]
+__all__ = ["SidekickOverlay", "DEFAULT_POINTER_ANIM_MS", "OverlayStyle"]

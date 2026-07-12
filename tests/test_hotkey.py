@@ -102,6 +102,24 @@ def test_autorepeat_press_starts_recording_once_per_hold():
     assert presses == [True, True]
 
 
+def test_reset_clears_held_so_a_lost_key_up_cannot_wedge_the_next_press():
+    # Regression B (hotkey side): if a key-up is LOST, _held stays True and the
+    # next key-down is debounced as auto-repeat (wedged). reset() — called from
+    # the turn's reset_turn_state() — clears _held so the next press fires fresh.
+    loop = FakeLoop()
+    listener, presses, _releases = _listener(loop)
+
+    listener._handle_press(_special_key("f9"))     # hold 1 — _held True
+    assert presses == [True]
+    listener._handle_press(_special_key("f9"))     # key-up LOST → debounced (wedged)
+    assert presses == [True]
+
+    listener.reset()                               # the per-turn hotkey reset
+
+    listener._handle_press(_special_key("f9"))     # a genuine fresh press fires again
+    assert presses == [True, True]
+
+
 def test_release_without_press_is_ignored():
     loop = FakeLoop()
     listener, presses, _releases = _listener(loop)

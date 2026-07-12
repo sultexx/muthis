@@ -133,7 +133,7 @@ class SpyReasoner:
     def __init__(self):
         self.calls = 0
 
-    async def run(self, user_input, screenshot, history):
+    async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.calls += 1
         if False:           # make this an async generator without ever yielding
             yield
@@ -179,3 +179,60 @@ def test_mic_module_imports_no_portaudio():
     import muthis.mic   # noqa: F401
 
     assert "sounddevice" not in sys.modules
+
+
+# ─── reset() — the not-via-stop() teardown (Regression B) ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_reset_aborts_an_open_hold_without_returning_audio():
+    # The failure/cancel/timeout path: reset() forces the mic idle WITHOUT
+    # returning audio (unlike stop()), closing the stream so no callback lingers.
+    mic, fake = _mic_with_stream(min_record_seconds=0.0)
+    mic.start()
+    fake.push(b"\x09\x09")
+    assert mic.is_recording is True
+
+    mic.reset()
+
+    assert mic.is_recording is False
+    assert fake.stopped and fake.closed       # stream closed (no late _on_frames)
+
+
+@pytest.mark.asyncio
+async def test_reset_then_start_returns_only_fresh_frames_no_stale():
+    # The stuck-state cure: after reset the next hold starts clean — the aborted
+    # hold's frames are GONE, never leaked into the next turn's audio.
+    mic, fake = _mic_with_stream(min_record_seconds=0.0)
+    mic.start()
+    fake.push(b"\xAA\xAA")                     # stale frame from the aborted hold
+    mic.reset()
+
+    mic.start()                               # fresh hold
+    fake.push(b"\xBB\xBB")
+    audio = await mic.stop()
+
+    assert audio == Mic._to_wav(b"\xBB\xBB")   # ONLY the fresh frame, no stale 0xAA
+
+
+def test_reset_is_safe_when_never_started():
+    # Idempotent: reset() with no open stream is a clean no-op (never raises).
+    mic, fake = _mic_with_stream()
+    mic.reset()
+    assert mic.is_recording is False
+    assert not fake.stopped and not fake.closed
+
+
+def test_reset_never_raises_even_if_close_fails():
+    # Teardown must never throw — a failing stream close is swallowed, state idle.
+    class BadStream(FakeStream):
+        def stop(self):
+            raise OSError("device gone")
+
+    bad = BadStream()
+    mic = Mic(stream_factory=lambda cb: bad.bind(cb))
+    mic.start()
+
+    mic.reset()                               # swallows the error
+
+    assert mic.is_recording is False

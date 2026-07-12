@@ -46,7 +46,7 @@ class FakeReasoner:
         self._scripts = list(scripts)
         self.calls = []  # (user_input, screenshot, history) per run()
 
-    async def run(self, user_input, screenshot, history):
+    async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.calls.append((user_input, screenshot, history))
         for event in self._scripts.pop(0):
             yield event

@@ -171,6 +171,24 @@ class Mic:
         logger.info("[mic] captured %.2fs", seconds)
         return self._to_wav(pcm)
 
+    def reset(self) -> None:
+        """Abort any open hold WITHOUT returning audio — the not-via-stop()
+        teardown. Unlike stop(), this is the failure/cancel/timeout path: the
+        single reset site that guarantees the mic is idle for the next F9 even
+        when stop() never ran. Idempotent and NEVER raises; safe if no stream
+        was ever opened. Closes the stream FIRST (PortAudio guarantees no
+        _on_frames runs after stop() returns) THEN clears frames + the flag, so
+        nothing keeps appending after the reset."""
+        stream, self._stream = self._stream, None
+        if stream is not None:
+            try:
+                stream.stop()
+                stream.close()
+            except Exception as e:  # noqa: BLE001 — teardown must never raise
+                logger.debug("[mic] reset close failed (%s: %s)", type(e).__name__, e)
+        self._frames = []
+        self._recording = False
+
     def _on_frames(self, indata: Any, *_: Any) -> None:
         """sounddevice callback — runs on the audio backend's OWN thread. bytes()
         COPIES the block: PortAudio reuses the indata buffer between callbacks,

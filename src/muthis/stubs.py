@@ -61,9 +61,10 @@ async def stub_downscale(screenshot: Optional[bytes]) -> DownscaledImage:
 class StubOverlay:
     """STUB default for the overlay seam — replaced by
     overlay.sidekick_window.SidekickOverlay at the composition root. Implements
-    the Overlay protocol (show/hide) with NO window and NO hardware; logs
-    dimensions/timing only, never pixels. hide() is a harmless no-op so the
-    orchestrator's hide-before-capture ordering holds even in stub mode."""
+    the Overlay protocol (show/hide + the 2-B status light) with NO window and NO
+    hardware; logs dimensions/timing only, never pixels. hide() and
+    clear_status_light() are harmless no-ops so the orchestrator's
+    hide-before-capture ordering holds even in stub mode."""
 
     async def show(self, bbox: PhysicalBBox, label_ar: str) -> None:
         logger.info("[stub:overlay] would draw rectangle %s (label %d chars)",
@@ -71,6 +72,12 @@ class StubOverlay:
 
     async def hide(self) -> None:
         logger.info("[stub:overlay] would hide rectangle")
+
+    def set_state(self, state: str) -> None:
+        logger.info("[stub:overlay] would set status state %r", state)
+
+    def clear_status_light(self) -> None:
+        logger.info("[stub:overlay] would clear the status light (ghosting)")
 
 
 # Module-level default instance: the orchestrator imports this name as the

@@ -88,6 +88,10 @@ class CloudReasoner(Protocol):
         orchestrator.
       - Yields TextDelta as text streams, ToolCall per completed tool block,
         and exactly one TurnComplete last.
+      - tool_choice ("auto" default) lets the caller force "none" on a pass that
+        must NOT call a tool (the orchestrator's post-highlight explain pass), so
+        the model emits text and stop_reason becomes end_turn — an API-enforced
+        loop terminator, not a prompt nudge.
     """
 
     def run(
@@ -95,5 +99,6 @@ class CloudReasoner(Protocol):
         user_input: UserInput,
         screenshot: bytes | None,
         history: list[dict[str, Any]],
+        tool_choice: str = "auto",
     ) -> AsyncIterator[ResponseEvent]:
         ...

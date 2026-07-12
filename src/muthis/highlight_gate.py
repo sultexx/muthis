@@ -1,14 +1,17 @@
 # src/muthis/highlight_gate.py
 """
-Highlight circuit breaker — ONE highlight_target draw per user turn.
+Draw circuit breaker — ONE draw per user turn, UNIFIED over BOTH draw tools
+(highlight_target AND draw_shapes).
 
 Keeping the screenshot attached across the agentic loop (the previous fix) made
 Claude re-see its own target, forget it already pointed, and call
 highlight_target again and again until the budget cap — never explaining. This
 is the HARD backstop, belt-and-suspenders with the persona / tool_result
-directive (turn.py): the FIRST highlight of a turn draws; every later one is
-suppressed (no redraw) and its tool_result tells Claude to stop pointing and
-explain now.
+directive (turn.py): the FIRST draw of a turn — whichever tool asked — draws;
+every later draw call is suppressed (no redraw) and its tool_result tells
+Claude to stop drawing and explain now. Because both tools flip the SAME
+gate.drawn, loop_tool_choice forces tool_choice="none" on the pass after ANY
+draw — Claude cannot draw again with either tool and must explain in text.
 
 State is per-turn and resets BY CONSTRUCTION — the orchestrator builds a fresh
 HighlightGate at the top of every _run_turn_pipeline, so there is nothing to
@@ -27,12 +30,14 @@ from typing import Optional
 
 @dataclass
 class HighlightGate:
-    """Per-user-turn control flag for the highlight circuit breaker. Distinct
-    from TurnResult (what happened) — this is the loop's control state.
+    """Per-user-turn control flag for the draw circuit breaker — ONE gate
+    covering BOTH draw tools. Distinct from TurnResult (what happened) — this
+    is the loop's control state.
 
-    `drawn` flips True once the first highlight_target of the turn has been
-    answered; while it is True the overlay is never redrawn and every further
-    highlight_target is answered with the 'already shown — explain now' note."""
+    `drawn` flips True once the first draw of the turn (highlight_target OR
+    draw_shapes) has been answered; while it is True the overlay is never
+    redrawn and every further draw call — same tool or the other — is answered
+    with its 'already shown — explain now' note."""
 
     drawn: bool = False
 
@@ -62,32 +67,59 @@ HIGHLIGHT_ALREADY_SHOWN_AR = (
     "المؤشّر معروض على العنصر. لا تستدعِ highlight_target مرة أخرى — قدّم شرحك "
     "الآن مباشرةً بالمعلومة (ما هو وما وظيفته ولماذا) بدون أي مقدمة أو تأكيد."
 )
+# draw_shapes twins of the two texts above — same philosophy: an INTERNAL
+# directive ordering the explanation NOW, never a completion report.
+SHAPES_ACK_TEXT_AR = (
+    "توجيه داخلي (لا يراه المستخدم): الرسم صار ظاهراً على الشاشة. الآن قدّم "
+    "شرحك مباشرةً — ما الذي يوضّحه الرسم ولماذا — وابدأ بالمعلومة من أول كلمة "
+    "بدون أي مقدمة أو تأكيد (لا \"أبشر\"، ولا \"رسمت لك\"، ولا \"تم\")."
+)
+SHAPES_ALREADY_SHOWN_AR = (
+    "الرسم معروض على الشاشة. لا تستدعِ draw_shapes أو highlight_target مرة "
+    "أخرى — قدّم شرحك الآن مباشرةً بالمعلومة بدون أي مقدمة أو تأكيد."
+)
+
+
+def draw_result_text(gate: Optional[HighlightGate], tool_name: str) -> str:
+    """Pick the tool_result text for EITHER draw tool and advance the ONE
+    per-turn gate: the first draw of the turn — whichever tool — gets its
+    'explain now' ack and flips gate.drawn; every later draw call (same tool
+    or the other, this pass or a future one) gets its 'already shown' note.
+    This is what makes the gate UNIFIED: both tools read and flip the same
+    `drawn` flag. No gate → always the ack (legacy)."""
+    ack, already = (
+        (SHAPES_ACK_TEXT_AR, SHAPES_ALREADY_SHOWN_AR)
+        if tool_name == "draw_shapes"
+        else (HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR)
+    )
+    if gate is None:
+        return ack
+    if gate.drawn:
+        return already
+    gate.drawn = True
+    return ack
 
 
 def highlight_result_text(gate: Optional[HighlightGate]) -> str:
-    """Pick a highlight_target tool_result text and advance the gate: the first
-    highlight of the turn gets the 'explain now' ack (and flips gate.drawn), the
-    rest get the 'already shown' note. No gate → always the ack (legacy)."""
-    if gate is None:
-        return HIGHLIGHT_ACK_TEXT_AR
-    if gate.drawn:
-        return HIGHLIGHT_ALREADY_SHOWN_AR
-    gate.drawn = True
-    return HIGHLIGHT_ACK_TEXT_AR
+    """highlight_target-only wrapper kept for existing callers/tests —
+    delegates to draw_result_text (the unified gate)."""
+    return draw_result_text(gate, "highlight_target")
 
 
 def loop_tool_choice(gate: HighlightGate) -> str:
-    """The HARD loop terminator: once a highlight has been drawn this turn
-    (gate.drawn), the NEXT agentic run() is made with tool_choice="none" so
-    Claude CANNOT call a tool and MUST emit its explanation as text →
-    stop_reason becomes end_turn → the loop ends. "auto" until then, so the
-    first point AND any request_screen_refresh still work (a refresh never sets
-    gate.drawn). This is the API-enforced brake; the draw-suppression in
-    next_highlight is the belt-and-suspenders."""
+    """The HARD loop terminator: once ANYTHING has been drawn this turn
+    (gate.drawn — set by the first highlight_target OR draw_shapes pairing),
+    the NEXT agentic run() is made with tool_choice="none" so Claude CANNOT
+    call a tool and MUST emit its explanation as text → stop_reason becomes
+    end_turn → the loop ends. "auto" until then, so the first draw AND any
+    request_screen_refresh still work (a refresh never sets gate.drawn). This
+    is the API-enforced brake; the draw-suppression in turn.next_highlight /
+    draw_dispatch.next_draw is the belt-and-suspenders."""
     return "none" if gate.drawn else "auto"
 
 
 __all__ = [
     "HighlightGate", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
-    "highlight_result_text", "loop_tool_choice",
+    "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR",
+    "draw_result_text", "highlight_result_text", "loop_tool_choice",
 ]

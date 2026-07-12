@@ -40,7 +40,7 @@ class FakeReasoner:
         self._scripts = list(scripts)
         self.calls = []
 
-    async def run(self, user_input, screenshot, history):
+    async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.calls.append((user_input, screenshot, list(history)))
         for event in self._scripts.pop(0):
             yield event
@@ -62,6 +62,12 @@ class FakeOverlay:
     async def hide(self):
         self.hides += 1
         self._log.append("hide")
+
+    def set_state(self, state):          # 2-B status light — no-op (not logged)
+        pass
+
+    def clear_status_light(self):
+        pass
 
 
 class FakeCapture:

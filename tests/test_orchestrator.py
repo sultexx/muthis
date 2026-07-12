@@ -72,6 +72,12 @@ class Recorder:
         self.hides += 1
         self.events.append("hide")
 
+    def set_state(self, state):          # 2-B status light — no-op in this fake
+        pass
+
+    def clear_status_light(self):        # (a dedicated fake records the sequence)
+        pass
+
     async def screen_capture(self):
         self.captures += 1
         self.events.append("capture")

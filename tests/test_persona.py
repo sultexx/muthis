@@ -99,6 +99,17 @@ REMOVED_CAP_BUDGET = "بحدود 180 حرف"
 REMOVED_CAP_SENTENCES = "جملتين أو ثلاث"
 REMOVED_CAP_SECTION = "قاعدة صارمة — الاختصار"
 
+# Phase B-2: the draw-TOOL SELECTION rule. Two draw tools for two purposes —
+# highlight_target LOCATES one UI element (where-is), draw_shapes ILLUSTRATES
+# geometry / math / diagram — and BOTH share the SAME two-pass discipline. The
+# rule is HONEST: shapes are approximate region support, never pixel-perfect.
+TOOL_SELECT_SECTION = "اختيار أداة الرسم"                              # the new section header
+TOOL_SELECT_HIGHLIGHT = "highlight_target: للإشارة إلى عنصر واجهة"      # UI element → highlight_target
+TOOL_SELECT_SHAPES = "draw_shapes: للشرح الهندسي أو الرياضي أو التخطيطي"  # geometry/math/diagram → draw_shapes
+TOOL_SELECT_INTENT = "اتبع نيّة المستخدم"                               # both apply → follow intent
+TOOL_SELECT_BOTH_PASSES = "نفس الدورين للأداتين"                        # SAME two-pass on BOTH tools
+TOOL_SELECT_HONESTY = "دعم بصري تقريبي"                                 # shapes are approximate, not pixel-perfect
+
 
 def _prompt() -> str:
     return build_saudi_persona_prompt(SENT_W, SENT_H)
@@ -201,6 +212,38 @@ def test_pass1_is_ack_only_and_forbids_narration():
     assert "أبشر" in prompt                                      # casual Saudi dialect
     assert "بالإنجليزية" in prompt                               # UI names stay English
     assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+
+
+def test_prompt_selects_draw_tool_by_intent():
+    # Phase B-2: the persona teaches WHICH draw tool to use — highlight_target to
+    # LOCATE a UI element (button/icon/menu/field), draw_shapes to ILLUSTRATE
+    # geometry / math / diagram — with an intent tie-breaker when both could apply.
+    prompt = _prompt()
+    assert TOOL_SELECT_SECTION in prompt, "missing the draw-tool selection section"
+    assert TOOL_SELECT_HIGHLIGHT in prompt, "missing 'UI element → highlight_target' rule"
+    assert TOOL_SELECT_SHAPES in prompt, "missing 'geometry/math/diagram → draw_shapes' rule"
+    assert TOOL_SELECT_INTENT in prompt, "missing the both-apply → follow-intent tie-breaker"
+    # The SAME two-pass discipline governs BOTH tools (draw first, explain next
+    # turn starting with the info) — it is not a highlight-only rule.
+    assert TOOL_SELECT_BOTH_PASSES in prompt, "two-pass discipline not extended to draw_shapes"
+    assert TWO_PASS_NEXT_TURN in prompt and TWO_PASS_START_WITH_INFO in prompt
+    # HONEST accuracy: shapes are approximate region support, never pixel-perfect —
+    # the spoken explanation carries the teaching.
+    assert TOOL_SELECT_HONESTY in prompt, "missing the honest 'approximate, not pixel-perfect' note"
+    # draw_shapes is a LOOK-only draw tool, so it is NOT one of the forbidden
+    # action tools (it displays an overlay, it never clicks/types/executes).
+    assert "draw_shapes" in prompt
+    for tool in FORBIDDEN_ACTION_TOOLS:
+        assert tool not in prompt, f"forbidden action tool leaked into prompt: {tool!r}"
+    # The rule ADDS to — never DUPLICATES — the existing pillars: each governing
+    # section appears exactly once, and the untouched pillars still coexist here.
+    assert prompt.count(TOOL_SELECT_SECTION) == 1, "draw-tool selection section duplicated"
+    assert prompt.count(VERBOSITY_SECTION) == 1, "verbosity ~40-60-word section duplicated"
+    assert prompt.count("حدودك (LOOK فقط)") == 1, "LOOK-only section duplicated"
+    assert SHORT_CAP_TARGET in prompt                            # ~40-60-word cap intact
+    assert "أبشر" in prompt                                      # casual Saudi dialect intact
+    assert "بالإنجليزية" in prompt                               # UI names stay English intact
+    assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty intact
 
 
 def test_prompt_drops_the_old_brevity_cap():

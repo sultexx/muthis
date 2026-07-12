@@ -51,6 +51,7 @@ load_dotenv()
 
 from .budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
+from .earcons import EarconPlayer  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .mic import Mic  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
@@ -61,7 +62,7 @@ from .vision.downscale import (  # noqa: E402
     DEFAULT_VISION_MAX_WIDTH, compute_scale_factors, downscale_to_max_width,
 )
 from .vision.screen_capture import ScreenCapture, primary_monitor_size  # noqa: E402
-from .overlay import SidekickOverlay  # noqa: E402
+from .overlay import DEFAULT_POINTER_ANIM_MS, SidekickOverlay  # noqa: E402
 
 logger = logging.getLogger("muthis.main")
 
@@ -82,12 +83,24 @@ class ActivationController:
         *,
         start_recording=None,
         is_recording=None,
+        reset_mic=None,
+        reset_hotkey=None,
+        earcon=None,
+        set_state=None,
     ) -> None:
         self._handle_activation = handle_activation
         # Mic seams, injected so the controller stays mic-agnostic and testable.
         # The defaults keep it usable for turn-only tests (no recording wired).
         self._start_recording = start_recording or (lambda: None)
         self._is_recording = is_recording or (lambda: False)
+        # Fire-and-forget UI sound seam (default no-op; a fake in tests).
+        self._earcon = earcon or (lambda name: None)
+        # Status-light seam (2-B): SYNC fire-and-forget, safe from the keyboard thread.
+        self._set_state = set_state or (lambda state: None)
+        # Per-turn reset seams (the single source of truth): mic to idle + hotkey
+        # debounce cleared. Injected; default no-ops keep turn-only tests simple.
+        self._reset_mic = reset_mic or (lambda: None)
+        self._reset_hotkey = reset_hotkey or (lambda: None)
         self._is_processing = False
         # Kept so a clean shutdown (and tests) can await the in-flight turn.
         self._task = None
@@ -98,14 +111,24 @@ class ActivationController:
 
     def on_press(self) -> None:
         """Key-DOWN. Runs DIRECTLY on the keyboard thread (start_recording only
-        opens the audio stream — no asyncio). Refused while a turn is in progress
-        or a hold is already open; otherwise it starts recording."""
+        opens the audio stream — no asyncio). Refused while a turn is in progress;
+        otherwise it ALWAYS opens a fresh stream — self-healing a leaked one."""
         if self._is_processing:
             logger.info("[main] hotkey press ignored — a turn is in progress")
             return
         if self._is_recording():
-            return  # auto-repeat / a hold is already open — nothing to do
+            # is_recording True with NO turn running == a leaked stream (a prior
+            # hold whose turn never ran, e.g. a lost key-up). Heal it and reopen
+            # fresh — never refuse forever, or F9 wedges. (A turn-owned hold was
+            # already refused above by is_processing.)
+            logger.warning("[main] stale recording with no turn — resetting mic")
+            self._reset_mic()
         self._start_recording()
+        # Confirm the stream actually opened before chirping (a failed start
+        # leaves is_recording False → no false "listening" cue). Fire-and-forget.
+        if self._is_recording():
+            self._earcon("listening")
+            self._set_state("listening")  # neon cyan dot — the mic is open
 
     def on_activate(self) -> None:
         """Key-UP, scheduled via call_soon_threadsafe — therefore runs on the
@@ -116,6 +139,8 @@ class ActivationController:
             logger.info("[main] hotkey release ignored — a turn is already in progress")
             return
         self._is_processing = True
+        self._earcon("processing")   # mask the think/answer latency (fire-and-forget)
+        self._set_state("thinking")  # amber dot — the pipeline is starting
         self._task = asyncio.create_task(self._run_one_turn())
 
     async def _run_one_turn(self) -> None:
@@ -125,12 +150,23 @@ class ActivationController:
             # No transcript/screenshot here — only the English failure + stack.
             logger.exception("[main] turn failed unexpectedly")
         finally:
-            # ESSENTIAL: a turn that raised must still release the guard, or F9
-            # stays wedged until restart. finally guarantees the reset.
-            self._is_processing = False
+            # ESSENTIAL: EVERY path (success, raise, cancel, timeout) fully resets
+            # per-turn state together — mic to idle, hotkey debounce cleared, and
+            # is_processing released — or F9 wedges. One source of truth.
+            self.reset_turn_state()
             # Make the lock state observable in muthis_app.log: this line fires on
             # EVERY turn end (success or failure), pairing with the "ignored" logs.
-            logger.info("[main] turn ended — is_processing reset; F9 ready")
+            logger.info("[main] turn ended — state reset; F9 ready")
+
+    def reset_turn_state(self) -> None:
+        """The SINGLE per-turn reset (Regression B): mic to idle (close stream,
+        clear frames, _recording False), hotkey debounce cleared, is_processing
+        released — all together. The injected mic/hotkey resets never raise, so a
+        bad one can't block the others; is_processing is cleared last regardless."""
+        self._reset_mic()
+        self._reset_hotkey()
+        self._set_state("idle")      # dot dark — the true, single turn end
+        self._is_processing = False
 
 
 # ─── Composition root ──────────────────────────────────────────────────────────
@@ -147,6 +183,24 @@ def _size_sent_image() -> tuple[int, int]:
         )
         return sent_width, sent_height
     return DEFAULT_VISION_MAX_WIDTH, round(DEFAULT_VISION_MAX_WIDTH * 9 / 16)
+
+
+def _pointer_anim_ms() -> int:
+    """Glide duration (ms) for the overlay's animated pointer, sourced from
+    MUTHIS_POINTER_ANIM_MS at the composition root (mirrors MUTHIS_HOTKEY /
+    MUTHIS_OVERLAY_TIMEOUT_S). Falls back to the overlay's default on an
+    empty/non-integer value — config never crashes a run-forever app."""
+    raw = os.getenv("MUTHIS_POINTER_ANIM_MS")
+    if raw is None:
+        return DEFAULT_POINTER_ANIM_MS
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(
+            "[main] MUTHIS_POINTER_ANIM_MS=%r is not an integer — using default %d",
+            raw, DEFAULT_POINTER_ANIM_MS,
+        )
+        return DEFAULT_POINTER_ANIM_MS
 
 
 def _build_orchestrator(
@@ -186,14 +240,21 @@ async def run() -> None:
     if not budget.can_afford():
         logger.warning("[main] daily budget already exhausted — turns will be refused aloud")
 
-    overlay = SidekickOverlay()  # REAL cyan rectangle (DPI-aware, click-through)
+    overlay = SidekickOverlay(anim_duration_ms=_pointer_anim_ms())  # cyan rect + gliding pointer (DPI-aware, click-through)
     mic = Mic()                  # REAL streaming mic (hold to talk, release to send)
+    earcons = EarconPlayer()     # pleasant lifecycle cues (MUTHIS_EARCONS, default on)
     orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop)
 
     controller = ActivationController(
         orchestrator.handle_activation,
         start_recording=mic.start,                # key-down opens the stream
         is_recording=lambda: mic.is_recording,    # refuse a second overlapping hold
+        earcon=earcons.play,                       # listening (mic open) + processing (turn start)
+        set_state=overlay.set_state,               # status light: listening / thinking / idle
+        reset_mic=mic.reset,                       # per-turn: force the mic idle
+        # listener is built just below; late-bound so reset_turn_state (called only
+        # during a turn) reaches the real listener.reset without a forward ref.
+        reset_hotkey=lambda: listener.reset(),     # per-turn: clear hold debounce
     )
     loop = asyncio.get_running_loop()
     hotkey = os.getenv("MUTHIS_HOTKEY", DEFAULT_HOTKEY)

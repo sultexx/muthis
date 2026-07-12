@@ -17,6 +17,10 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional, Protocol, runtime_checkable
 
 from .cloud.protocol import ToolCall
+from .highlight_gate import (
+    HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR, HighlightGate,
+    draw_result_text, highlight_result_text,
+)
 from .tts import TTSResult
 
 
@@ -76,10 +80,17 @@ class Overlay(Protocol):
     async def hide(self) -> None:
         ...
 
+    # Status light (2-B): SYNC fire-and-forget — the controller calls set_state
+    # from the keyboard thread, so these never await. clear_status_light ghosts
+    # the corner dot before a capture; both are no-op-safe on every impl.
+    def set_state(self, state: str) -> None:
+        ...
 
-def scale_bbox_to_physical(
-    args: dict[str, Any], scale_x: float, scale_y: float,
-) -> PhysicalBBox:
+    def clear_status_light(self) -> None:
+        ...
+
+
+def scale_bbox_to_physical(args: dict[str, Any], scale_x: float, scale_y: float) -> PhysicalBBox:
     """Map a highlight_target's SENT-image bbox to PHYSICAL pixels. Claude
     returns coordinates in the downscaled image it actually saw, so x is scaled
     by scale_x and y by scale_y (per-axis — see DownscaledImage). This is the
@@ -98,6 +109,9 @@ REFRESH_FOLLOWUP_TEXT_AR = "هذه لقطة الشاشة المحدثة."
 NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
 MIC_FAILED_AR = "ما قدرت أوصل للمايكروفون، تأكد إنه موصول."
 STT_EMPTY_AR = "ما سمعت شي واضح، جرّب مرة ثانية."
+# Spoken when the agentic loop hits MAX_AGENTIC_ITERATIONS — a clean stop instead
+# of looping forever. User-facing Arabic (the TTS path); never the user text.
+AGENTIC_CAP_NOTE_AR = "اكتفيت بهذا القدر الآن، إذا تبي أكمل اسألني من جديد."
 
 
 # ─── Turn result ──────────────────────────────────────────────────────────────
@@ -123,17 +137,33 @@ class TurnResult:
     scale_y: float = 1.0
 
 
-# ─── request_screen_refresh tool_result builder ──────────────────────────────
+# ─── tool_result builders — Option B "full pairing" keeps history API-valid ──
 
-def build_refresh_tool_result(
-    refresh_call: ToolCall,
-    screenshot: Optional[bytes],
-) -> dict[str, Any]:
-    """User message carrying the tool_result that answers a
-    request_screen_refresh. Lives here (not in claude_agent.py) so the
-    orchestrator stays importable without the SDK stack. `screenshot` is the
-    already-downscaled payload COPY; a minimal PNG/JPEG sniff sets media_type
-    (NOT imported from claude_agent, which pulls in the SDK stack)."""
+# The highlight_target tool_result surfaces and the gate-advancing selector live
+# in highlight_gate.py (the circuit breaker's home); re-exported here so existing
+# importers (orchestrator, tests) keep finding them on turn.
+def next_highlight(
+    gate: HighlightGate,
+    pending: Optional[tuple[PhysicalBBox, str]],
+    args: dict[str, Any],
+    scale_x: float,
+    scale_y: float,
+) -> Optional[tuple[PhysicalBBox, str]]:
+    """Circuit breaker (draw half): return the (physical bbox, label) to draw for
+    the FIRST highlight_target of a turn, or `pending` unchanged for every later
+    one — so the overlay is drawn at most ONCE per user turn (no redraw loop).
+    `gate.drawn` is set later by build_tool_result_message at pairing time, and
+    `pending is not None` guards a second highlight inside the SAME pass."""
+    if gate.drawn or pending is not None:
+        return pending
+    return (scale_bbox_to_physical(args, scale_x, scale_y), args.get("label_ar", ""))
+
+
+def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) -> dict[str, Any]:
+    """The single tool_result block answering a request_screen_refresh: the
+    fresh, already-downscaled payload COPY (a minimal PNG/JPEG sniff sets
+    media_type so the SDK stack is NOT imported here), or an Arabic
+    'no new screenshot' note when no fresh capture is available."""
     if screenshot:
         media_type = "image/png" if screenshot[:4] == b"\x89PNG" else "image/jpeg"
         inner: list[dict[str, Any]] = [{
@@ -146,14 +176,113 @@ def build_refresh_tool_result(
         }]
     else:
         inner = [{"type": "text", "text": NO_SCREENSHOT_TOOL_RESULT_AR}]
-    return {
-        "role": "user",
-        "content": [{
-            "type": "tool_result",
-            "tool_use_id": refresh_call.tool_use_id,
-            "content": inner,
-        }],
-    }
+    return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
+
+
+def build_tool_result_message(
+    assistant_content: list[dict[str, Any]],
+    refresh_call: Optional[ToolCall] = None,
+    fresh_screenshot: Optional[bytes] = None,
+    gate: Optional[HighlightGate] = None,
+) -> Optional[dict[str, Any]]:
+    """ONE user message pairing a tool_result with EVERY tool_use block the
+    assistant just emitted (Option B — full pairing). The refresh id (when
+    refresh_call is given) is answered with the fresh screenshot — or a text
+    note when fresh_screenshot is None (e.g. the follow-up limit was hit).
+
+    Circuit breaker (hard backstop): every non-refresh id is a DRAW tool —
+    highlight_target or draw_shapes. With a `gate`, the FIRST one of the turn
+    gets its tool's "explain now" ack and flips `gate.drawn` (ONE gate, BOTH
+    tools); every later one (this pass or a future one, either tool) gets its
+    "already shown — don't redraw, explain" note — draw_result_text picks the
+    wording by tool name. Without a gate (legacy) it always returns the ack.
+
+    Returns None when the assistant turn carried no tool_use, so the caller
+    appends NOTHING and never stores an empty message. Bundling all results
+    into one message keeps them in the single user message that immediately
+    follows the assistant turn — exactly what the API's pairing rule needs.
+    Lives here (not in claude_agent.py) so the orchestrator stays importable
+    without the SDK stack."""
+    refresh_id = refresh_call.tool_use_id if refresh_call else None
+    results: list[dict[str, Any]] = []
+    for block in assistant_content:
+        if block.get("type") != "tool_use":
+            continue
+        tool_use_id = block.get("id")
+        if tool_use_id is not None and tool_use_id == refresh_id:
+            results.append(_refresh_tool_result_block(tool_use_id, fresh_screenshot))
+        else:
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": draw_result_text(gate, block.get("name", "")),
+            })
+    if not results:
+        return None
+    return {"role": "user", "content": results}
+
+
+# ─── Bug 3 — strip a request_screen_refresh frame from history after its turn ──
+
+# Replaces a refresh screenshot in STORED history once its turn is over. The fresh
+# frame already reached the model inside its tool_result for the iteration that
+# needed it; persisting the pixels would replay a now-stale view on the NEXT user
+# turn — the app-switch hallucination (still "seeing" a since-closed app). A fresh
+# frame is captured every turn, so nothing of value is lost; the id and the
+# pairing stay intact, only the image bytes are dropped. Not a spoken surface.
+STALE_SCREENSHOT_NOTE_AR = "(لقطة شاشة من دور سابق غير مرفقة)"
+
+
+def _tool_result_has_image(block: dict[str, Any]) -> bool:
+    """True iff `block` is a tool_result whose content list carries an image."""
+    inner = block.get("content")
+    return (
+        block.get("type") == "tool_result"
+        and isinstance(inner, list)
+        and any(b.get("type") == "image" for b in inner)
+    )
+
+
+def _strip_tool_result_images(block: dict[str, Any]) -> dict[str, Any]:
+    """Return a COPY of one tool_result with every image block swapped for a short
+    text note (the original — already sent this turn — is never mutated). Anything
+    that is not an image-bearing tool_result is returned unchanged (same object)."""
+    if not _tool_result_has_image(block):
+        return block
+    note = {"type": "text", "text": STALE_SCREENSHOT_NOTE_AR}
+    stripped = [note if b.get("type") == "image" else b for b in block["content"]]
+    return {**block, "content": stripped}
+
+
+def strip_images_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return `history` with every request_screen_refresh screenshot dropped from
+    its tool_result. Called ONCE per turn, AFTER the turn ends: the frame already
+    did its job for the iteration that needed it, and keeping it leaks a stale view
+    into the NEXT user turn (Bug 3 — the app-switch hallucination).
+
+    Structure is preserved EXACTLY — same messages, roles, and tool_use_ids — so
+    every tool_use/tool_result pairing stays valid and no message becomes empty.
+    New dicts are built ONLY for changed blocks; the originals (already handed to
+    earlier run() calls this turn) are never mutated, and an image-free history is
+    returned unchanged (same object)."""
+    def _has_image(message: dict[str, Any]) -> bool:
+        content = message.get("content")
+        return isinstance(content, list) and any(
+            _tool_result_has_image(block) for block in content)
+
+    if not any(_has_image(message) for message in history):
+        return history
+    sanitized: list[dict[str, Any]] = []
+    for message in history:
+        content = message.get("content")
+        if not isinstance(content, list):
+            sanitized.append(message)
+            continue
+        new_content = [_strip_tool_result_images(block) for block in content]
+        sanitized.append(
+            message if new_content == content
+            else {**message, "content": new_content})
+    return sanitized
 
 
 __all__ = [
@@ -162,5 +291,8 @@ __all__ = [
     "Overlay", "PhysicalBBox", "scale_bbox_to_physical",
     "BUDGET_REFUSAL_AR", "REFRESH_FOLLOWUP_TEXT_AR",
     "NO_SCREENSHOT_TOOL_RESULT_AR", "MIC_FAILED_AR", "STT_EMPTY_AR",
-    "TurnResult", "build_refresh_tool_result",
+    "AGENTIC_CAP_NOTE_AR", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
+    "next_highlight",
+    "TurnResult", "build_tool_result_message",
+    "STALE_SCREENSHOT_NOTE_AR", "strip_images_from_history",
 ]
