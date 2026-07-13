@@ -181,8 +181,10 @@ C0 موثّق وقراره صريح · البثّ أسرع للردود النص
 3. **مقياس A2 معتمد:** دورة النبض 2000ms (بدل 1400) وسعة 2px (بدل 3).
 4. **مقياس A3 معتمد:** خفض `glow_intensity` الافتراضي 0.45 → 0.35.
 
+5. **مقياس caption معتمد (لاحقًا في 2026-07-13):** رفع `label_font_size` الافتراضي 14 → 16 — أُقفل بذلك آخر جزء معلّق من A3.
+
 ### معلّقة (تنتظر قرار سلطان)
-- **A3 / caption chip:** «خط caption أوضح» بقي بلا مقياس معتمد (قرار 2026-07-13 غطّى glow_intensity فقط). الخيار المقترح: رفع `label_font_size` الافتراضي 14 → 16. لم يُنفَّذ أي تغيير على الخط — بانتظار القرار.
+- لا شيء حاليًا.
 
 ## SESSION LOG (يكتبه Claude Code أثناء العمل)
 <!-- كل مهمة، كل اختبار كُسر وأُصلح، كل موديول استُخرج، كل تراجع. -->
@@ -193,3 +195,4 @@ C0 موثّق وقراره صريح · البثّ أسرع للردود النص
 - 2026-07-13 · **A2 منجزة:** `_PULSE_PERIOD_MS` 1400 → 2000، `DOT_PULSE_AMP` 3 → 2 في `status_indicator.py`. اختبار كمّي جديد (`test_pulse_breath_is_gentle_2000ms_period_2px_amplitude`) يثبت الذروة 7+2px عند منتصف الدورة، إغلاق الدورة بعد 40 tick، وفرق الإطارين المتتاليين < 0.2px (الإعداد القديم كان يفشل به عند ~0.34px). لا blocking sleep — حلقة الـ schedule كما هي. `pytest -q` → **279 passed, 1 skipped** ✅.
 - 2026-07-13 · **A3 منجزة:** `glow_intensity` الافتراضي 0.45 → 0.35 في `style.py` (dataclass + fallback الـ from_env). **تحديث اختبار موثَّق (ليس إسكاتًا):** قيمتا 0.45 المثبَّتتان حرفيًا في `test_overlay_style.py` (سطرا defaults وglow_strokes) حُدِّثتا إلى 0.35 لمطابقة الـ default الجديد المعتمد؛ بقية الاختبارات تقرأ `DEFAULTS.glow_intensity` ديناميكيًا فتكيّفت بلا تعديل. سطر توثيق `MUTHIS_GLOW_INTENSITY` في `AGENTS.md` حُدِّث. جزء caption معلّق في DECISIONS. `pytest -q` → **279 passed, 1 skipped** ✅.
 - 2026-07-13 · **المرحلة A مكتملة** (A1 ملغاة، الاستخراج + A2 + A3 منجزة): 4 commits، الحارس عند 279 (فوق خط الأساس 278)، لا ملف تجاوز 300 سطر، LOOK-only لم يُمسّ، تزامن Option A لم يُلمس.
+- 2026-07-13 · **إقفال A3 نهائيًا (قرار caption المعتمد):** `label_font_size` الافتراضي 14 → 16 في `style.py` (dataclass + fallback)، تحديث موثَّق للتثبيت في `test_overlay_style.py` وسطر `MUTHIS_LABEL_SIZE` في `AGENTS.md`. `pytest -q` → **279 passed, 1 skipped** ✅.

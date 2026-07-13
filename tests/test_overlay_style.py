@@ -50,7 +50,7 @@ def test_from_env_defaults_are_the_documented_neon_values():
     assert style.glow_width == 4
     assert style.glow_intensity == 0.35   # softened 0.45 → 0.35 (v5 A3)
     assert style.label_font_family == "Segoe UI"
-    assert style.label_font_size == 14
+    assert style.label_font_size == 16   # enlarged 14 → 16 (v5 A3)
     assert style.label_plate == "#0B0F1A"
 
 
