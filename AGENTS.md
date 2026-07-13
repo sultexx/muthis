@@ -192,7 +192,7 @@ pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevic
 #             MUTHIS_POINTER_ANIM_MS (overlay pointer glide duration ms, default 500),
 #             MUTHIS_COLOR_LINE / _ARROW / _CIRCLE / _RECT / _POINTER / _HIGHLIGHT (overlay neon colors #RRGGBB;
 #                                  defaults neon cyan/green/magenta/yellow/cyan/cyan — never the #FF00FF key),
-#             MUTHIS_GLOW (overlay glow, default on) / MUTHIS_GLOW_WIDTH (halo px, default 4) / MUTHIS_GLOW_INTENSITY (0..1, default 0.45),
+#             MUTHIS_GLOW (overlay glow, default on) / MUTHIS_GLOW_WIDTH (halo px, default 4) / MUTHIS_GLOW_INTENSITY (0..1, default 0.35),
 #             MUTHIS_CORE_WIDTH (overlay core stroke px, default 3),
 #             MUTHIS_LABEL_FONT / MUTHIS_LABEL_SIZE / MUTHIS_LABEL_PLATE (caption chip font; size default 14, plate #0B0F1A),
 #             MUTHIS_STATUS_LISTENING / _THINKING / _SPEAKING (status-light neon colors #RRGGBB;

@@ -101,7 +101,7 @@ class OverlayStyle:
     core_width: int = 3
     glow_enabled: bool = True
     glow_width: int = 4          # px added to EACH side of the core for the halo
-    glow_intensity: float = 0.45  # halo = neon dimmed by this factor (0..1)
+    glow_intensity: float = 0.35  # halo = neon dimmed by this factor (0..1); 0.45→0.35 (v5 A3): a fainter, softer halo
     label_font_family: str = "Segoe UI"   # ships with Win11, renders Arabic
     label_font_size: int = 14
     label_plate: str = "#0B0F1A"           # semi-dark chip background
@@ -124,7 +124,7 @@ class OverlayStyle:
             core_width=max(1, env_int("MUTHIS_CORE_WIDTH", 3)),
             glow_enabled=env_flag("MUTHIS_GLOW", True),
             glow_width=max(0, env_int("MUTHIS_GLOW_WIDTH", 4)),
-            glow_intensity=clamp01(env_float("MUTHIS_GLOW_INTENSITY", 0.45)),
+            glow_intensity=clamp01(env_float("MUTHIS_GLOW_INTENSITY", 0.35)),
             label_font_family=os.getenv("MUTHIS_LABEL_FONT") or "Segoe UI",
             label_font_size=max(1, env_int("MUTHIS_LABEL_SIZE", 14)),
             label_plate=safe_color(os.getenv("MUTHIS_LABEL_PLATE"), "#0B0F1A"),

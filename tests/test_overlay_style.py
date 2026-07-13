@@ -48,7 +48,7 @@ def test_from_env_defaults_are_the_documented_neon_values():
     assert style.core_width == 3
     assert style.glow_enabled is True
     assert style.glow_width == 4
-    assert style.glow_intensity == 0.45
+    assert style.glow_intensity == 0.35   # softened 0.45 → 0.35 (v5 A3)
     assert style.label_font_family == "Segoe UI"
     assert style.label_font_size == 14
     assert style.label_plate == "#0B0F1A"
@@ -156,12 +156,12 @@ def test_dim_never_yields_the_transparent_key():
 
 
 def test_glow_strokes_are_outer_halo_then_inner_core():
-    style = OverlayStyle()  # glow on, core 3, width 4, intensity 0.45
+    style = OverlayStyle()  # glow on, core 3, width 4, intensity 0.35
     strokes = glow_strokes(style, "#00FFFF")
     assert len(strokes) == 2
     (halo_w, halo_c), (core_w, core_c) = strokes
     assert core_w == 3 and core_c == "#00FFFF"                 # crisp neon core
-    assert halo_w == 3 + 2 * 4 and halo_c == dim("#00FFFF", 0.45)  # dim wide halo
+    assert halo_w == 3 + 2 * 4 and halo_c == dim("#00FFFF", 0.35)  # dim wide halo
     assert halo_w > core_w                                     # drawn under the core
 
 
