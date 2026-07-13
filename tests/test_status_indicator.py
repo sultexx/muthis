@@ -21,6 +21,7 @@ from __future__ import annotations
 from muthis.overlay.sidekick_window import dispatch_command
 from muthis.overlay.status_indicator import (
     DEFAULT_PULSE_MS,
+    DOT_CORE_RADIUS,
     STATUS_DOT_TAG,
     StatusIndicator,
 )
@@ -187,6 +188,35 @@ def test_start_is_idempotent():
     ind.start()
     ind.start()                                        # second start does nothing
     assert len(sched.calls) == 1
+
+
+def _core_radius(ind):
+    # The core disc is drawn LAST (over the halo); radius from its oval bbox.
+    core = ind._canvas.tagged(STATUS_DOT_TAG)[-1]["coords"]
+    return (core[2] - core[0]) / 2
+
+
+def test_pulse_breath_is_gentle_2000ms_period_2px_amplitude():
+    # v5 A2 softening: one full dim→bright→dim breath spans 2000 ms (40 ticks
+    # x 50 ms — was 1400) and the radius swings only 2 px (was 3), so the dot
+    # reads as calm presence. Driven tick-by-tick through the fake schedule.
+    sched = FakeSchedule()
+    ind = _indicator(schedule=sched)
+    ind.set_state("thinking")
+    ind.start()                                        # renders tick 1, arms tick 2
+
+    radii = [_core_radius(ind)]                        # radius at tick 1
+    for _ in range(40):                                # one full 2000 ms cycle
+        sched.run_next()
+        radii.append(_core_radius(ind))                # ticks 2..41
+
+    assert max(radii) == DOT_CORE_RADIUS + 2           # amplitude softened to 2 px
+    assert radii[19] == max(radii)                     # peak at mid-cycle (tick 20)
+    assert radii[40] == radii[0]                       # the cycle closes after 2000 ms
+    # Gentleness: consecutive frames never jump 0.2 px or more (the old
+    # 1400 ms / 3 px config peaked at ~0.34 px per frame and would fail here).
+    deltas = [abs(b - a) for a, b in zip(radii, radii[1:])]
+    assert max(deltas) < 0.2
 
 
 # ────────────────────────── dispatch routing (queue path) ──────────────────────────

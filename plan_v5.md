@@ -57,7 +57,7 @@ sentence-streaming جُرّب سابقاً (Batch 3) وفشل UX-ياً: تقط�
 ### A · TASKS
 - ⛔ **A1 — أُلغيت (قرار سلطان 2026-07-13، الخيار ج).** ~~ربط حالة الجلسة بلون المؤشر المنزلق: أضف في `style.py` تدرّج ألوان/توهّج لكل حالة (listening/thinking/speaking) بحيث المؤشر المنزلق نفسه يعكس الحالة.~~
   - سبب الإلغاء: التنفيذ الفعلي يستلزم سلكًا خارج النطاق (فرع `set_state` في `dispatch_command` بـ`sidekick_window.py` — 299 سطرًا) وإعادة رسم للمؤشر الساكن عند كل انتقال حالة، والمكسب البصري ضئيل (المؤشر لا يظهر إلا لحظة بدء الكلام). النقطة الركنية كافية لتمثيل الحالة.
-- [ ] **A2 — نبض أنعم للحالة (مقياس معتمد 2026-07-13).** حسّن الـ pulse في `status_indicator.py` كمّيًا: `_PULSE_PERIOD_MS` من 1400 إلى 2000، و`DOT_PULSE_AMP` من 3 إلى 2px، مع بقاء الـ self-rescheduling loop (لا blocking sleep).
+- [x] **A2 — نبض أنعم للحالة (مقياس معتمد 2026-07-13).** حسّن الـ pulse في `status_indicator.py` كمّيًا: `_PULSE_PERIOD_MS` من 1400 إلى 2000، و`DOT_PULSE_AMP` من 3 إلى 2px، مع بقاء الـ self-rescheduling loop (لا blocking sleep).
   - الملف: `status_indicator.py` (+ اختبار كمّي في `test_status_indicator.py`)
   - قبول: لا blocking sleep/while جديد؛ اختبار كمّي جديد يعاين نصف قطر النقطة عبر FakeCanvas (ذروة النفَس = 7+2px عند منتصف الدورة، الدورة تُغلق بعد 2000ms، فرق نصف القطر بين إطارين متتاليين < 0.2px)؛ اختبارات الـ pulse القائمة تبقى خضراء.
 - [ ] **A3 — توهّج أنعم (مقياس معتمد 2026-07-13).** خفض `glow_intensity` الافتراضي 0.45 → 0.35 في `style.py` (هالة أخفت لكل الأشكال المرسومة)، بعد استخراج env-parsing إلى `style_env.py` (شرط سقف الـ300). جزء «خط caption أوضح» بلا مقياس معتمد → معلّق في DECISIONS، لا يُنفَّذ.
@@ -190,3 +190,4 @@ C0 موثّق وقراره صريح · البثّ أسرع للردود النص
 - 2026-07-13 · خط الأساس مؤكَّد قبل أي تغيير: `pytest -q` → **278 passed, 1 skipped** على `.venv-v5` (Python 3.14.4)، فرع `mut-his-v5-experimental`.
 - 2026-07-13 · توثيق قرارات مراجعة المرحلة A (إلغاء A1، اعتماد `style_env.py`، مقاييس A2/A3) + إعادة تسمية الملف من `plan_v5 (1).md` إلى `plan_v5.md`.
 - 2026-07-13 · **الاستخراج:** أُنشئ `overlay/style_env.py` (117 سطرًا — env-parsing + حارس المفتاح الشفاف، `TRANSPARENT_KEY` انتقل إليه ويُعاد تصديره من `style.py`)؛ `style.py` انخفض 300 → 223 سطرًا. جدول Key Files في `AGENTS.md` حُدِّث. `pytest -q` → **278 passed, 1 skipped** ✅ (لا انحدار).
+- 2026-07-13 · **A2 منجزة:** `_PULSE_PERIOD_MS` 1400 → 2000، `DOT_PULSE_AMP` 3 → 2 في `status_indicator.py`. اختبار كمّي جديد (`test_pulse_breath_is_gentle_2000ms_period_2px_amplitude`) يثبت الذروة 7+2px عند منتصف الدورة، إغلاق الدورة بعد 40 tick، وفرق الإطارين المتتاليين < 0.2px (الإعداد القديم كان يفشل به عند ~0.34px). لا blocking sleep — حلقة الـ schedule كما هي. `pytest -q` → **279 passed, 1 skipped** ✅.

@@ -44,15 +44,18 @@ VALID_STATES = ("listening", "thinking", "speaking", "idle")
 IDLE = "idle"
 
 # Pulse cadence: a light tick via schedule() (root.after), and one full breath
-# (dim→bright→dim) per period. 50 ms ≈ 20 fps — smooth but negligible.
+# (dim→bright→dim) per period. 50 ms ≈ 20 fps — smooth but negligible. The
+# period was lengthened 1400 → 2000 ms (v5 A2): a slower breath reads as calm
+# presence instead of an alert blink.
 DEFAULT_PULSE_MS = 50
-_PULSE_PERIOD_MS = 1400.0
+_PULSE_PERIOD_MS = 2000.0
 
 # Geometry (physical px). The dot sits a margin in from the chosen corner and
-# "breathes" its radius by these amplitudes.
+# "breathes" its radius by this amplitude — softened 3 → 2 px (v5 A2) so no
+# single frame ever jumps visibly (max per-frame delta stays under ~0.16 px).
 DOT_CORE_RADIUS = 7
 DOT_MARGIN = 28
-DOT_PULSE_AMP = 3
+DOT_PULSE_AMP = 2
 
 
 class StatusIndicator:
