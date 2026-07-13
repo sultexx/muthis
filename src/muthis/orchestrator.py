@@ -46,6 +46,7 @@ from .turn import (
     TurnResult, build_tool_result_message, strip_images_from_history,
 )
 from .overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .voice_out import VoiceOut
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -92,10 +93,12 @@ class Orchestrator:
         self._budget = budget
         self._mic = mic
         self._stt = stt
-        self._tts = tts
         self._screen_capture = screen_capture
         self._downscale = downscale
         self._overlay = overlay
+        # The spoken surfaces (privacy boundary + status choreography + budget
+        # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
+        self._voice = VoiceOut(tts, overlay)
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
 
@@ -118,13 +121,13 @@ class Orchestrator:
         audio = await self._mic()
         if not audio:
             logger.warning("[orchestrator] mic capture failed — turn aborted")
-            await self._speak(MIC_FAILED_AR)
+            await self._voice.speak(MIC_FAILED_AR)
             return TurnResult()
 
         user_text = (await self._stt(audio)).strip()
         if not user_text:
             logger.warning("[orchestrator] empty transcript — turn aborted")
-            await self._speak(STT_EMPTY_AR)
+            await self._voice.speak(STT_EMPTY_AR)
             return TurnResult()
 
         return await self.run_turn(user_text)
@@ -154,7 +157,7 @@ class Orchestrator:
         # a tool_use, never says end_turn (point → explain normally needs ≤2 passes).
         for _iteration in range(MAX_AGENTIC_ITERATIONS):
             if not self._budget.can_afford():            # Rule 10, before EVERY call
-                await self._refuse_for_budget(result)
+                await self._voice.refuse_for_budget(result, self._budget)
                 return
             turn_complete, refresh_call = await self._consume_stream(
                 user_input, screenshot, result)
@@ -195,7 +198,7 @@ class Orchestrator:
             screenshot = None if serviced_refresh else screenshot
 
         logger.warning("[orchestrator] agentic cap (%d) hit — stopping cleanly", MAX_AGENTIC_ITERATIONS)
-        await self._speak(AGENTIC_CAP_NOTE_AR)
+        await self._voice.speak(AGENTIC_CAP_NOTE_AR)
 
     async def _consume_stream(
         self,
@@ -246,36 +249,10 @@ class Orchestrator:
         if pending_draw is not None:
             await pending_draw.apply(self._overlay)
             self._auto_hide.schedule()
-        await self._speak(message_text)
+        await self._voice.speak(message_text)
         return turn_complete, refresh_call
 
     # ───────────────────────── Helpers ─────────────────────────
-
-    async def _speak(self, text: str) -> None:
-        """Privacy boundary: ONLY assistant-authored Arabic may pass here —
-        never the user transcript, never tool JSON. speak() never raises;
-        a failed TTSResult is logged and the turn continues regardless."""
-        if not text:
-            return
-        self._overlay.set_state("speaking")  # neon green while the voice plays
-        tts_result = await self._tts(text)
-        if tts_result is not None:
-            log = logger.info if tts_result.success else logger.warning
-            log(
-                "[orchestrator] tts provider=%s success=%s (%d chars)",
-                tts_result.provider, tts_result.success, len(text),
-            )
-        self._overlay.set_state("thinking")  # back toward thinking; idle set at turn end
-
-    async def _refuse_for_budget(self, result: TurnResult) -> None:
-        """Refuse the turn out loud — no provider call is made."""
-        result.budget_blocked = True
-        logger.warning(
-            "[orchestrator] budget gate closed (%.6f / %.2f USD spent) — "
-            "turn refused, no provider call",
-            self._budget.spent_today_usd(), self._budget.daily_limit_usd,
-        )
-        await self._speak(BUDGET_REFUSAL_AR)
 
     async def _capture_downscaled(self, result: TurnResult) -> Optional[bytes]:
         """Capture physical pixels → the downscaled COPY (the ONLY thing sent),
