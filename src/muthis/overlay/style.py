@@ -18,10 +18,11 @@ Glow is EMULATED, not real alpha: Tk has no per-item translucency on Windows, so
 stroke (outer first, so the core lands on top). The halo color is the neon color
 dimmed toward black by `glow_intensity` — never true transparency.
 
-Transparent-key guard: the window's `-transparentcolor` key is magenta
-(#FF00FF); any drawn pixel of that exact color would vanish. `_safe_color()` and
-`dim()` nudge a color away from the key so a neon (or dimmed) value can never go
-invisible.
+Env parsing + the transparent-key guard live in `style_env.py` (split under the
+≤300-line law — this file sat exactly at the ceiling): a malformed `.env` value
+warns and falls back, and `avoid_key()` keeps any parsed color (and any `dim()`
+halo tint) off the #FF00FF transparent key so it can never render invisible.
+`TRANSPARENT_KEY` is re-exported here so existing importers keep working.
 
 DI: `OverlayStyle.from_env()` is the graceful fallback; `SidekickOverlay(style=)`
 may inject a tuned instance (and tests inject a deterministic one). Coordinates,
@@ -31,18 +32,20 @@ decides how pixels LOOK.
 
 from __future__ import annotations
 
-import logging
 import os
-import re
 from dataclasses import dataclass, field
 from typing import Mapping
 
-logger = logging.getLogger("muthis.overlay")
-
-# The window's Tk -transparentcolor key (mirrors sidekick_window.TRANSPARENT_KEY):
-# a drawn pixel of this exact color becomes see-through, so it must never be the
-# output of a style color or a dimmed halo.
-TRANSPARENT_KEY = "#FF00FF"
+from .style_env import (
+    TRANSPARENT_KEY,
+    avoid_key,
+    clamp01,
+    env_corner,
+    env_flag,
+    env_float,
+    env_int,
+    safe_color,
+)
 
 # Neon defaults per drawable kind (+ the highlight rectangle and the pointer).
 # The circle's magenta is DELIBERATELY not #FF00FF (that is the transparent key).
@@ -81,16 +84,11 @@ _STATUS_ENV: dict[str, str] = {
 
 # Which screen corner hosts the persistent state dot (MUTHIS_STATUS_CORNER).
 DEFAULT_STATUS_CORNER = "bottom-right"
-_VALID_CORNERS = {"top-left", "top-right", "bottom-left", "bottom-right"}
 
 # Caption chip geometry (kept as constants — font family/size are the tunable
 # knobs). Padding around the text; corner radius of the rounded plate.
 CAPTION_PAD_PX = 6
 CHIP_RADIUS_PX = 8
-
-_HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-_TRUE = {"1", "true", "yes", "on"}
-_FALSE = {"0", "false", "no", "off"}
 
 
 @dataclass(frozen=True)
@@ -118,23 +116,23 @@ class OverlayStyle:
         var that is unset, blank, or malformed (a bad value logs an English
         warning and never crashes the Tk thread)."""
         colors = {
-            kind: _safe_color(os.getenv(env), DEFAULT_COLORS[kind])
+            kind: safe_color(os.getenv(env), DEFAULT_COLORS[kind])
             for kind, env in _COLOR_ENV.items()
         }
         return cls(
             colors=colors,
-            core_width=max(1, _env_int("MUTHIS_CORE_WIDTH", 3)),
-            glow_enabled=_env_flag("MUTHIS_GLOW", True),
-            glow_width=max(0, _env_int("MUTHIS_GLOW_WIDTH", 4)),
-            glow_intensity=_clamp01(_env_float("MUTHIS_GLOW_INTENSITY", 0.45)),
+            core_width=max(1, env_int("MUTHIS_CORE_WIDTH", 3)),
+            glow_enabled=env_flag("MUTHIS_GLOW", True),
+            glow_width=max(0, env_int("MUTHIS_GLOW_WIDTH", 4)),
+            glow_intensity=clamp01(env_float("MUTHIS_GLOW_INTENSITY", 0.45)),
             label_font_family=os.getenv("MUTHIS_LABEL_FONT") or "Segoe UI",
-            label_font_size=max(1, _env_int("MUTHIS_LABEL_SIZE", 14)),
-            label_plate=_safe_color(os.getenv("MUTHIS_LABEL_PLATE"), "#0B0F1A"),
+            label_font_size=max(1, env_int("MUTHIS_LABEL_SIZE", 14)),
+            label_plate=safe_color(os.getenv("MUTHIS_LABEL_PLATE"), "#0B0F1A"),
             status_colors={
-                state: _safe_color(os.getenv(env), DEFAULT_STATUS_COLORS[state])
+                state: safe_color(os.getenv(env), DEFAULT_STATUS_COLORS[state])
                 for state, env in _STATUS_ENV.items()
             },
-            status_corner=_env_corner("MUTHIS_STATUS_CORNER", DEFAULT_STATUS_CORNER),
+            status_corner=env_corner("MUTHIS_STATUS_CORNER", DEFAULT_STATUS_CORNER),
         )
 
 
@@ -161,10 +159,10 @@ def glow_strokes(style: OverlayStyle, core_color: str) -> list[tuple[int, str]]:
 def dim(color: str, factor: float) -> str:
     """A hex color scaled toward black by `factor` (0 → black, 1 → unchanged) —
     the halo tint. Guarded so the result is never the transparent key."""
-    f = _clamp01(factor)
+    f = clamp01(factor)
     r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
     scaled = tuple(min(255, max(0, round(c * f))) for c in (r, g, b))
-    return _avoid_key("#%02X%02X%02X" % scaled)
+    return avoid_key("#%02X%02X%02X" % scaled)
 
 
 def caption_font(style: OverlayStyle) -> tuple[str, int, str]:
@@ -215,81 +213,6 @@ def draw_caption_chip(
         outline=text_color, width=1, **tag_kw,
     )
     canvas.tag_lower(plate, text_id)
-
-
-# ─────────────────────────────── env parsing ───────────────────────────────
-
-
-def _safe_color(value: str | None, default: str) -> str:
-    """A validated, upper-cased #RRGGBB — falling back to `default` on a blank or
-    malformed value, and nudging away from the transparent key so it stays
-    visible."""
-    if not value:
-        return default
-    if not _HEX_RE.match(value.strip()):
-        logger.warning("[overlay] ignoring invalid color %r — using %s", value, default)
-        return default
-    return _avoid_key("#" + value.strip()[1:].upper())
-
-
-def _avoid_key(color: str) -> str:
-    """Keep a color off the exact transparent key (which would render invisible)
-    by nudging its red channel down one step."""
-    if color.upper() == TRANSPARENT_KEY:
-        logger.warning("[overlay] color equals the transparent key — nudging it visible")
-        return "#FE00FF"
-    return color
-
-
-def _env_int(name: str, default: int) -> int:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        logger.warning("[overlay] %s=%r is not an integer — using %d", name, raw, default)
-        return default
-
-
-def _env_float(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        logger.warning("[overlay] %s=%r is not a number — using %s", name, raw, default)
-        return default
-
-
-def _env_flag(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    token = raw.strip().lower()
-    if token in _TRUE:
-        return True
-    if token in _FALSE:
-        return False
-    logger.warning("[overlay] %s=%r is not a boolean — using %s", name, raw, default)
-    return default
-
-
-def _env_corner(name: str, default: str) -> str:
-    """One of the four screen corners for the status dot; a blank/typo → default."""
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    token = raw.strip().lower()
-    if token in _VALID_CORNERS:
-        return token
-    logger.warning("[overlay] %s=%r is not a valid corner — using %s", name, raw, default)
-    return default
-
-
-def _clamp01(value: float) -> float:
-    return max(0.0, min(1.0, value))
 
 
 __all__ = [

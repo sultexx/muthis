@@ -189,3 +189,4 @@ C0 موثّق وقراره صريح · البثّ أسرع للردود النص
 
 - 2026-07-13 · خط الأساس مؤكَّد قبل أي تغيير: `pytest -q` → **278 passed, 1 skipped** على `.venv-v5` (Python 3.14.4)، فرع `mut-his-v5-experimental`.
 - 2026-07-13 · توثيق قرارات مراجعة المرحلة A (إلغاء A1، اعتماد `style_env.py`، مقاييس A2/A3) + إعادة تسمية الملف من `plan_v5 (1).md` إلى `plan_v5.md`.
+- 2026-07-13 · **الاستخراج:** أُنشئ `overlay/style_env.py` (117 سطرًا — env-parsing + حارس المفتاح الشفاف، `TRANSPARENT_KEY` انتقل إليه ويُعاد تصديره من `style.py`)؛ `style.py` انخفض 300 → 223 سطرًا. جدول Key Files في `AGENTS.md` حُدِّث. `pytest -q` → **278 passed, 1 skipped** ✅ (لا انحدار).
