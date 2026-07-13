@@ -970,3 +970,55 @@ async def test_directive_is_not_reattached_on_agentic_continuations(tmp_path):
     continuation_input, _s2, _h2 = reasoner.calls[1]
     assert first_input.text.startswith(DIRECTIVE_OPEN_AR)   # attached once…
     assert continuation_input.text == ""                    # …never re-attached
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Verbosity persistence (v5 Phase B4): one-shot EXACT, sticky SHORT/DETAILED
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_exact_n_is_one_shot_and_gone_on_the_next_turn(tmp_path):
+    # The decay unit is the WHOLE utterance: the directive rides its own turn,
+    # then the next user turn is back to NORMAL (no directive).
+    scripts = [[TextDelta("تم"), _turn_complete()],
+               [TextDelta("زر الحفظ فوق"), _turn_complete()]]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, scripts)
+
+    await orchestrator.run_turn("جاوب بخمس كلمات وش هذا؟")
+    await orchestrator.run_turn("ووين زر الحفظ؟")
+
+    first, second = reasoner.calls[0][0], reasoner.calls[1][0]
+    assert first.text.startswith(DIRECTIVE_OPEN_AR)
+    assert DIRECTIVE_OPEN_AR not in second.text         # decayed after ONE utterance
+
+
+@pytest.mark.asyncio
+async def test_short_stays_sticky_and_a_new_command_replaces_it(tmp_path):
+    # Sticky by decision: SHORT survives whole turns until another command
+    # (here DETAILED) replaces it.
+    scripts = [[TextDelta("سم"), _turn_complete()] for _ in range(3)]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, scripts)
+
+    await orchestrator.run_turn("اختصر")                       # sticky SHORT on
+    await orchestrator.run_turn("وش هذا الزر؟")                 # plain — persists
+    await orchestrator.run_turn("اشرح لي بالتفصيل وش يسوي")     # switch → DETAILED
+
+    second, third = reasoner.calls[1][0], reasoner.calls[2][0]
+    assert second.text.startswith(DIRECTIVE_OPEN_AR)           # SHORT survived
+    assert "الإيجاز" in second.text.split("\n")[0]
+    assert "التفصيل" in third.text.split("\n")[0]              # replaced by DETAILED
+
+
+@pytest.mark.asyncio
+async def test_reset_phrase_returns_to_normal_across_turns(tmp_path):
+    scripts = [[TextDelta("سم"), _turn_complete()] for _ in range(3)]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, scripts)
+
+    await orchestrator.run_turn("اختصر")                       # sticky SHORT on
+    await orchestrator.run_turn("رجّع طولك الطبيعي")            # reset → NORMAL
+    await orchestrator.run_turn("وش هذا؟")                     # stays NORMAL after
+
+    reset_turn, after = reasoner.calls[1][0], reasoner.calls[2][0]
+    assert DIRECTIVE_OPEN_AR not in reset_turn.text            # NORMAL emits nothing
+    assert DIRECTIVE_OPEN_AR not in after.text

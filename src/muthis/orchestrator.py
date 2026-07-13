@@ -152,6 +152,9 @@ class Orchestrator:
             result.timed_out = True
             logger.warning("[orchestrator] session bound (%.0fs) hit — turn truncated", self._session_timeout_s)
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
+        # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
+        # any earlier would strip it before the tool_choice="none" explain pass.
+        self._verbosity.end_turn()
         return result
 
     # ───────────────────────── Turn pipeline ─────────────────────────
