@@ -157,12 +157,17 @@ The controller reaches the light via a new injected `set_state` seam (= `overlay
 reaches it via its existing `overlay` seam. Ghosting: `_capture_downscaled` calls `clear_status_light()` right
 before `hide()` (the ONE chokepoint for the initial AND each in-loop refresh grab), so Claude never sees the dot.
 Wired + tested (`tests/test_status_wiring.py`); exercised visually by `scripts/smoke_status.py`.
-Sentence-level TTS streaming was trialed then REVERTED — buffer-then-speak (accumulate the full reply,
-speak it ONCE at end-of-turn) is the FINAL, chosen playback behavior (`src/muthis/tts_stream.py` deleted).
-It removed a background consumer/queue/sentinel whose await could wedge `is_processing`.
-That revert concerns LLM-TEXT chunking. Phase 1 added intra-AUDIO progressive playback: the orchestrator
-still makes ONE speak() call with the full reply, and ElevenLabs streams the AUDIO back chunk-by-chunk
-INSIDE that single call (no text segmentation) — NOT the reverted sentence streaming.
+Sentence-level TTS streaming was trialed once (Batch 3) and REVERTED — that attempt ran collect-then-play
+per sentence over a NEW connection each time (audible inter-sentence gaps) and used a background
+consumer/queue/sentinel whose await could wedge `is_processing` (`src/muthis/tts_stream.py` deleted).
+Buffer-then-speak (accumulate the full reply, speak it ONCE at end-of-turn) is the CURRENT DEFAULT
+playback behavior — but it is no longer "final": **v5 Phase C is an authorized migration to
+sentence-level streaming playback** (Sultan, 2026-07-14), gated on the C0 pre-flight (ONE persistent
+ElevenLabs WS generation fed sentence-by-sentence — NEVER connect-per-sentence) and flag-gated behind
+`MUTHIS_STREAM_TTS` (default OFF), so buffer-then-speak stays the instant one-env rollback. Any streaming
+design must still avoid BOTH Batch-3 failure modes by construction: no per-sentence connections, and no
+background consumer task that can wedge `is_processing`. Phase 1's intra-AUDIO progressive playback (ONE
+speak() call; ElevenLabs streams the AUDIO chunks back inside it) is unrelated to this migration and stays.
 (`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent;
 the planned `activation/hotkey_listener.py` landed flat as `src/muthis/hotkey.py` with `src/muthis/main.py`
 as its composition root — completing the LOOK phase;
