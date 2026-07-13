@@ -34,6 +34,7 @@ across turns (injected with a real default, like its other seams).
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional
 
 logger = logging.getLogger("muthis.verbosity")
@@ -64,6 +65,94 @@ _EXACT_DIRECTIVE_AR_TEMPLATE = (
     f"{DIRECTIVE_OPEN_AR} المستخدم طلب الرد بنحو {{n}} كلمات فقط — التزم بهذا "
     "الطول تقريبًا قدر الإمكان.)"
 )
+
+
+# ───────────────────── STT-tolerant command detection (B2) ─────────────────────
+# Scribe's spellings vary (hamza forms, stray tashkeel, tatweel, Arabic-Indic
+# digits), so every match runs on a normalized copy — the ORIGINAL transcript
+# is never altered by detection.
+
+_TASHKEEL_RE = re.compile(r"[ً-ْ]")          # fatha…sukun + shadda
+_TATWEEL = "ـ"                                     # ـ (kashida stretching)
+_PUNCT_RE = re.compile(r"[؟،؛!?.,:;\"'()\[\]{}«»]")
+# Arabic-Indic (٠-٩) and Eastern Arabic-Indic (۰-۹) digits → ASCII.
+_DIGIT_MAP = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+
+# Explicit phrases match ANYWHERE in the utterance (substring on the normalized
+# text, so a clitic like "وباختصار" still hits). Reset phrases come FIRST so
+# "رجّع طولك الطبيعي" can never be shadowed. Order inside the tuple = priority.
+_ANYWHERE_PHRASES: tuple[tuple[str, str], ...] = (
+    ("طولك الطبيعي", NORMAL),        # "رجّع طولك الطبيعي" and friends
+    ("رجع للوضع الطبيعي", NORMAL),
+    ("بالتفصيل", DETAILED),
+    ("اشرح اكثر", DETAILED),
+    ("وضح اكثر", DETAILED),
+    ("باختصار", SHORT),
+    ("بايجاز", SHORT),               # normalized from "بإيجاز"
+)
+
+# Ambiguous single words trigger ONLY as a (near-)standalone utterance — the
+# approved false-positive guard: "أي ضلع أطول؟" must never flip the state.
+_STANDALONE_WORDS: dict[str, str] = {
+    "اختصر": SHORT,                  # "اختصر لي هذا النص" is a TASK, not a mode
+    "اطول": DETAILED,                # normalized from "أطول"
+    "طول": DETAILED,                 # normalized from "طوّل"
+}
+
+# EXACT_N: "بخمس كلمات" / "ب5 كلمات" / "ب٥ كلمات" (digits normalized) — the ب
+# prefix + a count + كلمات/كلمه. Duals/singulars get their own fixed patterns.
+_NUMBER_WORDS: dict[str, int] = {
+    "ثلاث": 3, "ثلاثه": 3, "اربع": 4, "اربعه": 4, "خمس": 5, "خمسه": 5,
+    "ست": 6, "سته": 6, "سبع": 7, "سبعه": 7, "ثمان": 8, "ثماني": 8,
+    "ثمانيه": 8, "تسع": 9, "تسعه": 9, "عشر": 10, "عشره": 10,
+}
+_EXACT_RE = re.compile(
+    r"\bب(\d{1,2}|" + "|".join(_NUMBER_WORDS) + r")\s+كلم(?:ه|ات)\b")
+_EXACT_TWO_RE = re.compile(r"\bبكلمتين\b")
+_EXACT_ONE_RE = re.compile(r"\bبكلمه (?:وحده|واحده)\b")
+_EXACT_N_CAP = 20                    # beyond this the request is noise, not a mode
+
+
+def normalize_ar(text: str) -> str:
+    """A matching-only copy: strip tashkeel + tatweel, unify hamza-alif forms
+    (أ/إ/آ → ا) and ة → ه, map Arabic-Indic digits to ASCII, drop punctuation,
+    collapse whitespace. NEVER applied to the transcript that reaches Claude."""
+    text = _TASHKEEL_RE.sub("", text).replace(_TATWEEL, "")
+    text = text.translate(_DIGIT_MAP)
+    for hamza_alif in "أإآ":
+        text = text.replace(hamza_alif, "ا")
+    text = text.replace("ة", "ه")
+    text = _PUNCT_RE.sub(" ", text)
+    return " ".join(text.split())
+
+
+def detect_command(text: str) -> Optional[tuple[str, Optional[int]]]:
+    """The verbosity command in `text`, as (level, exact_n) — None when the
+    utterance carries none. Priority: EXACT_N (most specific) → the anywhere
+    phrases (reset first) → the standalone-only ambiguous words."""
+    norm = normalize_ar(text)
+    if not norm:
+        return None
+
+    match = _EXACT_RE.search(norm)
+    if match:
+        token = match.group(1)
+        count = int(token) if token.isdigit() else _NUMBER_WORDS[token]
+        if 1 <= count <= _EXACT_N_CAP:
+            return (EXACT, count)
+    if _EXACT_TWO_RE.search(norm):
+        return (EXACT, 2)
+    if _EXACT_ONE_RE.search(norm):
+        return (EXACT, 1)
+
+    for phrase, level in _ANYWHERE_PHRASES:
+        if phrase in norm:
+            return (level, None)
+
+    standalone = _STANDALONE_WORDS.get(norm)  # the WHOLE utterance is the word
+    if standalone is not None:
+        return (standalone, None)
+    return None
 
 
 class VerbosityController:
@@ -126,9 +215,23 @@ class VerbosityController:
         directive = self.directive()
         return f"{directive}\n{user_text}" if directive else user_text
 
+    def begin_turn(self, user_text: str) -> str:
+        """The orchestrator's single per-utterance entry: detect a verbosity
+        command in the RAW transcript (STT-tolerant), update the state, then
+        return the transcript with the CURRENT directive attached. A pure
+        command ("اختصر" alone) still flows to Claude with its directive —
+        the approved v1 behavior (no local short-circuit)."""
+        detected = detect_command(user_text)
+        if detected is not None:
+            level, exact_n = detected
+            logger.info("[verbosity] voice command → %s%s", level,
+                        f"({exact_n})" if exact_n else "")
+            self.set_level(level, exact_n)
+        return self.attach(user_text)
+
 
 __all__ = [
-    "VerbosityController",
+    "VerbosityController", "detect_command", "normalize_ar",
     "NORMAL", "SHORT", "DETAILED", "EXACT", "VALID_LEVELS",
     "DIRECTIVE_OPEN_AR",
 ]

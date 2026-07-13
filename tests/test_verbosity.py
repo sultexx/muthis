@@ -22,6 +22,7 @@ from muthis.verbosity import (
     NORMAL,
     SHORT,
     VerbosityController,
+    detect_command,
 )
 
 
@@ -113,3 +114,56 @@ def test_exact_without_a_valid_n_is_a_no_op():
     ctrl.set_level(EXACT)                   # no N
     ctrl.set_level(EXACT, exact_n=0)        # nonsense N
     assert ctrl.level == SHORT
+
+
+# ───────────────────── B2: STT-tolerant command detection ─────────────────────
+
+
+def test_short_command_matches_across_scribe_spellings():
+    # Standalone imperative, hamza variant, stray tashkeel, and punctuation.
+    for utterance in ("اختصر", "إختصر", "اِخْتَصِرْ", "اختصر."):
+        assert detect_command(utterance) == (SHORT, None), utterance
+    # Explicit phrases match anywhere — clitic prefixes included.
+    assert detect_command("وباختصار وش يسوي هذا الكود؟") == (SHORT, None)
+    assert detect_command("جاوبني بإيجاز") == (SHORT, None)
+
+
+def test_detailed_command_matches_anywhere_including_tatweel():
+    assert detect_command("اشرح لي بالتفصيل وش يسوي هذا الكود") == (DETAILED, None)
+    assert detect_command("بالتفصيــل") == (DETAILED, None)      # tatweel stretch
+    assert detect_command("أطول") == (DETAILED, None)            # standalone only
+    assert detect_command("طوّل") == (DETAILED, None)
+
+
+def test_exact_n_understands_number_words_digits_and_duals():
+    assert detect_command("جاوب بخمس كلمات") == (EXACT, 5)
+    assert detect_command("ب٥ كلمات") == (EXACT, 5)              # Arabic-Indic digit
+    assert detect_command("ب5 كلمات") == (EXACT, 5)              # ASCII digit
+    assert detect_command("بعشر كلمات وش هذا؟") == (EXACT, 10)
+    assert detect_command("بكلمتين") == (EXACT, 2)               # dual, no numeral
+    assert detect_command("بكلمة وحدة") == (EXACT, 1)
+
+
+def test_reset_phrase_returns_to_normal():
+    assert detect_command("رجّع طولك الطبيعي") == (NORMAL, None)
+    assert detect_command("رجع للوضع الطبيعي") == (NORMAL, None)
+
+
+def test_ambiguous_words_do_not_fire_inside_normal_questions():
+    # The approved isolation rule: comparatives/imperatives inside a genuine
+    # question or task must NOT flip the sticky state.
+    assert detect_command("أي ضلع أطول؟") is None
+    assert detect_command("اختصر لي هذا النص") is None           # a TASK, not a mode
+    assert detect_command("وش هذا الزر؟") is None
+    assert detect_command("") is None
+
+
+def test_begin_turn_detects_updates_state_and_attaches_the_directive():
+    ctrl = VerbosityController()
+    combined = ctrl.begin_turn("جاوب بخمس كلمات وش هذا الزر؟")
+    assert ctrl.level == EXACT and ctrl.exact_n == 5
+    assert combined.startswith(DIRECTIVE_OPEN_AR)
+    assert combined.endswith("جاوب بخمس كلمات وش هذا الزر؟")     # transcript intact
+    # A plain follow-up utterance while NORMAL passes through untouched.
+    ctrl.end_turn()
+    assert ctrl.begin_turn("وش هذا؟") == "وش هذا؟"
