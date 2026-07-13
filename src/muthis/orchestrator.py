@@ -46,6 +46,7 @@ from .turn import (
     TurnResult, build_tool_result_message, strip_images_from_history,
 )
 from .overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .verbosity import VerbosityController
 from .voice_out import VoiceOut
 
 logger = logging.getLogger("muthis.orchestrator")
@@ -88,6 +89,7 @@ class Orchestrator:
         overlay: Overlay = stub_overlay,
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
+        verbosity: Optional[VerbosityController] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -99,6 +101,9 @@ class Orchestrator:
         # The spoken surfaces (privacy boundary + status choreography + budget
         # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
         self._voice = VoiceOut(tts, overlay)
+        # Verbosity state lives ACROSS turns (sticky SHORT/DETAILED) — a real
+        # default like the other seams, so main.py needs no wiring (v5 B3).
+        self._verbosity = verbosity or VerbosityController()
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
 
@@ -135,6 +140,10 @@ class Orchestrator:
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
         TurnResult reports what happened. Cancellation propagates normally."""
+        # Verbosity (option A): detect a voice command in the RAW transcript,
+        # then attach the internal directive ONCE per utterance — never on the
+        # agentic loop's continuations or the refresh follow-up.
+        user_text = self._verbosity.begin_turn(user_text)
         result = TurnResult()
         try:
             async with asyncio.timeout(self._session_timeout_s):

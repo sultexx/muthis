@@ -326,3 +326,18 @@ def test_resolve_falls_back_loudly_on_exception(monkeypatch, caplog):
         "falling back to LOOK_SYSTEM_PROMPT" in rec.getMessage()
         for rec in caplog.records
     ), "raising persona fallback was not logged as a WARNING"
+
+
+# ─────────────────── Internal-directive obedience (v5 B3) ───────────────────
+
+
+def test_persona_orders_obedience_to_internal_directives():
+    # Verbosity directives ride the USER message (option A — the system prompt
+    # is frozen at the composition root), so the persona must teach the model:
+    # a line opening with the internal-directive marker is a SYSTEM order —
+    # obey it (reply-length directives beat the default verbosity cap) and
+    # never read it aloud.
+    prompt = _prompt()
+    assert "(توجيه داخلي" in prompt
+    assert "لا تقرأه بصوت عالٍ" in prompt
+    assert "تتقدّم على قاعدة الإسهاب" in prompt

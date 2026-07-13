@@ -24,6 +24,7 @@ from muthis.turn import (
     AGENTIC_CAP_NOTE_AR, HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR,
     STALE_SCREENSHOT_NOTE_AR,
 )
+from muthis.verbosity import DIRECTIVE_OPEN_AR
 
 # ──────────────────────────────────────────────────────────────────────────
 # Fakes and recorders
@@ -910,3 +911,62 @@ async def test_refresh_pass_is_not_forced_to_none(tmp_path):
     await orchestrator.run_turn("وين زر الحفظ؟")
 
     assert reasoner.tool_choices == ["auto", "auto"]   # refresh follow-up NOT forced none
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Verbosity wiring (v5 Phase B3): the internal directive rides the USER message
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_exact_n_voice_command_attaches_the_directive_to_the_user_message(tmp_path):
+    # "بخمس كلمات" → the EXACT_N internal directive is prepended to the very
+    # transcript handed to the reasoner (option A: the system prompt is frozen,
+    # so the verbosity signal rides the user message), transcript kept intact.
+    script = [TextDelta("تم"), _turn_complete()]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, [script])
+
+    await orchestrator.run_turn("جاوب بخمس كلمات وش زر Save؟")
+
+    user_input, _screenshot, _history = reasoner.calls[0]
+    directive_line = user_input.text.split("\n")[0]
+    assert directive_line.startswith(DIRECTIVE_OPEN_AR)
+    assert "5" in directive_line                        # the requested word count
+    assert user_input.text.endswith("جاوب بخمس كلمات وش زر Save؟")
+
+
+@pytest.mark.asyncio
+async def test_plain_turn_carries_no_internal_directive(tmp_path):
+    # NORMAL (no voice command) → the transcript flows through verbatim.
+    script = [TextDelta("زر الحفظ فوق"), _turn_complete()]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, [script])
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    user_input, _screenshot, _history = reasoner.calls[0]
+    assert user_input.text == "وين زر الحفظ؟"
+    assert DIRECTIVE_OPEN_AR not in user_input.text
+
+
+@pytest.mark.asyncio
+async def test_directive_is_not_reattached_on_agentic_continuations(tmp_path):
+    # The directive is attached ONCE per utterance: the point→explain
+    # continuation (empty user text) must NOT get a second copy.
+    scripts = [
+        [TextDelta("سم"), _highlight("toolu_v1"),
+         _turn_complete(stop_reason="tool_use", assistant_content=[
+             {"type": "text", "text": "سم"},
+             {"type": "tool_use", "id": "toolu_v1", "name": "highlight_target",
+              "input": {"x1": 10, "y1": 20, "x2": 110, "y2": 60}}])],
+        [TextDelta("هذا زر الحفظ."), _turn_complete(
+            stop_reason="end_turn",
+            assistant_content=[{"type": "text", "text": "هذا زر الحفظ."}])],
+    ]
+    orchestrator, reasoner, _budget, _recorder = _orchestrator(tmp_path, scripts)
+
+    await orchestrator.run_turn("باختصار وين زر الحفظ؟")
+
+    first_input, _s, _h = reasoner.calls[0]
+    continuation_input, _s2, _h2 = reasoner.calls[1]
+    assert first_input.text.startswith(DIRECTIVE_OPEN_AR)   # attached once…
+    assert continuation_input.text == ""                    # …never re-attached
