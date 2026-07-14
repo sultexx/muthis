@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .budget import Budget
 from .cloud.protocol import CloudReasoner, UserInput
@@ -85,6 +85,8 @@ class Orchestrator:
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
+        stream_tts: Optional[bool] = None,
+        speech_session_factory: Optional[Callable[[], object]] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -102,10 +104,12 @@ class Orchestrator:
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
         # Pass-draining (incl. the draw→auto-hide→speak sync point) lives in
-        # turn_pass.py — the ≤300-line split; built from the same seams.
+        # turn_pass.py — the ≤300-line split; built from the same seams. The
+        # C2 streaming seams (flag + session factory) ride through untouched.
         self._pass = TurnPass(
             reasoner=reasoner, budget=budget, overlay=overlay,
             auto_hide=self._auto_hide, voice=self._voice,
+            stream_tts=stream_tts, session_factory=speech_session_factory,
         )
 
         # Conversation history (Claude message-dict format). Owned HERE and

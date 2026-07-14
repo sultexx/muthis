@@ -35,5 +35,8 @@ def _clear_cloud_tts_env(monkeypatch):
         # Status-indicator per-state colors + corner (batch 2-A).
         "MUTHIS_STATUS_LISTENING", "MUTHIS_STATUS_THINKING",
         "MUTHIS_STATUS_SPEAKING", "MUTHIS_STATUS_CORNER",
+        # Sentence-streaming rollback flag (v5 C2) — default OFF must hold in
+        # every test regardless of the developer's .env.
+        "MUTHIS_STREAM_TTS",
     ):
         monkeypatch.delenv(var, raising=False)

@@ -227,3 +227,186 @@ async def test_stream_without_turncomplete_returns_promptly_without_hanging(tmp_
     assert result.timed_out is False               # returned normally, NOT via the 90 s bound
     assert fake_tts.spoken == []                   # death path speaks nothing (no cost, no audio)
     assert orchestrator.history == []              # nothing recorded on an incomplete turn
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Sentence streaming (v5 Phase C2) — flag-gated, tool_choice="none" passes ONLY
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class FakeSpeechSession:
+    """Same lifecycle shape as tts_session.SpeechSession (open/feed/close/
+    got_audio) — records the sentences it was fed, in order."""
+
+    def __init__(self, *, fail_open=False, fail_feed_at=None):
+        self.fed = []
+        self.opened = False
+        self.closed = False
+        self._fail_open = fail_open
+        self._fail_feed_at = fail_feed_at     # raise on the Nth feed (0-based)
+
+    async def open(self):
+        if self._fail_open:
+            raise ConnectionError("no route to ElevenLabs")
+        self.opened = True
+
+    async def feed(self, sentence):
+        if self._fail_feed_at is not None and len(self.fed) >= self._fail_feed_at:
+            raise ConnectionError("socket dropped")
+        self.fed.append(sentence)
+
+    async def close(self):
+        self.closed = True
+
+    @property
+    def got_audio(self):
+        return bool(self.fed)
+
+
+class SessionFactory:
+    def __init__(self, session):
+        self.session = session
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        return self.session
+
+
+def _highlight_use(tool_use_id="toolu_h1"):
+    return {"type": "tool_use", "id": tool_use_id, "name": "highlight_target",
+            "input": {"x1": 10, "y1": 20, "x2": 110, "y2": 60}}
+
+
+def _pass_complete(stop_reason, assistant_content):
+    return TurnComplete(input_tokens=10, output_tokens=5, cost_usd=0.001,
+                        stop_reason=stop_reason, model="m",
+                        assistant_content=assistant_content)
+
+
+def _dual_action_scripts(explain_text):
+    """Pass 1 points (tool_use → 'auto'), pass 2 explains ('none') — C2's shape."""
+    return [
+        [TextDelta("سم"), _highlight(),
+         _pass_complete("tool_use",
+                        [{"type": "text", "text": "سم"}, _highlight_use()])],
+        [TextDelta(explain_text),
+         _pass_complete("end_turn", [{"type": "text", "text": explain_text}])],
+    ]
+
+
+def _streaming_orchestrator(tmp_path, scripts, *, fake_tts, factory, stream_tts=True):
+    reasoner = FakeReasoner(scripts)
+    budget = Budget(daily_limit_usd=1.0, budget_file=tmp_path / "budget.json",
+                    today_fn=lambda: "2026-06-11")
+    orchestrator = Orchestrator(
+        reasoner=reasoner, budget=budget, tts=fake_tts.speak,
+        stream_tts=stream_tts, speech_session_factory=factory,
+    )
+    return orchestrator
+
+
+@pytest.mark.asyncio
+async def test_explain_pass_streams_while_the_draw_pass_stays_buffered(tmp_path):
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
+    scripts = _dual_action_scripts("هذا زر الحفظ. يحفظ ملفك بسرعة.")
+    orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    # Pass 1 ("auto", drew the highlight) stayed on the buffered path.
+    assert fake_tts.spoken == ["سم"]
+    # Pass 2 ("none") streamed its sentences in order over ONE session.
+    assert session.fed == ["هذا زر الحفظ.", "يحفظ ملفك بسرعة."]
+    assert factory.calls == 1 and session.opened and session.closed
+
+
+@pytest.mark.asyncio
+async def test_pure_text_auto_pass_never_streams(tmp_path):
+    # The inverted criterion: a single-pass reply runs with tool_choice="auto"
+    # (a ToolCall COULD arrive mid-stream), so it must stay buffered even with
+    # the flag ON.
+    fake_tts, factory = FakeTTS(), SessionFactory(FakeSpeechSession())
+    script = [[TextDelta("مرحبا. كيف أساعدك؟"), _turn_complete()]]
+    orchestrator = _streaming_orchestrator(tmp_path, [script[0]], fake_tts=fake_tts, factory=factory)
+
+    await orchestrator.run_turn("هلا")
+
+    assert factory.calls == 0                          # never even opened
+    assert fake_tts.spoken == ["مرحبا. كيف أساعدك؟"]   # ONE buffered call
+
+
+@pytest.mark.asyncio
+async def test_refresh_followup_is_auto_and_never_streams(tmp_path):
+    fake_tts, factory = FakeTTS(), SessionFactory(FakeSpeechSession())
+    refresh_use = {"type": "tool_use", "id": "toolu_r1",
+                   "name": "request_screen_refresh", "input": {}}
+    scripts = [
+        [ToolCall(name="request_screen_refresh", args={}, tool_use_id="toolu_r1"),
+         _pass_complete("tool_use", [refresh_use])],
+        [TextDelta("بعد التحديث."),
+         _pass_complete("end_turn", [{"type": "text", "text": "بعد التحديث."}])],
+    ]
+    orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
+
+    await orchestrator.run_turn("وش تشوف؟")
+
+    assert factory.calls == 0                          # the follow-up stays "auto"
+    assert fake_tts.spoken == ["بعد التحديث."]
+
+
+@pytest.mark.asyncio
+async def test_flag_off_by_default_keeps_the_explain_pass_buffered(tmp_path):
+    # conftest cleared MUTHIS_STREAM_TTS → the env default is OFF.
+    fake_tts, factory = FakeTTS(), SessionFactory(FakeSpeechSession())
+    scripts = _dual_action_scripts("هذا زر الحفظ.")
+    orchestrator = _streaming_orchestrator(
+        tmp_path, scripts, fake_tts=fake_tts, factory=factory, stream_tts=None)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert factory.calls == 0
+    assert fake_tts.spoken == ["سم", "هذا زر الحفظ."]  # today's behavior, intact
+
+
+@pytest.mark.asyncio
+async def test_env_flag_enables_streaming(tmp_path, monkeypatch):
+    monkeypatch.setenv("MUTHIS_STREAM_TTS", "1")
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
+    scripts = _dual_action_scripts("هذا زر الحفظ.")
+    orchestrator = _streaming_orchestrator(
+        tmp_path, scripts, fake_tts=fake_tts, factory=factory, stream_tts=None)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert session.fed == ["هذا زر الحفظ."]            # env alone switched it on
+
+
+@pytest.mark.asyncio
+async def test_session_open_failure_falls_back_to_one_buffered_speak(tmp_path):
+    fake_tts, session = FakeTTS(), FakeSpeechSession(fail_open=True)
+    factory = SessionFactory(session)
+    scripts = _dual_action_scripts("هذا زر الحفظ. مفيد.")
+    orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert session.fed == []
+    assert fake_tts.spoken == ["سم", "هذا زر الحفظ. مفيد."]  # whole pass buffered
+
+
+@pytest.mark.asyncio
+async def test_mid_session_failure_speaks_the_remainder_in_one_call(tmp_path):
+    # Decision 15: the first sentence played via the session; the socket then
+    # drops — the UNPLAYED remainder goes through ONE buffered speak().
+    fake_tts, session = FakeTTS(), FakeSpeechSession(fail_feed_at=1)
+    factory = SessionFactory(session)
+    scripts = _dual_action_scripts("الأولى نجحت. الثانية سقطت. الثالثة أيضاً.")
+    orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert session.fed == ["الأولى نجحت."]
+    assert fake_tts.spoken == ["سم", "الثانية سقطت. الثالثة أيضاً."]
