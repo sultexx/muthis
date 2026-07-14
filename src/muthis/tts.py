@@ -172,6 +172,22 @@ class TTS:
 
     # ─────────────────────────── Public API ───────────────────────────
 
+    def open_speech_session(self):
+        """Streaming seam (v5 C2): ONE persistent ElevenLabs generation fed
+        sentence-by-sentence (see tts_session.py). Returns None when ElevenLabs
+        is disabled (MUTHIS_TRY_ELEVENLABS rollback) or unkeyed — the caller
+        stays on buffered speak(). Reuses THIS instance's resolved config, so
+        env reading keeps living here only."""
+        if not (self.try_elevenlabs and self.api_key):
+            return None
+        from .tts_session import SpeechSession  # lazy: the buffered path never pays
+        return SpeechSession(
+            api_key=self.api_key, voice_id=self.voice_id, model_id=self.model_id,
+            output_format=self.output_format, sample_rate=self.sample_rate,
+            voice_settings=self.voice_settings, ws_connect=self._ws_connect,
+            player_factory=self._player_factory,
+        )
+
     async def speak(self, text: str) -> TTSResult:
         """Speak `text`. Never raises — returns TTSResult. Uses no GPU."""
         text = (text or "").strip()
