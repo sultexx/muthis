@@ -27,19 +27,13 @@ import logging
 from typing import Any, Optional
 
 from .budget import Budget
-from .cloud.protocol import (
-    CloudReasoner,
-    TextDelta,
-    ToolCall,
-    TurnComplete,
-    UserInput,
-)
+from .cloud.protocol import CloudReasoner, UserInput
 # STUB defaults — each is replaced by its real component in a later phase.
 from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
                     stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
-from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
-from .highlight_gate import HighlightGate, loop_tool_choice
+from .highlight_gate import HighlightGate
+from .turn_pass import REFRESH_TOOL, TurnPass
 from .turn import (
     AGENTIC_CAP_NOTE_AR, BUDGET_REFUSAL_AR, MIC_FAILED_AR, REFRESH_FOLLOWUP_TEXT_AR,
     STT_EMPTY_AR, DownscaleFn, MicFn, Overlay, ScreenCaptureFn, SttFn, TtsFn,
@@ -64,7 +58,8 @@ MAX_REFRESH_FOLLOWUPS = 1
 MAX_AGENTIC_ITERATIONS = 4
 
 ALLOWED_OVERLAY_TOOL = "highlight_target"
-REFRESH_TOOL = "request_screen_refresh"
+# REFRESH_TOOL moved to turn_pass.py with the pass-draining code (re-exported
+# via the import above so existing references keep working).
 
 # Hide our rectangle, then yield this long before grabbing so the Tk thread has
 # cleared it — Claude never sees a ghost of the previous highlight. 50 ms is ample.
@@ -106,6 +101,12 @@ class Orchestrator:
         self._verbosity = verbosity or VerbosityController()
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
+        # Pass-draining (incl. the draw→auto-hide→speak sync point) lives in
+        # turn_pass.py — the ≤300-line split; built from the same seams.
+        self._pass = TurnPass(
+            reasoner=reasoner, budget=budget, overlay=overlay,
+            auto_hide=self._auto_hide, voice=self._voice,
+        )
 
         # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
@@ -171,8 +172,9 @@ class Orchestrator:
             if not self._budget.can_afford():            # Rule 10, before EVERY call
                 await self._voice.refuse_for_budget(result, self._budget)
                 return
-            turn_complete, refresh_call = await self._consume_stream(
-                user_input, screenshot, result)
+            turn_complete, refresh_call = await self._pass.consume(
+                user_input, screenshot, list(self.history),
+                self._highlight_gate, result)
             if turn_complete is None:                    # stream died, no TurnComplete
                 return
 
@@ -211,58 +213,6 @@ class Orchestrator:
 
         logger.warning("[orchestrator] agentic cap (%d) hit — stopping cleanly", MAX_AGENTIC_ITERATIONS)
         await self._voice.speak(AGENTIC_CAP_NOTE_AR)
-
-    async def _consume_stream(
-        self,
-        user_input: UserInput,
-        screenshot: Optional[bytes],
-        result: TurnResult,
-    ) -> tuple[Optional[TurnComplete], Optional[ToolCall]]:
-        """Drain one provider turn into result. Returns (turn_complete,
-        refresh_call); refresh_call is set iff the model asked for a new
-        screenshot and the pipeline must answer it."""
-        turn_complete: Optional[TurnComplete] = None
-        refresh_call: Optional[ToolCall] = None
-        message_text = ""  # buffer-then-speak: spoken once, after the stream
-        pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
-
-        async for event in self._reasoner.run(user_input, screenshot, list(self.history), tool_choice=loop_tool_choice(self._highlight_gate)):
-            if isinstance(event, TextDelta):
-                result.spoken_text += event.text
-                message_text += event.text
-            elif isinstance(event, ToolCall):
-                if event.name in DRAW_TOOLS:
-                    result.tool_calls.append(event)
-                    # Circuit breaker: buffer only the FIRST draw (either tool); scaled in next_draw.
-                    pending_draw = next_draw(self._highlight_gate, pending_draw, event, result.scale_x, result.scale_y)
-                elif event.name == REFRESH_TOOL:
-                    result.tool_calls.append(event)
-                    refresh_call = event
-                else:
-                    # LOOK-only hard boundary: an action tool is a contract violation.
-                    logger.error(
-                        "[orchestrator] LOOK-only violation: refusing tool %r",
-                        event.name,
-                    )
-            elif isinstance(event, TurnComplete):
-                turn_complete = event
-
-        if turn_complete is None:
-            logger.error("[orchestrator] provider stream ended without TurnComplete")
-            return None, None
-
-        result.input_tokens += turn_complete.input_tokens
-        result.output_tokens += turn_complete.output_tokens
-        result.cost_usd = round(result.cost_usd + turn_complete.cost_usd, 6)
-        result.stop_reason = turn_complete.stop_reason
-        # Cost recorded BEFORE speaking — the timeout must never cost us accounting.
-        self._budget.record_turn(turn_complete)
-        # Sync point: apply the ONE buffered draw + arm auto-hide, THEN speak.
-        if pending_draw is not None:
-            await pending_draw.apply(self._overlay)
-            self._auto_hide.schedule()
-        await self._voice.speak(message_text)
-        return turn_complete, refresh_call
 
     # ───────────────────────── Helpers ─────────────────────────
 
