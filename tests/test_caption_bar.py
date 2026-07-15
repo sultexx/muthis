@@ -131,3 +131,186 @@ def test_empty_text_clears_without_drawing():
     CaptionBar(canvas, SCREEN, style=DEFAULTS).show_text("")
     assert canvas.deleted == [CAPTION_TAG]
     assert canvas.texts == [] and canvas.polygons == []
+
+
+# ──────────────────── C2: dispatch routing (fakes, no Tk) ────────────────────
+
+
+class _Recorder:
+    def __init__(self):
+        self.calls = []
+
+    def __getattr__(self, name):
+        def record(*args):
+            self.calls.append((name,) + args)
+        return record
+
+
+class FakeCaption:
+    def __init__(self):
+        self.shown = []
+        self.clears = 0
+
+    def show_text(self, text):
+        self.shown.append(text)
+
+    def clear(self):
+        self.clears += 1
+
+
+def _dispatch(command, caption):
+    from muthis.overlay.window_commands import dispatch_command
+    return dispatch_command(
+        command, rect=_Recorder(), pointer=_Recorder(), animator=_Recorder(),
+        shapes=None, status=None, caption=caption,
+    )
+
+
+def test_dispatch_routes_show_and_clear_caption():
+    caption = FakeCaption()
+    assert _dispatch(("show_caption", "الجملة الحالية."), caption) is True
+    assert _dispatch(("clear_caption",), caption) is True
+    assert caption.shown == ["الجملة الحالية."]
+    assert caption.clears == 1
+
+
+def test_dispatch_hide_clears_the_caption_too():
+    # Ghosting: hide() runs before EVERY capture, so a screenshot can never
+    # show Mut'his its own caption text.
+    caption = FakeCaption()
+    _dispatch(("hide",), caption)
+    assert caption.clears == 1
+
+
+def test_dispatch_without_a_caption_bar_stays_backward_compatible():
+    from muthis.overlay.window_commands import dispatch_command
+    # The pre-captions signature (no caption kwarg) must keep working.
+    assert dispatch_command(
+        ("show_caption", "نص"), rect=_Recorder(), pointer=_Recorder(),
+        animator=_Recorder(),
+    ) is True
+    assert dispatch_command(
+        ("hide",), rect=_Recorder(), pointer=_Recorder(), animator=_Recorder(),
+    ) is True
+
+
+def test_sidekick_overlay_enqueues_caption_commands():
+    from muthis.overlay.sidekick_window import SidekickOverlay
+    overlay = SidekickOverlay()
+    overlay._started = True          # disarm the real Tk thread
+    overlay.show_caption("جملة")
+    overlay.clear_caption()
+    commands = []
+    while not overlay._commands.empty():
+        commands.append(overlay._commands.get_nowait())
+    assert commands == [("show_caption", "جملة"), ("clear_caption",)]
+
+
+# ─────────────── C2: the VoiceOut caption choke point (no Tk) ────────────────
+
+
+class CaptionOverlay:
+    """Overlay double WITH the caption seam; records call order."""
+
+    def __init__(self):
+        self.events = []
+
+    def set_state(self, state):
+        self.events.append(("state", state))
+
+    def show_caption(self, text):
+        self.events.append(("caption", text))
+
+    def clear_caption(self):
+        self.events.append(("caption_clear",))
+
+    async def show(self, bbox, label_ar):
+        pass
+
+    async def hide(self):
+        pass
+
+    def clear_status_light(self):
+        pass
+
+
+class BareOverlay:
+    """An overlay WITHOUT caption methods (StubOverlay shape)."""
+
+    def set_state(self, state):
+        pass
+
+
+def _tts_recorder(log):
+    async def tts(text):
+        log.append(("tts", text))
+        return None
+    return tts
+
+
+@pytest.mark.asyncio
+async def test_captions_on_show_the_exact_spoken_text_then_clear_after_audio():
+    from muthis.voice_out import VoiceOut
+    overlay = CaptionOverlay()
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay, captions=True)
+
+    await voice.speak("هذا هو الشرح الكامل.")
+
+    # Caption appears WITH the speech start (right after the speaking light,
+    # before the TTS awaits) and clears once the audio call finishes.
+    assert overlay.events == [
+        ("state", "speaking"),
+        ("caption", "هذا هو الشرح الكامل."),
+        ("tts", "هذا هو الشرح الكامل."),
+        ("caption_clear",),
+        ("state", "thinking"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_captions_default_off_means_zero_caption_calls():
+    from muthis.voice_out import VoiceOut
+    overlay = CaptionOverlay()
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay)  # env cleared → OFF
+
+    await voice.speak("نص منطوق")
+
+    assert [e for e in overlay.events if e[0].startswith("caption")] == []
+
+
+@pytest.mark.asyncio
+async def test_env_flag_enables_captions(monkeypatch):
+    from muthis.voice_out import VoiceOut
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+    overlay = CaptionOverlay()
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay)
+
+    await voice.speak("نص")
+
+    assert ("caption", "نص") in overlay.events
+
+
+@pytest.mark.asyncio
+async def test_captions_clear_even_when_the_tts_raises():
+    from muthis.voice_out import VoiceOut
+    overlay = CaptionOverlay()
+
+    async def broken_tts(text):
+        raise RuntimeError("device gone")
+
+    voice = VoiceOut(broken_tts, overlay, captions=True)
+    with pytest.raises(RuntimeError):
+        await voice.speak("جملة")
+    # The bar must never stay frozen on a dead sentence.
+    assert overlay.events[-1] == ("caption_clear",)
+
+
+@pytest.mark.asyncio
+async def test_an_overlay_without_caption_methods_is_a_silent_noop():
+    from muthis.voice_out import VoiceOut
+
+    async def tts(text):
+        return None
+
+    # captions ON + a caption-less overlay (StubOverlay shape) → no crash.
+    await VoiceOut(tts, BareOverlay(), captions=True).speak("نص")

@@ -38,5 +38,7 @@ def _clear_cloud_tts_env(monkeypatch):
         # Sentence-streaming rollback flag (v5 C2) — default OFF must hold in
         # every test regardless of the developer's .env.
         "MUTHIS_STREAM_TTS",
+        # Live-captions rollback flag (v6 C) — same deterministic-OFF rule.
+        "MUTHIS_CAPTIONS",
     ):
         monkeypatch.delenv(var, raising=False)

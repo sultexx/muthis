@@ -20,12 +20,14 @@ def _bbox_center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
     return ((x1 + x2) // 2, (y1 + y2) // 2)
 
 
-def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None, status=None) -> bool:
+def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
+                     status=None, caption=None) -> bool:
     """Apply one overlay command to the view objects. Returns False iff the
     overlay should stop ("close"), True otherwise.
 
-    `shapes` (ShapesWidget) and `status` (StatusIndicator) are OPTIONAL so the
-    pre-existing call sites/tests keep working — absent → their commands no-op."""
+    `shapes` (ShapesWidget), `status` (StatusIndicator) and `caption`
+    (CaptionBar, v6 C) are OPTIONAL so the pre-existing call sites/tests keep
+    working — absent → their commands no-op."""
     action = command[0]
     if action == "close":
         animator.cancel()
@@ -60,14 +62,23 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None, st
     elif action == "clear_status_light":  # 2-B ghosting: drop the corner dot
         if status is not None:
             status.clear_status_light()
+    elif action == "show_caption":  # v6 C: the live-captions bar
+        if caption is not None:
+            caption.show_text(command[1])
+    elif action == "clear_caption":
+        if caption is not None:
+            caption.clear()
     elif action == "hide":
         # Ghosting path: kill any in-flight glide and clear the pointer, the
-        # rectangle, AND the shapes, so no frame survives into the next capture.
+        # rectangle, the shapes AND the caption bar, so no frame — and no
+        # readable self-text — survives into the next capture.
         animator.cancel()
         pointer.clear()
         rect.clear()
         if shapes is not None:
             shapes.clear()
+        if caption is not None:
+            caption.clear()
     return True
 
 

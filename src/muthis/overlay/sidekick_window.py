@@ -111,6 +111,18 @@ class SidekickOverlay:
         non-blocking — _capture_downscaled calls it right before the grab."""
         self._enqueue(("clear_status_light",))
 
+    def show_caption(self, text: str) -> None:
+        """Live captions (v6 C): show `text` on the bottom-center caption bar.
+        SYNC fire-and-forget like set_state — called from the asyncio side via
+        the VoiceOut boundary (assistant speech ONLY); the enqueue is
+        thread-safe and never blocks."""
+        self._enqueue(("show_caption", text))
+
+    def clear_caption(self) -> None:
+        """Drop the caption bar (audio finished). The hide() path also clears
+        it (ghosting), so a capture can never see Mut'his reading itself."""
+        self._enqueue(("clear_caption",))
+
     # ───────────────────────────── Lifecycle ─────────────────────────────
 
     def close(self) -> None:
@@ -143,6 +155,7 @@ class SidekickOverlay:
         try:
             import tkinter as tk
 
+            from .caption_bar import CaptionBar
             from .pointer_animator import PointerAnimator
             from .pointer_widget import PointerWidget
             from .rectangle_widget import RectangleWidget
@@ -167,11 +180,14 @@ class SidekickOverlay:
                 duration_ms=self._anim_duration_ms,
             )
             # State light: shares the canvas, pulses via after (corner dot only).
+            screen_size = (root.winfo_screenwidth(), root.winfo_screenheight())
             status = StatusIndicator(
                 rect.canvas, schedule=root.after, style=style,
-                screen_size=(root.winfo_screenwidth(), root.winfo_screenheight()),
+                screen_size=screen_size,
             )
             status.start()
+            # Live captions (v6 C): same shared canvas, bottom-center chip.
+            caption = CaptionBar(rect.canvas, screen_size, style=style)
             self._apply_click_through(root)
         except Exception:  # headless / Tk missing / Win32 quirk — degrade quietly
             logger.exception("[overlay] window init failed — overlay disabled")
@@ -184,7 +200,7 @@ class SidekickOverlay:
                     command = self._commands.get_nowait()
                     if not dispatch_command(
                         command, rect=rect, pointer=pointer, animator=animator,
-                        shapes=shapes_widget, status=status,
+                        shapes=shapes_widget, status=status, caption=caption,
                     ):
                         root.destroy()
                         return

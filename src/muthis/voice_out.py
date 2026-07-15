@@ -23,29 +23,70 @@ Sibling + stdlib imports only; importable in isolation.
 from __future__ import annotations
 
 import logging
+import os
+from typing import Optional
 
 from .budget import Budget
 from .turn import BUDGET_REFUSAL_AR, Overlay, TtsFn, TurnResult
 
 logger = logging.getLogger("muthis.orchestrator")
 
+# v6 C rollback flag: live captions are OFF unless .env opts in (the default
+# stays pending Sultan's release decision — recommendation ON at release).
+CAPTIONS_ENV = "MUTHIS_CAPTIONS"
+
+
+def _captions_from_env() -> bool:
+    raw = os.getenv(CAPTIONS_ENV)
+    return raw is not None and raw.strip().lower() in ("1", "true", "yes", "on")
+
 
 class VoiceOut:
     """The spoken output of a turn: TTS + status-light choreography + the
-    budget refusal. Built by the Orchestrator from its own injected seams."""
+    budget refusal — and (v6 C) the CAPTION choke point: everything the bar
+    ever shows passes through THIS class, so the privacy boundary (assistant
+    speech only) covers the eyes exactly like the ears. Built by the
+    Orchestrator from its own injected seams."""
 
-    def __init__(self, tts: TtsFn, overlay: Overlay) -> None:
+    def __init__(self, tts: TtsFn, overlay: Overlay,
+                 captions: Optional[bool] = None) -> None:
         self._tts = tts
         self._overlay = overlay
+        self._captions = _captions_from_env() if captions is None else captions
+
+    def show_caption(self, text: str) -> None:
+        """Show `text` on the overlay's caption bar — flag-gated and
+        duck-typed: an overlay without a caption bar (StubOverlay, older
+        fakes) is a silent no-op. SYNC fire-and-forget (a thread-safe
+        enqueue on the real overlay), so speech timing never waits on Tk."""
+        if not (self._captions and text):
+            return
+        show = getattr(self._overlay, "show_caption", None)
+        if show is not None:
+            show(text)
+
+    def clear_caption(self) -> None:
+        """Drop the caption (the audio for it has finished)."""
+        if not self._captions:
+            return
+        clear = getattr(self._overlay, "clear_caption", None)
+        if clear is not None:
+            clear()
 
     async def speak(self, text: str) -> None:
         """Privacy boundary: ONLY assistant-authored Arabic may pass here —
         never the user transcript, never tool JSON. speak() never raises;
-        a failed TTSResult is logged and the turn continues regardless."""
+        a failed TTSResult is logged and the turn continues regardless.
+        The caption shows WITH the speech start and clears when the audio
+        finishes (TTS returns post-playback) — success or failure alike."""
         if not text:
             return
         self._overlay.set_state("speaking")  # neon green while the voice plays
-        tts_result = await self._tts(text)
+        self.show_caption(text)
+        try:
+            tts_result = await self._tts(text)
+        finally:
+            self.clear_caption()
         if tts_result is not None:
             log = logger.info if tts_result.success else logger.warning
             log(
@@ -65,4 +106,4 @@ class VoiceOut:
         await self.speak(BUDGET_REFUSAL_AR)
 
 
-__all__ = ["VoiceOut"]
+__all__ = ["VoiceOut", "CAPTIONS_ENV"]

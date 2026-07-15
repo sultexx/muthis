@@ -410,3 +410,83 @@ async def test_mid_session_failure_speaks_the_remainder_in_one_call(tmp_path):
 
     assert session.fed == ["الأولى نجحت."]
     assert fake_tts.spoken == ["سم", "الثانية سقطت. الثالثة أيضاً."]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# v6 C2: live captions through the FULL pipeline (flag-gated, privacy)
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class CaptionRecordingOverlay:
+    """Overlay double with the v6 caption seam; records shows/clears."""
+
+    def __init__(self):
+        self.captions = []
+        self.caption_clears = 0
+
+    async def show(self, bbox, label_ar):
+        pass
+
+    async def hide(self):
+        pass
+
+    def set_state(self, state):
+        pass
+
+    def clear_status_light(self):
+        pass
+
+    def show_caption(self, text):
+        self.captions.append(text)
+
+    def clear_caption(self):
+        self.caption_clears += 1
+
+
+@pytest.mark.asyncio
+async def test_caption_bar_shows_only_assistant_speech_then_clears(tmp_path, monkeypatch):
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+    from muthis.verbosity import DIRECTIVE_OPEN_AR
+
+    script = [TextDelta(ASSISTANT_TEXT_AR), _turn_complete()]
+    fake_tts = FakeTTS()
+    overlay = CaptionRecordingOverlay()
+    orchestrator = Orchestrator(
+        reasoner=FakeReasoner([script]),
+        budget=Budget(daily_limit_usd=1.0, budget_file=tmp_path / "budget.json",
+                      today_fn=lambda: "2026-06-11"),
+        tts=fake_tts.speak,
+        overlay=overlay,
+    )
+
+    # A verbosity command in the transcript attaches an INTERNAL directive to
+    # the user message — the bar must never render any of that.
+    await orchestrator.run_turn("باختصار، " + USER_TEXT_AR)
+
+    assert overlay.captions == [ASSISTANT_TEXT_AR]  # the spoken text, verbatim
+    assert overlay.caption_clears >= 1              # cleared when audio finished
+    for shown in overlay.captions:
+        assert USER_TEXT_AR not in shown            # never the user transcript
+        assert "12345" not in shown                 # never transcript PII
+        assert DIRECTIVE_OPEN_AR not in shown       # never internal directives
+        assert "{" not in shown                     # never tool JSON
+
+
+@pytest.mark.asyncio
+async def test_captions_default_off_keeps_the_bar_untouched(tmp_path):
+    script = [TextDelta(ASSISTANT_TEXT_AR), _turn_complete()]
+    fake_tts = FakeTTS()
+    overlay = CaptionRecordingOverlay()
+    orchestrator = Orchestrator(
+        reasoner=FakeReasoner([script]),
+        budget=Budget(daily_limit_usd=1.0, budget_file=tmp_path / "budget.json",
+                      today_fn=lambda: "2026-06-11"),
+        tts=fake_tts.speak,
+        overlay=overlay,
+    )
+
+    await orchestrator.run_turn(USER_TEXT_AR)
+
+    # conftest clears MUTHIS_CAPTIONS → today's behavior, bar untouched.
+    assert overlay.captions == [] and overlay.caption_clears == 0
+    assert fake_tts.spoken == [ASSISTANT_TEXT_AR]   # speech itself unchanged
