@@ -490,3 +490,103 @@ async def test_captions_default_off_keeps_the_bar_untouched(tmp_path):
     # conftest clears MUTHIS_CAPTIONS → today's behavior, bar untouched.
     assert overlay.captions == [] and overlay.caption_clears == 0
     assert fake_tts.spoken == [ASSISTANT_TEXT_AR]   # speech itself unchanged
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# v6 C3: captions ride the STREAMED pass sentence-by-sentence
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class StreamCaptionOverlay(CaptionRecordingOverlay):
+    """Adds the order log: caption events interleaved with session feeds are
+    asserted through the session's own record; here we log clears too."""
+
+    def __init__(self):
+        super().__init__()
+        self.log = []
+
+    def show_caption(self, text):
+        super().show_caption(text)
+        self.log.append(("show", text))
+
+    def clear_caption(self):
+        super().clear_caption()
+        self.log.append(("clear",))
+
+
+def _streaming_caption_orchestrator(tmp_path, scripts, *, fake_tts, factory, overlay):
+    return Orchestrator(
+        reasoner=FakeReasoner(scripts),
+        budget=Budget(daily_limit_usd=1.0, budget_file=tmp_path / "budget.json",
+                      today_fn=lambda: "2026-06-11"),
+        tts=fake_tts.speak, overlay=overlay,
+        stream_tts=True, speech_session_factory=factory,
+    )
+
+
+@pytest.mark.asyncio
+async def test_streamed_captions_follow_the_sentences_in_order(tmp_path, monkeypatch):
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
+    overlay = StreamCaptionOverlay()
+    scripts = _dual_action_scripts("هذا زر الحفظ. يحفظ ملفك بسرعة.")
+    orchestrator = _streaming_caption_orchestrator(
+        tmp_path, scripts, fake_tts=fake_tts, factory=factory, overlay=overlay)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    # Pass 1 (buffered ack) shows its caption via speak(); pass 2 streams:
+    # each sentence lands on the bar exactly when it is fed to the ONE
+    # session, and the bar clears when the generation drains.
+    assert session.fed == ["هذا زر الحفظ.", "يحفظ ملفك بسرعة."]
+    assert overlay.log == [
+        ("show", "سم"), ("clear",),                      # pass 1: buffered ack
+        ("show", "هذا زر الحفظ."),
+        ("show", "يحفظ ملفك بسرعة."),
+        ("clear",),                                       # session drained
+    ]
+
+
+@pytest.mark.asyncio
+async def test_streamed_captions_off_by_default_even_when_streaming(tmp_path):
+    # MUTHIS_STREAM_TTS ON but MUTHIS_CAPTIONS cleared by conftest → the
+    # session still gets its sentences; the bar stays untouched.
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
+    overlay = StreamCaptionOverlay()
+    scripts = _dual_action_scripts("هذا زر الحفظ.")
+    orchestrator = _streaming_caption_orchestrator(
+        tmp_path, scripts, fake_tts=fake_tts, factory=factory, overlay=overlay)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert session.fed == ["هذا زر الحفظ."]
+    assert overlay.captions == [] and overlay.caption_clears == 0
+
+
+@pytest.mark.asyncio
+async def test_mid_session_failure_reshows_the_spoken_remainder(tmp_path, monkeypatch):
+    # Decision 15 path: sentence 1 plays via the session, the socket then dies;
+    # the remainder is spoken through ONE buffered speak() — and the bar must
+    # show what is ACTUALLY heard: sentence 1, then the remainder, never a
+    # frozen dead sentence.
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+    fake_tts, session = FakeTTS(), FakeSpeechSession(fail_feed_at=1)
+    factory = SessionFactory(session)
+    overlay = StreamCaptionOverlay()
+    scripts = _dual_action_scripts("الأولى تلعب. الثانية تفشل. الثالثة معها.")
+    orchestrator = _streaming_caption_orchestrator(
+        tmp_path, scripts, fake_tts=fake_tts, factory=factory, overlay=overlay)
+
+    await orchestrator.run_turn("وين زر الحفظ؟")
+
+    assert session.fed == ["الأولى تلعب."]
+    assert fake_tts.spoken[-1] == "الثانية تفشل. الثالثة معها."   # one buffered call
+    assert overlay.log == [
+        ("show", "سم"), ("clear",),                      # pass 1: buffered ack
+        ("show", "الأولى تلعب."),                        # played via the session
+        ("show", "الثانية تفشل."), ("clear",),           # died → bar unfrozen
+        ("clear",),                                       # session close drained
+        ("show", "الثانية تفشل. الثالثة معها."), ("clear",),  # fallback speak
+    ]

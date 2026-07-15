@@ -187,6 +187,9 @@ class _PassStreamer:
             await self._session.close()
         except Exception as exc:  # noqa: BLE001 — degrade, never crash the turn
             close_error = exc
+        # close() drained the audio tail — the last sentence has finished
+        # playing, so the caption leaves the screen with it (v6 C3).
+        self._voice.clear_caption()
         self._overlay.set_state("thinking")
         if not self._session.got_audio:
             if close_error is not None:
@@ -211,6 +214,7 @@ class _PassStreamer:
             await self._session.close()
         except Exception:  # noqa: BLE001 — already on the error path
             pass
+        self._voice.clear_caption()  # never leave a caption from a dead pass
         self._overlay.set_state("thinking")
 
     async def _feed(self, sentence: str) -> None:
@@ -218,12 +222,19 @@ class _PassStreamer:
             self._unplayed.append(sentence)
             return
         self._overlay.set_state("speaking")  # held across sentences (idempotent)
+        # Live captions (v6 C3): the bar tracks the sentence being fed to the
+        # ONE persistent generation — flag-gated inside VoiceOut (its privacy
+        # choke point), a no-op when captions are off.
+        self._voice.show_caption(sentence)
         try:
             await self._session.feed(sentence)
         except Exception as exc:  # noqa: BLE001 — degrade to buffered
             logger.warning(
                 "[orchestrator] speech session feed failed (%s) — buffering the rest", exc)
             self._dead = True
+            # This sentence never played; the fallback speak() re-shows what
+            # is ACTUALLY spoken — the bar must not freeze on a dead sentence.
+            self._voice.clear_caption()
             self._unplayed.append(sentence)
 
 
