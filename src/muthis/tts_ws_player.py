@@ -29,9 +29,14 @@ import asyncio
 import logging
 import queue
 import threading
+import time
 from typing import Callable, Optional
 
 logger = logging.getLogger("tts")
+
+# DIAG(v7): temporary timing probes for the mid-sentence-pause investigation.
+# Every [DIAG] line (and this logger) is removed once the audio work lands.
+_diag = logging.getLogger("muthis.diag")
 
 # Pushed onto the queue to tell the worker "no more audio — drain & stop".
 _EOS = object()
@@ -104,12 +109,33 @@ class PcmStreamPlayer:
         """Worker thread: open the stream, write chunks FIFO until EOS, then stop()
         — PortAudio's Pa_StopStream waits for pending audio to play, so the tail is
         never clipped. Any error is captured and surfaced via finish()."""
+        # DIAG(v7): first_write_t + audio_written_s let us compute the playback
+        # horizon (first_write + seconds of PCM written). If the wall clock passes
+        # that horizon while we are still waiting on the queue, the device had
+        # nothing left to play — an audible mid-sentence gap (starvation).
+        first_write_t: Optional[float] = None
+        audio_written_s = 0.0
         try:
             with self._stream_factory(self._sample_rate, self._channels) as stream:
                 while True:
+                    wait_t0 = time.monotonic()
                     chunk = self._queue.get()
+                    waited_s = time.monotonic() - wait_t0
                     if chunk is _EOS:
+                        _diag.info("[DIAG] player EOS t=%.3f audio_written=%.3fs",
+                                   time.monotonic(), audio_written_s)
                         break
+                    now = time.monotonic()
+                    if first_write_t is None:
+                        first_write_t = now
+                        _diag.info("[DIAG] player first-write t=%.3f bytes=%d", now, len(chunk))
+                    else:
+                        deficit_s = now - (first_write_t + audio_written_s)
+                        if deficit_s > 0.02:
+                            _diag.warning(
+                                "[DIAG] player STARVED ~%dms (queue wait %dms) t=%.3f",
+                                round(deficit_s * 1000), round(waited_s * 1000), now)
+                    audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
                     stream.write(chunk)
                 stream.stop()  # drain pending audio before the context closes
         except BaseException as exc:  # noqa: BLE001 — surfaced to the caller via finish()

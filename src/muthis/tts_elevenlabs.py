@@ -54,12 +54,18 @@ DEFAULT_VOICE_SETTINGS = {"stability": 0.7, "similarity_boost": 0.8, "style": 0.
 WS_CONNECT_TIMEOUT_SEC = 5.0
 WS_TOTAL_TIMEOUT_SEC = 30.0
 
+# v7: the turn-level SpeechSession sits quiet between passes (provider TTFT is
+# ~2-4 s, worst case longer) — the server default of 20 s is enough headroom
+# today, but 60 s makes a slow vision pass a non-event. Max the API allows: 180.
+WS_INACTIVITY_TIMEOUT_SEC = 60
+
 
 def build_uri(voice_id: str, model_id: str, output_format: str) -> str:
     """The stream-input WebSocket URI (no key in it — the key rides in the BOS)."""
     return (
         f"{ELEVENLABS_WS_BASE}/{voice_id}/stream-input"
         f"?model_id={model_id}&output_format={output_format}"
+        f"&inactivity_timeout={WS_INACTIVITY_TIMEOUT_SEC}"
     )
 
 
@@ -135,5 +141,5 @@ __all__ = [
     "stream_pcm", "build_uri", "default_ws_connect",
     "ELEVENLABS_WS_BASE", "DEFAULT_VOICE_ID", "DEFAULT_MODEL_ID",
     "DEFAULT_OUTPUT_FORMAT", "DEFAULT_SAMPLE_RATE", "DEFAULT_VOICE_SETTINGS",
-    "WS_CONNECT_TIMEOUT_SEC", "WS_TOTAL_TIMEOUT_SEC",
+    "WS_CONNECT_TIMEOUT_SEC", "WS_TOTAL_TIMEOUT_SEC", "WS_INACTIVITY_TIMEOUT_SEC",
 ]

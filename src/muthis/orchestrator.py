@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any, Callable, Optional
 
 from .budget import Budget
@@ -44,6 +45,9 @@ from .verbosity import VerbosityController
 from .voice_out import VoiceOut
 
 logger = logging.getLogger("muthis.orchestrator")
+
+# DIAG(v7): temporary timing probes for the stop-and-go investigation.
+_diag = logging.getLogger("muthis.diag")
 
 
 # ─── Session constants ────────────────────────────────────────────────────────
@@ -150,12 +154,27 @@ class Orchestrator:
         # agentic loop's continuations or the refresh follow-up.
         user_text = self._verbosity.begin_turn(user_text)
         result = TurnResult()
+        # Per-turn state (fresh by construction): the draw gate and the ONE
+        # continuous speech generation every pass feeds into (v7). The gate is
+        # also rebuilt at the pipeline top; this early build keeps the finally
+        # below safe on any pre-pipeline exit.
+        self._highlight_gate = HighlightGate()
+        turn_voice = self._pass.new_turn_voice()
         try:
             async with asyncio.timeout(self._session_timeout_s):
-                await self._run_turn_pipeline(user_text, result)
+                await self._run_turn_pipeline(user_text, result, turn_voice)
         except TimeoutError:
             result.timed_out = True
             logger.warning("[orchestrator] session bound (%.0fs) hit — turn truncated", self._session_timeout_s)
+        finally:
+            # Outside the timeout scope, so the drain can await safely: close
+            # the turn's generation (decision-15 fallbacks live inside) …
+            await turn_voice.finish()
+            # … and re-arm the auto-hide from SPEECH END (v7, measured: the
+            # 7s-from-draw timer hid the rectangle 1.7s before the explanation
+            # finished — the draw and its explanation live in DIFFERENT passes).
+            if self._highlight_gate.drawn:
+                self._auto_hide.schedule()
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
         # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
         # any earlier would strip it before the tool_choice="none" explain pass.
@@ -164,7 +183,8 @@ class Orchestrator:
 
     # ───────────────────────── Turn pipeline ─────────────────────────
 
-    async def _run_turn_pipeline(self, user_text: str, result: TurnResult) -> None:
+    async def _run_turn_pipeline(self, user_text: str, result: TurnResult,
+                                 turn_voice) -> None:
         user_input = UserInput(text=user_text)
         screenshot = await self._capture_downscaled(result)
         refresh_used = 0
@@ -173,13 +193,19 @@ class Orchestrator:
         # Agentic loop — ONE run() call per pass; the cap stops a model that, after
         # a tool_use, never says end_turn (point → explain normally needs ≤2 passes).
         for _iteration in range(MAX_AGENTIC_ITERATIONS):
+            _diag.info("[DIAG] pipeline pass=%d begin t=%.3f", _iteration, time.monotonic())
             if not self._budget.can_afford():            # Rule 10, before EVERY call
-                await self._voice.refuse_for_budget(result, self._budget)
+                # Spoken through the turn voice: audio from an earlier pass may
+                # still be playing — the refusal must queue behind it, never overlap.
+                await self._voice.refuse_for_budget(
+                    result, self._budget, speak=turn_voice.speak_or_feed)
                 return
             turn_complete, refresh_call = await self._pass.consume(
                 user_input, screenshot, list(self.history),
-                self._highlight_gate, result)
+                self._highlight_gate, result, turn_voice)
+            _diag.info("[DIAG] pipeline pass=%d done t=%.3f", _iteration, time.monotonic())
             if turn_complete is None:                    # stream died, no TurnComplete
+                await turn_voice.abandon()               # release the generation quietly
                 return
 
             # History grows here only. Utterance stored text-only (images never
@@ -216,7 +242,7 @@ class Orchestrator:
             screenshot = None if serviced_refresh else screenshot
 
         logger.warning("[orchestrator] agentic cap (%d) hit — stopping cleanly", MAX_AGENTIC_ITERATIONS)
-        await self._voice.speak(AGENTIC_CAP_NOTE_AR)
+        await turn_voice.speak_or_feed(AGENTIC_CAP_NOTE_AR)  # queues behind playing audio
 
     # ───────────────────────── Helpers ─────────────────────────
 

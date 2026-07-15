@@ -2,20 +2,27 @@
 """
 TurnPass — drains ONE provider pass (extracted under the ≤300-line law).
 
-orchestrator.py sat at 288 lines and Phase C (v5) needs room for the
+orchestrator.py sat at 288 lines and Phase C (v5) needed room for the
 buffer/stream branching, so the whole `_consume_stream` body moved here
 UNCHANGED (Law §17.4: split, don't compress — the same reason voice_out.py
 and highlight_gate.py exist): stream the reasoner's events, buffer the text,
 gate the draws (first draw wins, unified over BOTH draw tools), then the
 **Option-A SYNC POINT** — apply the ONE buffered draw → arm auto-hide → THEN
-speak. This module now OWNS that sync point; the orchestrator's agentic loop
-calls `consume()` once per pass and keeps owning history, pairing, budget
-gating and the loop itself (Law 11 untouched — TurnPass holds no lifecycle,
-no locks, no loop; it is one pass, built once from the orchestrator's own
-injected seams).
+speak — which this module OWNS. The orchestrator's agentic loop calls
+`consume()` once per pass and keeps owning history, pairing, budget gating and
+the loop itself (Law 11 untouched — TurnPass holds no lifecycle, no locks, no
+loop; it is one pass, built once from the orchestrator's own injected seams).
 
-Phase C2 adds the flag-gated sentence-streaming branch HERE (tool_choice
-"none" passes only — never "auto") so the orchestrator never grows for it.
+**v7 continuous voice**: the per-pass `_PassStreamer` was replaced by the
+turn-level `turn_voice.TurnVoice` (ONE speech generation for the WHOLE turn —
+see that module for the measured 3.48s stop-and-go it removes). TurnPass stays
+stateless: the orchestrator builds a fresh TurnVoice per turn through
+`new_turn_voice()` (which owns the flag + the lazy real session factory) and
+passes it into `consume()` like the HighlightGate. Decision 13 is unchanged:
+mid-pass sentence streaming happens ONLY on `tool_choice="none"` passes (the
+API forbids tools there, so no draw can arrive mid-stream); an "auto" pass's
+text stays fully buffered and reaches the voice AT the sync point — now as an
+instant `speak_or_feed()` so the ack no longer blocks the loop.
 
 `REFRESH_TOOL` moved with the code; orchestrator re-exports it.
 """
@@ -24,16 +31,21 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, List, Optional
+import time
+from typing import Any, Callable, Optional
 
 from .cloud.protocol import TextDelta, ToolCall, TurnComplete, UserInput
 from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
 from .highlight_gate import HighlightGate, loop_tool_choice
-from .speech_stream import SentenceSplitter
 from .turn import TurnResult
+from .turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
 logger = logging.getLogger("muthis.orchestrator")
+
+# DIAG(v7): temporary timing probes for the stop-and-go / mid-sentence-pause
+# investigation. Every [DIAG] line is removed once the audio work lands.
+_diag = logging.getLogger("muthis.diag")
 
 REFRESH_TOOL = "request_screen_refresh"
 
@@ -61,12 +73,22 @@ class TurnPass:
         self._overlay = overlay
         self._auto_hide = auto_hide
         self._voice = voice
-        # C2: sentence streaming — flag-gated (default OFF) and ONLY for
-        # tool_choice="none" passes. The factory seam resolves lazily to the
-        # real TTS().open_speech_session on first flag-ON use, so the buffered
-        # default path never imports the TTS layer.
+        # v7: sentence streaming — flag-gated (default OFF). The factory seam
+        # resolves lazily to the real TTS().open_speech_session on first
+        # flag-ON use, so the buffered default path never imports the TTS layer.
         self._stream_tts = _stream_tts_from_env() if stream_tts is None else stream_tts
         self._session_factory = session_factory
+
+    def new_turn_voice(self) -> TurnVoice:
+        """A fresh per-turn voice (built by run_turn like the HighlightGate):
+        ONE speech generation the whole turn feeds into. Flag OFF / no key →
+        the TurnVoice simply routes everything through buffered speak()."""
+        if self._stream_tts and self._session_factory is None:
+            from .tts import TTS  # lazy real default: only the flag-ON path pays
+            self._session_factory = TTS().open_speech_session
+        return TurnVoice(voice=self._voice, overlay=self._overlay,
+                         session_factory=self._session_factory,
+                         enabled=self._stream_tts)
 
     async def consume(
         self,
@@ -75,6 +97,7 @@ class TurnPass:
         history: list[dict[str, Any]],
         gate: HighlightGate,
         result: TurnResult,
+        turn_voice: TurnVoice,
     ) -> tuple[Optional[TurnComplete], Optional[ToolCall]]:
         """Drain one provider turn into result. Returns (turn_complete,
         refresh_call); refresh_call is set iff the model asked for a new
@@ -84,19 +107,27 @@ class TurnPass:
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
         tool_choice = loop_tool_choice(gate)
-        # C2 criterion (decision 13): stream ONLY a tool_choice="none" pass —
-        # the API forbids tools there, so no draw can arrive mid-stream and the
+        # Decision 13: stream mid-pass ONLY on a tool_choice="none" pass — the
+        # API forbids tools there, so no draw can arrive mid-stream and the
         # Option-A draw-at-speak invariant is untouchable. Every "auto" pass
-        # (draw pass, single-pass replies, refresh follow-ups) stays buffered.
-        streamer = await self._open_streamer(tool_choice)
+        # (draw pass, single-pass replies, refresh follow-ups) stays buffered
+        # and reaches the ONE turn generation at the sync point below.
+        streamed = tool_choice == "none" and await turn_voice.ensure_open()
+        _diag.info("[DIAG] pass start t=%.3f tool_choice=%s streamed=%s",
+                   time.monotonic(), tool_choice, streamed)
+        first_delta_at: Optional[float] = None
 
         async for event in self._reasoner.run(user_input, screenshot, history, tool_choice=tool_choice):
             if isinstance(event, TextDelta):
+                if first_delta_at is None:
+                    first_delta_at = time.monotonic()
+                    _diag.info("[DIAG] pass first-delta t=%.3f", first_delta_at)
                 result.spoken_text += event.text
                 message_text += event.text
-                if streamer is not None:
-                    await streamer.push(event.text)  # inline-await: no background consumer
+                if streamed:
+                    await turn_voice.push_stream(event.text)  # inline-await: no background consumer
             elif isinstance(event, ToolCall):
+                _diag.info("[DIAG] pass tool-call t=%.3f name=%s", time.monotonic(), event.name)
                 if event.name in DRAW_TOOLS:
                     result.tool_calls.append(event)
                     # Circuit breaker: buffer only the FIRST draw (either tool); scaled in next_draw.
@@ -114,8 +145,8 @@ class TurnPass:
                 turn_complete = event
 
         if turn_complete is None:
-            if streamer is not None:
-                await streamer.abandon()  # release the session; no fallback speak
+            # Abnormal pass end: the pipeline abandons the turn voice — this
+            # branch never spoke on the buffered path either.
             logger.error("[orchestrator] provider stream ended without TurnComplete")
             return None, None
 
@@ -125,117 +156,23 @@ class TurnPass:
         result.stop_reason = turn_complete.stop_reason
         # Cost recorded BEFORE speaking — the timeout must never cost us accounting.
         self._budget.record_turn(turn_complete)
+        _diag.info("[DIAG] pass stream-end t=%.3f stop_reason=%s chars=%d",
+                   time.monotonic(), turn_complete.stop_reason, len(message_text))
         # Sync point: apply the ONE buffered draw + arm auto-hide, THEN speak.
         # (A streamed pass is tool_choice="none": pending_draw is impossible.)
         if pending_draw is not None:
             await pending_draw.apply(self._overlay)
             self._auto_hide.schedule()
-        if streamer is not None:
-            await streamer.finish(message_text)  # flush + close; approved fallback
+            _diag.info("[DIAG] pass draw-applied t=%.3f", time.monotonic())
+        if streamed:
+            await turn_voice.end_stream()        # flush the tail into the generation
         else:
-            await self._voice.speak(message_text)
+            # v7: an instant feed when the turn session is live — the ack no
+            # longer blocks the loop, so the next pass's round-trip hides
+            # BEHIND its playback (the measured 3.48s gap).
+            await turn_voice.speak_or_feed(message_text)
+        _diag.info("[DIAG] pass end t=%.3f", time.monotonic())
         return turn_complete, refresh_call
-
-    async def _open_streamer(self, tool_choice: str) -> Optional["_PassStreamer"]:
-        """A streamer ONLY for a flag-ON `tool_choice="none"` pass. Any
-        unavailability (rollback flag / no key / open failure) → None, and the
-        pass silently stays on the proven buffered path."""
-        if not (self._stream_tts and tool_choice == "none"):
-            return None
-        if self._session_factory is None:
-            from .tts import TTS  # lazy real default: only the flag-ON path pays
-            self._session_factory = TTS().open_speech_session
-        session = self._session_factory()
-        if session is None:
-            return None
-        try:
-            await session.open()
-        except Exception as exc:  # noqa: BLE001 — degrade, never break the turn
-            logger.warning(
-                "[orchestrator] speech session open failed (%s) — buffered pass", exc)
-            return None
-        return _PassStreamer(session, self._overlay, self._voice)
-
-
-class _PassStreamer:
-    """One streamed pass: SentenceSplitter → the persistent SpeechSession,
-    inline-await only (no background consumer — the Batch-3 wedge is impossible
-    by construction). The status light holds "speaking" across ALL sentences;
-    any failure degrades per decision 15: the UNPLAYED remainder goes through
-    ONE buffered speak() (which cascades to Gemini on its own)."""
-
-    def __init__(self, session, overlay, voice) -> None:
-        self._session = session
-        self._overlay = overlay
-        self._voice = voice
-        self._splitter = SentenceSplitter()
-        self._dead = False
-        self._unplayed: List[str] = []
-
-    async def push(self, fragment: str) -> None:
-        for sentence in self._splitter.push(fragment):
-            await self._feed(sentence)
-
-    async def finish(self, full_text: str) -> None:
-        """End of the pass: flush the tail, close the generation, then the
-        approved fallback — NOTHING played → the whole reply through one
-        buffered speak(); died mid-way → only the remainder."""
-        for sentence in self._splitter.flush():
-            await self._feed(sentence)
-        close_error: Optional[Exception] = None
-        try:
-            await self._session.close()
-        except Exception as exc:  # noqa: BLE001 — degrade, never crash the turn
-            close_error = exc
-        # close() drained the audio tail — the last sentence has finished
-        # playing, so the caption leaves the screen with it (v6 C3).
-        self._voice.clear_caption()
-        self._overlay.set_state("thinking")
-        if not self._session.got_audio:
-            if close_error is not None:
-                logger.warning(
-                    "[orchestrator] speech session yielded no audio (%s) — speaking buffered",
-                    close_error)
-            await self._voice.speak(full_text)
-            return
-        if self._unplayed:
-            logger.warning(
-                "[orchestrator] speech session died mid-turn — speaking the remainder buffered")
-            await self._voice.speak(" ".join(self._unplayed))
-        elif close_error is not None:
-            # Audio already played; re-speaking would duplicate — log only.
-            logger.warning(
-                "[orchestrator] speech session close failed after audio (%s)", close_error)
-
-    async def abandon(self) -> None:
-        """Abnormal pass end (no TurnComplete): release the session quietly —
-        the buffered path speaks nothing on that branch either."""
-        try:
-            await self._session.close()
-        except Exception:  # noqa: BLE001 — already on the error path
-            pass
-        self._voice.clear_caption()  # never leave a caption from a dead pass
-        self._overlay.set_state("thinking")
-
-    async def _feed(self, sentence: str) -> None:
-        if self._dead:
-            self._unplayed.append(sentence)
-            return
-        self._overlay.set_state("speaking")  # held across sentences (idempotent)
-        # Live captions (v6 C3): the bar tracks the sentence being fed to the
-        # ONE persistent generation — flag-gated inside VoiceOut (its privacy
-        # choke point), a no-op when captions are off.
-        self._voice.show_caption(sentence)
-        try:
-            await self._session.feed(sentence)
-        except Exception as exc:  # noqa: BLE001 — degrade to buffered
-            logger.warning(
-                "[orchestrator] speech session feed failed (%s) — buffering the rest", exc)
-            self._dead = True
-            # This sentence never played; the fallback speak() re-shows what
-            # is ACTUALLY spoken — the bar must not freeze on a dead sentence.
-            self._voice.clear_caption()
-            self._unplayed.append(sentence)
 
 
 __all__ = ["TurnPass", "REFRESH_TOOL", "STREAM_TTS_ENV"]

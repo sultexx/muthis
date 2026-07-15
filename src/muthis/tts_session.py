@@ -35,6 +35,7 @@ import asyncio
 import base64
 import json
 import logging
+import time
 from typing import Callable, Optional
 
 from .tts_diacritics import apply_diacritics
@@ -51,6 +52,10 @@ from .tts_elevenlabs import (
 from .tts_ws_player import PcmStreamPlayer
 
 logger = logging.getLogger("tts")
+
+# DIAG(v7): temporary timing probes for the mid-sentence-pause investigation.
+# Sentence CONTENT is never logged — only lengths and the boundary punctuation.
+_diag = logging.getLogger("muthis.diag")
 
 
 class SpeechSession:
@@ -72,6 +77,10 @@ class SpeechSession:
         self._api_key = api_key
         self._uri = build_uri(voice_id, model_id, output_format)
         self._settings = voice_settings or dict(DEFAULT_VOICE_SETTINGS)
+        self._sample_rate = sample_rate  # DIAG(v7): PCM-seconds math in the chunk log
+        # v7 Fix A: only the FIRST sentence forces generation (fast first audio);
+        # afterwards ElevenLabs owns the chunking via the BOS chunk_length_schedule.
+        self._first_feed = True
         self._connect = ws_connect or default_ws_connect
         self._player_factory = player_factory or (lambda: PcmStreamPlayer(sample_rate))
         self._close_timeout = close_timeout_sec
@@ -99,11 +108,17 @@ class SpeechSession:
             await self._ws.send(json.dumps({
                 "text": " ",
                 "voice_settings": self._settings,
+                # v7 Fix A (measured, diag 2026-07-15): per-feed forced generation
+                # baked pauses INTO the audio at every fed boundary. This schedule
+                # hands chunking to ElevenLabs, which buffers ACROSS feeds with
+                # lookahead — prosody stays continuous between sentences.
+                "generation_config": {"chunk_length_schedule": [90, 160, 250, 290]},
                 "xi_api_key": self._api_key,
             }))
         except BaseException:
             await self._abandon_ws()
             raise
+        _diag.info("[DIAG] session BOS sent t=%.3f", time.monotonic())
         self._player = self._player_factory()
         self._player.start()
         self._reader = asyncio.create_task(self._read_audio())
@@ -114,21 +129,28 @@ class SpeechSession:
         session/connection so the caller degrades to buffered speak()."""
         if self._error is not None:
             raise RuntimeError(f"speech session already failed: {self._error}")
-        await self._ws.send(json.dumps({
-            "text": apply_diacritics(sentence) + " ",
-            "try_trigger_generation": True,
-        }))
+        _diag.info("[DIAG] session feed t=%.3f len=%d ender=%r",
+                   time.monotonic(), len(sentence), sentence[-1:])
+        payload: dict = {"text": apply_diacritics(sentence) + " "}
+        if self._first_feed:
+            # First audio should not wait for the 90-char schedule floor; later
+            # sentences must NOT force chunk boundaries (the measured pauses).
+            payload["try_trigger_generation"] = True
+            self._first_feed = False
+        await self._ws.send(json.dumps(payload))
 
     async def close(self) -> None:
         """EOS → drain the reader under a timeout (cancel on expiry) → release
         the socket → drain the player tail. Raises if the generation failed or
         produced no audio at all."""
+        _diag.info("[DIAG] session EOS sent t=%.3f", time.monotonic())
         try:
             try:
                 async with asyncio.timeout(self._close_timeout):
                     await self._ws.send(json.dumps({"text": ""}))
                     if self._reader is not None:
                         await self._reader
+                        _diag.info("[DIAG] session reader drained t=%.3f", time.monotonic())
             except BaseException as exc:
                 if self._reader is not None and not self._reader.done():
                     self._reader.cancel()
@@ -142,6 +164,7 @@ class SpeechSession:
             await self._abandon_ws()
             if self._player is not None:
                 await self._player.finish()   # tail drains; may raise → fallback
+            _diag.info("[DIAG] session closed (player drained) t=%.3f", time.monotonic())
         if self._error is not None:
             raise RuntimeError(f"speech session failed: {self._error}")
         if not self.got_audio:
@@ -168,8 +191,12 @@ class SpeechSession:
                 return
             audio_b64 = data.get("audio")
             if audio_b64:
-                self._player.feed(base64.b64decode(audio_b64))
+                pcm = base64.b64decode(audio_b64)
+                _diag.info("[DIAG] session audio-chunk t=%.3f bytes=%d (%.3fs of PCM)",
+                           time.monotonic(), len(pcm), len(pcm) / (2.0 * self._sample_rate))
+                self._player.feed(pcm)
             if data.get("isFinal"):
+                _diag.info("[DIAG] session isFinal t=%.3f", time.monotonic())
                 return
 
     async def _abandon_ws(self) -> None:

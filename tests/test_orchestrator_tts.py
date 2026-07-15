@@ -230,8 +230,14 @@ async def test_stream_without_turncomplete_returns_promptly_without_hanging(tmp_
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# Sentence streaming (v5 Phase C2) — flag-gated, tool_choice="none" passes ONLY
+# Continuous turn voice (v7) — flag-gated; mid-pass streaming stays
+# tool_choice="none"-only (decision 13), while every pass's buffered text now
+# rides the SAME one-per-turn generation via an instant feed (the stop-and-go fix).
 # ──────────────────────────────────────────────────────────────────────────
+
+# Long enough (≥ MIN_SENTENCE_CHARS) to stream as TWO separate sentences.
+EXPLAIN_S1 = "هذا هو زر الحفظ المطلوب فوق يسار الشاشة."
+EXPLAIN_S2 = "يحفظ ملفك الحالي بسرعة عالية دائماً."
 
 
 class FakeSpeechSession:
@@ -307,39 +313,43 @@ def _streaming_orchestrator(tmp_path, scripts, *, fake_tts, factory, stream_tts=
 
 
 @pytest.mark.asyncio
-async def test_explain_pass_streams_while_the_draw_pass_stays_buffered(tmp_path):
+async def test_ack_and_explanation_ride_one_turn_generation(tmp_path):
     fake_tts, session = FakeTTS(), FakeSpeechSession()
     factory = SessionFactory(session)
-    scripts = _dual_action_scripts("هذا زر الحفظ. يحفظ ملفك بسرعة.")
+    scripts = _dual_action_scripts(f"{EXPLAIN_S1} {EXPLAIN_S2}")
     orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    # Pass 1 ("auto", drew the highlight) stayed on the buffered path.
-    assert fake_tts.spoken == ["سم"]
-    # Pass 2 ("none") streamed its sentences in order over ONE session.
-    assert session.fed == ["هذا زر الحفظ.", "يحفظ ملفك بسرعة."]
+    # v7 stop-and-go fix: the pass-1 ack is FED (instant, non-blocking) into
+    # the SAME generation pass 2 streams into — one session for the turn, no
+    # blocking speak() between the passes.
+    assert session.fed == ["سم", EXPLAIN_S1, EXPLAIN_S2]
+    assert fake_tts.spoken == []                       # nothing blocked the loop
     assert factory.calls == 1 and session.opened and session.closed
 
 
 @pytest.mark.asyncio
-async def test_pure_text_auto_pass_never_streams(tmp_path):
-    # The inverted criterion: a single-pass reply runs with tool_choice="auto"
-    # (a ToolCall COULD arrive mid-stream), so it must stay buffered even with
-    # the flag ON.
-    fake_tts, factory = FakeTTS(), SessionFactory(FakeSpeechSession())
-    script = [[TextDelta("مرحبا. كيف أساعدك؟"), _turn_complete()]]
-    orchestrator = _streaming_orchestrator(tmp_path, [script[0]], fake_tts=fake_tts, factory=factory)
+async def test_auto_pass_text_is_fed_whole_at_the_sync_point(tmp_path):
+    # Decision 13 (unchanged): an "auto" pass never streams MID-pass — a
+    # ToolCall could still arrive. v7: its buffered text joins the ONE turn
+    # generation WHOLE at the sync point instead of a blocking speak().
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
+    script = [TextDelta("مرحبا. كيف أساعدك؟"), _turn_complete()]
+    orchestrator = _streaming_orchestrator(tmp_path, [script], fake_tts=fake_tts, factory=factory)
 
     await orchestrator.run_turn("هلا")
 
-    assert factory.calls == 0                          # never even opened
-    assert fake_tts.spoken == ["مرحبا. كيف أساعدك؟"]   # ONE buffered call
+    assert factory.calls == 1
+    assert session.fed == ["مرحبا. كيف أساعدك؟"]       # ONE whole feed, not sentences
+    assert fake_tts.spoken == []
 
 
 @pytest.mark.asyncio
-async def test_refresh_followup_is_auto_and_never_streams(tmp_path):
-    fake_tts, factory = FakeTTS(), SessionFactory(FakeSpeechSession())
+async def test_refresh_followup_stays_auto_and_feeds_whole(tmp_path):
+    fake_tts, session = FakeTTS(), FakeSpeechSession()
+    factory = SessionFactory(session)
     refresh_use = {"type": "tool_use", "id": "toolu_r1",
                    "name": "request_screen_refresh", "input": {}}
     scripts = [
@@ -352,8 +362,10 @@ async def test_refresh_followup_is_auto_and_never_streams(tmp_path):
 
     await orchestrator.run_turn("وش تشوف؟")
 
-    assert factory.calls == 0                          # the follow-up stays "auto"
-    assert fake_tts.spoken == ["بعد التحديث."]
+    # The refresh pass had no text; its follow-up runs "auto" (never mid-pass
+    # streamed) and its text joins the turn generation whole.
+    assert session.fed == ["بعد التحديث."]
+    assert fake_tts.spoken == []
 
 
 @pytest.mark.asyncio
@@ -381,11 +393,11 @@ async def test_env_flag_enables_streaming(tmp_path, monkeypatch):
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    assert session.fed == ["هذا زر الحفظ."]            # env alone switched it on
+    assert session.fed == ["سم", "هذا زر الحفظ."]      # env alone switched it on
 
 
 @pytest.mark.asyncio
-async def test_session_open_failure_falls_back_to_one_buffered_speak(tmp_path):
+async def test_session_open_failure_falls_back_to_buffered_for_the_whole_turn(tmp_path):
     fake_tts, session = FakeTTS(), FakeSpeechSession(fail_open=True)
     factory = SessionFactory(session)
     scripts = _dual_action_scripts("هذا زر الحفظ. مفيد.")
@@ -394,22 +406,27 @@ async def test_session_open_failure_falls_back_to_one_buffered_speak(tmp_path):
     await orchestrator.run_turn("وين زر الحفظ؟")
 
     assert session.fed == []
-    assert fake_tts.spoken == ["سم", "هذا زر الحفظ. مفيد."]  # whole pass buffered
+    assert factory.calls == 1                          # ONE open attempt per turn
+    assert fake_tts.spoken == ["سم", "هذا زر الحفظ. مفيد."]  # both passes buffered
 
 
 @pytest.mark.asyncio
 async def test_mid_session_failure_speaks_the_remainder_in_one_call(tmp_path):
-    # Decision 15: the first sentence played via the session; the socket then
-    # drops — the UNPLAYED remainder goes through ONE buffered speak().
+    # Decision 15 (turn-level in v7): the ack played via the session; the
+    # socket then drops on the first explain sentence — the UNPLAYED remainder
+    # goes through ONE buffered speak() AFTER the generation drains (never
+    # overlapping the tail that is still playing).
+    first = "الجملة الأولى سقطت هنا بشكل مؤكد."
+    second = "الجملة الثانية سقطت معها تماماً."
     fake_tts, session = FakeTTS(), FakeSpeechSession(fail_feed_at=1)
     factory = SessionFactory(session)
-    scripts = _dual_action_scripts("الأولى نجحت. الثانية سقطت. الثالثة أيضاً.")
+    scripts = _dual_action_scripts(f"{first} {second}")
     orchestrator = _streaming_orchestrator(tmp_path, scripts, fake_tts=fake_tts, factory=factory)
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    assert session.fed == ["الأولى نجحت."]
-    assert fake_tts.spoken == ["سم", "الثانية سقطت. الثالثة أيضاً."]
+    assert session.fed == ["سم"]                       # the ack DID play
+    assert fake_tts.spoken == [f"{first} {second}"]    # remainder, one call
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -531,21 +548,21 @@ async def test_streamed_captions_follow_the_sentences_in_order(tmp_path, monkeyp
     fake_tts, session = FakeTTS(), FakeSpeechSession()
     factory = SessionFactory(session)
     overlay = StreamCaptionOverlay()
-    scripts = _dual_action_scripts("هذا زر الحفظ. يحفظ ملفك بسرعة.")
+    scripts = _dual_action_scripts(f"{EXPLAIN_S1} {EXPLAIN_S2}")
     orchestrator = _streaming_caption_orchestrator(
         tmp_path, scripts, fake_tts=fake_tts, factory=factory, overlay=overlay)
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    # Pass 1 (buffered ack) shows its caption via speak(); pass 2 streams:
-    # each sentence lands on the bar exactly when it is fed to the ONE
-    # session, and the bar clears when the generation drains.
-    assert session.fed == ["هذا زر الحفظ.", "يحفظ ملفك بسرعة."]
+    # v7: the ack and both explain sentences ride ONE generation — each lands
+    # on the bar exactly when it is fed, and the bar clears ONCE, when the
+    # turn's generation drains (no mid-turn clear ↔ the voice never stops).
+    assert session.fed == ["سم", EXPLAIN_S1, EXPLAIN_S2]
     assert overlay.log == [
-        ("show", "سم"), ("clear",),                      # pass 1: buffered ack
-        ("show", "هذا زر الحفظ."),
-        ("show", "يحفظ ملفك بسرعة."),
-        ("clear",),                                       # session drained
+        ("show", "سم"),
+        ("show", EXPLAIN_S1),
+        ("show", EXPLAIN_S2),
+        ("clear",),                                       # turn generation drained
     ]
 
 
@@ -563,32 +580,33 @@ async def test_streamed_captions_disabled_via_env_even_when_streaming(tmp_path, 
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    assert session.fed == ["هذا زر الحفظ."]
+    assert session.fed == ["سم", "هذا زر الحفظ."]
     assert overlay.captions == [] and overlay.caption_clears == 0
 
 
 @pytest.mark.asyncio
 async def test_mid_session_failure_reshows_the_spoken_remainder(tmp_path, monkeypatch):
-    # Decision 15 path: sentence 1 plays via the session, the socket then dies;
-    # the remainder is spoken through ONE buffered speak() — and the bar must
-    # show what is ACTUALLY heard: sentence 1, then the remainder, never a
-    # frozen dead sentence.
+    # Decision 15 path (turn-level in v7): the ack plays via the session, the
+    # socket dies on the first explain sentence; the remainder is spoken
+    # through ONE buffered speak() — and the bar must show what is ACTUALLY
+    # heard, never a frozen dead sentence.
+    first = "الجملة الأولى تفشل هنا بشكل مؤكد."
+    second = "الجملة الثانية تسقط معها تماماً."
     monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
     fake_tts, session = FakeTTS(), FakeSpeechSession(fail_feed_at=1)
     factory = SessionFactory(session)
     overlay = StreamCaptionOverlay()
-    scripts = _dual_action_scripts("الأولى تلعب. الثانية تفشل. الثالثة معها.")
+    scripts = _dual_action_scripts(f"{first} {second}")
     orchestrator = _streaming_caption_orchestrator(
         tmp_path, scripts, fake_tts=fake_tts, factory=factory, overlay=overlay)
 
     await orchestrator.run_turn("وين زر الحفظ؟")
 
-    assert session.fed == ["الأولى تلعب."]
-    assert fake_tts.spoken[-1] == "الثانية تفشل. الثالثة معها."   # one buffered call
+    assert session.fed == ["سم"]                         # the ack played
+    assert fake_tts.spoken[-1] == f"{first} {second}"    # one buffered call
     assert overlay.log == [
-        ("show", "سم"), ("clear",),                      # pass 1: buffered ack
-        ("show", "الأولى تلعب."),                        # played via the session
-        ("show", "الثانية تفشل."), ("clear",),           # died → bar unfrozen
-        ("clear",),                                       # session close drained
-        ("show", "الثانية تفشل. الثالثة معها."), ("clear",),  # fallback speak
+        ("show", "سم"),                                  # fed into the generation
+        ("show", first), ("clear",),                     # died → bar unfrozen
+        ("clear",),                                       # turn close drained
+        ("show", f"{first} {second}"), ("clear",),       # fallback speak
     ]

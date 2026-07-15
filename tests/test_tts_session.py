@@ -133,8 +133,13 @@ async def test_sentences_ride_one_connection_with_progressive_audio():
     assert connect.calls == 1                    # ONE connection for the whole turn
     assert [m.get("text") for m in ws.sent][0] == " "          # BOS first
     assert ws.sent[-1]["text"] == ""                            # EOS last
-    fed = [m for m in ws.sent if m.get("try_trigger_generation")]
+    fed = [m for m in ws.sent if "xi_api_key" not in m and m.get("text")]
     assert len(fed) == 2                          # both sentences, same generation
+    # v7 Fix A: ONLY the first sentence forces generation (fast first audio);
+    # later sentences leave chunking to the BOS chunk_length_schedule so the
+    # prosody never restarts at a fed boundary (the measured pauses).
+    assert fed[0].get("try_trigger_generation") is True
+    assert "try_trigger_generation" not in fed[1]
     assert player.finished                        # tail drained via finish()
 
 
@@ -151,6 +156,8 @@ async def test_bos_carries_key_and_settings_and_the_uri_does_not():
     bos = ws.sent[0]
     assert bos["xi_api_key"] == "secret-key"
     assert "voice_settings" in bos
+    # v7 Fix A: the BOS hands chunking to ElevenLabs (lookahead across feeds).
+    assert bos["generation_config"]["chunk_length_schedule"] == [90, 160, 250, 290]
     assert "secret-key" not in connect.uri        # the key never rides the URI
 
 
