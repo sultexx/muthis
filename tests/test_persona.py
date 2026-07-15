@@ -341,3 +341,16 @@ def test_persona_orders_obedience_to_internal_directives():
     assert "(توجيه داخلي" in prompt
     assert "لا تقرأه بصوت عالٍ" in prompt
     assert "تتقدّم على قاعدة الإسهاب" in prompt
+
+
+# ─────────────────── Center-targeting nudge (v6 Phase A) ────────────────────
+
+
+def test_prompt_has_center_targeting_nudge():
+    # v6-A4: measured at 1400px the model boxed the balloon WITH its string,
+    # drifting the rectangle center off the element — the persona now orders
+    # aiming at the element's CENTER with a tight, no-extras box.
+    prompt = _prompt()
+    assert "مركز العنصر المستهدف" in prompt
+    assert "لا حافته" in prompt
+    assert "بلا توسيع" in prompt
