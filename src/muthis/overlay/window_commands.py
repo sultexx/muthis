@@ -21,13 +21,13 @@ def _bbox_center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
 
 
 def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
-                     status=None, caption=None) -> bool:
+                     status=None, caption=None, dimmer=None) -> bool:
     """Apply one overlay command to the view objects. Returns False iff the
     overlay should stop ("close"), True otherwise.
 
-    `shapes` (ShapesWidget), `status` (StatusIndicator) and `caption`
-    (CaptionBar, v6 C) are OPTIONAL so the pre-existing call sites/tests keep
-    working — absent → their commands no-op."""
+    `shapes` (ShapesWidget), `status` (StatusIndicator), `caption`
+    (CaptionBar, v6 C) and `dimmer` (FocusDimmer, v6 D) are OPTIONAL so the
+    pre-existing call sites/tests keep working — absent → their commands no-op."""
     action = command[0]
     if action == "close":
         animator.cancel()
@@ -43,6 +43,11 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
         animator.cancel()
         rect.clear()
         pointer.clear()
+        # Cinematic spotlight (v6 D, highlight ONLY — draw_shapes keeps its
+        # full-context screen): dim everything but the target as the glide
+        # begins, so the spotlight forms WITH the audio (Option A untouched).
+        if dimmer is not None:
+            dimmer.show_around(bbox)
 
         def _on_arrival() -> None:
             # On arrival: draw the cyan rectangle, then re-draw the pointer ON TOP
@@ -79,6 +84,8 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
             shapes.clear()
         if caption is not None:
             caption.clear()
+        if dimmer is not None:  # ghosting: a capture never sees a dimmed screen
+            dimmer.hide()
     return True
 
 

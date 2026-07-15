@@ -156,6 +156,7 @@ class SidekickOverlay:
             import tkinter as tk
 
             from .caption_bar import CaptionBar
+            from .focus_dimmer import build_focus_dimmer, focus_dim_enabled
             from .pointer_animator import PointerAnimator
             from .pointer_widget import PointerWidget
             from .rectangle_widget import RectangleWidget
@@ -189,6 +190,17 @@ class SidekickOverlay:
             # Live captions (v6 C): same shared canvas, bottom-center chip.
             caption = CaptionBar(rect.canvas, screen_size, style=style)
             self._apply_click_through(root)
+            # Cinematic spotlight (v6 D): its OWN dim Toplevel (alpha on the
+            # neon window would dim the neon itself), built only when the
+            # .env flag opts in; a dimmer failure never kills the overlay —
+            # the spotlight is optional, the rectangle is not.
+            dimmer = None
+            if focus_dim_enabled():
+                try:
+                    dimmer = build_focus_dimmer(root, self._apply_click_through)
+                except Exception:
+                    logger.exception(
+                        "[overlay] focus dimmer init failed — spotlight disabled")
         except Exception:  # headless / Tk missing / Win32 quirk — degrade quietly
             logger.exception("[overlay] window init failed — overlay disabled")
             self._dead = True
@@ -201,6 +213,7 @@ class SidekickOverlay:
                     if not dispatch_command(
                         command, rect=rect, pointer=pointer, animator=animator,
                         shapes=shapes_widget, status=status, caption=caption,
+                        dimmer=dimmer,
                     ):
                         root.destroy()
                         return
