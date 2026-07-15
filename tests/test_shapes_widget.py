@@ -21,7 +21,12 @@ Run:  set PYTHONPATH=src && python -m pytest tests/test_shapes_widget.py -q
 
 from __future__ import annotations
 
-from muthis.overlay.shapes_widget import ARROW_AT_END, SHAPES_TAG, ShapesWidget
+from muthis.overlay.shapes_widget import (
+    ARROW_AT_END,
+    SHAPES_TAG,
+    ShapesWidget,
+    arabic_indic,
+)
 from muthis.overlay.style import OverlayStyle, dim
 from muthis.shapes import Shape, circle_shape
 
@@ -190,3 +195,60 @@ def test_an_unknown_kind_is_skipped_quietly():
 
     assert canvas.lines == [] and canvas.ovals == [] and canvas.rectangles == []
     assert canvas.polygons == [] and canvas.texts == []   # not even the caption
+
+
+# ─────────────────────── Numbered step badges (v6 B2) ───────────────────────
+
+
+def test_a_step_draws_a_ring_with_a_centered_arabic_indic_numeral():
+    canvas = FakeCanvas()
+    ShapesWidget(canvas).draw([Shape(kind="step", points=(100, 100, 140, 140))])
+
+    # Ring: two glow passes (halo + core) as ovals at the physical bbox,
+    # in the CIRCLE's neon color (MUTHIS_COLOR_CIRCLE — no new env).
+    assert len(canvas.ovals) == 2
+    assert canvas.ovals[0][0] == (100, 100, 140, 140)
+    assert canvas.ovals[1][1]["outline"] == DEFAULTS.colors["circle"]
+    assert canvas.ovals[0][1]["width"] > canvas.ovals[1][1]["width"]
+    # ONE crisp numeral at the badge center, Arabic-Indic, badge-scaled bold.
+    assert len(canvas.texts) == 1
+    coords, kwargs = canvas.texts[0]
+    assert coords == (120.0, 120.0)
+    assert kwargs["text"] == "١"
+    assert kwargs["fill"] == DEFAULTS.colors["circle"]
+    assert kwargs["font"] == (DEFAULTS.label_font_family, 20, "bold")
+    assert kwargs["tags"] == SHAPES_TAG
+
+
+def test_steps_are_numbered_by_list_order_counting_steps_only():
+    canvas = FakeCanvas()
+    ShapesWidget(canvas).draw([
+        Shape(kind="step", points=(10, 10, 40, 40)),
+        Shape(kind="arrow", points=(50, 50, 90, 90)),   # not a step: no number
+        Shape(kind="step", points=(100, 100, 130, 130)),
+        Shape(kind="step", points=(200, 200, 230, 230)),
+    ])
+
+    numerals = [kwargs["text"] for _, kwargs in canvas.texts]
+    assert numerals == ["١", "٢", "٣"]
+
+
+def test_step_numbering_restarts_on_every_draw():
+    canvas = FakeCanvas()
+    widget = ShapesWidget(canvas)
+    widget.draw([Shape(kind="step", points=(10, 10, 40, 40))])
+    widget.draw([Shape(kind="step", points=(50, 50, 80, 80))])
+
+    # Each draw() is a fresh map: the second list starts again at ١.
+    numerals = [kwargs["text"] for _, kwargs in canvas.texts]
+    assert numerals == ["١", "١"]
+
+
+def test_a_labeled_step_gets_a_caption_chip_and_arabic_indic_handles_two_digits():
+    canvas = FakeCanvas()
+    ShapesWidget(canvas).draw([
+        Shape(kind="step", points=(10, 10, 40, 40), label_ar="افتح القائمة"),
+    ])
+    chip_texts = [kwargs.get("text") for _, kwargs in canvas.texts]
+    assert "افتح القائمة" in chip_texts
+    assert arabic_indic(12) == "١٢"

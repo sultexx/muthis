@@ -1,8 +1,8 @@
 # src/muthis/overlay/shapes_widget.py
 """
 ShapesWidget — draws a LIST of geometric LOOK shapes (line / arrow / circle /
-rectangle, each with an optional Arabic caption) on the overlay canvas it
-SHARES with the RectangleWidget and PointerWidget.
+rectangle / numbered step badge, each with an optional Arabic caption) on the
+overlay canvas it SHARES with the RectangleWidget and PointerWidget.
 
 LOOK-ONLY: these are DRAWN graphics only — never the mouse, never a click,
 never typing.
@@ -47,6 +47,14 @@ ARROW_AT_END = "last"
 # the rectangle/pointer that share the canvas (never delete("all") here).
 SHAPES_TAG = "muthis-shapes"
 
+# User-facing numerals are Arabic-Indic (Law §17.5: user surfaces are Arabic).
+ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+
+def arabic_indic(number: int) -> str:
+    """Render 1 → "١", 12 → "١٢" for the step badges."""
+    return "".join(ARABIC_INDIC_DIGITS[int(d)] for d in str(number))
+
 
 class ShapesWidget:
     """A tag-scoped multi-shape renderer on the shared overlay canvas."""
@@ -60,10 +68,17 @@ class ShapesWidget:
         """Replace any previously drawn shapes with this list (each at
         ALREADY-PHYSICAL coords, window at (0,0) → canvas coords == screen
         coords). An unknown kind is skipped quietly — the Tk thread must
-        never die on bad data."""
+        never die on bad data. Step badges are numbered here by their ORDER
+        among the step shapes of the list (v6 B — the model sends no number;
+        the render counts), so numbering restarts with every draw()."""
         self.clear()
+        step_number = 0
         for shape in shapes:
-            self._draw_one(shape)
+            if shape.kind == "step":
+                step_number += 1
+                self._draw_step(shape, step_number)
+            else:
+                self._draw_one(shape)
 
     def clear(self) -> None:
         """Erase ONLY the shape items (the hide()/ghosting path). A no-op when
@@ -110,6 +125,34 @@ class ShapesWidget:
                 self._style, text_color=color, tags=SHAPES_TAG,
             )
 
+    def _draw_step(self, shape: Shape, number: int) -> None:
+        """One numbered badge (v6 B): an UNFILLED neon ring (the element under
+        it stays visible — the highlight-rectangle philosophy) with the
+        Arabic-Indic step numeral crisp at its center. Ring + numeral share the
+        circle's neon color (MUTHIS_COLOR_CIRCLE — no new env, plan decision),
+        and the optional caption chip rides below like every other kind."""
+        x1, y1, x2, y2 = shape.points
+        color = color_for(self._style, "circle")
+        for width, stroke in glow_strokes(self._style, color):
+            self._canvas.create_oval(
+                x1, y1, x2, y2,
+                outline=stroke, width=width, tags=SHAPES_TAG,
+            )
+        # ONE crisp bold numeral, sized to the badge so ١ and ١٢ both read
+        # clearly; no halo pass — glowing text smears legibility.
+        numeral_size = max(10, round(min(abs(x2 - x1), abs(y2 - y1)) * 0.5))
+        self._canvas.create_text(
+            (x1 + x2) / 2, (y1 + y2) / 2,
+            text=arabic_indic(number), fill=color,
+            font=(self._style.label_font_family, numeral_size, "bold"),
+            tags=SHAPES_TAG,
+        )
+        if shape.label_ar:
+            draw_caption_chip(
+                self._canvas, min(x1, x2), min(y1, y2), shape.label_ar,
+                self._style, text_color=color, tags=SHAPES_TAG,
+            )
+
     def _arrowshape(self, width: float) -> tuple[int, int, int]:
         """Scale the arrowhead with the stroke width so the halo pass glows a
         proportionally larger head under the crisp core head."""
@@ -117,4 +160,6 @@ class ShapesWidget:
         return tuple(round(v * scale) for v in ARROW_SHAPE)
 
 
-__all__ = ["ShapesWidget", "SHAPES_TAG", "ARROW_AT_END", "ARROW_SHAPE"]
+__all__ = [
+    "ShapesWidget", "SHAPES_TAG", "ARROW_AT_END", "ARROW_SHAPE", "arabic_indic",
+]
