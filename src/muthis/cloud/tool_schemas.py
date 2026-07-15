@@ -63,11 +63,23 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
             "ENCLOSING bounding box, ~30-50px in screenshot pixels) placed "
             "ON a UI element to mark one step of a sequential how-to; steps "
             "are numbered AUTOMATICALLY 1, 2, 3... by their order in the "
-            "shapes list, so send them in execution order."
+            "shapes list, so send them in execution order. Set "
+            "dim_screen=true for WHITEBOARD mode: the whole screen fades "
+            "dark like a classroom blackboard behind your drawing while you "
+            "explain — use it when illustrating a CONCEPT or abstract idea; "
+            "leave it false/absent when annotating the user's own content "
+            "(code, UI, documents) that they must keep seeing in full."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
+                "dim_screen": {
+                    "type": "boolean",
+                    "description": (
+                        "Whiteboard mode: dim the whole screen behind the "
+                        "shapes for a concept explanation (default false)."
+                    ),
+                },
                 "shapes": {
                     "type": "array",
                     "minItems": 1,

@@ -315,3 +315,99 @@ async def test_an_overlay_without_caption_methods_is_a_silent_noop():
 
     # captions ON + a caption-less overlay (StubOverlay shape) → no crash.
     await VoiceOut(tts, BareOverlay(), captions=True).speak("نص")
+
+
+# ─────────────── v7 Phase 2: audio-paced captions (the sync fix) ───────────────
+
+
+class FakeAfter:
+    """root.after double: callbacks queue and fire only when driven."""
+
+    def __init__(self):
+        self.scheduled = []  # (delay_ms, callback)
+
+    def __call__(self, delay_ms, callback):
+        self.scheduled.append((delay_ms, callback))
+
+    def fire_all(self):
+        pending, self.scheduled = self.scheduled, []
+        for _delay, callback in pending:
+            callback()
+
+
+def _paced_bar():
+    canvas, after = FakeCanvas(), FakeAfter()
+    from muthis.overlay.caption_bar import CaptionBar
+    return CaptionBar(canvas, SCREEN, schedule=after), canvas, after
+
+
+def test_show_text_later_defers_until_the_scheduled_moment():
+    bar, canvas, after = _paced_bar()
+    bar.show_text_later("الجملة المؤجلة إلى صوتها", 1500)
+
+    assert canvas.texts == []                        # nothing yet — paced
+    assert after.scheduled[0][0] == 1500             # the audio-start estimate
+    after.fire_all()
+    assert canvas.texts and "المؤجلة" in canvas.texts[0][1]["text"]
+
+
+def test_zero_delay_or_no_schedule_shows_immediately():
+    bar, canvas, _after = _paced_bar()
+    bar.show_text_later("فوري", 0)
+    assert canvas.texts                              # no deferral for delay 0
+    from muthis.overlay.caption_bar import CaptionBar
+    bare_canvas = FakeCanvas()
+    CaptionBar(bare_canvas, SCREEN).show_text_later("قديم", 900)
+    assert bare_canvas.texts                         # schedule-less → immediate
+
+
+def test_clear_cancels_every_pending_paced_show():
+    # Audio end / ghosting hide / a dead sentence: a wiped bar must never
+    # resurrect stale speech text from the pacing queue.
+    bar, canvas, after = _paced_bar()
+    bar.show_text_later("الأولى المجدولة هنا", 1000)
+    bar.show_text_later("والثانية المجدولة هنا", 2000)
+    bar.clear()
+    after.fire_all()
+    assert canvas.texts == []                        # both orphaned
+
+
+def test_a_firing_sentence_never_cancels_its_queued_siblings():
+    # show_text replaces the CONTENT but must not bump the cancel generation —
+    # sentence 1 appearing must not orphan sentences 2..N still in the queue.
+    bar, canvas, after = _paced_bar()
+    bar.show_text_later("الجملة الأولى المجدولة", 500)
+    bar.show_text_later("الجملة الثانية المجدولة", 1500)
+    after.fire_all()
+    assert len(canvas.texts) == 2                    # both fired, in order
+    assert "الثانية" in canvas.texts[-1][1]["text"]
+
+
+@pytest.mark.asyncio
+async def test_voice_out_routes_a_delayed_caption_to_the_paced_seam():
+    from muthis.voice_out import VoiceOut
+
+    class PacedOverlay(CaptionOverlay):
+        def __init__(self):
+            super().__init__()
+            self.paced = []
+
+        def show_caption_later(self, text, delay_ms):
+            self.paced.append((text, delay_ms))
+
+    overlay = PacedOverlay()
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay, captions=True)
+    voice.show_caption("مُرجأة", delay_s=2.5)
+    voice.show_caption("فورية")                       # delay 0 → the plain seam
+
+    assert overlay.paced == [("مُرجأة", 2500)]
+    assert ("caption", "فورية") in overlay.events
+
+
+@pytest.mark.asyncio
+async def test_voice_out_delay_degrades_to_immediate_without_the_seam():
+    from muthis.voice_out import VoiceOut
+    overlay = CaptionOverlay()                        # no show_caption_later
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay, captions=True)
+    voice.show_caption("تظهر فوراً", delay_s=3.0)
+    assert ("caption", "تظهر فوراً") in overlay.events

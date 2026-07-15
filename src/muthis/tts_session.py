@@ -90,6 +90,15 @@ class SpeechSession:
         self._reader: Optional[asyncio.Task] = None
         self._error: Optional[BaseException] = None
 
+    def played_seconds(self) -> float:
+        """Seconds of this generation's audio the user has heard so far —
+        the caption pacer's clock (v7 Phase 2), straight from the player.
+        0.0 before the player exists or before its first device write."""
+        if self._player is None:
+            return 0.0
+        played = getattr(self._player, "played_seconds", None)
+        return played() if played is not None else 0.0
+
     @property
     def got_audio(self) -> bool:
         """True once any PCM reached the player — the caller's double-speak

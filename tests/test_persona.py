@@ -242,6 +242,16 @@ def test_pass1_spoken_ack_is_mandatory_never_silent():
     assert SHAPES_NO_SILENT_PASS in prompt, "draw_shapes pass 1 may still go silent"
 
 
+def test_prompt_teaches_the_whiteboard_mode():
+    # v7 Phase 2: a CONCEPT/abstract explanation drawn with shapes → send
+    # dim_screen=true (the classroom-board mode, lights back at speech end);
+    # the user's own content (code/UI/documents) stays undimmed.
+    prompt = _prompt()
+    assert "وضع السبورة" in prompt, "missing the whiteboard section"
+    assert "dim_screen" in prompt, "the flag name must be spelled for the model"
+    assert "بدون dim_screen" in prompt, "missing the keep-context counter-rule"
+
+
 def test_prompt_selects_draw_tool_by_intent():
     # Phase B-2: the persona teaches WHICH draw tool to use — highlight_target to
     # LOCATE a UI element (button/icon/menu/field), draw_shapes to ILLUSTRATE

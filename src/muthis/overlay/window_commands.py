@@ -21,13 +21,18 @@ def _bbox_center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
 
 
 def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
-                     status=None, caption=None, dimmer=None) -> bool:
+                     status=None, caption=None, dimmer=None,
+                     spotlight_on=True) -> bool:
     """Apply one overlay command to the view objects. Returns False iff the
     overlay should stop ("close"), True otherwise.
 
     `shapes` (ShapesWidget), `status` (StatusIndicator), `caption`
     (CaptionBar, v6 C) and `dimmer` (FocusDimmer, v6 D) are OPTIONAL so the
-    pre-existing call sites/tests keep working — absent → their commands no-op."""
+    pre-existing call sites/tests keep working — absent → their commands no-op.
+    `spotlight_on` (v7 Phase 2) decouples the two dim features: the WHITEBOARD
+    (default ON) builds the dimmer window, but a highlight dims around its
+    bbox only when the SPOTLIGHT flag (MUTHIS_FOCUS_DIM, default OFF) is on —
+    default True so pre-whiteboard call sites keep the v6 behavior."""
     action = command[0]
     if action == "close":
         animator.cancel()
@@ -43,10 +48,12 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
         animator.cancel()
         rect.clear()
         pointer.clear()
-        # Cinematic spotlight (v6 D, highlight ONLY — draw_shapes keeps its
-        # full-context screen): dim everything but the target as the glide
+        # Cinematic spotlight (v6 D, highlight ONLY — a flat draw_shapes keeps
+        # its full-context screen): dim everything but the target as the glide
         # begins, so the spotlight forms WITH the audio (Option A untouched).
-        if dimmer is not None:
+        # Gated by spotlight_on: a dimmer built FOR the whiteboard must not
+        # re-enable the default-OFF spotlight.
+        if dimmer is not None and spotlight_on:
             dimmer.show_around(bbox)
 
         def _on_arrival() -> None:
@@ -61,6 +68,16 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
         # highlight path above is untouched — shapes live on their own tag.
         if shapes is not None:
             shapes.draw(command[1])
+    elif action == "dim_screen":
+        # WHITEBOARD (v7 Phase 2): full-screen dim (no hole, smooth fade-in)
+        # behind a concept drawing — the shapes glow above it (D0 z-order).
+        if dimmer is not None:
+            dimmer.show_full()
+    elif action == "undim_screen":
+        # Lights back on at SPEECH END (run_turn's finally) — smooth fade-out;
+        # the ghosting "hide" below stays INSTANT and also covers the dim.
+        if dimmer is not None:
+            dimmer.fade_out()
     elif action == "set_state":  # 2-A: recolor the state light (halo + dot)
         if status is not None:
             status.set_state(command[1])
@@ -70,6 +87,9 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
     elif action == "show_caption":  # v6 C: the live-captions bar
         if caption is not None:
             caption.show_text(command[1])
+    elif action == "show_caption_later":  # v7 Phase 2: audio-paced caption
+        if caption is not None:
+            caption.show_text_later(command[1], command[2])
     elif action == "clear_caption":
         if caption is not None:
             caption.clear()

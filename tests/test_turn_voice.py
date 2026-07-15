@@ -27,18 +27,21 @@ S2 = "والجملة الثانية هنا طويلة كفاية أيضاً."
 
 
 class FakeVoice:
-    """VoiceOut double: records buffered speaks and the caption log."""
+    """VoiceOut double: records buffered speaks, the caption log, and the
+    audio-pacing delay each caption was deferred by (v7 Phase 2)."""
 
     def __init__(self):
         self.spoken = []
         self.log = []
+        self.caption_delays = []
 
     async def speak(self, text):
         self.log.append(("speak", text))
         self.spoken.append(text)
 
-    def show_caption(self, text):
+    def show_caption(self, text, delay_s=0.0):
         self.log.append(("show", text))
+        self.caption_delays.append(delay_s)
 
     def clear_caption(self):
         self.log.append(("clear",))
@@ -224,6 +227,46 @@ async def test_close_failure_after_audio_logs_only_never_duplicates():
     await turn_voice.speak_or_feed(S1)                  # played fine
     await turn_voice.finish()                           # close raises internally
     assert fake_voice.spoken == []                      # re-speaking would duplicate
+
+
+# ──────────────────────── Caption pacing (v7 Phase 2) ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_captions_are_paced_to_estimated_audio_not_generation_speed():
+    # The measured bug: sentences fed within ~4 s while their audio played
+    # ~26 s — captions flashed at generation speed. Each caption now defers
+    # to its sentence's ESTIMATED audio start: cumulative fed chars / rate.
+    from muthis.turn_voice import ARABIC_TTS_CHARS_PER_SEC
+    session = FakeSession()
+    turn_voice, fake_voice, _overlay, _ = _voice(session)
+
+    await turn_voice.speak_or_feed("سم")               # first speech: delay 0
+    await turn_voice.push_stream(S1 + " " + S2)
+    await turn_voice.end_stream()
+
+    d1, d2, d3 = fake_voice.caption_delays
+    assert d1 == 0.0                                   # nothing queued before it
+    assert d2 == pytest.approx(len("سم") / ARABIC_TTS_CHARS_PER_SEC)
+    assert d3 == pytest.approx((len("سم") + len(S1)) / ARABIC_TTS_CHARS_PER_SEC)
+    assert d1 < d2 < d3                                # monotone: no flashing
+
+
+@pytest.mark.asyncio
+async def test_caption_pacing_subtracts_already_played_audio():
+    # If audio has already PLAYED for a while (session.played_seconds), the
+    # deferral shrinks by exactly that much — never below zero.
+    class PlayingSession(FakeSession):
+        def played_seconds(self):
+            return 1000.0                              # everything long played
+
+    session = PlayingSession()
+    turn_voice, fake_voice, _overlay, _ = _voice(session)
+    await turn_voice.speak_or_feed("سم")
+    await turn_voice.push_stream(S1)
+    await turn_voice.end_stream()
+
+    assert fake_voice.caption_delays == [0.0, 0.0]     # clamped, shown live
 
 
 # ─────────────────────────────── Eager open (Fix G) ───────────────────────────────

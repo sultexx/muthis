@@ -29,7 +29,7 @@ from typing import Any, Callable, Optional
 
 from .budget import Budget
 from .cloud.protocol import CloudReasoner, UserInput
-from .draw_dispatch import DRAW_TOOLS
+from .draw_dispatch import DRAW_SHAPES_TOOL, DRAW_TOOLS
 # STUB defaults — each is replaced by its real component in a later phase.
 from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
                     stub_stt, stub_tts)
@@ -171,7 +171,16 @@ class Orchestrator:
             # Outside the timeout scope, so the drain can await safely: close
             # the turn's generation (decision-15 fallbacks live inside) …
             await turn_voice.finish()
-            # … then arm the auto-hide — the ONLY arm site (v7.1 Fix F,
+            # … then the WHITEBOARD lights come back on (v7 Phase 2): a
+            # dim_screen draw fades out AT speech end — the un-dim is
+            # synchronized with the voice, while the shapes keep the 7 s
+            # grace below. Duck-typed: stubs/old fakes without it no-op.
+            if any(call.name == DRAW_SHAPES_TOOL and call.args.get("dim_screen")
+                   for call in result.tool_calls):
+                undim = getattr(self._overlay, "undim_screen", None)
+                if undim is not None:
+                    undim()
+            # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F,
             # measured: a draw-time timer hid the rectangle mid-explanation,
             # draw+7 s < speech end). finish() returns at SPEECH END, so the
             # 7 s count from here keeps the rectangle visible through the

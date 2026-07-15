@@ -70,12 +70,27 @@ class PcmStreamPlayer:
         self._thread: Optional[threading.Thread] = None
         self._error: Optional[BaseException] = None
         self._got_audio = False
+        # Playback horizon (worker-thread-owned, read-only elsewhere): when
+        # the first chunk hit the device and how many PCM seconds followed.
+        self._first_write_t: Optional[float] = None
+        self._audio_written_s = 0.0
 
     @property
     def got_audio(self) -> bool:
         """True once at least one non-empty chunk was fed — lets the caller treat
         a silent stream as a failure and fall back."""
         return self._got_audio
+
+    def played_seconds(self) -> float:
+        """Estimated seconds of audio the user has HEARD so far (v7 Phase 2 —
+        the caption pacer's clock): wall time since the first device write,
+        with starvation gaps excluded (the worker re-anchors the horizon past
+        them), capped at the PCM actually written. 0.0 before audio starts.
+        Loop-safe: plain float reads of worker-owned fields."""
+        first_write = self._first_write_t
+        if first_write is None:
+            return 0.0
+        return min(time.monotonic() - first_write, self._audio_written_s)
 
     def start(self) -> None:
         """Spawn the worker thread (it opens the stream and drains the queue)."""
@@ -109,12 +124,12 @@ class PcmStreamPlayer:
         """Worker thread: open the stream, write chunks FIFO until EOS, then stop()
         — PortAudio's Pa_StopStream waits for pending audio to play, so the tail is
         never clipped. Any error is captured and surfaced via finish()."""
-        # DIAG(v7): first_write_t + audio_written_s let us compute the playback
-        # horizon (first_write + seconds of PCM written). If the wall clock passes
+        # first_write_t + audio_written_s form the playback horizon
+        # (first_write + seconds of PCM written). If the wall clock passes
         # that horizon while we are still waiting on the queue, the device had
-        # nothing left to play — an audible mid-sentence gap (starvation).
-        first_write_t: Optional[float] = None
-        audio_written_s = 0.0
+        # nothing left to play — an audible gap (starvation). They live on
+        # self so played_seconds() (the caption pacer, v7 Phase 2) can read
+        # them from the asyncio side (float reads are GIL-atomic).
         try:
             with self._stream_factory(self._sample_rate, self._channels) as stream:
                 while True:
@@ -123,23 +138,24 @@ class PcmStreamPlayer:
                     waited_s = time.monotonic() - wait_t0
                     if chunk is _EOS:
                         _diag.info("[DIAG] player EOS t=%.3f audio_written=%.3fs",
-                                   time.monotonic(), audio_written_s)
+                                   time.monotonic(), self._audio_written_s)
                         break
                     now = time.monotonic()
-                    if first_write_t is None:
-                        first_write_t = now
+                    if self._first_write_t is None:
+                        self._first_write_t = now
                         _diag.info("[DIAG] player first-write t=%.3f bytes=%d", now, len(chunk))
                     else:
-                        deficit_s = now - (first_write_t + audio_written_s)
+                        deficit_s = now - (self._first_write_t + self._audio_written_s)
                         if deficit_s > 0.02:
                             _diag.warning(
                                 "[DIAG] player STARVED ~%dms (queue wait %dms) t=%.3f",
                                 round(deficit_s * 1000), round(waited_s * 1000), now)
                             # Re-anchor the playback horizon past this gap, so
                             # only NEW gaps warn (one real pause used to repeat
-                            # as a phantom deficit on every later write).
-                            first_write_t += deficit_s
-                    audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
+                            # as a phantom deficit on every later write) and
+                            # played_seconds() never counts silence as speech.
+                            self._first_write_t += deficit_s
+                    self._audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
                     stream.write(chunk)
                 stream.stop()  # drain pending audio before the context closes
         except BaseException as exc:  # noqa: BLE001 — surfaced to the caller via finish()

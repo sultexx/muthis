@@ -63,13 +63,21 @@ class VoiceOut:
         self._overlay = overlay
         self._captions = _captions_from_env() if captions is None else captions
 
-    def show_caption(self, text: str) -> None:
+    def show_caption(self, text: str, delay_s: float = 0.0) -> None:
         """Show `text` on the overlay's caption bar — flag-gated and
         duck-typed: an overlay without a caption bar (StubOverlay, older
         fakes) is a silent no-op. SYNC fire-and-forget (a thread-safe
-        enqueue on the real overlay), so speech timing never waits on Tk."""
+        enqueue on the real overlay), so speech timing never waits on Tk.
+        `delay_s` (v7 Phase 2 caption sync) defers the display to the
+        sentence's estimated AUDIO start via the overlay's paced seam; an
+        overlay without that seam shows immediately (the old behavior)."""
         if not (self._captions and text):
             return
+        if delay_s > 0:
+            later = getattr(self._overlay, "show_caption_later", None)
+            if later is not None:
+                later(text, round(delay_s * 1000))
+                return
         show = getattr(self._overlay, "show_caption", None)
         if show is not None:
             show(text)

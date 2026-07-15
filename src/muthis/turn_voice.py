@@ -56,6 +56,15 @@ from .speech_stream import SentenceSplitter
 # surface should read as one component (same choice as turn_pass/voice_out).
 logger = logging.getLogger("muthis.orchestrator")
 
+# Caption pacing (v7 Phase 2): estimated Arabic TTS speech rate, measured on
+# three live runs (2026-07-15/16: 276ch/24s, 197ch/17.2s, 285ch/24.8s — all
+# ≈11.5). Each fed sentence's caption is deferred to its ESTIMATED audio
+# start: cumulative fed chars / rate, minus what has already PLAYED
+# (session.played_seconds — starvation-gap-aware). An estimate, not sample
+# alignment — captions may lead/lag a beat, but they no longer flash at
+# text-generation speed and never vanish before their words are spoken.
+ARABIC_TTS_CHARS_PER_SEC = 11.5
+
 # DIAG(v7): temporary timing probe for the audio investigation.
 _diag = logging.getLogger("muthis.diag")
 
@@ -84,6 +93,7 @@ class TurnVoice:
         self._splitter = SentenceSplitter()
         self._fed: List[str] = []
         self._unplayed: List[str] = []
+        self._fed_chars = 0  # caption pacing: chars queued into the generation
 
     # ─────────────────────────────── Speaking ───────────────────────────────
 
@@ -227,12 +237,22 @@ class TurnVoice:
             self._unplayed.append(sentence)
             return
         self._overlay.set_state("speaking")      # held across sentences (idempotent)
-        # Live captions: the bar tracks what the generation is being fed —
-        # flag-gated inside VoiceOut (the privacy choke point).
-        self._voice.show_caption(sentence)
+        # Live captions, PACED to the audio (v7 Phase 2 sync fix): sentences
+        # are fed at text-generation speed — far ahead of their sound — so
+        # each caption is deferred to its estimated audio start (cumulative
+        # fed chars / speech rate, minus what has already played). Still the
+        # VoiceOut privacy choke point; cleared once at finish(), with the
+        # dim-out and the shape grace.
+        played = getattr(self._session, "played_seconds", None)  # duck-typed fakes
+        caption_delay_s = max(
+            0.0, self._fed_chars / ARABIC_TTS_CHARS_PER_SEC
+            - (played() if played is not None else 0.0))
+        _diag.info("[DIAG] caption len=%d delay=%.2fs", len(sentence), caption_delay_s)
+        self._voice.show_caption(sentence, delay_s=caption_delay_s)
         try:
             await self._session.feed(sentence, flush=flush)
             self._fed.append(sentence)
+            self._fed_chars += len(sentence)
         except Exception as exc:  # noqa: BLE001 — degrade to buffered-at-finish
             logger.warning(
                 "[orchestrator] speech session feed failed (%s) — buffering the rest", exc)

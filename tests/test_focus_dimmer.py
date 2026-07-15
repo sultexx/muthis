@@ -20,6 +20,7 @@ from muthis.overlay.focus_dimmer import (
     FocusDimmer,
     focus_dim_enabled,
     resolve_focus_alpha,
+    whiteboard_enabled,
 )
 from muthis.overlay.style import TRANSPARENT_KEY
 
@@ -202,3 +203,134 @@ def test_dispatch_without_a_dimmer_stays_backward_compatible():
     assert dispatch_command(
         ("hide",), rect=_Recorder(), pointer=_Recorder(), animator=_Recorder(),
     ) is True
+
+
+# ─────────────── v7 Phase 2: the WHITEBOARD (full dim + smooth fade) ───────────────
+
+
+class FadeWindow(FakeWindow):
+    """FakeWindow that also records the -alpha ramp (the fade surface)."""
+
+    def __init__(self):
+        super().__init__()
+        self.alphas = []
+        self._alpha = DEFAULT_FOCUS_ALPHA
+
+    def attributes(self, name, value=None):
+        assert name == "-alpha"
+        if value is None:
+            return self._alpha
+        self._alpha = value
+        self.alphas.append(value)
+
+
+class FakeSchedule:
+    """root.after double: queued callbacks run only when driven by hand."""
+
+    def __init__(self):
+        self.queue = []
+
+    def __call__(self, _ms, callback):
+        self.queue.append(callback)
+
+    def run_all(self, limit=500):
+        steps = 0
+        while self.queue and steps < limit:
+            self.queue.pop(0)()
+            steps += 1
+
+
+def _whiteboard_dimmer():
+    window, canvas, raised = FadeWindow(), FakeDimCanvas(), []
+    schedule = FakeSchedule()
+    dimmer = FocusDimmer(window, canvas, SCREEN,
+                         raise_neon=lambda: raised.append(1),
+                         schedule=schedule, alpha=DEFAULT_FOCUS_ALPHA)
+    return dimmer, window, canvas, raised, schedule
+
+
+def test_whiteboard_flag_defaults_on_and_falsey_rolls_back(monkeypatch):
+    assert whiteboard_enabled() is True           # conftest cleared the env
+    monkeypatch.setenv("MUTHIS_WHITEBOARD", "0")
+    assert whiteboard_enabled() is False
+
+
+def test_show_full_covers_everything_and_fades_in():
+    dimmer, window, canvas, raised, schedule = _whiteboard_dimmer()
+    dimmer.show_full()
+
+    assert canvas.rectangles == [] and canvas.deletes == 1   # NO hole: full board
+    # Revealed dark-less first, then the fade ramps up to the resolved alpha —
+    # never overshooting it — with the neon re-raised above the dim (D0 rule).
+    assert window.alphas[0] == 0.0
+    assert window.calls == ["deiconify", "lift"] and raised == [1]
+    schedule.run_all()
+    assert window.alphas[-1] == DEFAULT_FOCUS_ALPHA
+    assert all(a <= DEFAULT_FOCUS_ALPHA + 1e-9 for a in window.alphas)
+
+
+def test_fade_out_ramps_to_zero_then_withdraws():
+    dimmer, window, _canvas, _raised, schedule = _whiteboard_dimmer()
+    dimmer.show_full()
+    schedule.run_all()
+    dimmer.fade_out()
+    schedule.run_all()
+
+    assert window.alphas[-1] == 0.0
+    assert window.calls[-1] == "withdraw"         # lights on, board gone
+
+
+def test_hide_is_instant_and_cancels_an_inflight_fade():
+    # The ghosting chokepoint must never leave even a FADING dim for a capture.
+    dimmer, window, canvas, _raised, schedule = _whiteboard_dimmer()
+    dimmer.show_full()                            # fade-in frames queued
+    dimmer.hide()                                 # instant withdraw
+
+    assert window.calls[-1] == "withdraw" and canvas.deletes == 2
+    before = list(window.alphas)
+    schedule.run_all()                            # orphaned frames must drop out
+    assert window.alphas == before                # no alpha moved after hide
+
+
+def test_schedule_less_dimmer_degrades_to_instant():
+    # Legacy/display-free construction (no scheduler): whiteboard show/undim
+    # become instant — the pre-Phase-2 behavior, and what old fakes exercise.
+    window, canvas = FakeWindow(), FakeDimCanvas()
+    dimmer = FocusDimmer(window, canvas, SCREEN, raise_neon=lambda: None)
+    dimmer.show_full()
+    assert window.calls == ["deiconify", "lift"]
+    dimmer.fade_out()
+    assert window.calls[-1] == "withdraw"
+
+
+def test_dispatch_dim_and_undim_route_to_the_dimmer():
+    class WhiteboardFake(FakeDimmer):
+        def __init__(self):
+            super().__init__()
+            self.fulls = 0
+            self.fade_outs = 0
+
+        def show_full(self):
+            self.fulls += 1
+
+        def fade_out(self):
+            self.fade_outs += 1
+
+    dimmer = WhiteboardFake()
+    _dispatch(("dim_screen",), dimmer)
+    _dispatch(("undim_screen",), dimmer)
+    assert dimmer.fulls == 1 and dimmer.fade_outs == 1
+    # And without a dimmer (rollback / init failure) both are safe no-ops.
+    _dispatch(("dim_screen",), None)
+    _dispatch(("undim_screen",), None)
+
+
+def test_spotlight_off_whiteboard_dimmer_never_dims_a_highlight():
+    # Decoupling: a dimmer window built FOR the whiteboard (spotlight flag
+    # OFF) must not resurrect the default-OFF v6 spotlight on highlights.
+    from muthis.overlay.window_commands import dispatch_command
+    dimmer = FakeDimmer()
+    dispatch_command(("show", (10, 20, 110, 60), "زر"),
+                     rect=_Recorder(), pointer=_Recorder(),
+                     animator=_Recorder(), dimmer=dimmer, spotlight_on=False)
+    assert dimmer.shown == []
