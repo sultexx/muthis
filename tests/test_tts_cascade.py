@@ -58,7 +58,7 @@ async def test_gemini_tried_when_elevenlabs_fails(monkeypatch):
     async def simulate_elevenlabs_outage(text):
         raise RuntimeError("simulated ElevenLabs outage")
 
-    def fake_gemini_synthesis(text, api_key):
+    def fake_gemini_synthesis(text, api_key, voice=None):
         assert api_key == "fake-gemini-key"
         return FAKE_PCM
 
@@ -85,7 +85,7 @@ async def test_both_keys_absent_returns_none_without_crash():
 async def test_gemini_failure_degrades_to_none(monkeypatch):
     tts = TTS(api_key=None, gemini_api_key="fake-gemini-key")
 
-    def gemini_explodes(text, api_key):
+    def gemini_explodes(text, api_key, voice=None):
         raise RuntimeError("simulated Gemini outage")
 
     monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", gemini_explodes)
@@ -102,3 +102,79 @@ async def test_empty_text_short_circuits_all_providers():
     tts = TTS(api_key="fake", gemini_api_key="fake")
     result = await tts.speak("   ")
     assert result == TTSResult(success=False, provider="none", error="empty text")
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# New cascade: ElevenLabs PRIMARY (progressive), Gemini FALLBACK
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_elevenlabs_is_primary_by_default(monkeypatch):
+    """ElevenLabs is tried FIRST and, when it succeeds, Gemini is NEVER touched —
+    the flag now defaults ON (ElevenLabs is primary)."""
+    monkeypatch.delenv("MUTHIS_TRY_ELEVENLABS", raising=False)  # default = on now
+    played = []
+    tts = TTS(api_key="fake-elevenlabs-key", gemini_api_key="fake-gemini-key")
+    assert tts.try_elevenlabs is True
+
+    async def elevenlabs_ok(text):
+        played.append("el")
+
+    def forbidden_gemini(text, api_key, voice=None):
+        raise AssertionError("Gemini must NOT run when ElevenLabs succeeds")
+
+    monkeypatch.setattr(tts, "_speak_elevenlabs", elevenlabs_ok)
+    monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", forbidden_gemini)
+
+    result = await tts.speak("زر الحفظ فوق يسار")
+
+    assert result == TTSResult(success=True, provider="elevenlabs")
+    assert played == ["el"]            # ElevenLabs played; Gemini never reached
+
+
+@pytest.mark.asyncio
+async def test_disabling_flag_forces_gemini(monkeypatch):
+    """The rollback switch: try_elevenlabs=False (a falsey MUTHIS_TRY_ELEVENLABS)
+    disables the primary entirely and forces Gemini — ElevenLabs never runs."""
+    played = []
+    tts = TTS(api_key="fake-el", gemini_api_key="fake-gem", try_elevenlabs=False)
+    assert tts.try_elevenlabs is False
+
+    def fake_gemini_synthesis(text, api_key, voice=None):
+        assert api_key == "fake-gem"
+        return FAKE_PCM
+
+    def forbidden_elevenlabs(text):
+        raise AssertionError("ElevenLabs must NOT run while disabled")
+
+    monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", fake_gemini_synthesis)
+    monkeypatch.setattr(tts, "_speak_elevenlabs", forbidden_elevenlabs)
+    monkeypatch.setattr(tts, "_play_wav_blocking", played.append)
+
+    result = await tts.speak("زر الحفظ فوق يسار")
+
+    assert result == TTSResult(success=True, provider="gemini")
+    assert len(played) == 1            # only the Gemini audio reached playback
+
+
+@pytest.mark.asyncio
+async def test_speak_never_raises_when_both_providers_fail(monkeypatch):
+    """The contract survives the new order: BOTH providers exploding still returns
+    TTSResult(provider='none') — speak() never raises."""
+    tts = TTS(api_key="fake-el", gemini_api_key="fake-gem", try_elevenlabs=True)
+
+    async def elevenlabs_down(text):
+        raise RuntimeError("el down")
+
+    def gemini_down(text, api_key, voice=None):
+        raise RuntimeError("gem down")
+
+    monkeypatch.setattr(tts, "_speak_elevenlabs", elevenlabs_down)
+    monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", gemini_down)
+
+    result = await tts.speak("اختبار")   # must NOT raise
+
+    assert isinstance(result, TTSResult)
+    assert result.success is False and result.provider == "none"
+    assert "gem down" in (result.error or "")  # last error retained (Gemini tried last)

@@ -17,7 +17,10 @@ blocking HTTP call is always run inside asyncio.to_thread by the caller
 Environment variables (.env is loaded once at process entry):
   GEMINI_API_KEY    : required for this fallback (absent → caller skips path)
   GEMINI_TTS_MODEL  : optional override (default below; change if it 404s)
-  GEMINI_TTS_VOICE  : optional override (default "Kore" — Arabic-capable)
+  GEMINI_TTS_VOICE  : fallback when the caller passes no voice (default "Kore");
+                      tts.py normally passes MUTHIS_GEMINI_VOICE instead
+  MUTHIS_GEMINI_TIMEOUT_S : optional request timeout in seconds (default 30);
+                            on timeout the call retries exactly once before failing
 """
 
 from __future__ import annotations
@@ -26,6 +29,8 @@ import base64
 import json
 import logging
 import os
+import socket
+import urllib.error
 import urllib.request
 
 logger = logging.getLogger("tts_gemini")
@@ -46,19 +51,69 @@ DEFAULT_GEMINI_TTS_VOICE = "Kore"
 # The speech-generation endpoint returns base64 PCM: s16le, mono, 24 kHz.
 GEMINI_SAMPLE_RATE = 24000
 
-# Fail fast and let tts.py degrade to provider="none" instead of hanging.
-REQUEST_TIMEOUT_SEC = 30.0
+# Request timeout (seconds). Default here; override via MUTHIS_GEMINI_TIMEOUT_S
+# in .env. Raising it alone is not enough: a single transient read-timeout would
+# still mean total silence (ElevenLabs is parked), so synthesize_pcm_blocking
+# retries exactly once on timeout (see _is_timeout and the retry below).
+DEFAULT_REQUEST_TIMEOUT_SEC = 30.0
+GEMINI_TIMEOUT_ENV = "MUTHIS_GEMINI_TIMEOUT_S"
 
 
-def synthesize_pcm_blocking(text: str, api_key: str) -> bytes:
+def _resolve_timeout() -> float:
+    """Resolve the request timeout (seconds) from MUTHIS_GEMINI_TIMEOUT_S,
+    falling back to DEFAULT_REQUEST_TIMEOUT_SEC on absent / invalid /
+    non-positive values."""
+    raw = os.getenv(GEMINI_TIMEOUT_ENV)
+    if not raw:
+        return DEFAULT_REQUEST_TIMEOUT_SEC
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "[tts_gemini] invalid %s=%r - using %.1fs default.",
+            GEMINI_TIMEOUT_ENV, raw, DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+        return DEFAULT_REQUEST_TIMEOUT_SEC
+    if value <= 0:
+        logger.warning(
+            "[tts_gemini] %s=%r must be > 0 - using %.1fs default.",
+            GEMINI_TIMEOUT_ENV, raw, DEFAULT_REQUEST_TIMEOUT_SEC,
+        )
+        return DEFAULT_REQUEST_TIMEOUT_SEC
+    return value
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    """True for a retryable network read / connect timeout. urllib raises the
+    socket timeout bare on some paths and wraps it in URLError on others."""
+    if isinstance(exc, (socket.timeout, TimeoutError)):
+        return True
+    return isinstance(exc, urllib.error.URLError) and isinstance(
+        exc.reason, (socket.timeout, TimeoutError)
+    )
+
+
+def _post_for_payload(request: urllib.request.Request, timeout: float) -> dict:
+    """Issue one POST and return the decoded JSON payload. Raises on timeout
+    or HTTP error; the caller owns the retry decision."""
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def synthesize_pcm_blocking(text: str, api_key: str, voice: str | None = None) -> bytes:
     """
     Synthesize `text` and return the COMPLETE 24 kHz mono s16le PCM clip
     (collect-then-play — same shape as the ElevenLabs path; true streaming
     is the documented follow-up). Blocking: call via asyncio.to_thread.
-    Raises on any failure; tts.py catches and reports provider="none".
+    Raises on any failure (after one fast retry on timeout); tts.py catches
+    and reports provider="none".
+
+    `voice` is the prebuilt Gemini voice name; tts.py passes the resolved
+    MUTHIS_GEMINI_VOICE (male default) so the caller owns the choice. When None
+    it falls back to GEMINI_TTS_VOICE then DEFAULT_GEMINI_TTS_VOICE.
     """
     model = os.getenv("GEMINI_TTS_MODEL") or DEFAULT_GEMINI_TTS_MODEL
-    voice = os.getenv("GEMINI_TTS_VOICE") or DEFAULT_GEMINI_TTS_VOICE
+    voice = voice or os.getenv("GEMINI_TTS_VOICE") or DEFAULT_GEMINI_TTS_VOICE
 
     body = json.dumps({
         "contents": [{"parts": [{"text": text}]}],
@@ -83,8 +138,18 @@ def synthesize_pcm_blocking(text: str, api_key: str) -> bytes:
         method="POST",
     )
 
-    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SEC) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    # One fast retry on timeout: transient read-timeouts are common, and a
+    # single retry recovers from them far more reliably than a longer wait.
+    timeout = _resolve_timeout()
+    try:
+        payload = _post_for_payload(request, timeout)
+    except Exception as exc:
+        if not _is_timeout(exc):
+            raise
+        logger.warning(
+            "[tts_gemini] request timed out after %.1fs - retrying once.", timeout,
+        )
+        payload = _post_for_payload(request, timeout)
 
     try:
         audio_b64 = (
@@ -109,4 +174,5 @@ __all__ = [
     "GEMINI_SAMPLE_RATE",
     "DEFAULT_GEMINI_TTS_MODEL",
     "DEFAULT_GEMINI_TTS_VOICE",
+    "DEFAULT_REQUEST_TIMEOUT_SEC",
 ]

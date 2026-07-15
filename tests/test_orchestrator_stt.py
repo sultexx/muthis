@@ -63,10 +63,31 @@ class FakeReasoner:
         self._scripts = list(scripts)
         self.calls = []
 
-    async def run(self, user_input, screenshot, history):
+    async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.calls.append((user_input, screenshot, history))
         for event in self._scripts.pop(0):
             yield event
+
+
+class FakeOverlay:
+    """Overlay protocol double — records show() bboxes/labels (already physical)
+    and hide() calls; same seam production injects as overlay=SidekickOverlay()."""
+
+    def __init__(self):
+        self.shows = []
+        self.hides = 0
+
+    async def show(self, bbox, label_ar):
+        self.shows.append((bbox, label_ar))
+
+    async def hide(self):
+        self.hides += 1
+
+    def set_state(self, state):          # 2-B status light — no-op double
+        pass
+
+    def clear_status_light(self):
+        pass
 
 
 def _turn_complete():
@@ -93,11 +114,7 @@ def _orchestrator(tmp_path, scripts, *, mic, stt):
         today_fn=lambda: "2026-06-12",
     )
     fake_tts = FakeTTS()
-    overlay_calls = []
-
-    async def overlay(tool_call):
-        overlay_calls.append(tool_call)
-
+    overlay = FakeOverlay()
     orchestrator = Orchestrator(
         reasoner=reasoner,
         budget=budget,
@@ -106,14 +123,14 @@ def _orchestrator(tmp_path, scripts, *, mic, stt):
         tts=fake_tts.speak,
         overlay=overlay,
     )
-    return orchestrator, reasoner, budget, fake_tts, overlay_calls
+    return orchestrator, reasoner, budget, fake_tts, overlay
 
 
 @pytest.mark.asyncio
 async def test_activation_feeds_transcript_to_provider_and_turn_flows(tmp_path):
     script = [TextDelta(ASSISTANT_TEXT_AR), _highlight(), _turn_complete()]
     mic, stt = FakeMic(), FakeSTT()
-    orchestrator, reasoner, budget, fake_tts, overlay_calls = _orchestrator(
+    orchestrator, reasoner, budget, fake_tts, overlay = _orchestrator(
         tmp_path, [script], mic=mic, stt=stt,
     )
 
@@ -128,7 +145,7 @@ async def test_activation_feeds_transcript_to_provider_and_turn_flows(tmp_path):
     # The full turn still flows: spoken text, overlay highlight, accounting.
     assert result.spoken_text == ASSISTANT_TEXT_AR
     assert fake_tts.spoken == [ASSISTANT_TEXT_AR]
-    assert [c.name for c in overlay_calls] == ["highlight_target"]
+    assert overlay.shows == [((10, 20, 110, 60), "زر الحفظ")]
     assert budget.spent_today_usd() == 0.0025
 
     # Privacy: the transcript (and its PII) never reached the TTS.

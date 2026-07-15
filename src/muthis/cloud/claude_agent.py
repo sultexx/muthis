@@ -1,10 +1,12 @@
 """
 claude_agent.py — Anthropic wrapper for the quality path (ARCHITECTURE_v4.1).
 
-LOOK-ONLY BUILD (v1): the only tools exposed are highlight_target (point,
-never click) and request_screen_refresh. type_text / press_hotkey /
-real_click DO NOT EXIST in this file yet — they arrive with Trust Modes
-in a later phase, behind trust/confirm_gate.py. Do not add them here.
+LOOK-ONLY BUILD: the only tools exposed are highlight_target (point, never
+click), draw_shapes (draw geometric overlay graphics, never act), and
+request_screen_refresh — schemas live in tool_schemas.py (this file is at
+the ≤300-line ceiling) and are re-exported here. type_text / press_hotkey /
+real_click DO NOT EXIST yet — they arrive with Trust Modes in a later phase,
+behind trust/confirm_gate.py. Do not add them here.
 
 Clicky-inspired engineering carried into this module:
   * TLS warmup   — a throwaway HEAD request fired at init through the SAME
@@ -34,6 +36,8 @@ import httpx
 from anthropic import AsyncAnthropic
 
 from .protocol import ResponseEvent, TextDelta, ToolCall, TurnComplete, UserInput
+# Re-export: existing callers import LOOK_ONLY_TOOLS from THIS module.
+from .tool_schemas import LOOK_ONLY_TOOLS
 
 logger = logging.getLogger("muthis.cloud.claude")
 
@@ -52,45 +56,6 @@ _PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-opus-4-7": (5.00, 25.00),
 }
-
-# ──────────────────────────────────────────────────────────────────────────
-# LOOK-only tool schemas (v4.1 §9.5, reduced to the LOOK subset)
-# ──────────────────────────────────────────────────────────────────────────
-
-LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "highlight_target",
-        "description": (
-            "Draw a cyan rectangle highlight around ONE UI element on the "
-            "user's screen. This does NOT move or click the user's mouse and "
-            "does NOT type anything — it only points. Coordinates are pixels "
-            "in the provided screenshot, origin top-left."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "x1": {"type": "integer", "description": "Left edge"},
-                "y1": {"type": "integer", "description": "Top edge"},
-                "x2": {"type": "integer", "description": "Right edge"},
-                "y2": {"type": "integer", "description": "Bottom edge"},
-                "label_ar": {
-                    "type": "string",
-                    "description": "Short Arabic caption shown near the rectangle",
-                },
-            },
-            "required": ["x1", "y1", "x2", "y2", "label_ar"],
-        },
-    },
-    {
-        "name": "request_screen_refresh",
-        "description": (
-            "Ask for a fresh screenshot when the current view is stale or "
-            "missing. The orchestrator will answer with a tool_result that "
-            "contains the new image."
-        ),
-        "input_schema": {"type": "object", "properties": {}},
-    },
-]
 
 # Arabic-first persona (v4.1 §17.5). User-facing Arabic; logs stay English.
 LOOK_SYSTEM_PROMPT = (
@@ -181,11 +146,13 @@ class ClaudeAgent:
         user_input: UserInput,
         screenshot: bytes | None,
         history: list[dict[str, Any]],
+        tool_choice: str = "auto",
     ) -> AsyncIterator[ResponseEvent]:
         """One Claude turn. Yields TextDelta / ToolCall, then one TurnComplete.
 
-        history is a list of Claude-format message dicts owned by the
-        orchestrator (this wrapper stores nothing between calls).
+        history is owned by the orchestrator (this wrapper stores nothing).
+        tool_choice "none" forbids ALL tool use so the model must answer in text
+        (the orchestrator's post-highlight pass); "auto" (default) is normal.
         """
         content_blocks: list[dict[str, Any]] = []
         if screenshot:
@@ -197,8 +164,29 @@ class ClaudeAgent:
                     "data": base64.standard_b64encode(screenshot).decode("ascii"),
                 },
             })
-        content_blocks.append({"type": "text", "text": user_input.text})
-        messages = [*history, {"role": "user", "content": content_blocks}]
+        # Empty text == an agentic continuation: the orchestrator re-called run()
+        # after appending a tool_result, and that tool_result IS the user turn.
+        # Skip the empty block — the API rejects empty text and nothing is new.
+        if user_input.text:
+            content_blocks.append({"type": "text", "text": user_input.text})
+        # Strict alternation: Option B pairing AND a refresh tool_result both
+        # leave history ending on a user message. FOLD this turn's content into
+        # that trailing user message instead of emitting a second consecutive
+        # user message — so the tool_result and the new text sit in the ONE user
+        # message that must follow the assistant's tool_use. The API merges
+        # consecutive same-role turns anyway; doing it here keeps the payload clean.
+        if not content_blocks:
+            messages = list(history)  # pure continuation — resume from the tool_result
+        else:
+            prev = history[-1] if history else None
+            if (prev is not None and prev.get("role") == "user"
+                    and isinstance(prev.get("content"), list)):
+                messages = [
+                    *history[:-1],
+                    {"role": "user", "content": [*prev["content"], *content_blocks]},
+                ]
+            else:
+                messages = [*history, {"role": "user", "content": content_blocks}]
 
         input_tokens = 0
         output_tokens = 0
@@ -213,6 +201,7 @@ class ClaudeAgent:
             system=self._system_prompt,
             messages=messages,
             tools=LOOK_ONLY_TOOLS,
+            tool_choice={"type": tool_choice},
         ) as stream:
             async for event in stream:
                 etype = event.type
@@ -254,9 +243,7 @@ class ClaudeAgent:
 
         # Raw assistant blocks let the orchestrator answer a
         # request_screen_refresh with a tool_result on the next run() call.
-        assistant_content = [
-            block.model_dump(exclude_none=True) for block in final_message.content
-        ]
+        assistant_content = [block.model_dump(exclude_none=True) for block in final_message.content]
         yield TurnComplete(
             input_tokens=input_tokens,
             output_tokens=output_tokens,

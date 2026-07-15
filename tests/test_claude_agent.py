@@ -164,6 +164,102 @@ async def test_look_only_has_no_action_tools():
     from muthis.cloud.claude_agent import LOOK_ONLY_TOOLS
 
     offered = {tool["name"] for tool in LOOK_ONLY_TOOLS}
-    assert offered == {"highlight_target", "request_screen_refresh"}
+    # B-1: draw_shapes joined the LOOK set — it DRAWS overlay graphics only.
+    assert offered == {"highlight_target", "draw_shapes", "request_screen_refresh"}
     forbidden = {"type_text", "press_hotkey", "real_click", "set_trust_mode"}
     assert offered.isdisjoint(forbidden)
+
+
+class _CapturingStream:
+    """Captures the messages= kwarg handed to messages.stream(), then replays
+    the canned highlight events so run() still completes normally."""
+
+    def __init__(self):
+        self.captured_messages = None
+
+    @asynccontextmanager
+    async def cm(self, *_args, **kwargs):
+        self.captured_messages = kwargs.get("messages")
+        yield _FakeStream(_fake_events())
+
+
+@pytest.mark.asyncio
+async def test_run_folds_trailing_user_tool_result_into_one_user_message():
+    """Strict alternation (Option B pairing / refresh tool_result both leave
+    history ending on a user message): run() FOLDS this turn's content into that
+    trailing user message instead of sending two consecutive user messages — so
+    the assistant tool_use stays immediately followed by its tool_result and the
+    roles keep alternating."""
+    agent = ClaudeAgent(api_key="test-key", model="claude-sonnet-4-6")
+    history = [
+        {"role": "user", "content": [{"type": "text", "text": "وين زر الحفظ؟"}]},
+        {"role": "assistant", "content": [
+            {"type": "text", "text": "هنا"},
+            {"type": "tool_use", "id": "toolu_h1", "name": "highlight_target",
+             "input": {"x1": 1, "y1": 2, "x2": 3, "y2": 4, "label_ar": "زر"}},
+        ]},
+        {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": "toolu_h1", "content": "تم"}]},
+    ]
+    capturer = _CapturingStream()
+    with patch.object(agent._client.messages, "stream", capturer.cm):
+        _ = [
+            ev async for ev in agent.run(
+                user_input=UserInput(text="وقائمة الفتح؟"),
+                screenshot=PNG_BYTES,
+                history=history,
+            )
+        ]
+
+    messages = capturer.captured_messages
+    roles = [m["role"] for m in messages]
+    assert all(a != b for a, b in zip(roles, roles[1:])), roles   # no consecutive role
+    assert messages[1]["role"] == "assistant"
+    folded = messages[2]                                          # the merged user msg
+    assert folded["role"] == "user"
+    block_types = [b["type"] for b in folded["content"]]
+    assert block_types[0] == "tool_result"                       # the pairing stays first
+    assert "image" in block_types and "text" in block_types      # then this turn's content
+    assert folded["content"][0]["tool_use_id"] == "toolu_h1"     # answered, not orphaned
+
+
+class _KwargCapturingStream:
+    """Captures ALL kwargs handed to messages.stream() so a test can assert what
+    the agent does (and does NOT) pass to the SDK — e.g. tool_choice."""
+
+    def __init__(self):
+        self.captured_kwargs = None
+
+    @asynccontextmanager
+    async def cm(self, *_args, **kwargs):
+        self.captured_kwargs = kwargs
+        yield _FakeStream(_fake_events())
+
+
+@pytest.mark.asyncio
+async def test_tool_choice_stays_auto_never_forced():
+    """tool_choice MUST stay 'auto' (the SDK default == the kwarg is absent).
+    Forcing the pointer (tool_choice={'type': 'any' | 'tool'}) would SUPPRESS the
+    assistant's accompanying prose, and the dual-action 'point AND explain'
+    contract depends on that prose surviving — so the tool is never forced."""
+    agent = ClaudeAgent(api_key="test-key", model="claude-sonnet-4-6")
+    capturer = _KwargCapturingStream()
+    with patch.object(agent._client.messages, "stream", capturer.cm):
+        _ = [
+            ev async for ev in agent.run(
+                user_input=UserInput(text="وين زر الحفظ؟"),
+                screenshot=PNG_BYTES,
+                history=[],
+            )
+        ]
+
+    kwargs = capturer.captured_kwargs
+    # Absent == the API/SDK default of "auto" (the model decides). If a future
+    # change ever sets it explicitly, it must STILL be auto, never any/tool.
+    tc = kwargs.get("tool_choice")
+    if tc is not None:
+        choice_type = tc.get("type") if isinstance(tc, dict) else tc
+        assert choice_type == "auto", f"tool_choice must be auto, got {tc!r}"
+        assert choice_type not in ("any", "tool"), "the pointer must NEVER be forced"
+    # Tools ARE still offered — 'auto' means the model MAY point, not that it must.
+    assert kwargs.get("tools"), "LOOK tools should still be offered under auto"

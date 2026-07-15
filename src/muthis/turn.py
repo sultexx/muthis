@@ -1,21 +1,49 @@
 # src/muthis/turn.py
 """
 Turn contracts — the orchestrator's injected-dependency shapes, its
-user-facing Arabic surface strings, and the TurnResult model.
+user-facing Arabic surface strings, the TurnResult model, and the
+request_screen_refresh tool_result builder.
 
 Split out of orchestrator.py under the ≤300-line law (split, don't
 compress — AGENTS.md). orchestrator.py re-exports everything here, so
 existing imports keep working. Depends only on stdlib + protocol/tts types;
-importable in isolation.
+importable in isolation (no SDK, no Pillow).
 """
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass, field
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional, Protocol, runtime_checkable
 
 from .cloud.protocol import ToolCall
+from .highlight_gate import (
+    HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR, HighlightGate,
+    draw_result_text, highlight_result_text,
+)
 from .tts import TTSResult
+
+
+# ─── Vision payload contract (the downscaled COPY + coordinate-map factors) ───
+
+@dataclass(frozen=True)
+class DownscaledImage:
+    """The API-payload COPY of a screenshot plus the factors that map the
+    model's returned pixel coordinates back to physical pixels.
+
+    `sent_bytes` is the (possibly downscaled) PNG actually sent to the provider;
+    physical pixels stay the single source of truth in screen_capture.py.
+    scale_x and scale_y are computed PER-AXIS (sent_height rounds, so for aspect
+    ratios that don't divide cleanly they can differ by a hair) — the overlay
+    step multiplies x by scale_x and y by scale_y; nothing applies them in this
+    phase. None bytes → identity scale (1.0).
+    """
+    sent_bytes: Optional[bytes]
+    sent_width: int
+    sent_height: int
+    scale_x: float
+    scale_y: float
+
 
 # ─── Injected dependency signatures (production injection in parentheses) ────
 
@@ -23,7 +51,56 @@ MicFn = Callable[[], Awaitable[Optional[bytes]]]          # mic.Mic().record
 SttFn = Callable[[bytes], Awaitable[str]]                 # stt.STT().transcribe
 TtsFn = Callable[[str], Awaitable[Optional[TTSResult]]]   # tts.TTS().speak
 ScreenCaptureFn = Callable[[], Awaitable[Optional[bytes]]]
-OverlayFn = Callable[[ToolCall], Awaitable[None]]
+# vision.downscale.downscale_to_max_width — physical PNG → downscaled COPY.
+DownscaleFn = Callable[[Optional[bytes]], Awaitable[DownscaledImage]]
+
+
+# ─── Overlay seam (the cyan LOOK pointer — DRAW ONLY, never an action tool) ───
+
+# (x1, y1, x2, y2) in PHYSICAL pixels. The orchestrator scales the model's
+# sent-image coords up to physical BEFORE handing them over; the overlay draws
+# them verbatim and never rescales.
+PhysicalBBox = tuple[int, int, int, int]
+
+
+@runtime_checkable
+class Overlay(Protocol):
+    """The on-screen cyan rectangle (overlay.sidekick_window.SidekickOverlay in
+    production; a fake in tests). LOOK-only: it shows/hides a rectangle plus an
+    Arabic caption and does nothing else — no mouse, no clicks, no typing.
+
+    show() receives ALREADY-PHYSICAL coordinates (the orchestrator did the
+    sent→physical multiply). hide() clears the rectangle and is called before
+    EVERY screen capture, so Claude never sees its own highlight baked into a
+    screenshot. Implementations are resilient — they never raise."""
+
+    async def show(self, bbox: PhysicalBBox, label_ar: str) -> None:
+        ...
+
+    async def hide(self) -> None:
+        ...
+
+    # Status light (2-B): SYNC fire-and-forget — the controller calls set_state
+    # from the keyboard thread, so these never await. clear_status_light ghosts
+    # the corner dot before a capture; both are no-op-safe on every impl.
+    def set_state(self, state: str) -> None:
+        ...
+
+    def clear_status_light(self) -> None:
+        ...
+
+
+def scale_bbox_to_physical(args: dict[str, Any], scale_x: float, scale_y: float) -> PhysicalBBox:
+    """Map a highlight_target's SENT-image bbox to PHYSICAL pixels. Claude
+    returns coordinates in the downscaled image it actually saw, so x is scaled
+    by scale_x and y by scale_y (per-axis — see DownscaledImage). This is the
+    ONLY place the multiply happens; the overlay receives the result physical."""
+    return (
+        round(args["x1"] * scale_x),
+        round(args["y1"] * scale_y),
+        round(args["x2"] * scale_x),
+        round(args["y2"] * scale_y),
+    )
 
 # ─── User-facing Arabic — the ONLY Arabic surfaces (logs stay English) ───────
 
@@ -32,6 +109,9 @@ REFRESH_FOLLOWUP_TEXT_AR = "هذه لقطة الشاشة المحدثة."
 NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
 MIC_FAILED_AR = "ما قدرت أوصل للمايكروفون، تأكد إنه موصول."
 STT_EMPTY_AR = "ما سمعت شي واضح، جرّب مرة ثانية."
+# Spoken when the agentic loop hits MAX_AGENTIC_ITERATIONS — a clean stop instead
+# of looping forever. User-facing Arabic (the TTS path); never the user text.
+AGENTIC_CAP_NOTE_AR = "اكتفيت بهذا القدر الآن، إذا تبي أكمل اسألني من جديد."
 
 
 # ─── Turn result ──────────────────────────────────────────────────────────────
@@ -47,11 +127,172 @@ class TurnResult:
     budget_blocked: bool = False
     timed_out: bool = False
     stop_reason: Optional[str] = None      # last provider stop_reason
+    # Dims of the downscaled COPY actually sent, and the physical↔sent scale
+    # factors. Recorded for the overlay step (next phase), which multiplies the
+    # model's returned coordinates by (scale_x, scale_y) to land on physical
+    # pixels. Defaults are the no-screenshot identity (no downscale).
+    sent_width: int = 0
+    sent_height: int = 0
+    scale_x: float = 1.0
+    scale_y: float = 1.0
+
+
+# ─── tool_result builders — Option B "full pairing" keeps history API-valid ──
+
+# The highlight_target tool_result surfaces and the gate-advancing selector live
+# in highlight_gate.py (the circuit breaker's home); re-exported here so existing
+# importers (orchestrator, tests) keep finding them on turn.
+def next_highlight(
+    gate: HighlightGate,
+    pending: Optional[tuple[PhysicalBBox, str]],
+    args: dict[str, Any],
+    scale_x: float,
+    scale_y: float,
+) -> Optional[tuple[PhysicalBBox, str]]:
+    """Circuit breaker (draw half): return the (physical bbox, label) to draw for
+    the FIRST highlight_target of a turn, or `pending` unchanged for every later
+    one — so the overlay is drawn at most ONCE per user turn (no redraw loop).
+    `gate.drawn` is set later by build_tool_result_message at pairing time, and
+    `pending is not None` guards a second highlight inside the SAME pass."""
+    if gate.drawn or pending is not None:
+        return pending
+    return (scale_bbox_to_physical(args, scale_x, scale_y), args.get("label_ar", ""))
+
+
+def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) -> dict[str, Any]:
+    """The single tool_result block answering a request_screen_refresh: the
+    fresh, already-downscaled payload COPY (a minimal PNG/JPEG sniff sets
+    media_type so the SDK stack is NOT imported here), or an Arabic
+    'no new screenshot' note when no fresh capture is available."""
+    if screenshot:
+        media_type = "image/png" if screenshot[:4] == b"\x89PNG" else "image/jpeg"
+        inner: list[dict[str, Any]] = [{
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": base64.standard_b64encode(screenshot).decode("ascii"),
+            },
+        }]
+    else:
+        inner = [{"type": "text", "text": NO_SCREENSHOT_TOOL_RESULT_AR}]
+    return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
+
+
+def build_tool_result_message(
+    assistant_content: list[dict[str, Any]],
+    refresh_call: Optional[ToolCall] = None,
+    fresh_screenshot: Optional[bytes] = None,
+    gate: Optional[HighlightGate] = None,
+) -> Optional[dict[str, Any]]:
+    """ONE user message pairing a tool_result with EVERY tool_use block the
+    assistant just emitted (Option B — full pairing). The refresh id (when
+    refresh_call is given) is answered with the fresh screenshot — or a text
+    note when fresh_screenshot is None (e.g. the follow-up limit was hit).
+
+    Circuit breaker (hard backstop): every non-refresh id is a DRAW tool —
+    highlight_target or draw_shapes. With a `gate`, the FIRST one of the turn
+    gets its tool's "explain now" ack and flips `gate.drawn` (ONE gate, BOTH
+    tools); every later one (this pass or a future one, either tool) gets its
+    "already shown — don't redraw, explain" note — draw_result_text picks the
+    wording by tool name. Without a gate (legacy) it always returns the ack.
+
+    Returns None when the assistant turn carried no tool_use, so the caller
+    appends NOTHING and never stores an empty message. Bundling all results
+    into one message keeps them in the single user message that immediately
+    follows the assistant turn — exactly what the API's pairing rule needs.
+    Lives here (not in claude_agent.py) so the orchestrator stays importable
+    without the SDK stack."""
+    refresh_id = refresh_call.tool_use_id if refresh_call else None
+    results: list[dict[str, Any]] = []
+    for block in assistant_content:
+        if block.get("type") != "tool_use":
+            continue
+        tool_use_id = block.get("id")
+        if tool_use_id is not None and tool_use_id == refresh_id:
+            results.append(_refresh_tool_result_block(tool_use_id, fresh_screenshot))
+        else:
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": draw_result_text(gate, block.get("name", "")),
+            })
+    if not results:
+        return None
+    return {"role": "user", "content": results}
+
+
+# ─── Bug 3 — strip a request_screen_refresh frame from history after its turn ──
+
+# Replaces a refresh screenshot in STORED history once its turn is over. The fresh
+# frame already reached the model inside its tool_result for the iteration that
+# needed it; persisting the pixels would replay a now-stale view on the NEXT user
+# turn — the app-switch hallucination (still "seeing" a since-closed app). A fresh
+# frame is captured every turn, so nothing of value is lost; the id and the
+# pairing stay intact, only the image bytes are dropped. Not a spoken surface.
+STALE_SCREENSHOT_NOTE_AR = "(لقطة شاشة من دور سابق غير مرفقة)"
+
+
+def _tool_result_has_image(block: dict[str, Any]) -> bool:
+    """True iff `block` is a tool_result whose content list carries an image."""
+    inner = block.get("content")
+    return (
+        block.get("type") == "tool_result"
+        and isinstance(inner, list)
+        and any(b.get("type") == "image" for b in inner)
+    )
+
+
+def _strip_tool_result_images(block: dict[str, Any]) -> dict[str, Any]:
+    """Return a COPY of one tool_result with every image block swapped for a short
+    text note (the original — already sent this turn — is never mutated). Anything
+    that is not an image-bearing tool_result is returned unchanged (same object)."""
+    if not _tool_result_has_image(block):
+        return block
+    note = {"type": "text", "text": STALE_SCREENSHOT_NOTE_AR}
+    stripped = [note if b.get("type") == "image" else b for b in block["content"]]
+    return {**block, "content": stripped}
+
+
+def strip_images_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return `history` with every request_screen_refresh screenshot dropped from
+    its tool_result. Called ONCE per turn, AFTER the turn ends: the frame already
+    did its job for the iteration that needed it, and keeping it leaks a stale view
+    into the NEXT user turn (Bug 3 — the app-switch hallucination).
+
+    Structure is preserved EXACTLY — same messages, roles, and tool_use_ids — so
+    every tool_use/tool_result pairing stays valid and no message becomes empty.
+    New dicts are built ONLY for changed blocks; the originals (already handed to
+    earlier run() calls this turn) are never mutated, and an image-free history is
+    returned unchanged (same object)."""
+    def _has_image(message: dict[str, Any]) -> bool:
+        content = message.get("content")
+        return isinstance(content, list) and any(
+            _tool_result_has_image(block) for block in content)
+
+    if not any(_has_image(message) for message in history):
+        return history
+    sanitized: list[dict[str, Any]] = []
+    for message in history:
+        content = message.get("content")
+        if not isinstance(content, list):
+            sanitized.append(message)
+            continue
+        new_content = [_strip_tool_result_images(block) for block in content]
+        sanitized.append(
+            message if new_content == content
+            else {**message, "content": new_content})
+    return sanitized
 
 
 __all__ = [
-    "MicFn", "SttFn", "TtsFn", "ScreenCaptureFn", "OverlayFn",
+    "DownscaledImage",
+    "MicFn", "SttFn", "TtsFn", "ScreenCaptureFn", "DownscaleFn",
+    "Overlay", "PhysicalBBox", "scale_bbox_to_physical",
     "BUDGET_REFUSAL_AR", "REFRESH_FOLLOWUP_TEXT_AR",
     "NO_SCREENSHOT_TOOL_RESULT_AR", "MIC_FAILED_AR", "STT_EMPTY_AR",
-    "TurnResult",
+    "AGENTIC_CAP_NOTE_AR", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
+    "next_highlight",
+    "TurnResult", "build_tool_result_message",
+    "STALE_SCREENSHOT_NOTE_AR", "strip_images_from_history",
 ]

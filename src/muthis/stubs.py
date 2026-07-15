@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from .cloud.protocol import ToolCall
+from .turn import DownscaledImage, PhysicalBBox
 
 logger = logging.getLogger("muthis.stubs")
 
@@ -48,11 +48,42 @@ async def stub_screen_capture() -> Optional[bytes]:
     return None
 
 
-async def stub_overlay(tool_call: ToolCall) -> None:
-    # STUB — replaced in a later phase (overlay/rectangle_widget.py).
-    logger.info("[stub:overlay] would draw highlight (tool_use_id=%s)",
-                tool_call.tool_use_id)
+async def stub_downscale(screenshot: Optional[bytes]) -> DownscaledImage:
+    # STUB default — production injects the REAL
+    # vision.downscale.downscale_to_max_width at the composition root. This
+    # passthrough sends the captured bytes UNCHANGED with identity scale, so
+    # tests and CI never decode a real image; sent dims are unknown (0) here.
+    logger.info("[stub:downscale] passthrough (%d bytes), identity scale",
+                len(screenshot) if screenshot else 0)
+    return DownscaledImage(screenshot, 0, 0, 1.0, 1.0)
+
+
+class StubOverlay:
+    """STUB default for the overlay seam — replaced by
+    overlay.sidekick_window.SidekickOverlay at the composition root. Implements
+    the Overlay protocol (show/hide + the 2-B status light) with NO window and NO
+    hardware; logs dimensions/timing only, never pixels. hide() and
+    clear_status_light() are harmless no-ops so the orchestrator's
+    hide-before-capture ordering holds even in stub mode."""
+
+    async def show(self, bbox: PhysicalBBox, label_ar: str) -> None:
+        logger.info("[stub:overlay] would draw rectangle %s (label %d chars)",
+                    bbox, len(label_ar))
+
+    async def hide(self) -> None:
+        logger.info("[stub:overlay] would hide rectangle")
+
+    def set_state(self, state: str) -> None:
+        logger.info("[stub:overlay] would set status state %r", state)
+
+    def clear_status_light(self) -> None:
+        logger.info("[stub:overlay] would clear the status light (ghosting)")
+
+
+# Module-level default instance: the orchestrator imports this name as the
+# overlay seam default; the composition root swaps in the real SidekickOverlay.
+stub_overlay = StubOverlay()
 
 
 __all__ = ["stub_mic", "stub_stt", "stub_tts", "stub_screen_capture",
-           "stub_overlay"]
+           "stub_downscale", "stub_overlay", "StubOverlay"]
