@@ -354,3 +354,17 @@ def test_prompt_has_center_targeting_nudge():
     assert "مركز العنصر المستهدف" in prompt
     assert "لا حافته" in prompt
     assert "بلا توسيع" in prompt
+
+
+# ─────────────────── Numbered-steps selection rule (v6 B3) ──────────────────
+
+
+def test_prompt_selects_step_badges_for_sequential_howto():
+    # A multi-step "how do I..." → ONE draw_shapes call carrying step badges
+    # in execution order (auto-numbered ١٢٣ by list order), then the explain
+    # pass walks the steps in the same order.
+    prompt = _prompt()
+    assert "step" in prompt
+    assert "بترتيب التنفيذ" in prompt
+    assert "تترقّم تلقائياً" in prompt
+    assert "بنفس الترتيب" in prompt

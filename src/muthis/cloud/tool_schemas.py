@@ -50,7 +50,7 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
         "name": "draw_shapes",
         "description": (
             "Draw one or MORE geometric overlay graphics (line / arrow / "
-            "circle / rectangle) in cyan on the user's screen to illustrate "
+            "circle / rectangle / step) on the user's screen to illustrate "
             "or annotate what you are explaining. This does NOT move or "
             "click the user's mouse and does NOT type anything — it only "
             "draws. ONE call may carry SEVERAL shapes together (e.g. a line "
@@ -59,7 +59,11 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
             "screenshot, origin top-left. Every kind uses the same four "
             "values: line/arrow endpoints (the arrow HEAD is at x2,y2), "
             "rectangle corners, and for a circle the ENCLOSING bounding box "
-            "of the circle."
+            "of the circle. A 'step' is a small NUMBERED badge circle (its "
+            "ENCLOSING bounding box, ~30-50px in screenshot pixels) placed "
+            "ON a UI element to mark one step of a sequential how-to; steps "
+            "are numbered AUTOMATICALLY 1, 2, 3... by their order in the "
+            "shapes list, so send them in execution order."
         ),
         "input_schema": {
             "type": "object",
@@ -73,7 +77,8 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
                         "properties": {
                             "kind": {
                                 "type": "string",
-                                "enum": ["line", "arrow", "circle", "rectangle"],
+                                "enum": ["line", "arrow", "circle",
+                                         "rectangle", "step"],
                             },
                             "x1": {"type": "integer"},
                             "y1": {"type": "integer"},

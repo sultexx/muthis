@@ -184,8 +184,16 @@ def test_draw_shapes_schema_registered_and_reexported():
                   if t["name"] == "draw_shapes")["input_schema"]
     assert schema["required"] == ["shapes"]
     item = schema["properties"]["shapes"]["items"]
-    assert item["properties"]["kind"]["enum"] == ["line", "arrow", "circle", "rectangle"]
+    # v6 B3 added "step" (numbered badge) — a documented schema extension.
+    assert item["properties"]["kind"]["enum"] == [
+        "line", "arrow", "circle", "rectangle", "step"]
     assert item["required"] == ["kind", "x1", "y1", "x2", "y2"]  # label_ar optional
+    # The description must teach list-order auto-numbering, or the model will
+    # look for a number field that does not exist.
+    description = next(t for t in LOOK_ONLY_TOOLS
+                       if t["name"] == "draw_shapes")["description"]
+    assert "numbered AUTOMATICALLY" in description
+    assert "execution order" in description
 
 
 @pytest.mark.asyncio
