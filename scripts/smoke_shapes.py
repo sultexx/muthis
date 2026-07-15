@@ -5,7 +5,8 @@ Manual smoke test — the NEON overlay look (Batch 1). NEVER run in CI.
 Pure overlay check: NO Claude / mic / TTS. Draws, all at once on a 1920x1080
 primary display:
   * the highlight_target rectangle + its gliding pointer (via show()), then
-  * all four draw_shapes kinds — a line, an arrow, a circle, a rectangle —
+  * all draw_shapes kinds — a line, an arrow, a circle, a rectangle, and
+    THREE numbered step badges (v6 B: expect ١ ٢ ٣ left-to-right) —
 each with an Arabic caption, holds a few seconds, then hides everything. Use it
 to judge the neon aesthetic on YOUR screen and tune the .env values by eye.
 
@@ -51,11 +52,16 @@ HIGHLIGHT_LABEL = "الهدف"
 
 # PHYSICAL coordinates for a 1920x1080 primary display — one shape per
 # quadrant, so all four are visible at once and none overlaps another.
+# The three step badges (v6 B) march across the top strip in execution order:
+# they must render ١ ٢ ٣ left-to-right (numbered by LIST order, no number field).
 SHAPES = (
     Shape(kind="line", points=(200, 200, 600, 350), label_ar="خط"),
     Shape(kind="arrow", points=(1300, 250, 1700, 400), label_ar="سهم"),
     circle_shape(500, 780, 120, label_ar="دائرة"),
     Shape(kind="rectangle", points=(1250, 700, 1700, 950), label_ar="مستطيل"),
+    Shape(kind="step", points=(700, 90, 745, 135), label_ar="الخطوة الأولى"),
+    Shape(kind="step", points=(940, 90, 985, 135)),
+    Shape(kind="step", points=(1180, 90, 1225, 135)),
 )
 
 
@@ -76,7 +82,8 @@ async def main() -> None:
     overlay.close()
     print(
         "تم. لو ظهر المستطيل والمؤشر والخط والسهم والدائرة والمستطيل بألوانها "
-        "النيون وتوهّجها وتسمياتها ثم اختفت كلها بالكامل — فكل شيء مضبوط."
+        "النيون وتوهّجها وتسمياتها، وظهرت الشارات المرقّمة ١ ٢ ٣ من اليسار "
+        "لليمين في الشريط العلوي، ثم اختفت كلها بالكامل — فكل شيء مضبوط."
     )
 
 

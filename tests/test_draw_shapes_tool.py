@@ -341,3 +341,57 @@ def test_parse_shapes_args_drops_malformed_entries():
     assert parsed == (Shape(kind="line", points=(1.0, 2.0, 3.0, 4.0)),)
     assert parse_shapes_args({}) == ()
     assert parse_shapes_args({"shapes": "oops"}) == ()
+
+
+# ─────────────────── Numbered steps through the loop (v6 B4) ────────────────
+
+THREE_STEPS = [
+    {"kind": "step", "x1": 100, "y1": 50, "x2": 130, "y2": 80,
+     "label_ar": "افتح File"},
+    {"kind": "step", "x1": 200, "y1": 50, "x2": 230, "y2": 80},
+    {"kind": "step", "x1": 300, "y1": 150, "x2": 330, "y2": 180},
+]
+
+
+@pytest.mark.asyncio
+async def test_three_step_badges_ride_one_draw_scaled_per_axis(tmp_path):
+    overlay = FakeShapesOverlay()
+    reasoner = FakeReasoner(_draw_then_explain_scripts(_draw_shapes(THREE_STEPS)))
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay, scale=(1.5, 2.0))
+
+    await orchestrator.run_turn("كيف أصدّر الملف؟")
+
+    # ONE overlay draw carrying the three badges IN EXECUTION ORDER, each
+    # scaled per-axis (x×1.5, y×2.0). Order IS the numbering (the widget
+    # counts ١٢٣ by list position), so it must survive the loop verbatim.
+    assert overlay.shape_draws == [(
+        Shape(kind="step", points=(150, 100, 195, 160), label_ar="افتح File"),
+        Shape(kind="step", points=(300, 100, 345, 160)),
+        Shape(kind="step", points=(450, 300, 495, 360)),
+    )]
+    # The pass after the draw is the API-forced explanation (loop terminator).
+    assert reasoner.tool_choices == ["auto", "none"]
+
+
+@pytest.mark.asyncio
+async def test_step_looping_adversary_ends_in_two_passes_with_one_badge_map(tmp_path):
+    overlay = FakeShapesOverlay()
+    reasoner = LoopingDrawReasoner(
+        lambda n: _draw_shapes(THREE_STEPS, tid=f"toolu_step{n}"))
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    await orchestrator.run_turn("كيف أصدّر الملف؟")
+
+    # The UNIFIED gate needs NO step-specific change: one badge map drawn,
+    # the very next pass is forced to text, the loop ends at two passes.
+    assert len(overlay.shape_draws) == 1
+    assert reasoner.tool_choices == ["auto", "none"]
+
+
+def test_parse_shapes_args_accepts_step_and_drops_malformed_steps():
+    parsed = parse_shapes_args({"shapes": [
+        {"kind": "step", "x1": 1, "y1": 2, "x2": 3, "y2": 4},
+        {"kind": "step", "x1": "oops", "y1": 2, "x2": 3, "y2": 4},  # bad coord
+        {"kind": "step", "x1": 5, "y1": 6, "x2": 7},                # missing y2
+    ]})
+    assert parsed == (Shape(kind="step", points=(1.0, 2.0, 3.0, 4.0)),)
