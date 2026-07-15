@@ -29,6 +29,7 @@ from typing import Any, Callable, Optional
 
 from .budget import Budget
 from .cloud.protocol import CloudReasoner, UserInput
+from .draw_dispatch import DRAW_TOOLS
 # STUB defaults — each is replaced by its real component in a later phase.
 from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
                     stub_stt, stub_tts)
@@ -111,8 +112,7 @@ class Orchestrator:
         # turn_pass.py — the ≤300-line split; built from the same seams. The
         # C2 streaming seams (flag + session factory) ride through untouched.
         self._pass = TurnPass(
-            reasoner=reasoner, budget=budget, overlay=overlay,
-            auto_hide=self._auto_hide, voice=self._voice,
+            reasoner=reasoner, budget=budget, overlay=overlay, voice=self._voice,
             stream_tts=stream_tts, session_factory=speech_session_factory,
         )
 
@@ -160,6 +160,7 @@ class Orchestrator:
         # below safe on any pre-pipeline exit.
         self._highlight_gate = HighlightGate()
         turn_voice = self._pass.new_turn_voice()
+        turn_voice.begin_open()  # Fix G: the WS handshake overlaps the vision pass
         try:
             async with asyncio.timeout(self._session_timeout_s):
                 await self._run_turn_pipeline(user_text, result, turn_voice)
@@ -170,10 +171,15 @@ class Orchestrator:
             # Outside the timeout scope, so the drain can await safely: close
             # the turn's generation (decision-15 fallbacks live inside) …
             await turn_voice.finish()
-            # … and re-arm the auto-hide from SPEECH END (v7, measured: the
-            # 7s-from-draw timer hid the rectangle 1.7s before the explanation
-            # finished — the draw and its explanation live in DIFFERENT passes).
-            if self._highlight_gate.drawn:
+            # … then arm the auto-hide — the ONLY arm site (v7.1 Fix F,
+            # measured: a draw-time timer hid the rectangle mid-explanation,
+            # draw+7 s < speech end). finish() returns at SPEECH END, so the
+            # 7 s count from here keeps the rectangle visible through the
+            # whole explanation + 7 s. Keyed on the RECEIVED draw calls, not
+            # gate.drawn — the gate flips only at the pairing, which a fake
+            # or a mid-turn failure may never reach; a drawn-but-unpaired
+            # overlay must still hide.
+            if any(call.name in DRAW_TOOLS for call in result.tool_calls):
                 self._auto_hide.schedule()
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
         # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying

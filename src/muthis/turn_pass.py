@@ -7,8 +7,11 @@ buffer/stream branching, so the whole `_consume_stream` body moved here
 UNCHANGED (Law §17.4: split, don't compress — the same reason voice_out.py
 and highlight_gate.py exist): stream the reasoner's events, buffer the text,
 gate the draws (first draw wins, unified over BOTH draw tools), then the
-**Option-A SYNC POINT** — apply the ONE buffered draw → arm auto-hide → THEN
-speak — which this module OWNS. The orchestrator's agentic loop calls
+**Option-A SYNC POINT** — apply the ONE buffered draw → THEN speak — which
+this module OWNS. (v7.1 Fix F: the auto-hide is NO LONGER armed here — a
+draw-time timer was measured hiding the rectangle mid-explanation, draw+7 s
+landing before speech end; run_turn's `finally` is now the ONLY arm site,
+counting the 7 s from SPEECH END.) The orchestrator's agentic loop calls
 `consume()` once per pass and keeps owning history, pairing, budget gating and
 the loop itself (Law 11 untouched — TurnPass holds no lifecycle, no locks, no
 loop; it is one pass, built once from the orchestrator's own injected seams).
@@ -60,18 +63,17 @@ def _stream_tts_from_env() -> bool:
 
 class TurnPass:
     """ONE provider pass: run the reasoner, buffer text, gate draws, then the
-    draw→auto-hide→speak sync point. Built once by the Orchestrator from its
-    own injected seams; stateless between calls."""
+    draw→speak sync point. Built once by the Orchestrator from its own
+    injected seams; stateless between calls."""
 
     def __init__(
-        self, *, reasoner, budget, overlay, auto_hide, voice,
+        self, *, reasoner, budget, overlay, voice,
         stream_tts: Optional[bool] = None,
         session_factory: Optional[Callable[[], object]] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
         self._overlay = overlay
-        self._auto_hide = auto_hide
         self._voice = voice
         # v7: sentence streaming — flag-gated (default OFF). The factory seam
         # resolves lazily to the real TTS().open_speech_session on first
@@ -158,11 +160,12 @@ class TurnPass:
         self._budget.record_turn(turn_complete)
         _diag.info("[DIAG] pass stream-end t=%.3f stop_reason=%s chars=%d",
                    time.monotonic(), turn_complete.stop_reason, len(message_text))
-        # Sync point: apply the ONE buffered draw + arm auto-hide, THEN speak.
+        # Sync point: apply the ONE buffered draw, THEN speak. The auto-hide is
+        # NOT armed here (v7.1 Fix F) — run_turn's finally arms it at SPEECH END,
+        # so the rectangle survives the whole spoken explanation.
         # (A streamed pass is tool_choice="none": pending_draw is impossible.)
         if pending_draw is not None:
             await pending_draw.apply(self._overlay)
-            self._auto_hide.schedule()
             _diag.info("[DIAG] pass draw-applied t=%.3f", time.monotonic())
         if streamed:
             await turn_voice.end_stream()        # flush the tail into the generation

@@ -30,12 +30,22 @@ unplayed remainder to finish() — spoken in ONE buffered call AFTER close()
 drains the already-playing tail (never overlapping audio). `got_audio` remains
 the double-speak guard: nothing played → the whole turn's text is re-spoken.
 
+Eager open (v7.1 Fix G, measured): the WS handshake (0.58 s) used to be paid
+INSIDE the draw→first-audio gap because the session opened lazily at first
+speech. `begin_open()` — called by run_turn right after the TurnVoice is
+built — starts the turn's ONE open attempt as a background task that overlaps
+the vision pass; `ensure_open()` awaits that SAME attempt (never a second
+socket), and `finish()`/`abandon()` settle it even when the turn dies before
+speaking, so the task can never outlive the turn (still not the Batch-3
+wedge: one bounded task, deterministically awaited every path).
+
 Per-turn state like HighlightGate: built fresh by `TurnPass.new_turn_voice()`
 each turn, never reused. Sibling + stdlib imports; importable in isolation.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Callable, List, Optional
@@ -67,6 +77,7 @@ class TurnVoice:
         self._factory = session_factory
         self._enabled = enabled and session_factory is not None
         self._session = None
+        self._open_task: Optional[asyncio.Task] = None  # the eager Fix-G handshake
         self._open_failed = False   # one open attempt per turn — no retry storm
         self._dead = False          # a feed raised: defer the rest to finish()
         self._closed = False
@@ -76,13 +87,29 @@ class TurnVoice:
 
     # ─────────────────────────────── Speaking ───────────────────────────────
 
+    def begin_open(self) -> None:
+        """Fix G: start the turn's ONE open attempt in the background at turn
+        start, so the WS handshake overlaps the vision pass instead of sitting
+        inside the draw→first-audio gap. Idempotent; a no-op when streaming is
+        off. ensure_open()/finish()/abandon() all settle this same task."""
+        if (self._enabled and self._open_task is None and self._session is None
+                and not (self._open_failed or self._closed)):
+            self._open_task = asyncio.create_task(self._open_once())
+
     async def ensure_open(self) -> bool:
         """True iff the ONE turn session is (now) open and alive. At most one
-        open attempt per turn; failure logs and leaves the turn buffered."""
+        open attempt per turn — the eager begin_open() and this lazy path share
+        it; failure logs and leaves the turn buffered."""
         if self._session is not None:
             return not self._dead
         if not self._enabled or self._open_failed or self._closed:
             return False
+        if self._open_task is not None:
+            return await self._open_task         # join the in-flight handshake
+        return await self._open_once()
+
+    async def _open_once(self) -> bool:
+        """The single open attempt. Never raises — False means stay buffered."""
         session = self._factory()
         if session is None:                      # factory says: streaming unavailable
             self._open_failed = True
@@ -109,7 +136,10 @@ class TurnVoice:
             self._unplayed.append(text)
             return
         if await self.ensure_open():
-            await self._feed(text)
+            # flush=True: this is a COMPLETE utterance — ElevenLabs must
+            # synthesize it NOW (a 4-char ack held under the 90-char schedule
+            # floor played ~2.6 s late, defeating the mask — measured v7.1).
+            await self._feed(text, flush=True)
         else:
             await self._voice.speak(text)
 
@@ -135,6 +165,7 @@ class TurnVoice:
         if self._closed:
             return
         self._closed = True
+        await self._settle_open()                # an early-dying turn: no orphan task
         if self._session is None:
             return                               # buffered turn: nothing to drain
         close_error: Optional[Exception] = None
@@ -172,6 +203,7 @@ class TurnVoice:
         if self._closed:
             return
         self._closed = True
+        await self._settle_open()                # never leak the eager handshake
         if self._session is None:
             return
         try:
@@ -183,7 +215,14 @@ class TurnVoice:
 
     # ─────────────────────────────── Internals ───────────────────────────────
 
-    async def _feed(self, sentence: str) -> None:
+    async def _settle_open(self) -> None:
+        """Await an in-flight eager open (Fix G) before finishing/abandoning,
+        so a turn that dies before speaking never orphans the task or leaks
+        the socket. _open_once never raises, so neither does this."""
+        if self._open_task is not None:
+            await self._open_task
+
+    async def _feed(self, sentence: str, *, flush: bool = False) -> None:
         if self._dead:
             self._unplayed.append(sentence)
             return
@@ -192,7 +231,7 @@ class TurnVoice:
         # flag-gated inside VoiceOut (the privacy choke point).
         self._voice.show_caption(sentence)
         try:
-            await self._session.feed(sentence)
+            await self._session.feed(sentence, flush=flush)
             self._fed.append(sentence)
         except Exception as exc:  # noqa: BLE001 — degrade to buffered-at-finish
             logger.warning(

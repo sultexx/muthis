@@ -56,6 +56,7 @@ class FakeSession:
     def __init__(self, *, fail_open=False, fail_feed_at=None, fail_close=False,
                  silent=False):
         self.fed = []
+        self.flushes = []              # the flush flag of each successful feed
         self.opened = False
         self.closed = False
         self._fail_open = fail_open
@@ -68,10 +69,11 @@ class FakeSession:
             raise ConnectionError("no route")
         self.opened = True
 
-    async def feed(self, sentence):
+    async def feed(self, sentence, flush=False):
         if self._fail_feed_at is not None and len(self.fed) >= self._fail_feed_at:
             raise ConnectionError("socket dropped")
         self.fed.append(sentence)
+        self.flushes.append(flush)
 
     async def close(self):
         self.closed = True
@@ -115,6 +117,10 @@ async def test_ack_and_streamed_sentences_ride_one_session():
     await turn_voice.finish()
 
     assert session.fed == ["سم", S1, S2]
+    # A COMPLETE text (the ack) flushes so ElevenLabs synthesizes it NOW (a
+    # 4-char ack held under the 90-char schedule floor defeated the mask);
+    # streamed sentences never flush (per-feed forcing = the baked pauses).
+    assert session.flushes == [True, False, False]
     assert fake_voice.spoken == []                      # nothing fell back
     assert factory.calls == 1 and session.opened and session.closed
     # The light held "speaking" for every feed; "thinking" only at finish.
@@ -218,6 +224,66 @@ async def test_close_failure_after_audio_logs_only_never_duplicates():
     await turn_voice.speak_or_feed(S1)                  # played fine
     await turn_voice.finish()                           # close raises internally
     assert fake_voice.spoken == []                      # re-speaking would duplicate
+
+
+# ─────────────────────────────── Eager open (Fix G) ───────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_begin_open_shares_the_one_attempt_with_first_speech():
+    # The eager turn-start handshake and the first speech must resolve to the
+    # SAME single open attempt — never a second socket.
+    session = FakeSession()
+    turn_voice, fake_voice, _overlay, factory = _voice(session)
+
+    turn_voice.begin_open()                             # turn start: in flight
+    turn_voice.begin_open()                             # idempotent re-entry
+    await turn_voice.speak_or_feed(S1)                  # joins the same attempt
+    await turn_voice.finish()
+
+    assert factory.calls == 1                           # eager + lazy = ONE open
+    assert session.fed == [S1] and fake_voice.spoken == []
+
+
+@pytest.mark.asyncio
+async def test_begin_open_is_a_noop_when_disabled():
+    session = FakeSession()
+    turn_voice, _fake_voice, _overlay, factory = _voice(session, enabled=False)
+    turn_voice.begin_open()
+    await turn_voice.finish()
+    assert factory.calls == 0                           # buffered turn: no socket
+
+
+@pytest.mark.asyncio
+async def test_finish_settles_an_unused_eager_open():
+    # A turn that ends before ANY speech: the in-flight handshake is awaited
+    # and the opened session is closed — no orphan task, no leaked socket.
+    session = FakeSession()
+    turn_voice, fake_voice, _overlay, factory = _voice(session)
+    turn_voice.begin_open()
+    await turn_voice.finish()
+    assert factory.calls == 1 and session.opened and session.closed
+    assert fake_voice.spoken == []                      # nothing to fall back to
+
+
+@pytest.mark.asyncio
+async def test_abandon_settles_an_unused_eager_open():
+    session = FakeSession()
+    turn_voice, fake_voice, _overlay, _factory = _voice(session)
+    turn_voice.begin_open()
+    await turn_voice.abandon()
+    assert session.closed and fake_voice.spoken == []
+
+
+@pytest.mark.asyncio
+async def test_eager_open_failure_still_degrades_to_live_buffered():
+    session = FakeSession(fail_open=True)
+    turn_voice, fake_voice, _overlay, factory = _voice(session)
+    turn_voice.begin_open()
+    await turn_voice.speak_or_feed(S1)                  # open failed → proven path
+    await turn_voice.finish()
+    assert factory.calls == 1                           # sticky per-turn failure
+    assert fake_voice.spoken == [S1]
 
 
 # ─────────────────────────────── Abandon path ───────────────────────────────

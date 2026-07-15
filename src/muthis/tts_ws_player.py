@@ -135,6 +135,10 @@ class PcmStreamPlayer:
                             _diag.warning(
                                 "[DIAG] player STARVED ~%dms (queue wait %dms) t=%.3f",
                                 round(deficit_s * 1000), round(waited_s * 1000), now)
+                            # Re-anchor the playback horizon past this gap, so
+                            # only NEW gaps warn (one real pause used to repeat
+                            # as a phantom deficit on every later write).
+                            first_write_t += deficit_s
                     audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
                     stream.write(chunk)
                 stream.stop()  # drain pending audio before the context closes

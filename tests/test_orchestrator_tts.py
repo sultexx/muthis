@@ -256,7 +256,7 @@ class FakeSpeechSession:
             raise ConnectionError("no route to ElevenLabs")
         self.opened = True
 
-    async def feed(self, sentence):
+    async def feed(self, sentence, flush=False):
         if self._fail_feed_at is not None and len(self.fed) >= self._fail_feed_at:
             raise ConnectionError("socket dropped")
         self.fed.append(sentence)

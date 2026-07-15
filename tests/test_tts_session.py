@@ -140,7 +140,29 @@ async def test_sentences_ride_one_connection_with_progressive_audio():
     # prosody never restarts at a fed boundary (the measured pauses).
     assert fed[0].get("try_trigger_generation") is True
     assert "try_trigger_generation" not in fed[1]
+    # Default feeds (streamed sentences) never carry flush — forcing a
+    # boundary per feed was the baked-pauses bug.
+    assert all("flush" not in m for m in fed)
     assert player.finished                        # tail drained via finish()
+
+
+@pytest.mark.asyncio
+async def test_flush_feed_forces_immediate_generation():
+    # v7.1: a COMPLETE utterance (the pass-1 ack / a buffered pass text) is
+    # fed with flush=True so ElevenLabs synthesizes the buffer NOW — measured:
+    # a 4-char «أبشر» ack sat ~2.6 s under the 90-char schedule floor, playing
+    # glued to the explanation instead of masking the inter-pass gap.
+    ws, player = FakeWS(), FakePlayer()
+    session = _session(ws, player)
+    await session.open()
+
+    await session.feed("أبشر", flush=True)        # the complete pass-1 ack
+    await session.feed("الجملة المتدفقة الأولى.")   # a streamed sentence: no flush
+    await session.close()
+
+    fed = [m for m in ws.sent if "xi_api_key" not in m and m.get("text")]
+    assert fed[0].get("flush") is True
+    assert "flush" not in fed[1]
 
 
 @pytest.mark.asyncio

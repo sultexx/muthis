@@ -123,15 +123,24 @@ class SpeechSession:
         self._player.start()
         self._reader = asyncio.create_task(self._read_audio())
 
-    async def feed(self, sentence: str) -> None:
+    async def feed(self, sentence: str, *, flush: bool = False) -> None:
         """One sentence into the SAME generation — diacritized on a COPY
-        (speech-only; the caller's clean text is untouched). Raises on a dead
-        session/connection so the caller degrades to buffered speak()."""
+        (speech-only; the caller's clean text is untouched). `flush=True` is
+        for a COMPLETE utterance (the pass-1 ack, a buffered pass text):
+        ElevenLabs synthesizes the buffer NOW instead of holding it under the
+        chunk-length schedule — measured (v7.1): a 4-char «أبشر» ack sat ~2.6 s
+        below the 90-char floor, defeating the gap mask; a flush boundary
+        between separate utterances is natural. Streamed mid-pass sentences
+        must NOT flush (per-feed forcing was the baked-pauses bug, Fix A).
+        Raises on a dead session/connection so the caller degrades to
+        buffered speak()."""
         if self._error is not None:
             raise RuntimeError(f"speech session already failed: {self._error}")
-        _diag.info("[DIAG] session feed t=%.3f len=%d ender=%r",
-                   time.monotonic(), len(sentence), sentence[-1:])
+        _diag.info("[DIAG] session feed t=%.3f len=%d flush=%s ender=%r",
+                   time.monotonic(), len(sentence), flush, sentence[-1:])
         payload: dict = {"text": apply_diacritics(sentence) + " "}
+        if flush:
+            payload["flush"] = True
         if self._first_feed:
             # First audio should not wait for the 90-char schedule floor; later
             # sentences must NOT force chunk boundaries (the measured pauses).

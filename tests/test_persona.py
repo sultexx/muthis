@@ -76,6 +76,14 @@ PASS1_ACK_ONLY = "كلمة أو كلمتين"                       # the one/tw
 PASS1_NO_NARRATION = "ممنوع تصف الشاشة"                  # no screen-narration in pass 1
 PASS1_FORBIDDEN_NARRATION = ["أشوف شاشتك", "بأشّر على"]  # the leaked phrases, now forbidden
 
+# v7.1 Fix E: the pass-1 spoken ack is MANDATORY — a silent pointing pass is
+# banned by name and the old permission ("or no words at all") must be GONE.
+PASS1_SILENT_FORBIDDEN = "ممنوع دور تأشير صامت"
+PASS1_ACK_MANDATORY = "كلمة التأكيد المنطوقة إلزامية"
+REMOVED_SILENT_ACK_PERMISSION = "أو بدون أي كلام"
+SHAPES_NO_SILENT_PASS = "ولا دور صامت"                   # the draw_shapes twin of the ban
+ACK_SCOPED_TO_POINTING = "خاصة بدور التأشير وحده"        # the pass-2 bleed counterweight
+
 # Anti-laziness: the explanation turn must never collapse to a bare ack.
 ANTI_LAZINESS_RULE = "ممنوع الكسل"
 ANTI_LAZINESS_PHRASE = "أشرت لك"   # a filler ack the rule now forbids by name
@@ -212,6 +220,26 @@ def test_pass1_is_ack_only_and_forbids_narration():
     assert "أبشر" in prompt                                      # casual Saudi dialect
     assert "بالإنجليزية" in prompt                               # UI names stay English
     assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+
+
+def test_pass1_spoken_ack_is_mandatory_never_silent():
+    # v7.1 Fix E (measured): the old wording permitted a SILENT pointing pass
+    # ("أو بدون أي كلام") and the model took it — a chars=0 pass-1 ack left
+    # ~4.5 s of dead air, because the ack playback is what masks the pass-2
+    # provider round-trip in the continuous turn voice. The ack is now
+    # MANDATORY (still capped at one/two words) for BOTH draw tools.
+    prompt = _prompt()
+    assert PASS1_SILENT_FORBIDDEN in prompt, "missing the silent-pass ban"
+    assert PASS1_ACK_MANDATORY in prompt, "missing the mandatory-ack wording"
+    assert REMOVED_SILENT_ACK_PERMISSION not in prompt, \
+        "the permissive 'or no words at all' wording survived"
+    assert PASS1_ACK_ONLY in prompt, "the one/two-word cap must survive the mandate"
+    # The mandate is SCOPED to the pointing pass — the counterweight that keeps
+    # it from bleeding into pass 2 (a live run regressed pass 2 to a bare
+    # «أبشر» when the mandate stood unscoped).
+    assert ACK_SCOPED_TO_POINTING in prompt, "missing the pass-2 counterweight"
+    # The shapes path shares the rule: its pass 1 forbids a silent draw too.
+    assert SHAPES_NO_SILENT_PASS in prompt, "draw_shapes pass 1 may still go silent"
 
 
 def test_prompt_selects_draw_tool_by_intent():

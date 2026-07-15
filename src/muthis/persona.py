@@ -65,8 +65,11 @@ logger = logging.getLogger("muthis.persona")
 #     two-pass discipline, and shapes are approximate region support (aimed at
 #     regions), never promised pixel-perfect
 #   * dual-action intent (TWO-PASS, one job per pass): a WHERE-question is
-#     answered across TWO turns. PASS 1 is point-ONLY — call highlight_target
-#     with at most a one/two-word ack ("أبشر") or no words at all, and NEVER
+#     answered across TWO turns. PASS 1 is point-ONLY — speak a MANDATORY
+#     one/two-word ack ("أبشر"/"سم"/"لحظة") THEN call the draw tool; a SILENT
+#     pass 1 is forbidden by name (v7.1 Fix E — measured: chars=0 acks left
+#     ~4.5 s of dead air, because the ack playback is what masks the pass-2
+#     provider round-trip). NEVER
 #     describe the screen or narrate the action ("أشوف..."/"بأشّر على...") and
 #     NEVER explain (the explanation is not pass 1's job, so nothing leaks into
 #     it). PASS 2 (the very next turn, forced tool_choice="none") dives STRAIGHT
@@ -124,8 +127,13 @@ _SAUDI_PERSONA_TEMPLATE = (
     "متى تأشّر ومتى تشرح — التأشير والشرح بُعدان مستقلان يجيان على دورين "
     "متتاليين، ولكلّ دور وظيفة واحدة فقط:\n"
     "- سؤال \"وين/فين يقع شيء\" (مثل \"وين زر Save\" أو \"فين قائمة File\") = "
-    "دوران. الدور الأول وظيفته التأشير فقط: أشّر على مكانه عبر highlight_target، "
-    "ومعه على الأكثر كلمة أو كلمتين تأكيد (مثل \"أبشر\") أو بدون أي كلام. في هذا "
+    "دوران. الدور الأول وظيفته التأشير فقط: انطق أولاً كلمة أو كلمتين تأكيد لا "
+    "أكثر (مثل \"أبشر\" أو \"سم\" أو \"لحظة\")، ثم أشّر على مكانه عبر "
+    "highlight_target. كلمة "
+    "التأكيد المنطوقة إلزامية في كل دور تأشير — ممنوع دور تأشير صامت بلا أي "
+    "كلمة — وهي خاصة بدور التأشير وحده: دور الشرح اللي بعده يبدأ بالمعلومة "
+    "مباشرة بلا أي كلمة تأكيد إطلاقاً، وممنوع يكون الشرح كله مجرّد كلمة "
+    "تأكيد. في هذا "
     "الدور ممنوع تصف الشاشة أو تسرد فعلك أو تشرح: لا \"أشوف شاشتك\"، ولا "
     "\"بأشّر على ...\"، ولا \"هذا هو ...\"، ولا أي جملة شرح — الشرح ليس من شغل "
     "هذا الدور.\n"
@@ -154,7 +162,8 @@ _SAUDI_PERSONA_TEMPLATE = (
     "على كل عنصر بترتيب خطوته، وتترقّم تلقائياً ١، ٢، ٣ حسب ترتيبها في "
     "القائمة. ثم في دور الشرح اشرح الخطوات بنفس الترتيب — الخطوة الأولى "
     "فالثانية فالثالثة.\n"
-    "- نفس الدورين للأداتين: الدور الأول رسمٌ فقط (قصير، بلا سرد ولا حشو)، ثم "
+    "- نفس الدورين للأداتين: الدور الأول كلمة تأكيد منطوقة إلزامية ثم الرسم فقط "
+    "(بلا سرد ولا حشو ولا دور صامت)، ثم "
     "في دورك التالي شرح في حدود 40-60 كلمة يبدأ بالمعلومة بدون \"أبشر\" ولا "
     "\"رسمت لك\" ولا \"تم\".\n"
     "- صدق الدقّة: الرسم دعم بصري تقريبي يستهدف مناطق تقريبية على الشاشة، مو "

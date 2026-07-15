@@ -4,9 +4,11 @@ test_highlight_sync.py — the highlight↔audio synchronization guarantees.
 The bug this pins: the cyan rectangle used to be drawn the instant a
 highlight_target ToolCall arrived mid-stream — ~12 s before the buffered audio,
 and its 7 s auto-hide expired before the audio even began. The fix BUFFERS the
-highlight (FIRST wins — circuit breaker) and draws it — then arms auto-hide — the
-instant BEFORE the reply is spoken, so the rectangle and the audio start together
-and the timeout counts from the draw.
+highlight (FIRST wins — circuit breaker) and draws it the instant BEFORE the
+reply is spoken, so the rectangle and the audio start together. The auto-hide
+is armed ONCE, at TURN END after the speech has drained (v7.1 Fix F — a timer
+armed at the draw was measured hiding the rectangle mid-explanation), so the
+rectangle survives the whole spoken explanation + 7 s.
 
 Fakes only, fully deterministic: a reasoner that logs every stream yield and a
 combined overlay/TTS recorder that logs show/hide/capture/speak into ONE ordered
@@ -163,9 +165,11 @@ async def test_highlight_is_drawn_immediately_before_speak_not_on_receipt(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_auto_hide_is_armed_at_the_draw_not_on_receipt(tmp_path):
-    # The 7 s timer must start at the draw (= when audio starts), so the long
-    # synthesis wait can never consume it. Injected 0 s timeout, driven by hand.
+async def test_auto_hide_is_armed_at_turn_end_not_at_draw(tmp_path):
+    # v7.1 Fix F (measured): a timer armed AT the draw kept hiding the rectangle
+    # mid-explanation (draw+7 s landed before speech end, because the draw and
+    # its explanation live in different passes). The ONLY arm site is now
+    # run_turn's finally, AFTER the speech drain — the 7 s count from speech END.
     script = [TextDelta("هنا"), _highlight(), _turn_complete()]
     orchestrator, reasoner, recorder, log = _build(
         tmp_path, [script], overlay_timeout_s=0.0)
@@ -176,13 +180,16 @@ async def test_auto_hide_is_armed_at_the_draw_not_on_receipt(tmp_path):
     # consumed — no auto-hide timer was armed (arming here was the early-hide bug).
     assert reasoner.armed_after_yield                      # snapshots were captured
     assert not any(armed for _event, armed in reasoner.armed_after_yield)
-    # It was armed exactly at the draw-before-speak step.
-    assert recorder.auto_hide_armed_at_speak == [True]
+    # NOT armed at the draw/speak step either — arming there hid the rectangle
+    # mid-explanation. The arm belongs to the turn end alone.
+    assert recorder.auto_hide_armed_at_speak == [False]
 
-    # The timer was still PENDING at end-of-turn (it starts at the draw, not 12 s
-    # earlier) and hides only once driven — i.e. after the audio has begun.
+    # At end-of-turn the timer IS armed and still pending (it counts from the
+    # post-speech finally, not the draw) and hides only once driven.
+    task = orchestrator._auto_hide.task
+    assert task is not None and not task.done()
     assert log[-1] == "speak"
-    await orchestrator._auto_hide.task                     # drive the 0 s timer
+    await task                                             # drive the 0 s timer
     assert log[-1] == "hide"
 
 
