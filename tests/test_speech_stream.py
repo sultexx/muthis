@@ -16,7 +16,7 @@ Run:  set PYTHONPATH=src && python -m pytest tests/test_speech_stream.py -q
 from __future__ import annotations
 
 from muthis.speech_stream import (
-    MAX_BUFFER_CHARS, MIN_SENTENCE_CHARS, SentenceSplitter,
+    EAGER_FIRST_MIN_CHARS, MAX_BUFFER_CHARS, MIN_SENTENCE_CHARS, SentenceSplitter,
 )
 
 # Long enough (≥ MIN_SENTENCE_CHARS) to emit the instant their ender arrives.
@@ -157,3 +157,54 @@ def test_flush_on_empty_is_empty_and_splitter_is_reusable():
 def test_min_constant_is_sane():
     # The merge floor must stay well under the valve, or nothing ever emits.
     assert 0 < MIN_SENTENCE_CHARS < MAX_BUFFER_CHARS // 2
+
+
+# ───────────────────────── v7.2: eager first emission ─────────────────────────
+
+
+def test_first_emission_cuts_early_at_a_comma():
+    # Measured starvation fix: the FIRST emission of a pass may cut at a comma
+    # ≥ EAGER_FIRST_MIN_CHARS — the explanation's audio starts at the first
+    # natural pause instead of after the whole opening sentence.
+    splitter = SentenceSplitter()
+    head = "زر Start موجود في وسط شريط المهام تقريباً،"
+    tail = "وهو أيقونة شعار Windows اللي تفتح القائمة."
+    out = splitter.push(head + " " + tail)
+    assert out == [head, tail]                    # early first audio; rest whole
+
+
+def test_eager_cut_fires_only_for_the_first_emission():
+    splitter = SentenceSplitter()
+    first = "الجملة الافتتاحية هنا طويلة كفاية للفاصلة، وتكمل بعد الفاصلة بكلام طويل كفاية."
+    second = "الجملة الثانية فيها فاصلة أيضاً، لكنها تبقى كاملة حتى نهايتها."
+    out = splitter.push(first + " " + second)
+    assert out[0].endswith("،")                   # first: the eager comma cut
+    assert second in out                          # later commas never cut
+
+
+def test_flush_rearms_the_eager_window_for_the_next_pass():
+    splitter = SentenceSplitter()
+    sentence = "افتتاحية الدور فيها فاصلة بعد ثلاثين حرفاً تقريباً، ثم بقية الكلام هنا."
+    assert splitter.push(sentence)[0].endswith("،")
+    splitter.flush()                              # pass ended → eager re-armed
+    assert splitter.push(sentence)[0].endswith("،")
+
+
+def test_an_early_comma_is_not_an_eager_cut():
+    # A comma BEFORE the eager floor ("نعم، ...") is conversational glue, not
+    # a viable first-audio unit — the emission waits for the real ender.
+    splitter = SentenceSplitter()
+    sentence = "نعم، هذا هو الزر المطلوب تماماً."
+    assert splitter.push(sentence) == [sentence]
+
+
+def test_eager_comma_never_splits_a_number():
+    splitter = SentenceSplitter()
+    sentence = "القيمة النهائية للمشروع تساوي 1,250 ريالاً سعودياً."
+    assert splitter.push(sentence) == [sentence]
+
+
+def test_eager_floor_constant_is_sane():
+    # The eager floor must sit at/above the merge floor (an eager piece must be
+    # a legitimate TTS unit) and well under the valve.
+    assert MIN_SENTENCE_CHARS <= EAGER_FIRST_MIN_CHARS < MAX_BUFFER_CHARS // 2

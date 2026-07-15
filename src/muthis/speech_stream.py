@@ -8,6 +8,12 @@ sentences, in order, the instant their boundary arrives — the unit the TTS
 generation is fed. Boundaries are the Arabic sentence enders (`.` `؟` `!` `؛`)
 plus the newline; a safety valve frees an unpunctuated run at ~200 chars.
 
+v7.2 EAGER FIRST EMISSION (measured starvation fix): the FIRST emission of a
+pass may cut at a comma (`،`/`,`) once ≥ EAGER_FIRST_MIN_CHARS, instead of
+waiting out the whole first sentence — the explanation's audio starts at the
+first natural pause, shrinking the post-ack dead air. Later emissions keep
+full-sentence boundaries; flush() re-arms the eager window for the next pass.
+
 v7 SOFT BOUNDARIES (measured fixes — diag 2026-07-15):
   * MIN-LENGTH MERGE: a boundary whose sentence would be shorter than
     ~MIN_SENTENCE_CHARS does not cut — the short piece merges into the NEXT
@@ -47,6 +53,14 @@ MIN_SENTENCE_CHARS = 20
 # v7: where the safety valve is allowed to cut — natural breath points only.
 SOFT_CUT_CHARS = (" ", "\t", "،", ",")
 
+# v7.2 (measured starvation fix): the FIRST emission of a pass may cut EARLY
+# at a comma once this long, instead of waiting out the whole first sentence —
+# time-to-first-audio drops by the rest of that sentence, and a comma is a
+# natural prosodic pause. Commas ONLY (never a bare space): a mid-clause cut
+# would put an audible boundary where speech has none.
+EAGER_FIRST_MIN_CHARS = 30
+EAGER_CUT_CHARS = ("،", ",")
+
 
 class SentenceSplitter:
     """Stateful splitter for ONE pass: push() fragments in, sentences out."""
@@ -59,6 +73,9 @@ class SentenceSplitter:
         self._buffer = ""
         self._max = max_buffer_chars
         self._min = min_sentence_chars
+        # v7.2: the NEXT emission is a pass's first → it may cut early at a
+        # comma (time-to-first-audio). Re-armed by flush() for the next pass.
+        self._eager_first = True
 
     def push(self, fragment: str) -> List[str]:
         """Feed one streamed fragment; return the sentences it COMPLETED (often
@@ -69,9 +86,11 @@ class SentenceSplitter:
 
     def flush(self) -> List[str]:
         """End of stream: whatever remains (a held decimal dot / a short tail
-        awaiting a merge included) is the final sentence. Resets for reuse."""
+        awaiting a merge included) is the final sentence. Resets for reuse —
+        including the eager-first window for the NEXT pass."""
         tail = self._buffer.strip()
         self._buffer = ""
+        self._eager_first = True
         return [tail] if tail and _speakable(tail) else []
 
     # ─────────────────────────────── Internals ───────────────────────────────
@@ -80,17 +99,23 @@ class SentenceSplitter:
         sentences: List[str] = []
         while True:
             cut = self._next_cut()
+            if self._eager_first:
+                eager = self._eager_comma_index()
+                if eager is not None and (cut is None or eager < cut):
+                    cut = eager                  # first audio: cut at the comma
             if cut is None:
                 if len(self._buffer) >= self._max:
                     run = self._soft_valve_cut()
                     if run and _speakable(run):
                         sentences.append(run)
+                        self._eager_first = False
                     continue                     # the remainder may still overflow
                 break
             sentence = self._buffer[:cut + 1].strip()
             self._buffer = self._buffer[cut + 1:]
             if sentence and _speakable(sentence):
                 sentences.append(sentence)
+                self._eager_first = False        # only the FIRST emission is eager
         return sentences
 
     def _next_cut(self) -> Optional[int]:
@@ -134,6 +159,23 @@ class SentenceSplitter:
             return index
         return None
 
+    def _eager_comma_index(self) -> Optional[int]:
+        """v7.2: the first comma at/after EAGER_FIRST_MIN_CHARS, or None. Used
+        ONLY for a pass's first emission, so the explanation's audio starts at
+        the first natural pause instead of after the whole first sentence.
+        Digit-guarded like the decimal dot: "1,250" never splits, and a comma
+        at buffer END after a digit is held until context arrives."""
+        for index in range(EAGER_FIRST_MIN_CHARS - 1, len(self._buffer)):
+            if self._buffer[index] not in EAGER_CUT_CHARS:
+                continue
+            if index > 0 and self._buffer[index - 1].isdigit():
+                if index + 1 >= len(self._buffer):
+                    return None                  # held: "…1," awaiting context
+                if self._buffer[index + 1].isdigit():
+                    continue                     # thousands separator: "1,250"
+            return index
+        return None
+
     def _soft_valve_cut(self) -> str:
         """Overflow: emit up to the LAST soft point (space/comma) inside the
         window — never mid-word — keeping the remainder buffered. An unbroken
@@ -154,4 +196,5 @@ def _speakable(sentence: str) -> bool:
 
 
 __all__ = ["SentenceSplitter", "SENTENCE_ENDERS", "MAX_BUFFER_CHARS",
-           "MIN_SENTENCE_CHARS", "SOFT_CUT_CHARS"]
+           "MIN_SENTENCE_CHARS", "SOFT_CUT_CHARS",
+           "EAGER_FIRST_MIN_CHARS", "EAGER_CUT_CHARS"]

@@ -147,22 +147,30 @@ async def test_sentences_ride_one_connection_with_progressive_audio():
 
 
 @pytest.mark.asyncio
-async def test_flush_feed_forces_immediate_generation():
+async def test_flush_feed_forces_immediate_generation_and_rearms_the_trigger():
     # v7.1: a COMPLETE utterance (the pass-1 ack / a buffered pass text) is
     # fed with flush=True so ElevenLabs synthesizes the buffer NOW — measured:
     # a 4-char «أبشر» ack sat ~2.6 s under the 90-char schedule floor, playing
     # glued to the explanation instead of masking the inter-pass gap.
+    # v7.2: the flush ENDS a generation segment, so the NEXT feed opens a new
+    # one and re-triggers — without it the explanation's first sentence sat on
+    # ElevenLabs' buffer while the player starved post-ack (measured ~5 s).
     ws, player = FakeWS(), FakePlayer()
     session = _session(ws, player)
     await session.open()
 
-    await session.feed("أبشر", flush=True)        # the complete pass-1 ack
-    await session.feed("الجملة المتدفقة الأولى.")   # a streamed sentence: no flush
+    await session.feed("أبشر", flush=True)          # the complete pass-1 ack
+    await session.feed("الجملة المتدفقة الأولى.")     # explanation's first piece
+    await session.feed("والجملة المتدفقة الثانية.")   # mid-segment: EL owns chunking
     await session.close()
 
     fed = [m for m in ws.sent if "xi_api_key" not in m and m.get("text")]
     assert fed[0].get("flush") is True
+    assert fed[0].get("try_trigger_generation") is True   # session's first feed
     assert "flush" not in fed[1]
+    assert fed[1].get("try_trigger_generation") is True   # re-armed by the flush
+    assert "flush" not in fed[2]
+    assert "try_trigger_generation" not in fed[2]         # segment continues
 
 
 @pytest.mark.asyncio

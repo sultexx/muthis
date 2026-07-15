@@ -142,10 +142,15 @@ class SpeechSession:
         if flush:
             payload["flush"] = True
         if self._first_feed:
-            # First audio should not wait for the 90-char schedule floor; later
-            # sentences must NOT force chunk boundaries (the measured pauses).
+            # First audio of a SEGMENT should not wait for the 90-char schedule
+            # floor; later sentences of the segment must NOT force chunk
+            # boundaries (the measured baked pauses).
             payload["try_trigger_generation"] = True
-            self._first_feed = False
+        # A flush ends the generation segment, so the NEXT feed opens a new one
+        # and re-triggers (v7.2, measured starvation fix: after the flushed ack
+        # the explanation's first sentence sat on ElevenLabs' buffer — its
+        # boundary lands on the piece's own ender/comma, a natural pause).
+        self._first_feed = bool(flush)
         await self._ws.send(json.dumps(payload))
 
     async def close(self) -> None:

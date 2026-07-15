@@ -223,6 +223,19 @@ class SidekickOverlay:
 
         root.after(_QUEUE_POLL_MS, _drain)
         root.mainloop()
+        # Teardown thread-affinity (measured live: the process ABORTED at exit
+        # with "Tcl_AsyncDelete: async handler deleted by the wrong thread").
+        # root.destroy() already ran on THIS thread, but the Tcl interpreter
+        # handle inside the Tk object is only released when its Python wrapper
+        # is garbage-collected — which otherwise happens on the MAIN thread at
+        # interpreter shutdown. Drop every widget/root reference and collect
+        # HERE, so Tcl dies on the one thread that owns it. Never raises.
+        try:
+            del _drain, dimmer, caption, status, animator, shapes_widget, pointer, rect, root
+            import gc
+            gc.collect()
+        except Exception:  # noqa: BLE001 — teardown must never crash the thread
+            logger.exception("[overlay] teardown GC failed (harmless at exit)")
 
     # ───────────────────────────── Win32 glue ─────────────────────────────
 
