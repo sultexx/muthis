@@ -444,8 +444,8 @@ class CaptionRecordingOverlay:
 
 
 @pytest.mark.asyncio
-async def test_caption_bar_shows_only_assistant_speech_then_clears(tmp_path, monkeypatch):
-    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+async def test_caption_bar_shows_only_assistant_speech_then_clears(tmp_path):
+    # No env needed: captions are ON by default (Sultan, 2026-07-15).
     from muthis.verbosity import DIRECTIVE_OPEN_AR
 
     script = [TextDelta(ASSISTANT_TEXT_AR), _turn_complete()]
@@ -473,7 +473,9 @@ async def test_caption_bar_shows_only_assistant_speech_then_clears(tmp_path, mon
 
 
 @pytest.mark.asyncio
-async def test_captions_default_off_keeps_the_bar_untouched(tmp_path):
+async def test_falsey_captions_env_keeps_the_bar_untouched(tmp_path, monkeypatch):
+    # The one-env rollback: MUTHIS_CAPTIONS=0 restores the caption-less UI.
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "0")
     script = [TextDelta(ASSISTANT_TEXT_AR), _turn_complete()]
     fake_tts = FakeTTS()
     overlay = CaptionRecordingOverlay()
@@ -487,7 +489,6 @@ async def test_captions_default_off_keeps_the_bar_untouched(tmp_path):
 
     await orchestrator.run_turn(USER_TEXT_AR)
 
-    # conftest clears MUTHIS_CAPTIONS → today's behavior, bar untouched.
     assert overlay.captions == [] and overlay.caption_clears == 0
     assert fake_tts.spoken == [ASSISTANT_TEXT_AR]   # speech itself unchanged
 
@@ -549,9 +550,10 @@ async def test_streamed_captions_follow_the_sentences_in_order(tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_streamed_captions_off_by_default_even_when_streaming(tmp_path):
-    # MUTHIS_STREAM_TTS ON but MUTHIS_CAPTIONS cleared by conftest → the
+async def test_streamed_captions_disabled_via_env_even_when_streaming(tmp_path, monkeypatch):
+    # MUTHIS_STREAM_TTS ON but MUTHIS_CAPTIONS=0 (the rollback) → the
     # session still gets its sentences; the bar stays untouched.
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "0")
     fake_tts, session = FakeTTS(), FakeSpeechSession()
     factory = SessionFactory(session)
     overlay = StreamCaptionOverlay()

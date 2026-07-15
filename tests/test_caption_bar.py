@@ -268,26 +268,27 @@ async def test_captions_on_show_the_exact_spoken_text_then_clear_after_audio():
 
 
 @pytest.mark.asyncio
-async def test_captions_default_off_means_zero_caption_calls():
+async def test_captions_default_on_shows_the_caption():
+    # Sultan's release decision (2026-07-15): env cleared/unset → captions ON.
     from muthis.voice_out import VoiceOut
     overlay = CaptionOverlay()
-    voice = VoiceOut(_tts_recorder(overlay.events), overlay)  # env cleared → OFF
+    voice = VoiceOut(_tts_recorder(overlay.events), overlay)
 
     await voice.speak("نص منطوق")
 
-    assert [e for e in overlay.events if e[0].startswith("caption")] == []
+    assert ("caption", "نص منطوق") in overlay.events
 
 
 @pytest.mark.asyncio
-async def test_env_flag_enables_captions(monkeypatch):
+async def test_falsey_env_flag_is_the_one_env_rollback(monkeypatch):
     from muthis.voice_out import VoiceOut
-    monkeypatch.setenv("MUTHIS_CAPTIONS", "1")
+    monkeypatch.setenv("MUTHIS_CAPTIONS", "0")
     overlay = CaptionOverlay()
     voice = VoiceOut(_tts_recorder(overlay.events), overlay)
 
     await voice.speak("نص")
 
-    assert ("caption", "نص") in overlay.events
+    assert [e for e in overlay.events if e[0].startswith("caption")] == []
 
 
 @pytest.mark.asyncio

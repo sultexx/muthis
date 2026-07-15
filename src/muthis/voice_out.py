@@ -31,14 +31,17 @@ from .turn import BUDGET_REFUSAL_AR, Overlay, TtsFn, TurnResult
 
 logger = logging.getLogger("muthis.orchestrator")
 
-# v6 C rollback flag: live captions are OFF unless .env opts in (the default
-# stays pending Sultan's release decision — recommendation ON at release).
+# v6 C rollback flag: live captions are ON by default (Sultan's release
+# decision, 2026-07-15) — a falsey value is the one-env rollback, mirroring
+# the MUTHIS_TRY_ELEVENLABS pattern.
 CAPTIONS_ENV = "MUTHIS_CAPTIONS"
 
 
 def _captions_from_env() -> bool:
     raw = os.getenv(CAPTIONS_ENV)
-    return raw is not None and raw.strip().lower() in ("1", "true", "yes", "on")
+    if raw is None or not raw.strip():
+        return True
+    return raw.strip().lower() not in ("0", "false", "no", "off")
 
 
 class VoiceOut:
