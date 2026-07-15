@@ -25,8 +25,10 @@ from muthis.turn import scale_bbox_to_physical
 # ───────────────────────────── The model ─────────────────────────────
 
 
-def test_the_four_shape_kinds_are_exactly_line_arrow_circle_rectangle():
-    assert SHAPE_KINDS == ("line", "arrow", "circle", "rectangle")
+def test_the_shape_kinds_are_exactly_the_five_documented_ones():
+    # v6 Phase B added "step" (a numbered badge) to the original four —
+    # a documented model extension, not a silent drift.
+    assert SHAPE_KINDS == ("line", "arrow", "circle", "rectangle", "step")
 
 
 def test_circle_shape_normalizes_center_radius_to_the_enclosing_bbox():
@@ -60,6 +62,16 @@ def test_arrow_scales_each_axis_independently():
 def test_circle_bbox_scales_per_axis_like_every_other_kind():
     circle = circle_shape(100, 80, 40)      # bbox (60, 40, 140, 120)
     assert scale_shape_to_physical(circle, 1.5, 1.5).points == (90, 60, 210, 180)
+
+
+def test_step_badge_bbox_scales_per_axis_like_the_bbox_rule():
+    # A step badge is an enclosing bbox exactly like circle — same per-axis
+    # multiply, kind and label ride through untouched (v6 Phase B).
+    step = Shape(kind="step", points=(100, 100, 126, 126), label_ar="افتح القائمة")
+    scaled = scale_shape_to_physical(step, 1.5, 2.0)
+    assert scaled.kind == "step"
+    assert scaled.points == (150, 200, 189, 252)
+    assert scaled.label_ar == "افتح القائمة"
 
 
 def test_rectangle_scaling_rounds_each_coordinate():

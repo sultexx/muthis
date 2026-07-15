@@ -3,8 +3,8 @@
 Shapes — the geometric-drawing data model + sent→physical scaling (Phase A).
 
 DRAW-ONLY, pure LOOK: a Shape is an overlay GRAPHIC — line / arrow / circle /
-rectangle in cyan with an optional short Arabic label. Never the mouse, never a
-click, never typing. Phase A is the visual foundation ONLY: this module is
+rectangle / numbered step badge with an optional short Arabic label. Never the
+mouse, never a click, never typing. Phase A is the visual foundation ONLY: this module is
 exercised by the overlay and scripts/smoke_shapes.py; the Claude wiring (tool
 schema + persona + agentic loop) is Phase B and does NOT exist yet.
 
@@ -32,10 +32,10 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Any, Iterable, Literal, Protocol, Sequence, runtime_checkable
 
-ShapeKind = Literal["line", "arrow", "circle", "rectangle"]
+ShapeKind = Literal["line", "arrow", "circle", "rectangle", "step"]
 
-# The four drawable kinds in one place, so the widget and tests never retype them.
-SHAPE_KINDS: tuple[ShapeKind, ...] = ("line", "arrow", "circle", "rectangle")
+# The drawable kinds in one place, so the widget and tests never retype them.
+SHAPE_KINDS: tuple[ShapeKind, ...] = ("line", "arrow", "circle", "rectangle", "step")
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,11 @@ class Shape:
         center+radius by circle_shape). One uniform 4-tuple keeps ONE scale
         function for every kind, and Tk draws circles from a bbox anyway
         (create_oval).
+      * step:         (x1, y1, x2, y2) — the ENCLOSING bbox of a numbered
+        badge circle (v6 Phase B), same bbox rule as circle. A step carries
+        NO number field: badges are numbered by their ORDER among the step
+        shapes of one draw list (first step = ١, second = ٢ ...) — the widget
+        counts, the schema stays uniform.
 
     Coordinates live in SENT-image space until scale_shape_to_physical maps
     them; the overlay is handed the physical result. `label_ar` is an optional
