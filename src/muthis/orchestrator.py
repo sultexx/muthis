@@ -24,15 +24,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import Any, Callable, Optional
 
 from .budget import Budget
 from .cloud.protocol import CloudReasoner, UserInput
 from .draw_dispatch import DRAW_SHAPES_TOOL, DRAW_TOOLS
+from .file_reader import ReadFileFn
 # STUB defaults — each is replaced by its real component in a later phase.
-from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
-                    stub_stt, stub_tts)
+from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
+                    stub_screen_capture, stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
 from .turn_pass import REFRESH_TOOL, TurnPass
@@ -46,9 +46,6 @@ from .verbosity import VerbosityController
 from .voice_out import VoiceOut
 
 logger = logging.getLogger("muthis.orchestrator")
-
-# DIAG(v7): temporary timing probes for the stop-and-go investigation.
-_diag = logging.getLogger("muthis.diag")
 
 
 # ─── Session constants ────────────────────────────────────────────────────────
@@ -87,6 +84,7 @@ class Orchestrator:
         screen_capture: ScreenCaptureFn = stub_screen_capture,
         downscale: DownscaleFn = stub_downscale,
         overlay: Overlay = stub_overlay,
+        read_file: ReadFileFn = stub_read_file,
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
@@ -114,6 +112,7 @@ class Orchestrator:
         self._pass = TurnPass(
             reasoner=reasoner, budget=budget, overlay=overlay, voice=self._voice,
             stream_tts=stream_tts, session_factory=speech_session_factory,
+            read_file=read_file,  # v7 Phase 4: the read_local_file seam
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
@@ -151,7 +150,6 @@ class Orchestrator:
         (finish() then no-ops — no fallback re-speak), and mark the NEXT
         turn's interrupted-context directive. The caller cancels the turn
         task AFTER this returns. Safe no-op when no turn is active."""
-        _diag.info("[DIAG] interrupt-turn t=%.3f", time.monotonic())
         turn_voice = self._active_turn_voice  # captured pre-await (race armor)
         # UI first: the instant hide wipes board/shapes/captions/dim ~10 ms
         # in, while the audio abort pays its ~130 ms WS close behind it.
@@ -225,17 +223,15 @@ class Orchestrator:
         # Agentic loop — ONE run() call per pass; the cap stops a model that, after
         # a tool_use, never says end_turn (point → explain normally needs ≤2 passes).
         for _iteration in range(MAX_AGENTIC_ITERATIONS):
-            _diag.info("[DIAG] pipeline pass=%d begin t=%.3f", _iteration, time.monotonic())
             if not self._budget.can_afford():            # Rule 10, before EVERY call
                 # Spoken through the turn voice: audio from an earlier pass may
                 # still be playing — the refusal must queue behind it, never overlap.
                 await self._voice.refuse_for_budget(
                     result, self._budget, speak=turn_voice.speak_or_feed)
                 return
-            turn_complete, refresh_call = await self._pass.consume(
+            turn_complete, refresh_call, read_result = await self._pass.consume(
                 user_input, screenshot, list(self.history),
                 self._highlight_gate, result, turn_voice)
-            _diag.info("[DIAG] pipeline pass=%d done t=%.3f", _iteration, time.monotonic())
             if turn_complete is None:                    # stream died, no TurnComplete
                 await turn_voice.abandon()               # release the generation quietly
                 return
@@ -254,7 +250,8 @@ class Orchestrator:
                 refresh_call is not None and refresh_used < MAX_REFRESH_FOLLOWUPS)
             fresh = await self._capture_downscaled(result) if serviced_refresh else None
             pairing = build_tool_result_message(
-                turn_complete.assistant_content, refresh_call, fresh, self._highlight_gate)
+                turn_complete.assistant_content, refresh_call, fresh,
+                self._highlight_gate, read_result)
             if pairing is not None:
                 self.history.append(pairing)
             refresh_used += int(serviced_refresh)

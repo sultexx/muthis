@@ -1,7 +1,8 @@
 # PROJECT_STATE.md — Mut'his v7 condensed technical state
 
-> Token-saving snapshot (2026-07-16). **`AGENTS.md` remains the full source of
-> truth**; this is the compressed map. Branch `v7-experimental`, 436 tests green.
+> Token-saving snapshot (updated 2026-07-16, Phase 4). **`AGENTS.md` remains the
+> full source of truth**; this is the compressed map. Branch `v7-experimental`,
+> 461 tests green.
 
 ## What Mut'his is
 Arabic-first, LOOK-only voice teacher for Windows 11. Hold **F9**, speak Arabic,
@@ -9,8 +10,9 @@ release → Mut'his answers with Arabic speech (ElevenLabs WS primary, Gemini
 fallback) while pointing/drawing on-screen. Reasoning+vision: Claude Sonnet
 (`claude-sonnet-4-6`) via the `anthropic` SDK, SSE streaming. **LOOK-only** is a
 hard boundary: speak, point (`highlight_target`), draw shapes (`draw_shapes`),
-request a fresh screenshot — NEVER click/type/press/clipboard. RTX 4060, ~0 VRAM;
-everything heavy is cloud.
+request a fresh screenshot, READ a local text file (`read_local_file`, v7
+Phase 4 — read-only perception) — NEVER click/type/press/clipboard. RTX 4060,
+~0 VRAM; everything heavy is cloud.
 
 ## Non-negotiable rules
 - **≤300 lines/module**, single responsibility, importable in isolation. If a
@@ -94,6 +96,34 @@ An F9 press WHILE speaking interrupts the teacher. Live: signal→silence
 - **`INTERRUPTED_NOTE_AR`** (highlight_gate): internal directive prepended to
   the NEXT turn exactly once ("the user cut you off mid-speech").
 
+## Phase 4 — The Pedagogical Analyzer (built + live-verified 2026-07-16)
+Mut'his READS a local file and teaches it: READ → ISOLATE → TEACH.
+- **`file_reader.py` (NEW)**: `read_local_file` executor. Safety gates (the
+  model picks the path): secret NAMES refused on raw+resolved path (.env /
+  .env.* / id_rsa* / *.pem/.key / credentials* — symlink armor), binary (NUL
+  sniff) refused, size double-bounded (2 MB refusal; 16k-char truncation at a
+  line boundary + Arabic request-a-range hint). Returns 1-based numbered lines
+  under an Arabic header; every failure = a short Arabic tool_result note
+  (never raises). Content never logged.
+- **Wiring**: schema in tool_schemas.py (path required, start/end_line
+  optional); TurnPass detects + services the FIRST read per pass (after the
+  sync point's audio is moving) → `consume()` returns a 3-tuple; turn.py's
+  `build_tool_result_message` answers read ids BY NAME (serviced → content;
+  duplicate → `FILE_ALREADY_READ_AR`) so a read NEVER flips the draw gate —
+  the pass after a read stays `tool_choice="auto"`. Orchestrator seam
+  `read_file` (default `stub_read_file`; main wires `FileReader().read`).
+  Bug-3 strip extracted to `history_hygiene.py` (turn.py sat at 298).
+- **Persona (التحليل التربوي)**: explain code/file/data → (1) read the REAL
+  content (never guess from pixels), (2) content on screen → draw pass = ONE
+  `draw_shapes` + `dim_screen=true` + rectangles around the analyzed LINES
+  (the mandatory pedagogy whiteboard — the explicit carve-out to Phase 2's
+  "user content stays undimmed"), (3) explain pass teaches line-by-line by
+  number; file not on screen → voice-only.
+- **Live SOP (`scripts/diag_pedagogy.py` + `assets/samples/esp32_logic.ino`)**:
+  PASSED 2026-07-16 — read fired (24 lines), draw_shapes dim_screen=true with
+  3 rectangles, explanation cited real line ranges + identifiers (LIMIT_C,
+  readCelsius, TMP36 math), 3 passes, $0.0825, exit 0.
+
 ## Active .env flags (rollback switches)
 | Flag | Default | Effect |
 |---|---|---|
@@ -109,7 +139,8 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
 ## Key module map (src/muthis/)
 - **Core**: `orchestrator.py` (heart: loop/history/interrupt_turn), `turn_pass.py`
   (one pass + sync point), `turn_voice.py`, `voice_out.py` (speak+caption+privacy),
-  `turn.py` (TurnResult/Overlay proto/tool_result builder), `verbosity.py`.
+  `turn.py` (TurnResult/Overlay proto/tool_result builder), `verbosity.py`,
+  `file_reader.py` (read_local_file, Phase 4), `history_hygiene.py` (Bug-3 strip).
 - **Draw**: `draw_dispatch.py` (PendingDraw+next_draw), `highlight_gate.py`
   (circuit breaker + INTERRUPTED_NOTE_AR), `shapes.py`.
 - **Voice**: `tts.py` (cascade), `tts_session.py`, `tts_elevenlabs.py`,
@@ -123,7 +154,8 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
   `status_indicator.py`, `style.py`, `style_env.py`.
 
 ## DIAG note
-Temporary `[DIAG]` probes (logger `muthis.diag`) remain across player/session/
-turn_voice/turn_pass/voice_out/orchestrator/focus_dimmer/activation — kept by
-Sultan's order until he approves removal. `scripts/diag_*.py` are the live-test
-SOP scripts (NEVER in CI).
+The temporary `[DIAG]` probes (logger `muthis.diag`) were REMOVED from ALL
+modules on 2026-07-16 with Sultan's explicit authorization — the codebase is
+production-clean (the load-bearing starvation re-anchor in tts_ws_player
+survived, minus its log line). `scripts/diag_*.py` REMAIN as the live-test SOP
+scripts (NEVER in CI); their docstrings note the probe removal.

@@ -165,7 +165,9 @@ async def test_look_only_has_no_action_tools():
 
     offered = {tool["name"] for tool in LOOK_ONLY_TOOLS}
     # B-1: draw_shapes joined the LOOK set — it DRAWS overlay graphics only.
-    assert offered == {"highlight_target", "draw_shapes", "request_screen_refresh"}
+    # v7 Phase 4: read_local_file joined too — READ-ONLY perception, no action.
+    assert offered == {"highlight_target", "draw_shapes",
+                       "request_screen_refresh", "read_local_file"}
     forbidden = {"type_text", "press_hotkey", "real_click", "set_trust_mode"}
     assert offered.isdisjoint(forbidden)
 

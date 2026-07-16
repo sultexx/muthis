@@ -179,7 +179,9 @@ def test_draw_shapes_schema_registered_and_reexported():
     from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
     assert reexported is LOOK_ONLY_TOOLS  # claude_agent re-export intact
     names = [t["name"] for t in LOOK_ONLY_TOOLS]
-    assert names == ["highlight_target", "draw_shapes", "request_screen_refresh"]
+    # v7 Phase 4 appended read_local_file (READ-ONLY perception tool).
+    assert names == ["highlight_target", "draw_shapes",
+                     "request_screen_refresh", "read_local_file"]
     schema = next(t for t in LOOK_ONLY_TOOLS
                   if t["name"] == "draw_shapes")["input_schema"]
     assert schema["required"] == ["shapes"]

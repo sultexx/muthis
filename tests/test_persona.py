@@ -406,3 +406,47 @@ def test_prompt_selects_step_badges_for_sequential_howto():
     assert "بترتيب التنفيذ" in prompt
     assert "تترقّم تلقائياً" in prompt
     assert "بنفس الترتيب" in prompt
+
+
+# ─────────────────── The Pedagogical Analyzer (v7 Phase 4) ───────────────────
+
+
+def test_prompt_teaches_read_local_file_capability():
+    # v7 Phase 4: the LOOK honesty clause gains the READ-ONLY file-reading
+    # capability — reading only, never writing/executing; the no-action
+    # honesty sentence survives right next to it.
+    prompt = _prompt()
+    assert "read_local_file" in prompt
+    assert "قراءة فقط" in prompt
+    assert "ما تقدر" in prompt and "تضغط" in prompt  # honesty clause intact
+
+
+def test_prompt_teaches_pedagogical_analyzer_method():
+    # Asked to explain code/data/a file → READ the real content first (never
+    # guess file content from pixels; results come back with line numbers),
+    # then the draw pass is dim_screen=true + rectangles around the SPECIFIC
+    # lines on screen, then teach line-by-line citing line numbers.
+    prompt = _prompt()
+    assert "التحليل التربوي" in prompt, "missing the pedagogical analyzer section"
+    assert "لا تخمّن محتوى ملف من البكسلات" in prompt
+    assert "بأرقام أسطر" in prompt
+    assert "dim_screen=true" in prompt
+    assert "مستطيلات حول الأسطر" in prompt
+    assert "رقم السطر" in prompt
+
+
+def test_pedagogy_dim_exception_carved_from_whiteboard_rule():
+    # The Phase 2 rule "the user's own content stays undimmed" now carries the
+    # explicit Phase 4 exception: line-by-line file analysis DIMS to isolate
+    # the analyzed lines — the two rules must not contradict.
+    prompt = _prompt()
+    assert "بدون dim_screen" in prompt          # the Phase 2 counter-rule stays
+    assert "باستثناء التحليل التربوي" in prompt  # the Phase 4 carve-out
+
+
+def test_pedagogy_no_boxes_when_content_not_on_screen():
+    # A file that is NOT visible on screen is explained by voice only — the
+    # model must never draw rectangles over unrelated screen content.
+    prompt = _prompt()
+    assert "غير ظاهر على الشاشة" in prompt
+    assert "بلا رسم" in prompt

@@ -148,9 +148,10 @@ async def test_saudi_persona_reaches_claude_system_param(tmp_path):
     block_types = {block["type"] for block in last_user_msg["content"]}
     assert block_types == {"text"}, "an image block leaked in — screen capture must stay stubbed"
 
-    # ── LOOK-only at the wire: exactly the LOOK draw/refresh tools, nothing else ──
+    # ── LOOK-only at the wire: exactly the LOOK perception/draw tools, nothing else ──
     offered = {tool["name"] for tool in captured["tools"]}
-    assert offered == {"highlight_target", "draw_shapes", "request_screen_refresh"}
+    assert offered == {"highlight_target", "draw_shapes",
+                       "request_screen_refresh", "read_local_file"}
 
     # ── Privacy: the TTS spoke only the assistant Arabic, never the transcript ──
     assert fake_tts.spoken == [ASSISTANT_TEXT_AR]

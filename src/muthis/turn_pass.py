@@ -34,21 +34,17 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 from typing import Any, Callable, Optional
 
 from .cloud.protocol import TextDelta, ToolCall, TurnComplete, UserInput
 from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
+from .file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL, ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .turn import TurnResult
 from .turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
 logger = logging.getLogger("muthis.orchestrator")
-
-# DIAG(v7): temporary timing probes for the stop-and-go / mid-sentence-pause
-# investigation. Every [DIAG] line is removed once the audio work lands.
-_diag = logging.getLogger("muthis.diag")
 
 REFRESH_TOOL = "request_screen_refresh"
 
@@ -70,11 +66,15 @@ class TurnPass:
         self, *, reasoner, budget, overlay, voice,
         stream_tts: Optional[bool] = None,
         session_factory: Optional[Callable[[], object]] = None,
+        read_file: Optional[ReadFileFn] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
         self._overlay = overlay
         self._voice = voice
+        # v7 Phase 4: the read_local_file seam (production: FileReader().read).
+        # None (a legacy caller) degrades to the Arabic unavailable note.
+        self._read_file = read_file
         # v7: sentence streaming — flag-gated (default OFF). The factory seam
         # resolves lazily to the real TTS().open_speech_session on first
         # flag-ON use, so the buffered default path never imports the TTS layer.
@@ -100,12 +100,16 @@ class TurnPass:
         gate: HighlightGate,
         result: TurnResult,
         turn_voice: TurnVoice,
-    ) -> tuple[Optional[TurnComplete], Optional[ToolCall]]:
+    ) -> tuple[Optional[TurnComplete], Optional[ToolCall],
+               Optional[tuple[ToolCall, str]]]:
         """Drain one provider turn into result. Returns (turn_complete,
-        refresh_call); refresh_call is set iff the model asked for a new
-        screenshot and the pipeline must answer it."""
+        refresh_call, read_result): refresh_call is set iff the model asked
+        for a new screenshot; read_result is (call, content) for the FIRST
+        read_local_file of the pass, already serviced (v7 Phase 4) — the
+        pipeline rides both into build_tool_result_message."""
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
+        read_call: Optional[ToolCall] = None
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
         tool_choice = loop_tool_choice(gate)
@@ -115,21 +119,14 @@ class TurnPass:
         # (draw pass, single-pass replies, refresh follow-ups) stays buffered
         # and reaches the ONE turn generation at the sync point below.
         streamed = tool_choice == "none" and await turn_voice.ensure_open()
-        _diag.info("[DIAG] pass start t=%.3f tool_choice=%s streamed=%s",
-                   time.monotonic(), tool_choice, streamed)
-        first_delta_at: Optional[float] = None
 
         async for event in self._reasoner.run(user_input, screenshot, history, tool_choice=tool_choice):
             if isinstance(event, TextDelta):
-                if first_delta_at is None:
-                    first_delta_at = time.monotonic()
-                    _diag.info("[DIAG] pass first-delta t=%.3f", first_delta_at)
                 result.spoken_text += event.text
                 message_text += event.text
                 if streamed:
                     await turn_voice.push_stream(event.text)  # inline-await: no background consumer
             elif isinstance(event, ToolCall):
-                _diag.info("[DIAG] pass tool-call t=%.3f name=%s", time.monotonic(), event.name)
                 if event.name in DRAW_TOOLS:
                     result.tool_calls.append(event)
                     # Circuit breaker: buffer only the FIRST draw (either tool); scaled in next_draw.
@@ -137,6 +134,13 @@ class TurnPass:
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
+                elif event.name == READ_FILE_TOOL:
+                    # Phase 4: a perception tool like refresh — never gates the
+                    # draw. First read of the pass wins; a repeat is answered by
+                    # the pairing's already-read directive (turn.py, by name).
+                    result.tool_calls.append(event)
+                    if read_call is None:
+                        read_call = event
                 else:
                     # LOOK-only hard boundary: an action tool is a contract violation.
                     logger.error(
@@ -150,7 +154,7 @@ class TurnPass:
             # Abnormal pass end: the pipeline abandons the turn voice — this
             # branch never spoke on the buffered path either.
             logger.error("[orchestrator] provider stream ended without TurnComplete")
-            return None, None
+            return None, None, None
 
         result.input_tokens += turn_complete.input_tokens
         result.output_tokens += turn_complete.output_tokens
@@ -158,15 +162,12 @@ class TurnPass:
         result.stop_reason = turn_complete.stop_reason
         # Cost recorded BEFORE speaking — the timeout must never cost us accounting.
         self._budget.record_turn(turn_complete)
-        _diag.info("[DIAG] pass stream-end t=%.3f stop_reason=%s chars=%d",
-                   time.monotonic(), turn_complete.stop_reason, len(message_text))
         # Sync point: apply the ONE buffered draw, THEN speak. The auto-hide is
         # NOT armed here (v7.1 Fix F) — run_turn's finally arms it at SPEECH END,
         # so the rectangle survives the whole spoken explanation.
         # (A streamed pass is tool_choice="none": pending_draw is impossible.)
         if pending_draw is not None:
             await pending_draw.apply(self._overlay)
-            _diag.info("[DIAG] pass draw-applied t=%.3f", time.monotonic())
         if streamed:
             await turn_voice.end_stream()        # flush the tail into the generation
         else:
@@ -174,8 +175,15 @@ class TurnPass:
             # longer blocks the loop, so the next pass's round-trip hides
             # BEHIND its playback (the measured 3.48s gap).
             await turn_voice.speak_or_feed(message_text)
-        _diag.info("[DIAG] pass end t=%.3f", time.monotonic())
-        return turn_complete, refresh_call
+        # Phase 4: service the pass's ONE read AFTER the audio is moving (local
+        # I/O must never delay the spoken ack). The seam never raises.
+        read_result: Optional[tuple[ToolCall, str]] = None
+        if read_call is not None:
+            if self._read_file is None:
+                read_result = (read_call, FILE_READ_UNAVAILABLE_AR)
+            else:
+                read_result = (read_call, await self._read_file(read_call.args))
+        return turn_complete, refresh_call, read_result
 
 
 __all__ = ["TurnPass", "REFRESH_TOOL", "STREAM_TTS_ENV"]
