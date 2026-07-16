@@ -129,7 +129,9 @@ Mut'his READS a local file and teaches it: READ → ISOLATE → TEACH.
   (the mandatory pedagogy whiteboard — the explicit carve-out to Phase 2's
   "user content stays undimmed"), (3) explain pass teaches line-by-line by
   number; file not on screen → voice-only.
-- **Live SOP (`scripts/diag_pedagogy.py` + `assets/samples/esp32_logic.ino`)**:
+- **Live SOP (`scripts/diag_pedagogy.py` +
+  `assets/samples/esp32_logic/esp32_logic.ino` — the Arduino-IDE sketch
+  folder)**:
   PASSED 2026-07-16 — read fired (24 lines), draw_shapes dim_screen=true with
   3 rectangles, explanation cited real line ranges + identifiers (LIMIT_C,
   readCelsius, TMP36 math), 3 passes, $0.0825, exit 0.

@@ -62,7 +62,10 @@ from muthis.vision.screen_capture import (                             # noqa: E
     ScreenCapture, primary_monitor_size,
 )
 
-SAMPLE = pathlib.Path(__file__).resolve().parents[1] / "assets" / "samples" / "esp32_logic.ino"
+# The sample lives in an esp32_logic/ sketch folder (the Arduino IDE moved it
+# there on first open — sketches must sit in a folder named after the .ino).
+SAMPLE = (pathlib.Path(__file__).resolve().parents[1]
+          / "assets" / "samples" / "esp32_logic" / "esp32_logic.ino")
 
 # The path is spoken INSIDE the scripted question (as a user would name the
 # file they are looking at) so read_local_file has an exact target.
