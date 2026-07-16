@@ -12,9 +12,9 @@ WHERE-question so the two-pass point→explain flow fires deterministically:
                                 speak of the ack (blocks the loop while playing)
     pass 1 (tool_choice=none):  the explanation, sentence-STREAMED
 
-The [DIAG] log lines (orchestrator / turn_pass / voice_out / tts_session /
-tts_ws_player) timestamp every stage; the audible gap the user hates is
-pass-0 "buffered speak end" → pass-1 "session audio-chunk #1".
+The temporary [DIAG] timing probes were REMOVED (2026-07-16, Sultan-approved)
+once the v7 audio work landed; verification is now by EAR (no audible gap
+between the pass-0 ack and the pass-1 explanation) plus the printed summary.
 
 Privacy: the question is a hardcoded script constant (not user speech); the
 screenshot goes to Claude for this turn only, never to disk. Costs ONE real

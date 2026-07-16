@@ -24,18 +24,12 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 from typing import Optional
 
 from .budget import Budget
 from .turn import BUDGET_REFUSAL_AR, Overlay, TtsFn, TurnResult
 
 logger = logging.getLogger("muthis.orchestrator")
-
-# DIAG(v7): temporary timing probes for the stop-and-go investigation — the
-# buffered speak() below BLOCKS the agentic loop for its whole duration, which
-# is half the story of the audible gap. Removed once the audio work lands.
-_diag = logging.getLogger("muthis.diag")
 
 # v6 C rollback flag: live captions are ON by default (Sultan's release
 # decision, 2026-07-15) — a falsey value is the one-env rollback, mirroring
@@ -98,16 +92,12 @@ class VoiceOut:
         finishes (TTS returns post-playback) — success or failure alike."""
         if not text:
             return
-        speak_t0 = time.monotonic()
-        _diag.info("[DIAG] buffered speak start t=%.3f chars=%d", speak_t0, len(text))
         self._overlay.set_state("speaking")  # neon green while the voice plays
         self.show_caption(text)
         try:
             tts_result = await self._tts(text)
         finally:
             self.clear_caption()
-            _diag.info("[DIAG] buffered speak end t=%.3f (blocked loop %.3fs)",
-                       time.monotonic(), time.monotonic() - speak_t0)
         if tts_result is not None:
             log = logger.info if tts_result.success else logger.warning
             log(

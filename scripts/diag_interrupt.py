@@ -8,8 +8,8 @@ then fires the production interruption path exactly as a barge-in press
 would:  orchestrator.interrupt_turn()  →  turn task cancel — silence FIRST,
 cancel SECOND (the approved ordering).
 
-What to verify in the [DIAG]/console output:
-  * "interrupt-turn" → "session abort" → "player abort" land within a few ms;
+What to verify in the console output (the temporary [DIAG] probes were
+removed 2026-07-16, Sultan-approved — the script's own prints remain):
   * signal→silence latency (the printed measurement) is well under 500 ms;
   * the board/shapes/captions vanish INSTANTLY with the overlay hide;
   * turn-voice finish never re-speaks (no buffered-speak lines after abort);

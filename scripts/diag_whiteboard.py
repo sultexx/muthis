@@ -15,11 +15,11 @@ explained by DRAWING, so the expected flow is the whiteboard:
     turn end:       undim_screen fades the lights back on at SPEECH END;
                     the shapes keep their 7 s auto-hide grace, then clear
 
-The [DIAG] lines timestamp every stage, including the new
-"whiteboard dim-in" / "whiteboard dim-out" probes. What to verify:
-  * dim-in lands with the draw (before the first audio), dim-out lands at
-    speech end (right after "turn-voice finish");
-  * NO capture ever happens between dim-in and dim-out (Claude must never
+The temporary [DIAG] probes were REMOVED (2026-07-16, Sultan-approved) —
+verify by EYE and EAR plus the printed summary:
+  * the dim fades in WITH the draw (before the first audio) and fades out
+    at speech end;
+  * NO capture ever happens while the screen is dimmed (Claude must never
     see a dimmed screen — the ghosting rule);
   * the process exits 0 (the v7.2 Tcl teardown fix holds with the second
     Toplevel active).

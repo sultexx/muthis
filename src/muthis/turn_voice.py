@@ -47,7 +47,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import Callable, List, Optional
 
 from .speech_stream import SentenceSplitter
@@ -64,9 +63,6 @@ logger = logging.getLogger("muthis.orchestrator")
 # alignment — captions may lead/lag a beat, but they no longer flash at
 # text-generation speed and never vanish before their words are spoken.
 ARABIC_TTS_CHARS_PER_SEC = 11.5
-
-# DIAG(v7): temporary timing probe for the audio investigation.
-_diag = logging.getLogger("muthis.diag")
 
 
 class TurnVoice:
@@ -183,8 +179,6 @@ class TurnVoice:
             await self._session.close()
         except Exception as exc:  # noqa: BLE001 — degrade, never crash the turn
             close_error = exc
-        _diag.info("[DIAG] turn-voice finish t=%.3f fed=%d unplayed=%d",
-                   time.monotonic(), len(self._fed), len(self._unplayed))
         # close() drained the audio tail — the caption leaves with the voice.
         self._voice.clear_caption()
         self._overlay.set_state("thinking")
@@ -217,8 +211,6 @@ class TurnVoice:
         if self._closed:
             return
         self._closed = True
-        _diag.info("[DIAG] turn-voice interrupt t=%.3f fed=%d",
-                   time.monotonic(), len(self._fed))
         await self._settle_open()            # an in-flight handshake settles first
         session = self._session
         if session is not None:
@@ -273,7 +265,6 @@ class TurnVoice:
         caption_delay_s = max(
             0.0, self._fed_chars / ARABIC_TTS_CHARS_PER_SEC
             - (played() if played is not None else 0.0))
-        _diag.info("[DIAG] caption len=%d delay=%.2fs", len(sentence), caption_delay_s)
         self._voice.show_caption(sentence, delay_s=caption_delay_s)
         try:
             await self._session.feed(sentence, flush=flush)

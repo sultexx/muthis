@@ -33,15 +33,11 @@ tkinter, lazily, on the Tk thread (the package convention).
 from __future__ import annotations
 
 import logging
-import time
 
 from .style import TRANSPARENT_KEY
 from .style_env import clamp01, env_flag, env_float
 
 logger = logging.getLogger("muthis.overlay")
-
-# DIAG(v7 Phase 2): temporary timing probes for the whiteboard live test.
-_diag = logging.getLogger("muthis.diag")
 
 # Rollback flag: the spotlight is OFF unless .env opts in (a new, visually
 # loud feature ships dark until Sultan flips the release default).
@@ -126,7 +122,6 @@ class FocusDimmer:
         concept drawing, fading in smoothly like a classroom going dark. The
         neon shapes render on the neon window ABOVE this dim (the D0 z-order
         rule), so the drawing reads as chalk on a blackboard."""
-        _diag.info("[DIAG] whiteboard dim-in t=%.3f", time.monotonic())
         self._canvas.delete("all")           # no hole: the full cover IS the board
         self._fade_generation += 1
         if self._schedule is None:           # no scheduler → instant (old behavior)
@@ -142,7 +137,6 @@ class FocusDimmer:
         Called at SPEECH END (run_turn's finally) so the un-dim is
         synchronized with the voice — the drawn shapes keep their own 7 s
         grace on the neon window. Instant when no scheduler."""
-        _diag.info("[DIAG] whiteboard dim-out t=%.3f", time.monotonic())
         self._fade_generation += 1
         if self._schedule is None:
             self.hide()

@@ -42,14 +42,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
 from typing import Optional
 
 # Kept on main's logger: the log surface is unchanged by the split.
 logger = logging.getLogger("muthis.main")
-
-# DIAG(v7 Phase 3): temporary timing probes for the barge-in live test.
-_diag = logging.getLogger("muthis.diag")
 
 BARGE_IN_ENV = "MUTHIS_BARGE_IN"
 
@@ -120,7 +116,6 @@ class ActivationController:
                 logger.info("[main] barge-in already in flight — press ignored")
                 return
             self._interrupting = True
-            _diag.info("[DIAG] barge-in press t=%.3f", time.monotonic())
             logger.info("[main] BARGE-IN — interrupting the speaking turn")
             if self._is_recording():  # defensive: never two open streams
                 self._reset_mic()
@@ -164,7 +159,6 @@ class ActivationController:
             logger.exception("[main] interrupt_turn failed — cancelling anyway")
         if task is not None and not task.done():
             task.cancel()
-        _diag.info("[DIAG] barge-in cancel issued t=%.3f", time.monotonic())
 
     def on_activate(self) -> None:
         """Key-UP, scheduled via call_soon_threadsafe — therefore runs on the

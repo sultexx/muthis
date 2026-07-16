@@ -34,10 +34,6 @@ from typing import Callable, Optional
 
 logger = logging.getLogger("tts")
 
-# DIAG(v7): temporary timing probes for the mid-sentence-pause investigation.
-# Every [DIAG] line (and this logger) is removed once the audio work lands.
-_diag = logging.getLogger("muthis.diag")
-
 # Pushed onto the queue to tell the worker "no more audio — drain & stop".
 _EOS = object()
 
@@ -130,7 +126,6 @@ class PcmStreamPlayer:
         cross-thread stream call in this codebase; it also unblocks a
         mid-chunk write, whose worker then sees _aborted and exits WITHOUT
         draining. Idempotent; never raises (silencing must always succeed)."""
-        _diag.info("[DIAG] player abort t=%.3f", time.monotonic())
         self._aborted = True
         self._queue.put(_EOS)             # unblock a queue.get() wait
         stream = self._stream
@@ -158,27 +153,18 @@ class PcmStreamPlayer:
             with self._stream_factory(self._sample_rate, self._channels) as stream:
                 self._stream = stream            # visible to the cross-thread abort
                 while True:
-                    wait_t0 = time.monotonic()
                     chunk = self._queue.get()
-                    waited_s = time.monotonic() - wait_t0
                     if chunk is _EOS or self._aborted:
-                        _diag.info("[DIAG] player EOS t=%.3f audio_written=%.3fs aborted=%s",
-                                   time.monotonic(), self._audio_written_s, self._aborted)
                         break
                     now = time.monotonic()
                     if self._first_write_t is None:
                         self._first_write_t = now
-                        _diag.info("[DIAG] player first-write t=%.3f bytes=%d", now, len(chunk))
                     else:
                         deficit_s = now - (self._first_write_t + self._audio_written_s)
                         if deficit_s > 0.02:
-                            _diag.warning(
-                                "[DIAG] player STARVED ~%dms (queue wait %dms) t=%.3f",
-                                round(deficit_s * 1000), round(waited_s * 1000), now)
-                            # Re-anchor the playback horizon past this gap, so
-                            # only NEW gaps warn (one real pause used to repeat
-                            # as a phantom deficit on every later write) and
-                            # played_seconds() never counts silence as speech.
+                            # A starvation gap: re-anchor the playback horizon
+                            # past it so played_seconds() never counts silence
+                            # as speech (the caption pacer's clock, v7 Phase 2).
                             self._first_write_t += deficit_s
                     self._audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
                     try:

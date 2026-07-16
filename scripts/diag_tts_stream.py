@@ -17,9 +17,9 @@ of causing the mid-sentence pauses:
                                          arbitrary stream-fragment edge)
 
 Fragments are pushed at a realistic Claude cadence (~90 Arabic chars/sec) so
-generation-vs-playback races show up as the [DIAG] "player STARVED" lines.
-The timing story lives in the [DIAG] log lines added across tts_session.py /
-tts_ws_player.py; this script only prints the segmentation summary.
+generation-vs-playback races surface as AUDIBLE mid-speech gaps (the
+temporary [DIAG] probes that once timestamped them were removed 2026-07-16,
+Sultan-approved); this script prints the segmentation summary.
 
 Cost: ONE ElevenLabs generation (~a few hundred characters). Needs in .env:
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID   (MUTHIS_STREAM_TTS not required
