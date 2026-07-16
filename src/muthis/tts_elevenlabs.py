@@ -92,7 +92,12 @@ async def stream_pcm(
     """Send the FULL text once and feed each PCM chunk to `player` as it arrives.
 
     Raises on any failure so tts.py can fall back to Gemini. The player is
-    start()ed here and ALWAYS finish()ed (drains the tail) even on error."""
+    start()ed here and finish()ed (drains the tail) on completion AND on
+    provider errors — but a CANCELLATION (v1.0-RC2, UAT bug 1: the barge-in
+    cancels the turn task mid-speak) ABORTS it instead: the old `finally:
+    finish()` DRAINED the queued tail, which — ElevenLabs delivers ~10×
+    realtime, so the queue can hold the WHOLE remaining clip — kept the old
+    voice playing over the next turn's audio."""
     connect = ws_connect or default_ws_connect
     settings = voice_settings or dict(DEFAULT_VOICE_SETTINGS)
     uri = build_uri(voice_id, model_id, output_format)
@@ -117,6 +122,13 @@ async def stream_pcm(
                 while True:
                     try:
                         msg = await ws.recv()
+                    except asyncio.CancelledError:
+                        # Abort BEFORE the ws context unwinds: its close
+                        # handshake ran first and cost a measured ~860 ms of
+                        # continued audio (live diag 2026-07-16); the outer
+                        # handler stays for cancels landing elsewhere.
+                        await player.abort()
+                        raise
                     except Exception:
                         break  # ConnectionClosed / normal end of stream
                     try:
@@ -130,8 +142,11 @@ async def stream_pcm(
                         player.feed(base64.b64decode(audio_b64))
                     if data.get("isFinal"):
                         break
+    except asyncio.CancelledError:
+        await player.abort()     # barge-in: silence NOW — never drain the tail
+        raise
     finally:
-        await player.finish()
+        await player.finish()    # a no-op after an abort (worker already gone)
 
     if not player.got_audio:
         raise RuntimeError("ElevenLabs returned no audio data.")

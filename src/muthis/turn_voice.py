@@ -49,7 +49,7 @@ import asyncio
 import logging
 from typing import Callable, List, Optional
 
-from .speech_stream import SentenceSplitter
+from .speech_stream import EchoGuard, SentenceSplitter
 
 # The orchestrator's logger: this is turn-pipeline speech plumbing, and the log
 # surface should read as one component (same choice as turn_pass/voice_out).
@@ -86,7 +86,9 @@ class TurnVoice:
         self._open_failed = False   # one open attempt per turn — no retry storm
         self._dead = False          # a feed raised: defer the rest to finish()
         self._closed = False
+        self._interrupted = False   # barge-in flag — finish() owns _closed (UAT 1)
         self._splitter = SentenceSplitter()
+        self._echo = EchoGuard()    # pass-echo suppressor (UAT bug 2)
         self._fed: List[str] = []
         self._unplayed: List[str] = []
         self._fed_chars = 0  # caption pacing: chars queued into the generation
@@ -136,6 +138,7 @@ class TurnVoice:
         INSTANT feed (audio plays while the loop moves on — the master fix);
         never opened → the proven blocking VoiceOut.speak(); died mid-turn →
         deferred to finish() so fallback audio can never overlap the tail."""
+        text = self._echo.consume(text)   # strip a pass-echo of the last ack
         if not text:
             return
         if self._dead:
@@ -148,6 +151,8 @@ class TurnVoice:
             await self._feed(text, flush=True)
         else:
             await self._voice.speak(text)
+        # One-shot echo guard: only a SHORT utterance (the ack) arms it.
+        self._echo.remember(text)
 
     async def push_stream(self, fragment: str) -> None:
         """Streamed-pass deltas (tool_choice="none" only): sentences feed the
@@ -179,6 +184,10 @@ class TurnVoice:
             await self._session.close()
         except Exception as exc:  # noqa: BLE001 — degrade, never crash the turn
             close_error = exc
+        if self._interrupted:
+            # Barge-in landed mid-drain (UAT 1): no fallback may re-speak the
+            # silenced turn; the light belongs to the press's "listening" now.
+            return
         # close() drained the audio tail — the caption leaves with the voice.
         self._voice.clear_caption()
         self._overlay.set_state("thinking")
@@ -207,18 +216,24 @@ class TurnVoice:
         user just silenced. Clears the caption (its paced queue cancels via
         the generation counter). The status light is NOT touched — the
         barge-in press already set "listening" and this must not fight it.
-        Idempotent; safe mid-eager-open; never raises."""
-        if self._closed:
+        Idempotent; safe mid-eager-open; never raises.
+
+        v1.0-RC2 (UAT bug 1): guarded by its OWN flag, not `_closed` — users
+        interrupt during the audio TAIL, when finish() already set `_closed`
+        mid-drain; the old `_closed` early-return made that a no-op and the
+        tail played on. The idempotent abort is what unblocks the drain."""
+        if self._interrupted:
             return
-        self._closed = True
+        self._interrupted = True
+        was_closed, self._closed = self._closed, True
         await self._settle_open()            # an in-flight handshake settles first
         session = self._session
         if session is not None:
             session_abort = getattr(session, "abort", None)  # duck-typed fakes
             try:
                 if session_abort is not None:
-                    await session_abort()
-                else:
+                    await session_abort()    # also unblocks a mid-drain close()
+                elif not was_closed:
                     await session.close()    # older fakes: quiet release
             except Exception:  # noqa: BLE001 — silencing must never raise
                 pass
@@ -251,6 +266,9 @@ class TurnVoice:
             await self._open_task
 
     async def _feed(self, sentence: str, *, flush: bool = False) -> None:
+        sentence = self._echo.consume(sentence)  # streamed pass-echo strip
+        if not sentence:
+            return
         if self._dead:
             self._unplayed.append(sentence)
             return

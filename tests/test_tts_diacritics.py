@@ -110,8 +110,11 @@ async def test_gemini_fallback_also_receives_the_diacritized_copy(monkeypatch):
         seen["text"] = text
         return b"\x01\x02" * 64
 
+    async def no_play(pcm, sample_rate):
+        pass
+
     monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", capture_gemini)
-    monkeypatch.setattr(tts, "_play_wav_blocking", lambda wav: None)
+    monkeypatch.setattr(tts, "_play_pcm", no_play)
 
     result = await tts.speak("سم طال عمرك")
 

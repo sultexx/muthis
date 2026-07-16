@@ -62,15 +62,18 @@ async def test_gemini_tried_when_elevenlabs_fails(monkeypatch):
         assert api_key == "fake-gemini-key"
         return FAKE_PCM
 
+    async def capture_play(pcm, sample_rate):
+        played.append(pcm)
+
     monkeypatch.setattr(tts, "_speak_elevenlabs", simulate_elevenlabs_outage)
     monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", fake_gemini_synthesis)
-    monkeypatch.setattr(tts, "_play_wav_blocking", played.append)
+    monkeypatch.setattr(tts, "_play_pcm", capture_play)
 
     result = await tts.speak("زر الحفظ فوق يسار")
 
     assert result == TTSResult(success=True, provider="gemini")
     assert len(played) == 1            # the Gemini audio reached playback
-    assert FAKE_PCM in played[0]       # PCM made it into the WAV container
+    assert played[0] == FAKE_PCM       # the raw PCM reached the player
 
 
 @pytest.mark.asyncio
@@ -148,9 +151,12 @@ async def test_disabling_flag_forces_gemini(monkeypatch):
     def forbidden_elevenlabs(text):
         raise AssertionError("ElevenLabs must NOT run while disabled")
 
+    async def capture_play(pcm, sample_rate):
+        played.append(pcm)
+
     monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", fake_gemini_synthesis)
     monkeypatch.setattr(tts, "_speak_elevenlabs", forbidden_elevenlabs)
-    monkeypatch.setattr(tts, "_play_wav_blocking", played.append)
+    monkeypatch.setattr(tts, "_play_pcm", capture_play)
 
     result = await tts.speak("زر الحفظ فوق يسار")
 

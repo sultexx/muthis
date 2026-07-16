@@ -18,8 +18,11 @@ Design contract:
   - Stateless across calls. API keys + voice config are injected at __init__.
   - Network + audio output only — zero GPU/VRAM; overlaps freely with any stage.
   - The event loop is NEVER blocked: WS receive is async; the blocking sounddevice
-    writes live in the player's worker thread; the Gemini HTTP call + winsound run
-    inside asyncio.to_thread.
+    writes live in the player's worker thread; the Gemini HTTP call runs inside
+    asyncio.to_thread.
+  - BOTH providers play through the abortable PcmStreamPlayer (v1.0-RC2, UAT
+    bug 1): the old Gemini winsound sync clip was UNSTOPPABLE — a barged-in
+    clip played to its end OVER the next turn. One engine, one abort story.
   - speak() NEVER raises — returns TTSResult(success, provider) so the orchestrator
     reacts (log, "صوت احتياطي") without try/except sprawl. Signature UNCHANGED, so
     the orchestrator and the DI seam are untouched.
@@ -29,6 +32,10 @@ Resilience cascade (ElevenLabs primary; Gemini fallback):
   Path B : Gemini TTS REST       (FALLBACK — collect-then-play, timeout + 1 retry;
                                   see tts_gemini.py)
   None   : TTSResult(success=False, provider="none")
+  ECHO GUARD (v1.0-RC2, UAT bug 2): a Path-A failure arriving AFTER audio
+  already reached the user's ears (the 30 s total timeout on a long clip, an
+  error frame mid-stream) does NOT cascade — Gemini would replay the SAME
+  text from the top: the measured dialogue echo. Truncated tail > repeat.
 
 Privacy:
   The LAST place before text leaves the device. Pass ONLY the agent's synthesized
@@ -56,17 +63,14 @@ Environment variables (.env is loaded once at process entry, before imports):
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import os
-import sys
-import wave
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 from . import tts_elevenlabs, tts_gemini
 from .tts_diacritics import apply_diacritics
-from .tts_ws_player import PcmStreamPlayer
+from .tts_ws_player import PcmStreamPlayer, play_clip
 # Re-exported so existing importers (diagnostics / smoke scripts) keep working.
 from .tts_elevenlabs import (  # noqa: F401
     DEFAULT_MODEL_ID, DEFAULT_OUTPUT_FORMAT, DEFAULT_SAMPLE_RATE,
@@ -160,8 +164,14 @@ class TTS:
         self.try_elevenlabs = (_env_flag("MUTHIS_TRY_ELEVENLABS", default=True)
                                if try_elevenlabs is None else try_elevenlabs)
         # DI seams (real defaults) so tests drive the WS + playback with fakes.
+        # The default factory is RATE-AWARE (Gemini is 24 kHz, not the
+        # ElevenLabs default); zero-arg fakes keep working (_make_player).
         self._ws_connect = ws_connect
-        self._player_factory = player_factory or (lambda: PcmStreamPlayer(self.sample_rate))
+        self._player_factory = player_factory or (
+            lambda rate=None: PcmStreamPlayer(rate or self.sample_rate))
+        # Echo-guard probe (UAT bug 2): _speak_elevenlabs stashes its player
+        # here BEFORE streaming, so speak() reads got_audio when it raises.
+        self._last_player = None
 
         if not self.gemini_api_key and not (self.try_elevenlabs and self.api_key):
             logger.warning(
@@ -204,12 +214,20 @@ class TTS:
 
         # ── Path A (PRIMARY): ElevenLabs WebSocket — progressive playback ─
         if self.try_elevenlabs and self.api_key:
+            self._last_player = None      # fresh probe per attempt (fakes leave it None)
             try:
                 await self._speak_elevenlabs(speech_text)
                 logger.info("[TTS] ElevenLabs OK (%d chars)", len(text))
                 return TTSResult(success=True, provider="elevenlabs")
             except Exception as e:
                 last_error = f"{type(e).__name__}: {e}"
+                if getattr(self._last_player, "got_audio", False):
+                    # ECHO GUARD (UAT bug 2): audio already played — a Gemini
+                    # fallback would replay the SAME text (the measured echo).
+                    logger.warning(
+                        "[TTS] ElevenLabs failed AFTER audio (%s) — fallback replay suppressed.",
+                        last_error)
+                    return TTSResult(success=False, provider="elevenlabs", error=last_error)
                 logger.warning("[TTS] ElevenLabs failed (%s) — falling back.", last_error)
                 logger.debug("ElevenLabs error detail", exc_info=True)
 
@@ -220,8 +238,7 @@ class TTS:
                     tts_gemini.synthesize_pcm_blocking, speech_text,
                     self.gemini_api_key, self.gemini_voice,
                 )
-                wav_bytes = self._pcm_to_wav(pcm, tts_gemini.GEMINI_SAMPLE_RATE)
-                await asyncio.to_thread(self._play_wav_blocking, wav_bytes)
+                await self._play_pcm(pcm, tts_gemini.GEMINI_SAMPLE_RATE)
                 logger.info("[TTS] Gemini OK (%d chars)", len(text))
                 return TTSResult(success=True, provider="gemini")
             except Exception as e:
@@ -240,11 +257,14 @@ class TTS:
     async def _speak_elevenlabs(self, text: str) -> None:
         """Stream the full text once and play each PCM chunk as it arrives. Raises
         on any failure so speak() falls back to Gemini. Thin glue over
-        tts_elevenlabs.stream_pcm + a PcmStreamPlayer (both injectable for tests)."""
+        tts_elevenlabs.stream_pcm + a PcmStreamPlayer (both injectable for tests).
+        The player is stashed on `_last_player` BEFORE streaming so speak()'s
+        echo guard can read got_audio even when this raises."""
+        self._last_player = player = self._make_player(self.sample_rate)
         await tts_elevenlabs.stream_pcm(
             text,
             api_key=self.api_key,
-            player=self._player_factory(),
+            player=player,
             voice_id=self.voice_id,
             model_id=self.model_id,
             output_format=self.output_format,
@@ -252,45 +272,21 @@ class TTS:
             ws_connect=self._ws_connect,
         )
 
-    # ───────────────── Gemini playback helpers (winsound, full buffer) ─────────────────
+    # ───────────────── Gemini playback (abortable player, full buffer) ─────────────────
 
-    def _pcm_to_wav(self, pcm: bytes, sample_rate: Optional[int] = None) -> bytes:
-        """Wrap raw 16-bit mono PCM in a WAV container (in-memory). Used by the
-        Gemini fallback (24 kHz)."""
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)              # 16-bit
-            wf.setframerate(sample_rate or self.sample_rate)
-            wf.writeframes(pcm)
-        return buf.getvalue()
-
-    def _play_wav_blocking(self, wav_bytes: bytes) -> None:
-        """Play a COMPLETE WAV clip. ALWAYS invoked via asyncio.to_thread. The
-        Gemini fallback is collect-then-play, so winsound (full-buffer) is fine
-        here — the progressive path is ElevenLabs', not this one."""
-        if sys.platform == "win32":
-            import winsound
-            winsound.PlaySound(wav_bytes, winsound.SND_MEMORY)
-            return
-
-        # Non-Windows fallback (mostly for CI/dev) — temp file + system player.
-        import tempfile
-        import subprocess
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            f.write(wav_bytes)
-            tmp_path = f.name
+    def _make_player(self, sample_rate: int):
+        """Build a player at `sample_rate` through the injected factory.
+        Rate-aware factories get the rate; legacy zero-arg fakes still work
+        (their fake rate is irrelevant — no device behind them)."""
         try:
-            cmd = (
-                ["afplay", tmp_path] if sys.platform == "darwin"
-                else ["aplay", "-q", tmp_path]
-            )
-            subprocess.run(cmd, check=True)
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+            return self._player_factory(sample_rate)
+        except TypeError:
+            return self._player_factory()
+
+    async def _play_pcm(self, pcm: bytes, sample_rate: int) -> None:
+        """One complete clip through the abortable player (tts_ws_player.
+        play_clip owns the abort story — v1.0-RC2, UAT bug 1)."""
+        await play_clip(self._make_player(sample_rate), pcm)
 
 
 __all__ = [

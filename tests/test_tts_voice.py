@@ -37,9 +37,13 @@ def _capture_voice(captured):
     return _synth
 
 
+async def _no_play(self, pcm, sample_rate):
+    pass
+
+
 def _wire_tts(monkeypatch, captured, **kwargs):
     monkeypatch.setattr(tts_gemini, "synthesize_pcm_blocking", _capture_voice(captured))
-    monkeypatch.setattr(TTS, "_play_wav_blocking", lambda self, wav: None)
+    monkeypatch.setattr(TTS, "_play_pcm", _no_play)
     return TTS(gemini_api_key="fake-gemini-key", **kwargs)
 
 

@@ -185,26 +185,29 @@ class Orchestrator:
             result.timed_out = True
             logger.warning("[orchestrator] session bound (%.0fs) hit — turn truncated", self._session_timeout_s)
         finally:
-            self._active_turn_voice = None  # the barge-in window closes here
-            # Outside the timeout scope, so the drain can await safely: close
-            # the turn's generation (decision-15 fallbacks live inside) …
-            await turn_voice.finish()
-            # … then the WHITEBOARD lights come back on (v7 Phase 2): a
-            # dim_screen draw fades out AT speech end — the un-dim is
-            # synchronized with the voice; the shapes keep the 7 s grace
-            # below. Duck-typed: stubs/old fakes without it no-op.
-            if any(call.name == DRAW_SHAPES_TOOL and call.args.get("dim_screen")
-                   for call in result.tool_calls):
-                undim = getattr(self._overlay, "undim_screen", None)
-                if undim is not None:
-                    undim()
-            # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F: a
-            # draw-time timer hid the rectangle mid-explanation). finish()
-            # returns at SPEECH END, so the 7 s count from here. Keyed on the
-            # RECEIVED draw calls, not gate.drawn (the gate flips only at the
-            # pairing, which a fake or mid-turn failure may never reach).
-            if any(call.name in DRAW_TOOLS for call in result.tool_calls):
-                self._auto_hide.schedule()
+            # v1.0-RC2 (UAT 1): the barge-in window stays OPEN through the drain.
+            try:
+                # Outside the timeout scope, so the drain can await safely: close
+                # the turn's generation (decision-15 fallbacks live inside) …
+                await turn_voice.finish()
+                # … then the WHITEBOARD lights come back on (v7 Phase 2): a
+                # dim_screen draw fades out AT speech end — the un-dim is
+                # synchronized with the voice; the shapes keep the 7 s grace
+                # below. Duck-typed: stubs/old fakes without it no-op.
+                if any(call.name == DRAW_SHAPES_TOOL and call.args.get("dim_screen")
+                       for call in result.tool_calls):
+                    undim = getattr(self._overlay, "undim_screen", None)
+                    if undim is not None:
+                        undim()
+                # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F: a
+                # draw-time timer hid the rectangle mid-explanation). finish()
+                # returns at SPEECH END, so the 7 s count from here. Keyed on the
+                # RECEIVED draw calls, not gate.drawn (the gate flips only at the
+                # pairing, which a fake or mid-turn failure may never reach).
+                if any(call.name in DRAW_TOOLS for call in result.tool_calls):
+                    self._auto_hide.schedule()
+            finally:
+                self._active_turn_voice = None  # the barge-in window closes here
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
         # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
         # any earlier would strip it before the tool_choice="none" explain pass.

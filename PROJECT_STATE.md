@@ -4,6 +4,41 @@
 > the full source of truth**; this is the compressed map. Branch
 > `v7-experimental`, 462 tests green.
 
+## UAT ROUND 1 — two bugs found by Sultan, FIXED (v1.0-RC2, uncommitted)
+**Bug 1 (F9 overlap — the old audio never died).** Three real holes, all closed:
+(a) `run_turn`'s finally cleared `_active_turn_voice` BEFORE `finish()`'s
+drain — but the drain IS when the tail is audible and users interrupt; the
+window now stays open through it (nested finally). (b) `TurnVoice.interrupt`
+early-returned on `_closed`, which finish() had already set mid-drain → now
+guarded by its own `_interrupted` flag; the idempotent `session.abort()` fires
+INTO the concurrent drain and unblocks it; finish() past an interrupt runs no
+fallback and leaves the "listening" light alone. (c) The buffered paths were
+uncancellable: `stream_pcm`'s `finally: finish()` DRAINED the queued tail on
+cancellation (EL delivers ~10× realtime — the queue can hold the whole clip),
+and the Gemini winsound sync clip was UNSTOPPABLE → cancel now ABORTS the EL
+player, and Gemini plays via abortable `tts_ws_player.play_clip` (winsound is
+out of the speech path entirely).
+**Bug 2 (dialogue echo — «أبشر شوف» twice).** Two layers: (a) MECHANICAL — the
+tts.py cascade replayed the WHOLE text via Gemini when ElevenLabs failed AFTER
+audio had played (30 s total timeout / error frame); the ECHO GUARD
+(`_last_player.got_audio`) now suppresses that fallback (truncated tail >
+repeat). (b) MODEL-SIDE — pass 2 sometimes re-opens with pass 1's exact ack
+(the known v7.1 regression family; prompts alone can't enforce): deterministic
+`speech_stream.strip_leading_repeat` + `EchoGuard` (one-shot, ≤40 chars,
+boundary-strict) strips it at the TurnVoice choke point.
+**LIVE-verified (2026-07-16):** diag_interrupt — silence + clear + note
+carried; the cancel-abort tightened after a measured 860 ms (the ws close
+handshake ran before the player abort — now aborts INSIDE the recv loop).
+diag_full_turn — the model-side echo REPRODUCED («أبشر، شوف» again as the
+whole pass 2) and the suppressor caught it ("pass echo suppressed (9 chars)").
+Residuals to WATCH in UAT round 2: pass-2 bare-ack (the echoed ack was pass
+2's ONLY content — both ACK directives now forbid repeating the ack verbatim
+and state the cost); one EL session died mid-turn (clean 1000 close between
+passes) — degradation is now safe (no overlap/echo) but session stability is
+an open observation.
+Tests 474 green (+12 in `tests/test_uat_fixes.py`). Ceilings: orchestrator +
+turn_voice now AT 300 — extract before ANY addition.
+
 ## CURRENT STATUS: v1.0-RC1 — UAT / STAGING (2026-07-16)
 V1 is FEATURE-COMPLETE and committed on `v7-experimental` as a RELEASE
 CANDIDATE — **NOT launched, NOT merged to main**. Sultan is running

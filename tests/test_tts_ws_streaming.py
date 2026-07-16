@@ -252,11 +252,14 @@ async def test_speak_falls_back_to_gemini_when_elevenlabs_fails(monkeypatch):
         api_key="fake-el", gemini_api_key="fake-gem",
         ws_connect=failing_connect, player_factory=lambda: player,
     )
+    async def no_play(pcm, sample_rate):
+        pass
+
     monkeypatch.setattr(
         tts_gemini, "synthesize_pcm_blocking",
         lambda text, api_key, voice=None: FAKE_PCM,
     )
-    monkeypatch.setattr(tts, "_play_wav_blocking", lambda wav: None)
+    monkeypatch.setattr(tts, "_play_pcm", no_play)
 
     result = await tts.speak("مرحبا")   # must NOT raise
 

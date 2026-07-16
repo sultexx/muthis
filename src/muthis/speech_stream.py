@@ -29,6 +29,16 @@ DECIMAL GUARD (unchanged): a dot BETWEEN digits ("3.14") is not a boundary; a
 dot at buffer END right after a digit is HELD until context arrives (flush()
 releases it).
 
+v1.0-RC2 PASS-ECHO SUPPRESSOR (UAT bug 2): `strip_leading_repeat` +
+`EchoGuard` — pure text hygiene for the measured dialogue echo where pass 2
+re-opens with pass 1's exact ack («أبشر، شوف» … «أبشر، شوف الكود…»). The
+persona forbids it, but a prompt is never the enforcement layer (the project's
+own circuit-breaker law): TurnVoice remembers the turn's last SHORT buffered
+utterance and this module strips a verbatim leading repeat of it from the
+IMMEDIATELY NEXT utterance — normalization-tolerant (tashkeel/hamza/ة/
+punctuation via verbosity.normalize_ar), boundary-strict («سم» never bites
+«سمعت»), and one-shot (a legit ack later in the turn is untouched).
+
 Punctuation-only scraps never come out (a lone "!" must not reach TTS). Pure
 stdlib, importable in isolation. This module only SEGMENTS text: it knows
 nothing of TTS, sync, or the orchestrator (turn_voice.py owns the feeding).
@@ -36,7 +46,12 @@ nothing of TTS, sync, or the orchestrator (turn_voice.py owns the feeding).
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
+
+from .verbosity import normalize_ar
+
+logger = logging.getLogger("muthis.orchestrator")
 
 # The Arabic sentence enders (plan C1) + newline. The ender stays attached to
 # its sentence — better TTS prosody than stripping it.
@@ -195,6 +210,65 @@ def _speakable(sentence: str) -> bool:
                for char in sentence)
 
 
+# ─── Pass-echo suppressor (v1.0-RC2, UAT bug 2) ──────────────────────────────
+
+# Only a SHORT utterance can arm the guard — the pass-1 acks are 1-2 words
+# (≤ ~10 chars); real content never echoes verbatim, so it never arms.
+ECHO_GUARD_MAX_CHARS = 40
+
+# Separators allowed between the stripped repeat and the real content.
+_ECHO_SEPARATORS = " \t\n\r،,.؛;:!؟?…-—"
+
+
+def strip_leading_repeat(text: str, previous: str) -> str:
+    """Remove a VERBATIM leading repeat of `previous` (a short spoken ack)
+    from `text`. Matching is normalization-tolerant (via normalize_ar, so
+    «أبشر، شوف» matches «أبشر شوف!») but BOUNDARY-strict: the repeat must not
+    continue into a longer word — «سم» never bites «سمعت». Returns `text`
+    unchanged when no full repeat leads it; "" when text IS just the repeat."""
+    target = normalize_ar(previous).replace(" ", "")
+    if not target:
+        return text
+    consumed = 0
+    for index, char in enumerate(text):
+        piece = normalize_ar(char).replace(" ", "")
+        if not piece:
+            continue                      # punctuation/diacritic — free filler
+        if target[consumed:consumed + len(piece)] != piece:
+            return text                   # diverged before the repeat completed
+        consumed += len(piece)
+        if consumed >= len(target):
+            rest = text[index + 1:]
+            if rest and normalize_ar(rest[0]).replace(" ", ""):
+                return text               # runs into a longer word — not an echo
+            return rest.lstrip(_ECHO_SEPARATORS)
+    return text                           # text ended first — only a partial
+
+
+class EchoGuard:
+    """One-shot pass-echo state (held by TurnVoice, one per turn): remember()
+    arms on a short buffered utterance (the ack); consume() strips a leading
+    repeat of it from the IMMEDIATELY NEXT utterance and disarms either way,
+    so a legitimate ack later in the turn is never touched."""
+
+    def __init__(self) -> None:
+        self._pending: Optional[str] = None
+
+    def remember(self, text: str) -> None:
+        self._pending = text if 0 < len(text) <= ECHO_GUARD_MAX_CHARS else None
+
+    def consume(self, text: str) -> str:
+        pending, self._pending = self._pending, None
+        if not pending or not text:
+            return text
+        stripped = strip_leading_repeat(text, pending)
+        if stripped != text:
+            logger.info("[orchestrator] pass echo suppressed (%d chars)",
+                        len(text) - len(stripped))
+        return stripped
+
+
 __all__ = ["SentenceSplitter", "SENTENCE_ENDERS", "MAX_BUFFER_CHARS",
            "MIN_SENTENCE_CHARS", "SOFT_CUT_CHARS",
-           "EAGER_FIRST_MIN_CHARS", "EAGER_CUT_CHARS"]
+           "EAGER_FIRST_MIN_CHARS", "EAGER_CUT_CHARS",
+           "EchoGuard", "strip_leading_repeat", "ECHO_GUARD_MAX_CHARS"]

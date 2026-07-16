@@ -185,4 +185,20 @@ class PcmStreamPlayer:
             self._stream = None          # the abort path must never touch a dead stream
 
 
-__all__ = ["PcmStreamPlayer"]
+async def play_clip(player, pcm: bytes) -> None:
+    """Feed ONE complete PCM clip and drain it — the collect-then-play path
+    (the Gemini fallback) routed through the SAME abortable player as the
+    streaming path (v1.0-RC2, UAT bug 1: the old winsound sync clip was
+    UNSTOPPABLE — a barged-in fallback played to its end over the next turn).
+    A CANCELLATION aborts the device (queued audio discarded, ~100 ms to
+    silence); playback errors re-raise so the caller can degrade."""
+    player.start()
+    player.feed(pcm)
+    try:
+        await player.finish()
+    except asyncio.CancelledError:
+        await player.abort()     # barge-in: silence NOW, drop the tail
+        raise
+
+
+__all__ = ["PcmStreamPlayer", "play_clip"]
