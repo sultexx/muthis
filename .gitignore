@@ -16,6 +16,11 @@ __pycache__/
 # Test / tooling caches
 .pytest_cache/
 
+# Packaging artifacts (editable install of sdk/ — V2 Phase 0)
+*.egg-info/
+build/
+dist/
+
 # Model files
 *.onnx
 *.gguf
