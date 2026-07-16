@@ -63,11 +63,23 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
             "ENCLOSING bounding box, ~30-50px in screenshot pixels) placed "
             "ON a UI element to mark one step of a sequential how-to; steps "
             "are numbered AUTOMATICALLY 1, 2, 3... by their order in the "
-            "shapes list, so send them in execution order."
+            "shapes list, so send them in execution order. Set "
+            "dim_screen=true for WHITEBOARD mode: the whole screen fades "
+            "dark like a classroom blackboard behind your drawing while you "
+            "explain — use it when illustrating a CONCEPT or abstract idea; "
+            "leave it false/absent when annotating the user's own content "
+            "(code, UI, documents) that they must keep seeing in full."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
+                "dim_screen": {
+                    "type": "boolean",
+                    "description": (
+                        "Whiteboard mode: dim the whole screen behind the "
+                        "shapes for a concept explanation (default false)."
+                    ),
+                },
                 "shapes": {
                     "type": "array",
                     "minItems": 1,
@@ -107,6 +119,43 @@ LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
             "contains the new image."
         ),
         "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "read_local_file",
+        "description": (
+            "READ the text content of ONE local file on the user's machine "
+            "(code, SQL, config, data, notes) so your analysis is grounded "
+            "in the REAL content instead of guessing from screenshot pixels. "
+            "READ-ONLY and passive: it never writes, executes, clicks, or "
+            "types anything. Use the exact path the user said or the path "
+            "visible on screen (an editor tab/title bar); prefer an absolute "
+            "Windows path. The tool_result returns the content with 1-based "
+            "LINE NUMBERS so you can reference specific lines aloud and aim "
+            "draw_shapes rectangles at them on screen. Large files are "
+            "truncated — pass start_line/end_line to read a specific range. "
+            "Secret-bearing files (.env, keys, credentials) are refused."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": (
+                        "The file's path — absolute preferred (e.g. "
+                        "C:\\Users\\name\\project\\main.py)."
+                    ),
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": "Optional 1-based first line of the range.",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": "Optional 1-based last line of the range.",
+                },
+            },
+            "required": ["path"],
+        },
     },
 ]
 

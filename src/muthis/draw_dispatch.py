@@ -45,10 +45,13 @@ class PendingDraw:
     """The ONE buffered draw of a pass, ALREADY sent→physical, applied at
     speak-time. Exactly one payload is set: `highlight` for highlight_target
     (drawn via overlay.show — behavior identical to the pre-B-1 loop),
-    `shapes` for draw_shapes (drawn via overlay.draw_shapes)."""
+    `shapes` for draw_shapes (drawn via overlay.draw_shapes). `dim` (v7
+    Phase 2, draw_shapes only) is the WHITEBOARD: the whole screen fades
+    dark behind the shapes; run_turn's finally lifts it at speech end."""
 
     highlight: Optional[tuple[PhysicalBBox, str]] = None
     shapes: tuple[Shape, ...] = ()
+    dim: bool = False
 
     async def apply(self, overlay: Any) -> None:
         """Draw on the overlay (LOOK-only graphics). An overlay without
@@ -57,6 +60,17 @@ class PendingDraw:
         if self.highlight is not None:
             await overlay.show(*self.highlight)
         elif self.shapes:
+            if self.dim:
+                # Whiteboard: darken FIRST so the shapes land on the board
+                # (both are queue commands on the Tk thread, FIFO-ordered).
+                # Duck-typed like draw_shapes: an overlay without it (stubs,
+                # old fakes) just skips the dim, never the drawing.
+                dim_screen = getattr(overlay, "dim_screen", None)
+                if dim_screen is not None:
+                    dim_screen()
+                else:
+                    logger.warning(
+                        "[draw_dispatch] overlay lacks dim_screen — drawing undimmed")
             draw = getattr(overlay, "draw_shapes", None)
             if draw is None:
                 logger.warning(
@@ -89,7 +103,8 @@ def next_draw(
     if not shapes:
         logger.warning("[draw_dispatch] draw_shapes carried no valid shapes")
         return pending
-    return PendingDraw(shapes=scale_shapes_to_physical(shapes, scale_x, scale_y))
+    return PendingDraw(shapes=scale_shapes_to_physical(shapes, scale_x, scale_y),
+                       dim=bool(event.args.get("dim_screen")))
 
 
 __all__ = [

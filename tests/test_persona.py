@@ -76,6 +76,14 @@ PASS1_ACK_ONLY = "كلمة أو كلمتين"                       # the one/tw
 PASS1_NO_NARRATION = "ممنوع تصف الشاشة"                  # no screen-narration in pass 1
 PASS1_FORBIDDEN_NARRATION = ["أشوف شاشتك", "بأشّر على"]  # the leaked phrases, now forbidden
 
+# v7.1 Fix E: the pass-1 spoken ack is MANDATORY — a silent pointing pass is
+# banned by name and the old permission ("or no words at all") must be GONE.
+PASS1_SILENT_FORBIDDEN = "ممنوع دور تأشير صامت"
+PASS1_ACK_MANDATORY = "كلمة التأكيد المنطوقة إلزامية"
+REMOVED_SILENT_ACK_PERMISSION = "أو بدون أي كلام"
+SHAPES_NO_SILENT_PASS = "ولا دور صامت"                   # the draw_shapes twin of the ban
+ACK_SCOPED_TO_POINTING = "خاصة بدور التأشير وحده"        # the pass-2 bleed counterweight
+
 # Anti-laziness: the explanation turn must never collapse to a bare ack.
 ANTI_LAZINESS_RULE = "ممنوع الكسل"
 ANTI_LAZINESS_PHRASE = "أشرت لك"   # a filler ack the rule now forbids by name
@@ -212,6 +220,36 @@ def test_pass1_is_ack_only_and_forbids_narration():
     assert "أبشر" in prompt                                      # casual Saudi dialect
     assert "بالإنجليزية" in prompt                               # UI names stay English
     assert "highlight_target" in prompt and "لا تدّعِ" in prompt  # LOOK-only honesty
+
+
+def test_pass1_spoken_ack_is_mandatory_never_silent():
+    # v7.1 Fix E (measured): the old wording permitted a SILENT pointing pass
+    # ("أو بدون أي كلام") and the model took it — a chars=0 pass-1 ack left
+    # ~4.5 s of dead air, because the ack playback is what masks the pass-2
+    # provider round-trip in the continuous turn voice. The ack is now
+    # MANDATORY (still capped at one/two words) for BOTH draw tools.
+    prompt = _prompt()
+    assert PASS1_SILENT_FORBIDDEN in prompt, "missing the silent-pass ban"
+    assert PASS1_ACK_MANDATORY in prompt, "missing the mandatory-ack wording"
+    assert REMOVED_SILENT_ACK_PERMISSION not in prompt, \
+        "the permissive 'or no words at all' wording survived"
+    assert PASS1_ACK_ONLY in prompt, "the one/two-word cap must survive the mandate"
+    # The mandate is SCOPED to the pointing pass — the counterweight that keeps
+    # it from bleeding into pass 2 (a live run regressed pass 2 to a bare
+    # «أبشر» when the mandate stood unscoped).
+    assert ACK_SCOPED_TO_POINTING in prompt, "missing the pass-2 counterweight"
+    # The shapes path shares the rule: its pass 1 forbids a silent draw too.
+    assert SHAPES_NO_SILENT_PASS in prompt, "draw_shapes pass 1 may still go silent"
+
+
+def test_prompt_teaches_the_whiteboard_mode():
+    # v7 Phase 2: a CONCEPT/abstract explanation drawn with shapes → send
+    # dim_screen=true (the classroom-board mode, lights back at speech end);
+    # the user's own content (code/UI/documents) stays undimmed.
+    prompt = _prompt()
+    assert "وضع السبورة" in prompt, "missing the whiteboard section"
+    assert "dim_screen" in prompt, "the flag name must be spelled for the model"
+    assert "بدون dim_screen" in prompt, "missing the keep-context counter-rule"
 
 
 def test_prompt_selects_draw_tool_by_intent():
@@ -368,3 +406,65 @@ def test_prompt_selects_step_badges_for_sequential_howto():
     assert "بترتيب التنفيذ" in prompt
     assert "تترقّم تلقائياً" in prompt
     assert "بنفس الترتيب" in prompt
+
+
+# ─────────────────── The Pedagogical Analyzer (v7 Phase 4) ───────────────────
+
+
+def test_prompt_teaches_read_local_file_capability():
+    # v7 Phase 4: the LOOK honesty clause gains the READ-ONLY file-reading
+    # capability — reading only, never writing/executing; the no-action
+    # honesty sentence survives right next to it.
+    prompt = _prompt()
+    assert "read_local_file" in prompt
+    assert "قراءة فقط" in prompt
+    assert "ما تقدر" in prompt and "تضغط" in prompt  # honesty clause intact
+
+
+def test_prompt_teaches_pedagogical_analyzer_method():
+    # Asked to explain code/data/a file → READ the real content first (never
+    # guess file content from pixels; results come back with line numbers),
+    # then the draw pass is dim_screen=true + rectangles around the SPECIFIC
+    # lines on screen, then teach line-by-line citing line numbers.
+    prompt = _prompt()
+    assert "التحليل التربوي" in prompt, "missing the pedagogical analyzer section"
+    assert "لا تخمّن محتوى ملف من البكسلات" in prompt
+    assert "بأرقام أسطر" in prompt
+    assert "dim_screen=true" in prompt
+    assert "مستطيلات حول الأسطر" in prompt
+    assert "رقم السطر" in prompt
+
+
+def test_pedagogy_dim_exception_carved_from_whiteboard_rule():
+    # The Phase 2 rule "the user's own content stays undimmed" now carries the
+    # explicit Phase 4 exception: line-by-line file analysis DIMS to isolate
+    # the analyzed lines — the two rules must not contradict.
+    prompt = _prompt()
+    assert "بدون dim_screen" in prompt          # the Phase 2 counter-rule stays
+    assert "باستثناء التحليل التربوي" in prompt  # the Phase 4 carve-out
+
+
+def test_pedagogy_no_boxes_when_content_not_on_screen():
+    # A file that is NOT visible on screen is explained by voice only — the
+    # model must never draw rectangles over unrelated screen content.
+    prompt = _prompt()
+    assert "غير ظاهر على الشاشة" in prompt
+    assert "بلا رسم" in prompt
+
+
+# ─────────────────── Formatting-syntax ban (v1.0-RC1) ───────────────────
+
+
+def test_prompt_forbids_formatting_syntax_in_speech():
+    # UAT polish (Sultan, 2026-07-16): the Phase 4 live run emitted markdown
+    # bold (**...**) and backticked identifiers into the spoken text — the
+    # captions bar showed the raw symbols. The persona now bans formatting
+    # syntax BY NAME: the output surface is TTS + the captions bar, never a
+    # markdown renderer, so speech must be pure prose.
+    prompt = _prompt()
+    assert "رموز تنسيق" in prompt, "missing the formatting-syntax ban"
+    assert "(**)" in prompt         # bold asterisks named
+    assert "(#)" in prompt          # heading marker named
+    assert "(`)" in prompt          # code backtick named
+    assert "نثراً منطوقاً" in prompt  # the positive rule: pure spoken prose
+    assert "باسمها المجرد" in prompt  # identifiers written bare

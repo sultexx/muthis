@@ -1,54 +1,111 @@
 # src/muthis/speech_stream.py
 """
-SentenceSplitter — Arabic sentence boundaries over streamed text (v5 Phase C1).
+SentenceSplitter — Arabic sentence boundaries over streamed text (v5 Phase C1,
+v7 soft-boundary revision).
 
 Feeds on the raw `TextDelta` fragments of ONE provider pass and emits COMPLETE
-sentences, in order, the instant their boundary arrives — the unit Phase C2
-hands to the persistent TTS session. Boundaries are the Arabic sentence enders
-(`.` `؟` `!` `؛`) plus the newline; a safety valve flushes an unpunctuated run
-at ~200 chars so a long Arabic sentence with no punctuation is never held
-forever.
+sentences, in order, the instant their boundary arrives — the unit the TTS
+generation is fed. Boundaries are the Arabic sentence enders (`.` `؟` `!` `؛`)
+plus the newline; a safety valve frees an unpunctuated run at ~200 chars.
 
-DECIMAL GUARD (approved fix): a dot BETWEEN digits ("3.14") is not a boundary.
-Because the text streams, a dot that lands at the very END of the buffer right
-after a digit is HELD — the next fragment may open with another digit — and is
-resolved the moment the following character arrives (or at flush()).
+v7.2 EAGER FIRST EMISSION (measured starvation fix): the FIRST emission of a
+pass may cut at a comma (`،`/`,`) once ≥ EAGER_FIRST_MIN_CHARS, instead of
+waiting out the whole first sentence — the explanation's audio starts at the
+first natural pause, shrinking the post-ack dead air. Later emissions keep
+full-sentence boundaries; flush() re-arms the eager window for the next pass.
 
-Pure stdlib, importable in isolation. This module only SEGMENTS text: it knows
-nothing of TTS, sync, or the orchestrator (the C2 branch owns the feeding).
+v7 SOFT BOUNDARIES (measured fixes — diag 2026-07-15):
+  * MIN-LENGTH MERGE: a boundary whose sentence would be shorter than
+    ~MIN_SENTENCE_CHARS does not cut — the short piece merges into the NEXT
+    sentence (kills the standalone "١." list-numeral scrap and micro-chunks).
+  * ELLIPSIS RUN: consecutive dots are ONE ender — the cut lands after the
+    LAST dot, never inside the run (a run touching the buffer end is HELD:
+    the stream may still be growing it).
+  * SOFT VALVE: the ~200-char overflow now cuts at the LAST whitespace or
+    comma (`،`/`,`) instead of the arbitrary stream-fragment edge that was
+    measured cutting MID-WORD; the remainder stays buffered.
+
+DECIMAL GUARD (unchanged): a dot BETWEEN digits ("3.14") is not a boundary; a
+dot at buffer END right after a digit is HELD until context arrives (flush()
+releases it).
+
+v1.0-RC2 PASS-ECHO SUPPRESSOR (UAT bug 2): `strip_leading_repeat` +
+`EchoGuard` — pure text hygiene for the measured dialogue echo where pass 2
+re-opens with pass 1's exact ack («أبشر، شوف» … «أبشر، شوف الكود…»). The
+persona forbids it, but a prompt is never the enforcement layer (the project's
+own circuit-breaker law): TurnVoice remembers the turn's last SHORT buffered
+utterance and this module strips a verbatim leading repeat of it from the
+IMMEDIATELY NEXT utterance — normalization-tolerant (tashkeel/hamza/ة/
+punctuation via verbosity.normalize_ar), boundary-strict («سم» never bites
+«سمعت»), and one-shot (a legit ack later in the turn is untouched).
+
+Punctuation-only scraps never come out (a lone "!" must not reach TTS). Pure
+stdlib, importable in isolation. This module only SEGMENTS text: it knows
+nothing of TTS, sync, or the orchestrator (turn_voice.py owns the feeding).
 """
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
+
+from .verbosity import normalize_ar
+
+logger = logging.getLogger("muthis.orchestrator")
 
 # The Arabic sentence enders (plan C1) + newline. The ender stays attached to
 # its sentence — better TTS prosody than stripping it.
 SENTENCE_ENDERS = frozenset({".", "؟", "!", "؛", "\n"})
 
-# Safety valve: an unpunctuated run this long is emitted as-is rather than
-# held until end-of-stream (spoken Arabic often under-punctuates).
+# Safety valve: an unpunctuated run this long is emitted rather than held
+# until end-of-stream (spoken Arabic often under-punctuates).
 MAX_BUFFER_CHARS = 200
+
+# v7: a completed sentence shorter than this merges into the next one — short
+# scraps ("١.", a two-word burst) make bad TTS/caption units on their own.
+MIN_SENTENCE_CHARS = 20
+
+# v7: where the safety valve is allowed to cut — natural breath points only.
+SOFT_CUT_CHARS = (" ", "\t", "،", ",")
+
+# v7.2 (measured starvation fix): the FIRST emission of a pass may cut EARLY
+# at a comma once this long, instead of waiting out the whole first sentence —
+# time-to-first-audio drops by the rest of that sentence, and a comma is a
+# natural prosodic pause. Commas ONLY (never a bare space): a mid-clause cut
+# would put an audible boundary where speech has none.
+EAGER_FIRST_MIN_CHARS = 30
+EAGER_CUT_CHARS = ("،", ",")
 
 
 class SentenceSplitter:
     """Stateful splitter for ONE pass: push() fragments in, sentences out."""
 
-    def __init__(self, max_buffer_chars: int = MAX_BUFFER_CHARS) -> None:
+    def __init__(
+        self,
+        max_buffer_chars: int = MAX_BUFFER_CHARS,
+        min_sentence_chars: int = MIN_SENTENCE_CHARS,
+    ) -> None:
         self._buffer = ""
         self._max = max_buffer_chars
+        self._min = min_sentence_chars
+        # v7.2: the NEXT emission is a pass's first → it may cut early at a
+        # comma (time-to-first-audio). Re-armed by flush() for the next pass.
+        self._eager_first = True
 
     def push(self, fragment: str) -> List[str]:
         """Feed one streamed fragment; return the sentences it COMPLETED (often
-        none), in order. Never cuts inside a sentence or a decimal number."""
+        none), in order. Never cuts inside a sentence, a decimal number, an
+        ellipsis run, or (v7) a word."""
         self._buffer += fragment
         return self._drain()
 
     def flush(self) -> List[str]:
-        """End of stream: whatever remains (a held decimal dot included) is the
-        final sentence. Resets the splitter for reuse."""
+        """End of stream: whatever remains (a held decimal dot / a short tail
+        awaiting a merge included) is the final sentence. Resets for reuse —
+        including the eager-first window for the NEXT pass."""
         tail = self._buffer.strip()
         self._buffer = ""
+        self._eager_first = True
         return [tail] if tail and _speakable(tail) else []
 
     # ─────────────────────────────── Internals ───────────────────────────────
@@ -56,35 +113,95 @@ class SentenceSplitter:
     def _drain(self) -> List[str]:
         sentences: List[str] = []
         while True:
-            cut = self._boundary_index()
+            cut = self._next_cut()
+            if self._eager_first:
+                eager = self._eager_comma_index()
+                if eager is not None and (cut is None or eager < cut):
+                    cut = eager                  # first audio: cut at the comma
             if cut is None:
                 if len(self._buffer) >= self._max:
-                    # The valve: emit the whole unpunctuated run as one sentence.
-                    run = self._buffer.strip()
-                    self._buffer = ""
+                    run = self._soft_valve_cut()
                     if run and _speakable(run):
                         sentences.append(run)
+                        self._eager_first = False
+                    continue                     # the remainder may still overflow
                 break
             sentence = self._buffer[:cut + 1].strip()
             self._buffer = self._buffer[cut + 1:]
             if sentence and _speakable(sentence):
                 sentences.append(sentence)
+                self._eager_first = False        # only the FIRST emission is eager
         return sentences
 
-    def _boundary_index(self) -> Optional[int]:
-        """Index of the first REAL sentence ender in the buffer, or None. A dot
-        between digits is skipped; a dot at buffer END after a digit is HELD
-        (the next fragment may continue the number)."""
-        for index, char in enumerate(self._buffer):
+    def _next_cut(self) -> Optional[int]:
+        """Index of the first boundary that yields a LONG-ENOUGH sentence.
+        A boundary whose sentence would be too short is skipped — the piece
+        merges into the next sentence (punctuation-only scraps still cut, so
+        they can be dropped rather than glued onto real speech)."""
+        search_from = 0
+        while True:
+            cut = self._boundary_index(search_from)
+            if cut is None:
+                return None
+            candidate = self._buffer[:cut + 1].strip()
+            if not _speakable(candidate) or len(candidate) >= self._min:
+                return cut
+            search_from = cut + 1                # too short: merge forward
+
+
+    def _boundary_index(self, start: int = 0) -> Optional[int]:
+        """Index of the first REAL sentence ender at/after `start`, or None.
+        A dot between digits is skipped; a dot at buffer END after a digit is
+        HELD (the next fragment may continue the number); consecutive dots are
+        ONE ender ending at the LAST dot — held while they touch the end."""
+        for index in range(start, len(self._buffer)):
+            char = self._buffer[index]
             if char not in SENTENCE_ENDERS:
                 continue
-            if char == "." and index > 0 and self._buffer[index - 1].isdigit():
-                if index + 1 >= len(self._buffer):
-                    return None                      # held: "…3." awaiting context
-                if self._buffer[index + 1].isdigit():
-                    continue                         # inside a number: "3.14"
+            if char == ".":
+                if index > 0 and self._buffer[index - 1].isdigit():
+                    if index + 1 >= len(self._buffer):
+                        return None              # held: "…3." awaiting context
+                    if self._buffer[index + 1].isdigit():
+                        continue                 # inside a number: "3.14"
+                run_end = index
+                while (run_end + 1 < len(self._buffer)
+                       and self._buffer[run_end + 1] == "."):
+                    run_end += 1                 # "..." is ONE ender
+                if run_end > index and run_end == len(self._buffer) - 1:
+                    return None                  # held: the run may still grow
+                return run_end
             return index
         return None
+
+    def _eager_comma_index(self) -> Optional[int]:
+        """v7.2: the first comma at/after EAGER_FIRST_MIN_CHARS, or None. Used
+        ONLY for a pass's first emission, so the explanation's audio starts at
+        the first natural pause instead of after the whole first sentence.
+        Digit-guarded like the decimal dot: "1,250" never splits, and a comma
+        at buffer END after a digit is held until context arrives."""
+        for index in range(EAGER_FIRST_MIN_CHARS - 1, len(self._buffer)):
+            if self._buffer[index] not in EAGER_CUT_CHARS:
+                continue
+            if index > 0 and self._buffer[index - 1].isdigit():
+                if index + 1 >= len(self._buffer):
+                    return None                  # held: "…1," awaiting context
+                if self._buffer[index + 1].isdigit():
+                    continue                     # thousands separator: "1,250"
+            return index
+        return None
+
+    def _soft_valve_cut(self) -> str:
+        """Overflow: emit up to the LAST soft point (space/comma) inside the
+        window — never mid-word — keeping the remainder buffered. An unbroken
+        run with no soft point falls back to the old hard cut at the window."""
+        window = self._buffer[:self._max]
+        soft = max(window.rfind(mark) for mark in SOFT_CUT_CHARS)
+        if soft < self._min:                     # degenerate: one unbroken token
+            soft = self._max - 1
+        emitted = self._buffer[:soft + 1].strip()
+        self._buffer = self._buffer[soft + 1:]
+        return emitted
 
 
 def _speakable(sentence: str) -> bool:
@@ -93,4 +210,65 @@ def _speakable(sentence: str) -> bool:
                for char in sentence)
 
 
-__all__ = ["SentenceSplitter", "SENTENCE_ENDERS", "MAX_BUFFER_CHARS"]
+# ─── Pass-echo suppressor (v1.0-RC2, UAT bug 2) ──────────────────────────────
+
+# Only a SHORT utterance can arm the guard — the pass-1 acks are 1-2 words
+# (≤ ~10 chars); real content never echoes verbatim, so it never arms.
+ECHO_GUARD_MAX_CHARS = 40
+
+# Separators allowed between the stripped repeat and the real content.
+_ECHO_SEPARATORS = " \t\n\r،,.؛;:!؟?…-—"
+
+
+def strip_leading_repeat(text: str, previous: str) -> str:
+    """Remove a VERBATIM leading repeat of `previous` (a short spoken ack)
+    from `text`. Matching is normalization-tolerant (via normalize_ar, so
+    «أبشر، شوف» matches «أبشر شوف!») but BOUNDARY-strict: the repeat must not
+    continue into a longer word — «سم» never bites «سمعت». Returns `text`
+    unchanged when no full repeat leads it; "" when text IS just the repeat."""
+    target = normalize_ar(previous).replace(" ", "")
+    if not target:
+        return text
+    consumed = 0
+    for index, char in enumerate(text):
+        piece = normalize_ar(char).replace(" ", "")
+        if not piece:
+            continue                      # punctuation/diacritic — free filler
+        if target[consumed:consumed + len(piece)] != piece:
+            return text                   # diverged before the repeat completed
+        consumed += len(piece)
+        if consumed >= len(target):
+            rest = text[index + 1:]
+            if rest and normalize_ar(rest[0]).replace(" ", ""):
+                return text               # runs into a longer word — not an echo
+            return rest.lstrip(_ECHO_SEPARATORS)
+    return text                           # text ended first — only a partial
+
+
+class EchoGuard:
+    """One-shot pass-echo state (held by TurnVoice, one per turn): remember()
+    arms on a short buffered utterance (the ack); consume() strips a leading
+    repeat of it from the IMMEDIATELY NEXT utterance and disarms either way,
+    so a legitimate ack later in the turn is never touched."""
+
+    def __init__(self) -> None:
+        self._pending: Optional[str] = None
+
+    def remember(self, text: str) -> None:
+        self._pending = text if 0 < len(text) <= ECHO_GUARD_MAX_CHARS else None
+
+    def consume(self, text: str) -> str:
+        pending, self._pending = self._pending, None
+        if not pending or not text:
+            return text
+        stripped = strip_leading_repeat(text, pending)
+        if stripped != text:
+            logger.info("[orchestrator] pass echo suppressed (%d chars)",
+                        len(text) - len(stripped))
+        return stripped
+
+
+__all__ = ["SentenceSplitter", "SENTENCE_ENDERS", "MAX_BUFFER_CHARS",
+           "MIN_SENTENCE_CHARS", "SOFT_CUT_CHARS",
+           "EAGER_FIRST_MIN_CHARS", "EAGER_CUT_CHARS",
+           "EchoGuard", "strip_leading_repeat", "ECHO_GUARD_MAX_CHARS"]

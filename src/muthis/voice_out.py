@@ -57,13 +57,21 @@ class VoiceOut:
         self._overlay = overlay
         self._captions = _captions_from_env() if captions is None else captions
 
-    def show_caption(self, text: str) -> None:
+    def show_caption(self, text: str, delay_s: float = 0.0) -> None:
         """Show `text` on the overlay's caption bar — flag-gated and
         duck-typed: an overlay without a caption bar (StubOverlay, older
         fakes) is a silent no-op. SYNC fire-and-forget (a thread-safe
-        enqueue on the real overlay), so speech timing never waits on Tk."""
+        enqueue on the real overlay), so speech timing never waits on Tk.
+        `delay_s` (v7 Phase 2 caption sync) defers the display to the
+        sentence's estimated AUDIO start via the overlay's paced seam; an
+        overlay without that seam shows immediately (the old behavior)."""
         if not (self._captions and text):
             return
+        if delay_s > 0:
+            later = getattr(self._overlay, "show_caption_later", None)
+            if later is not None:
+                later(text, round(delay_s * 1000))
+                return
         show = getattr(self._overlay, "show_caption", None)
         if show is not None:
             show(text)
@@ -98,15 +106,18 @@ class VoiceOut:
             )
         self._overlay.set_state("thinking")  # back toward thinking; idle set at turn end
 
-    async def refuse_for_budget(self, result: TurnResult, budget: Budget) -> None:
-        """Refuse the turn out loud — no provider call is made."""
+    async def refuse_for_budget(self, result: TurnResult, budget: Budget,
+                                speak=None) -> None:
+        """Refuse the turn out loud — no provider call is made. `speak` lets
+        the caller route the refusal through the turn's continuous voice (v7)
+        so it queues behind any audio already playing; default is self.speak."""
         result.budget_blocked = True
         logger.warning(
             "[orchestrator] budget gate closed (%.6f / %.2f USD spent) — "
             "turn refused, no provider call",
             budget.spent_today_usd(), budget.daily_limit_usd,
         )
-        await self.speak(BUDGET_REFUSAL_AR)
+        await (speak or self.speak)(BUDGET_REFUSAL_AR)
 
 
 __all__ = ["VoiceOut", "CAPTIONS_ENV"]

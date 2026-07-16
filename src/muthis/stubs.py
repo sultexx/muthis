@@ -11,8 +11,9 @@ deleted from this file; when the file is empty, archive it.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
+from .file_reader import FILE_READ_UNAVAILABLE_AR
 from .turn import DownscaledImage, PhysicalBBox
 
 logger = logging.getLogger("muthis.stubs")
@@ -46,6 +47,16 @@ async def stub_screen_capture() -> Optional[bytes]:
     # STUB — replaced in a later phase (vision/screen_capture.py).
     logger.info("[stub:screen_capture] no screenshot available yet")
     return None
+
+
+async def stub_read_file(args: dict[str, Any]) -> str:
+    # STUB default (v7 Phase 4) — production injects the REAL
+    # muthis.file_reader.FileReader().read (same ReadFileFn shape). Returns
+    # the Arabic unavailable note so a read_local_file call in stub mode is
+    # paired honestly and the turn continues. Never logs file content.
+    logger.info("[stub:read_file] file reading unavailable in stub mode (%d args)",
+                len(args or {}))
+    return FILE_READ_UNAVAILABLE_AR
 
 
 async def stub_downscale(screenshot: Optional[bytes]) -> DownscaledImage:
@@ -86,4 +97,4 @@ stub_overlay = StubOverlay()
 
 
 __all__ = ["stub_mic", "stub_stt", "stub_tts", "stub_screen_capture",
-           "stub_downscale", "stub_overlay", "StubOverlay"]
+           "stub_downscale", "stub_overlay", "stub_read_file", "StubOverlay"]

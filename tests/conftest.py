@@ -43,5 +43,10 @@ def _clear_cloud_tts_env(monkeypatch):
         "MUTHIS_CAPTIONS",
         # Cinematic-spotlight knobs (v6 D) — default OFF / alpha 0.30.
         "MUTHIS_FOCUS_DIM", "MUTHIS_FOCUS_ALPHA",
+        # Whiteboard rollback flag (v7 Phase 2) — cleared so the documented
+        # default (ON) holds deterministically.
+        "MUTHIS_WHITEBOARD",
+        # Barge-in rollback flag (v7 Phase 3) — cleared, documented default ON.
+        "MUTHIS_BARGE_IN",
     ):
         monkeypatch.delenv(var, raising=False)

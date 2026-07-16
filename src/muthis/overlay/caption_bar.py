@@ -86,16 +86,42 @@ class CaptionBar:
         canvas,
         screen_size: tuple[int, int],
         style: Optional[OverlayStyle] = None,
+        schedule=None,
     ) -> None:
         self._canvas = canvas
         self._screen_width, self._screen_height = screen_size
         # Injected for tuning/tests; from_env() is the graceful neon fallback.
         self._style = style or OverlayStyle.from_env()
+        # v7 Phase 2 caption sync: `schedule` is root.after — show_text_later
+        # paces a streamed sentence's caption to its AUDIO. None → immediate.
+        self._schedule = schedule
+        self._generation = 0  # clear() bumps it, orphaning pending shows
+
+    def show_text_later(self, text: str, delay_ms: int) -> None:
+        """Show `text` after `delay_ms` on the Tk thread (v7 Phase 2, the
+        caption↔audio sync fix): streamed sentences arrive at text-generation
+        speed, far ahead of their audio — the caller computes each sentence's
+        estimated audio start and the bar holds the display until then.
+        Several later-shows may be pending at once (one per queued sentence);
+        clear() — audio end, ghosting hide, a dead sentence — cancels them ALL
+        so a wiped bar can never resurrect stale speech text."""
+        if self._schedule is None or delay_ms <= 0:
+            self.show_text(text)
+            return
+        generation = self._generation
+
+        def fire() -> None:
+            if generation == self._generation:  # not cancelled by a clear()
+                self.show_text(text)
+
+        self._schedule(max(0, int(delay_ms)), fire)
 
     def show_text(self, text: str) -> None:
         """Replace the bar's content with `text` (wrapped, ≤2 lines). An empty
-        text just clears — the bar never renders an empty chip."""
-        self.clear()
+        text just wipes — the bar never renders an empty chip. NOTE: replacing
+        must NOT bump the cancel generation (a firing sentence would orphan
+        its queued siblings) — only the explicit clear() cancels."""
+        self._canvas.delete(CAPTION_TAG)
         wrapped = wrap_caption(text)
         if not wrapped:
             return
@@ -121,8 +147,11 @@ class CaptionBar:
         self._canvas.tag_lower(plate_id, text_id)  # plate under the text
 
     def clear(self) -> None:
-        """Erase ONLY the caption items (audio finished / hide-ghosting path).
-        A no-op when nothing is shown; the other layers are never touched."""
+        """Erase ONLY the caption items (audio finished / hide-ghosting path /
+        a dead sentence) AND cancel every pending show_text_later — a wiped
+        bar must never resurrect stale speech text. A no-op when nothing is
+        shown; the other layers are never touched."""
+        self._generation += 1
         self._canvas.delete(CAPTION_TAG)
 
 

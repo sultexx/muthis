@@ -1,0 +1,177 @@
+# src/muthis/file_reader.py
+"""
+FileReader — the read_local_file LOOK-tier tool (v7 Phase 4, the Pedagogical
+Analyzer).
+
+Mut'his can now READ a local text file (code / SQL / config / notes) so his
+explanation is grounded in the file's REAL content instead of squinting at
+screenshot pixels. Reading is PASSIVE — it moves nothing, clicks nothing,
+types nothing, writes nothing — so the LOOK-only action boundary (no
+click/type/press/clipboard) is untouched; this is a perception tool like
+request_screen_refresh, and like it, it never flips the draw gate.
+
+SAFETY GATES (the model chooses the path, so the reader must be defensive):
+  * SECRET-BEARING names are refused by NAME on the raw AND resolved path
+    (symlink armor): .env / .env.* / key material (.pem/.key/.pfx/...) /
+    id_rsa* / .netrc / credentials — their content must never enter the
+    conversation (it would ride to the provider with the next request).
+  * BINARY files are refused (NUL sniff in the head) — this is a TEXT reader.
+  * SIZE is bounded twice: files over `max_bytes` are refused outright, and
+    the returned text is capped at `max_chars` with an Arabic truncation note
+    telling the model to request a line range instead.
+  * NEVER raises — every failure returns a short Arabic tool_result note
+    (the NO_SCREENSHOT_TOOL_RESULT_AR precedent); the turn always continues.
+
+PRIVACY (Law: no content logging): logs carry the path and the outcome in
+English only — never a byte of file content.
+
+Content format: 1-based numbered lines ("   12 | ...") so the model can say
+"السطر ١٢" and aim its whiteboard rectangles at the lines it is analyzing.
+
+Pure stdlib (asyncio/logging/pathlib); importable in isolation. The blocking
+I/O runs via asyncio.to_thread (the screen_capture convention). stubs.py owns
+the logging stub default; main.py injects `FileReader().read`.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Optional
+
+logger = logging.getLogger("muthis.file_reader")
+
+# The tool name — the schema literal in cloud/tool_schemas.py must match.
+READ_FILE_TOOL = "read_local_file"
+
+# The orchestrator's injected seam shape (production: FileReader().read).
+ReadFileFn = Callable[[dict[str, Any]], Awaitable[str]]
+
+# Hard ceilings: a "teaching file" is small; anything bigger is refused (bytes)
+# or truncated (returned chars ≈ a few thousand tokens, budget-friendly).
+MAX_FILE_BYTES = 2_000_000
+MAX_RETURN_CHARS = 16_000
+
+# Secret-bearing names, matched case-insensitively on BOTH the raw and the
+# RESOLVED path name (a symlink must not launder a blocked target).
+BLOCKED_NAMES = frozenset({".env", ".netrc", ".npmrc", ".pypirc", ".git-credentials"})
+BLOCKED_PREFIXES = (".env.", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", "credentials")
+BLOCKED_SUFFIXES = frozenset({".pem", ".key", ".pfx", ".p12", ".der", ".kdbx", ".keystore"})
+
+# ─── Model-facing Arabic tool_result surfaces (logs stay English) ─────────────
+
+FILE_NOT_FOUND_AR = "ما لقيت الملف «{path}». تأكد من المسار الكامل واطلب القراءة من جديد."
+FILE_BLOCKED_AR = "هذا الملف من ملفات الأسرار (مفاتيح/بيانات اعتماد) وقراءته ممنوعة حمايةً للمستخدم."
+FILE_TOO_LARGE_AR = "الملف أكبر من الحد المسموح للقراءة. اطلب من المستخدم يفتح الجزء المطلوب أو حدّد ملفاً أصغر."
+FILE_NOT_TEXT_AR = "هذا ملف ثنائي (غير نصّي) وما أقدر أقرأه كنص."
+FILE_READ_ERROR_AR = "صار خطأ أثناء قراءة الملف، جرّب مرة ثانية أو تأكد من الصلاحيات."
+FILE_READ_UNAVAILABLE_AR = "قراءة الملفات غير متاحة في هذا الوضع."
+# A second read_local_file in the SAME pass — the same internal-directive
+# family as the draw acks: answer from what you already have, explain now.
+FILE_ALREADY_READ_AR = (
+    "(توجيه داخلي من النظام — هذا النص ليس من المستخدم ولا يراه ولا يُقرأ "
+    "بصوت عالٍ): قرأت ملفاً في هذه الجولة قبل قليل. لا تكرر القراءة — استخدم "
+    "المحتوى اللي عندك وكمّل الشرح الآن."
+)
+TRUNCATION_NOTE_AR = (
+    "\n(القراءة مقصوصة عند الحد الأقصى — اطلب read_local_file مرة ثانية مع "
+    "start_line و end_line للجزء اللي يهمّك.)"
+)
+
+
+def _blocked_name(name: str) -> bool:
+    lowered = name.lower()
+    return (
+        lowered in BLOCKED_NAMES
+        or lowered.startswith(BLOCKED_PREFIXES)
+        or Path(lowered).suffix in BLOCKED_SUFFIXES
+    )
+
+
+def _int_arg(args: dict[str, Any], key: str) -> Optional[int]:
+    """A best-effort int (the model occasionally sends "12"); None on garbage."""
+    value = args.get(key)
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+class FileReader:
+    """The read_local_file executor: safety gates → decode → numbered lines.
+    One per process at the composition root; stateless between calls."""
+
+    def __init__(self, *, max_bytes: int = MAX_FILE_BYTES,
+                 max_chars: int = MAX_RETURN_CHARS) -> None:
+        self._max_bytes = max_bytes
+        self._max_chars = max_chars
+
+    async def read(self, args: dict[str, Any]) -> str:
+        """The ReadFileFn seam: tool args in, Arabic-noted content out. The
+        blocking file I/O runs off-loop; NEVER raises (a failed read must
+        degrade the pass, not kill the turn)."""
+        try:
+            return await asyncio.to_thread(self._read_blocking, args)
+        except Exception as exc:  # noqa: BLE001 — the turn must survive any I/O surprise
+            logger.warning("[file_reader] read failed (%s: %s)", type(exc).__name__, exc)
+            return FILE_READ_ERROR_AR
+
+    # ───────────────────────────── Internals ─────────────────────────────
+
+    def _read_blocking(self, args: dict[str, Any]) -> str:
+        raw = str(args.get("path") or "").strip().strip('"')
+        if not raw:
+            logger.info("[file_reader] refused: empty path")
+            return FILE_NOT_FOUND_AR.format(path="")
+        path = Path(raw).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        if _blocked_name(path.name):
+            logger.info("[file_reader] refused secret-bearing name: %s", path)
+            return FILE_BLOCKED_AR
+        if not path.is_file():
+            logger.info("[file_reader] not found: %s", path)
+            return FILE_NOT_FOUND_AR.format(path=raw)
+        resolved = path.resolve()
+        if _blocked_name(resolved.name):  # symlink armor: judge the real target
+            logger.info("[file_reader] refused secret-bearing target: %s", resolved)
+            return FILE_BLOCKED_AR
+        if resolved.stat().st_size > self._max_bytes:
+            logger.info("[file_reader] refused oversize file: %s", resolved)
+            return FILE_TOO_LARGE_AR
+        data = resolved.read_bytes()
+        if b"\x00" in data[:4096]:
+            logger.info("[file_reader] refused binary file: %s", resolved)
+            return FILE_NOT_TEXT_AR
+        text = data.decode("utf-8-sig", errors="replace")
+        body, start, end, total = self._numbered_slice(text, args)
+        logger.info("[file_reader] read %s lines %d-%d of %d", resolved, start, end, total)
+        header = f"محتوى الملف {resolved.name} (الأسطر {start}-{end} من {total}):"
+        return f"{header}\n{body}"
+
+    def _numbered_slice(self, text: str, args: dict[str, Any]) -> tuple[str, int, int, int]:
+        """1-based numbered lines for the requested range (whole file when no
+        range), char-capped at a line boundary with the truncation note."""
+        lines = text.splitlines() or [""]
+        total = len(lines)
+        start = _int_arg(args, "start_line") or 1
+        end = _int_arg(args, "end_line") or total
+        if end < start:
+            start, end = end, start
+        start = min(max(start, 1), total)
+        end = min(max(end, 1), total)
+        numbered = [f"{i:>5} | {line}" for i, line in enumerate(lines[start - 1:end], start)]
+        body = "\n".join(numbered)
+        if len(body) > self._max_chars:
+            body = body[:self._max_chars].rsplit("\n", 1)[0] + TRUNCATION_NOTE_AR
+        return body, start, end, total
+
+
+__all__ = [
+    "FileReader", "ReadFileFn", "READ_FILE_TOOL",
+    "MAX_FILE_BYTES", "MAX_RETURN_CHARS",
+    "FILE_NOT_FOUND_AR", "FILE_BLOCKED_AR", "FILE_TOO_LARGE_AR",
+    "FILE_NOT_TEXT_AR", "FILE_READ_ERROR_AR", "FILE_READ_UNAVAILABLE_AR",
+    "FILE_ALREADY_READ_AR", "TRUNCATION_NOTE_AR",
+]

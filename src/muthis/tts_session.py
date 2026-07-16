@@ -72,6 +72,9 @@ class SpeechSession:
         self._api_key = api_key
         self._uri = build_uri(voice_id, model_id, output_format)
         self._settings = voice_settings or dict(DEFAULT_VOICE_SETTINGS)
+        # v7 Fix A: only the FIRST sentence forces generation (fast first audio);
+        # afterwards ElevenLabs owns the chunking via the BOS chunk_length_schedule.
+        self._first_feed = True
         self._connect = ws_connect or default_ws_connect
         self._player_factory = player_factory or (lambda: PcmStreamPlayer(sample_rate))
         self._close_timeout = close_timeout_sec
@@ -80,6 +83,34 @@ class SpeechSession:
         self._player = None
         self._reader: Optional[asyncio.Task] = None
         self._error: Optional[BaseException] = None
+
+    async def abort(self) -> None:
+        """Barge-in (v7 Phase 3): silence NOW — no EOS, no reader drain, no
+        player tail. Cancels the bounded reader task, drops the socket, then
+        aborts the player mid-chunk (queued audio discarded). Never raises;
+        every decision-15 fallback is the CALLER's to mute (TurnVoice.interrupt
+        marks the turn closed BEFORE calling this)."""
+        reader = self._reader
+        if reader is not None and not reader.done():
+            reader.cancel()
+            try:
+                await reader
+            except BaseException:  # noqa: BLE001 — the cancellation is the point
+                pass
+        await self._abandon_ws()
+        if self._player is not None:
+            player_abort = getattr(self._player, "abort", None)  # duck-typed fakes
+            if player_abort is not None:
+                await player_abort()
+
+    def played_seconds(self) -> float:
+        """Seconds of this generation's audio the user has heard so far —
+        the caption pacer's clock (v7 Phase 2), straight from the player.
+        0.0 before the player exists or before its first device write."""
+        if self._player is None:
+            return 0.0
+        played = getattr(self._player, "played_seconds", None)
+        return played() if played is not None else 0.0
 
     @property
     def got_audio(self) -> bool:
@@ -99,6 +130,11 @@ class SpeechSession:
             await self._ws.send(json.dumps({
                 "text": " ",
                 "voice_settings": self._settings,
+                # v7 Fix A (measured, diag 2026-07-15): per-feed forced generation
+                # baked pauses INTO the audio at every fed boundary. This schedule
+                # hands chunking to ElevenLabs, which buffers ACROSS feeds with
+                # lookahead — prosody stays continuous between sentences.
+                "generation_config": {"chunk_length_schedule": [90, 160, 250, 290]},
                 "xi_api_key": self._api_key,
             }))
         except BaseException:
@@ -108,16 +144,33 @@ class SpeechSession:
         self._player.start()
         self._reader = asyncio.create_task(self._read_audio())
 
-    async def feed(self, sentence: str) -> None:
+    async def feed(self, sentence: str, *, flush: bool = False) -> None:
         """One sentence into the SAME generation — diacritized on a COPY
-        (speech-only; the caller's clean text is untouched). Raises on a dead
-        session/connection so the caller degrades to buffered speak()."""
+        (speech-only; the caller's clean text is untouched). `flush=True` is
+        for a COMPLETE utterance (the pass-1 ack, a buffered pass text):
+        ElevenLabs synthesizes the buffer NOW instead of holding it under the
+        chunk-length schedule — measured (v7.1): a 4-char «أبشر» ack sat ~2.6 s
+        below the 90-char floor, defeating the gap mask; a flush boundary
+        between separate utterances is natural. Streamed mid-pass sentences
+        must NOT flush (per-feed forcing was the baked-pauses bug, Fix A).
+        Raises on a dead session/connection so the caller degrades to
+        buffered speak()."""
         if self._error is not None:
             raise RuntimeError(f"speech session already failed: {self._error}")
-        await self._ws.send(json.dumps({
-            "text": apply_diacritics(sentence) + " ",
-            "try_trigger_generation": True,
-        }))
+        payload: dict = {"text": apply_diacritics(sentence) + " "}
+        if flush:
+            payload["flush"] = True
+        if self._first_feed:
+            # First audio of a SEGMENT should not wait for the 90-char schedule
+            # floor; later sentences of the segment must NOT force chunk
+            # boundaries (the measured baked pauses).
+            payload["try_trigger_generation"] = True
+        # A flush ends the generation segment, so the NEXT feed opens a new one
+        # and re-triggers (v7.2, measured starvation fix: after the flushed ack
+        # the explanation's first sentence sat on ElevenLabs' buffer — its
+        # boundary lands on the piece's own ender/comma, a natural pause).
+        self._first_feed = bool(flush)
+        await self._ws.send(json.dumps(payload))
 
     async def close(self) -> None:
         """EOS → drain the reader under a timeout (cancel on expiry) → release

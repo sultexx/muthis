@@ -29,6 +29,7 @@ import asyncio
 import logging
 import queue
 import threading
+import time
 from typing import Callable, Optional
 
 logger = logging.getLogger("tts")
@@ -65,12 +66,30 @@ class PcmStreamPlayer:
         self._thread: Optional[threading.Thread] = None
         self._error: Optional[BaseException] = None
         self._got_audio = False
+        # Playback horizon (worker-thread-owned, read-only elsewhere): when
+        # the first chunk hit the device and how many PCM seconds followed.
+        self._first_write_t: Optional[float] = None
+        self._audio_written_s = 0.0
+        # Barge-in (v7 Phase 3): abort() flips this and unblocks the worker.
+        self._aborted = False
+        self._stream = None  # the live device stream, for the cross-thread abort
 
     @property
     def got_audio(self) -> bool:
         """True once at least one non-empty chunk was fed — lets the caller treat
         a silent stream as a failure and fall back."""
         return self._got_audio
+
+    def played_seconds(self) -> float:
+        """Estimated seconds of audio the user has HEARD so far (v7 Phase 2 —
+        the caption pacer's clock): wall time since the first device write,
+        with starvation gaps excluded (the worker re-anchors the horizon past
+        them), capped at the PCM actually written. 0.0 before audio starts.
+        Loop-safe: plain float reads of worker-owned fields."""
+        first_write = self._first_write_t
+        if first_write is None:
+            return 0.0
+        return min(time.monotonic() - first_write, self._audio_written_s)
 
     def start(self) -> None:
         """Spawn the worker thread (it opens the stream and drains the queue)."""
@@ -100,21 +119,86 @@ class PcmStreamPlayer:
         if self._error is not None:
             raise self._error
 
+    async def abort(self) -> None:
+        """Barge-in (v7 Phase 3): drop ALL queued audio and stop the device
+        NOW. Pa_AbortStream discards buffered audio immediately (stop() would
+        drain it) and is documented thread-safe — the ONE sanctioned
+        cross-thread stream call in this codebase; it also unblocks a
+        mid-chunk write, whose worker then sees _aborted and exits WITHOUT
+        draining. Idempotent; never raises (silencing must always succeed)."""
+        self._aborted = True
+        self._queue.put(_EOS)             # unblock a queue.get() wait
+        stream = self._stream
+        if stream is not None:
+            try:
+                stream.abort()
+            except Exception:  # noqa: BLE001 — already stopping; nothing to save
+                pass
+        thread = self._thread
+        if thread is not None:
+            await asyncio.to_thread(thread.join)
+            self._thread = None
+
     def _run(self) -> None:
         """Worker thread: open the stream, write chunks FIFO until EOS, then stop()
         — PortAudio's Pa_StopStream waits for pending audio to play, so the tail is
         never clipped. Any error is captured and surfaced via finish()."""
+        # first_write_t + audio_written_s form the playback horizon
+        # (first_write + seconds of PCM written). If the wall clock passes
+        # that horizon while we are still waiting on the queue, the device had
+        # nothing left to play — an audible gap (starvation). They live on
+        # self so played_seconds() (the caption pacer, v7 Phase 2) can read
+        # them from the asyncio side (float reads are GIL-atomic).
         try:
             with self._stream_factory(self._sample_rate, self._channels) as stream:
+                self._stream = stream            # visible to the cross-thread abort
                 while True:
                     chunk = self._queue.get()
-                    if chunk is _EOS:
+                    if chunk is _EOS or self._aborted:
                         break
-                    stream.write(chunk)
-                stream.stop()  # drain pending audio before the context closes
+                    now = time.monotonic()
+                    if self._first_write_t is None:
+                        self._first_write_t = now
+                    else:
+                        deficit_s = now - (self._first_write_t + self._audio_written_s)
+                        if deficit_s > 0.02:
+                            # A starvation gap: re-anchor the playback horizon
+                            # past it so played_seconds() never counts silence
+                            # as speech (the caption pacer's clock, v7 Phase 2).
+                            self._first_write_t += deficit_s
+                    self._audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
+                    try:
+                        stream.write(chunk)
+                    except Exception:
+                        if self._aborted:
+                            break        # Pa_AbortStream unblocked the write — clean exit
+                        raise
+                if not self._aborted:
+                    stream.stop()  # drain pending audio before the context closes
         except BaseException as exc:  # noqa: BLE001 — surfaced to the caller via finish()
-            self._error = exc
-            logger.warning("[tts] PCM stream player failed: %s", exc)
+            if self._aborted:
+                logger.info("[tts] player stream closed during abort (expected)")
+            else:
+                self._error = exc
+                logger.warning("[tts] PCM stream player failed: %s", exc)
+        finally:
+            self._stream = None          # the abort path must never touch a dead stream
 
 
-__all__ = ["PcmStreamPlayer"]
+async def play_clip(player, pcm: bytes) -> None:
+    """Feed ONE complete PCM clip and drain it — the collect-then-play path
+    (the Gemini fallback) routed through the SAME abortable player as the
+    streaming path (v1.0-RC2, UAT bug 1: the old winsound sync clip was
+    UNSTOPPABLE — a barged-in fallback played to its end over the next turn).
+    A CANCELLATION aborts the device (queued audio discarded, ~100 ms to
+    silence); playback errors re-raise so the caller can degrade."""
+    player.start()
+    player.feed(pcm)
+    try:
+        await player.finish()
+    except asyncio.CancelledError:
+        await player.abort()     # barge-in: silence NOW, drop the tail
+        raise
+
+
+__all__ = ["PcmStreamPlayer", "play_clip"]

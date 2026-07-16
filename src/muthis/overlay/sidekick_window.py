@@ -47,16 +47,11 @@ TRANSPARENT_KEY = "#FF00FF"
 # How often (ms) the Tk thread drains the command queue from inside the mainloop.
 _QUEUE_POLL_MS = 10
 
-# Win32 constants for the click-through ex-styles.
-_GWL_EXSTYLE = -20
-_WS_EX_LAYERED = 0x00080000
-_WS_EX_TRANSPARENT = 0x00000020
-_WS_EX_NOACTIVATE = 0x08000000
-_WS_EX_TOOLWINDOW = 0x00000080
 
-
-# The command dispatcher was EXTRACTED to window_commands.py (v6 Phase C0 —
-# this file sat at 299 lines); re-exported here so old imports keep working.
+# The command dispatcher was EXTRACTED to window_commands.py (v6 Phase C0) and
+# the Win32 DPI/click-through glue to win32_glue.py (v7 Phase 2) — this file
+# lives AT the 300-line ceiling; names re-exported so old imports keep working.
+from .win32_glue import apply_click_through, set_dpi_awareness  # noqa: F401
 from .window_commands import _bbox_center, dispatch_command  # noqa: F401
 
 
@@ -111,12 +106,30 @@ class SidekickOverlay:
         non-blocking — _capture_downscaled calls it right before the grab."""
         self._enqueue(("clear_status_light",))
 
+    def dim_screen(self) -> None:
+        """WHITEBOARD (v7 Phase 2): fade the whole screen dark behind a
+        concept drawing. SYNC fire-and-forget enqueue — the fade itself runs
+        entirely on the Tk thread (the Phase-1 thread-safety rule)."""
+        self._enqueue(("dim_screen",))
+
+    def undim_screen(self) -> None:
+        """Lights back on (speech end): fade the whiteboard dim out. SYNC
+        fire-and-forget enqueue; the ghosting hide() path stays instant."""
+        self._enqueue(("undim_screen",))
+
     def show_caption(self, text: str) -> None:
         """Live captions (v6 C): show `text` on the bottom-center caption bar.
         SYNC fire-and-forget like set_state — called from the asyncio side via
         the VoiceOut boundary (assistant speech ONLY); the enqueue is
         thread-safe and never blocks."""
         self._enqueue(("show_caption", text))
+
+    def show_caption_later(self, text: str, delay_ms: int) -> None:
+        """Audio-paced captions (v7 Phase 2 sync fix): show `text` after
+        `delay_ms` — scheduled ON the Tk thread via the CaptionBar, so a
+        streamed sentence's caption appears with its AUDIO, not at text-
+        generation speed. A clear_caption()/hide() cancels pending shows."""
+        self._enqueue(("show_caption_later", text, delay_ms))
 
     def clear_caption(self) -> None:
         """Drop the caption bar (audio finished). The hide() path also clears
@@ -156,14 +169,15 @@ class SidekickOverlay:
             import tkinter as tk
 
             from .caption_bar import CaptionBar
-            from .focus_dimmer import build_focus_dimmer, focus_dim_enabled
+            from .focus_dimmer import (build_focus_dimmer, focus_dim_enabled,
+                                       whiteboard_enabled)
             from .pointer_animator import PointerAnimator
             from .pointer_widget import PointerWidget
             from .rectangle_widget import RectangleWidget
             from .shapes_widget import ShapesWidget
             from .status_indicator import StatusIndicator
 
-            self._set_dpi_awareness()
+            set_dpi_awareness()
             root = tk.Tk()
             self._configure_window(root)
             # Resolve the neon style ONCE on the Tk thread and share it across
@@ -187,20 +201,23 @@ class SidekickOverlay:
                 screen_size=screen_size,
             )
             status.start()
-            # Live captions (v6 C): same shared canvas, bottom-center chip.
-            caption = CaptionBar(rect.canvas, screen_size, style=style)
-            self._apply_click_through(root)
-            # Cinematic spotlight (v6 D): its OWN dim Toplevel (alpha on the
-            # neon window would dim the neon itself), built only when the
-            # .env flag opts in; a dimmer failure never kills the overlay —
-            # the spotlight is optional, the rectangle is not.
+            # Live captions (v6 C): same shared canvas, bottom-center chip;
+            # root.after powers the audio-paced later-shows (v7 Phase 2).
+            caption = CaptionBar(rect.canvas, screen_size, style=style,
+                                 schedule=root.after)
+            apply_click_through(root)
+            # Cinematic spotlight (v6 D) + WHITEBOARD (v7 Phase 2): its OWN
+            # dim Toplevel (alpha on the neon window would dim the neon
+            # itself), built when EITHER feature wants it; a dimmer failure
+            # never kills the overlay — the dim is optional, the neon is not.
             dimmer = None
-            if focus_dim_enabled():
+            spotlight = focus_dim_enabled()  # highlight-dim policy, resolved once
+            if spotlight or whiteboard_enabled():
                 try:
-                    dimmer = build_focus_dimmer(root, self._apply_click_through)
+                    dimmer = build_focus_dimmer(root, apply_click_through)
                 except Exception:
                     logger.exception(
-                        "[overlay] focus dimmer init failed — spotlight disabled")
+                        "[overlay] focus dimmer init failed — dim disabled")
         except Exception:  # headless / Tk missing / Win32 quirk — degrade quietly
             logger.exception("[overlay] window init failed — overlay disabled")
             self._dead = True
@@ -213,7 +230,7 @@ class SidekickOverlay:
                     if not dispatch_command(
                         command, rect=rect, pointer=pointer, animator=animator,
                         shapes=shapes_widget, status=status, caption=caption,
-                        dimmer=dimmer,
+                        dimmer=dimmer, spotlight_on=spotlight,
                     ):
                         root.destroy()
                         return
@@ -223,8 +240,21 @@ class SidekickOverlay:
 
         root.after(_QUEUE_POLL_MS, _drain)
         root.mainloop()
+        # Teardown thread-affinity (measured live: the process ABORTED at exit
+        # with "Tcl_AsyncDelete: async handler deleted by the wrong thread").
+        # root.destroy() already ran on THIS thread, but the Tcl interpreter
+        # handle inside the Tk object is only released when its Python wrapper
+        # is garbage-collected — which otherwise happens on the MAIN thread at
+        # interpreter shutdown. Drop every widget/root reference and collect
+        # HERE, so Tcl dies on the one thread that owns it. Never raises.
+        try:
+            del _drain, dimmer, caption, status, animator, shapes_widget, pointer, rect, root
+            import gc
+            gc.collect()
+        except Exception:  # noqa: BLE001 — teardown must never crash the thread
+            logger.exception("[overlay] teardown GC failed (harmless at exit)")
 
-    # ───────────────────────────── Win32 glue ─────────────────────────────
+    # ───────────────────────────── Window setup ─────────────────────────────
 
     def _configure_window(self, root) -> None:
         """Borderless, always-on-top, primary-monitor-sized, color-keyed."""
@@ -235,39 +265,6 @@ class SidekickOverlay:
         width = root.winfo_screenwidth()     # physical px (process is DPI-aware)
         height = root.winfo_screenheight()
         root.geometry(f"{width}x{height}+0+0")
-
-    def _set_dpi_awareness(self) -> None:
-        """Per-monitor-v2 so PHYSICAL coords map 1:1 on a scaled display.
-        Idempotent: a prior call (e.g. screen_capture) just makes this a no-op."""
-        import ctypes
-
-        try:
-            ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)  # PER_MONITOR_AWARE_V2
-            return
-        except Exception:
-            pass
-        try:
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_AWARE
-        except Exception:
-            logger.warning(
-                "[overlay] could not set DPI awareness — coords may drift on "
-                "scaled displays")
-
-    def _apply_click_through(self, root) -> None:
-        """OR the click-through / no-activate ex-styles onto the toplevel so the
-        whole window passes the mouse straight to the app beneath."""
-        import ctypes
-
-        user32 = ctypes.windll.user32
-        root.update_idletasks()  # realize the HWND first
-        # GetParent reaches the real OS toplevel; fall back to the Tk id if a
-        # borderless window has no wrapper parent.
-        hwnd = user32.GetParent(root.winfo_id()) or root.winfo_id()
-        get_long = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
-        set_long = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
-        style = get_long(hwnd, _GWL_EXSTYLE)
-        set_long(hwnd, _GWL_EXSTYLE,
-                 style | _WS_EX_LAYERED | _WS_EX_TRANSPARENT | _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW)
 
 
 __all__ = ["SidekickOverlay", "dispatch_command"]

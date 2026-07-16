@@ -179,7 +179,9 @@ def test_draw_shapes_schema_registered_and_reexported():
     from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
     assert reexported is LOOK_ONLY_TOOLS  # claude_agent re-export intact
     names = [t["name"] for t in LOOK_ONLY_TOOLS]
-    assert names == ["highlight_target", "draw_shapes", "request_screen_refresh"]
+    # v7 Phase 4 appended read_local_file (READ-ONLY perception tool).
+    assert names == ["highlight_target", "draw_shapes",
+                     "request_screen_refresh", "read_local_file"]
     schema = next(t for t in LOOK_ONLY_TOOLS
                   if t["name"] == "draw_shapes")["input_schema"]
     assert schema["required"] == ["shapes"]
@@ -395,3 +397,84 @@ def test_parse_shapes_args_accepts_step_and_drops_malformed_steps():
         {"kind": "step", "x1": 5, "y1": 6, "x2": 7},                # missing y2
     ]})
     assert parsed == (Shape(kind="step", points=(1.0, 2.0, 3.0, 4.0)),)
+
+
+# ─────────────── v7 Phase 2: the WHITEBOARD (dim_screen) ───────────────
+
+
+class WhiteboardOverlay(FakeShapesOverlay):
+    """FakeShapesOverlay + the duck-typed whiteboard seams, with an order log
+    proving dim → draw → (speech) → undim."""
+
+    def __init__(self):
+        super().__init__()
+        self.log = []
+
+    def dim_screen(self):
+        self.log.append("dim")
+
+    def undim_screen(self):
+        self.log.append("undim")
+
+    async def draw_shapes(self, shapes):
+        await super().draw_shapes(shapes)
+        self.log.append("draw")
+
+
+def _whiteboard_call(tid="toolu_w1"):
+    return ToolCall(name="draw_shapes", tool_use_id=tid,
+                    args={"dim_screen": True, "shapes": THREE_SHAPES})
+
+
+def test_schema_carries_the_whiteboard_flag():
+    from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
+    schema = next(t for t in LOOK_ONLY_TOOLS if t["name"] == "draw_shapes")
+    assert schema["input_schema"]["properties"]["dim_screen"]["type"] == "boolean"
+    assert schema["input_schema"]["required"] == ["shapes"]   # dim stays optional
+    # The description must teach WHEN: concepts → whiteboard; the user's own
+    # content stays undimmed.
+    assert "WHITEBOARD" in schema["description"]
+    assert "CONCEPT" in schema["description"]
+
+
+@pytest.mark.asyncio
+async def test_whiteboard_turn_dims_draws_then_undims_at_turn_end(tmp_path):
+    overlay = WhiteboardOverlay()
+    reasoner = FakeReasoner(_draw_then_explain_scripts(_whiteboard_call()))
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    result = await orchestrator.run_turn("اشرح لي المفهوم بالرسم")
+
+    # The board forms BEFORE the chalk lands, and the lights come back on
+    # exactly once at turn end (speech end) — after the explanation pass.
+    assert overlay.log == ["dim", "draw", "undim"]
+    assert len(overlay.shape_draws) == 1
+    assert reasoner.tool_choices == ["auto", "none"]  # two-pass discipline intact
+    assert "dim_screen" not in result.spoken_text     # tool args never spoken
+
+
+@pytest.mark.asyncio
+async def test_flat_draw_shapes_never_dims_or_undims(tmp_path):
+    overlay = WhiteboardOverlay()
+    reasoner = FakeReasoner(
+        _draw_then_explain_scripts(_draw_shapes(THREE_SHAPES)))
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    await orchestrator.run_turn("علّم على المثلث")
+
+    # No dim_screen in the args → full-context annotation, no board.
+    assert overlay.log == ["draw"]
+
+
+@pytest.mark.asyncio
+async def test_whiteboard_on_an_overlay_without_dim_seams_never_crashes(tmp_path):
+    # StubOverlay/old fakes have neither dim_screen nor undim_screen — the
+    # whiteboard degrades to a flat drawing and the turn completes normally.
+    overlay = FakeShapesOverlay()
+    reasoner = FakeReasoner(_draw_then_explain_scripts(_whiteboard_call()))
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    result = await orchestrator.run_turn("اشرح لي المفهوم بالرسم")
+
+    assert len(overlay.shape_draws) == 1              # the drawing still landed
+    assert result.stop_reason == "end_turn"

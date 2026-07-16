@@ -58,7 +58,11 @@ class HighlightGate:
 HIGHLIGHT_ACK_TEXT_AR = (
     "توجيه داخلي (لا يراه المستخدم): المؤشّر صار ظاهراً على العنصر. الآن قدّم "
     "شرحك مباشرةً — ما هو هذا العنصر وما وظيفته ولماذا — وابدأ بالمعلومة من أول "
-    "كلمة بدون أي مقدمة أو تأكيد (لا \"أبشر\"، ولا \"أشرت لك\"، ولا \"تم\")."
+    "كلمة بدون أي مقدمة أو تأكيد (لا \"أبشر\"، ولا \"أشرت لك\"، ولا \"تم\"). "
+    # v1.0-RC2 (UAT bug 2, measured live): pass 2 sometimes came back as the
+    # pass-1 ack VERBATIM and nothing else — name the failure and its cost.
+    "وممنوع أن تكرر كلمات تأكيدك السابقة (\"أبشر، شوف\" ونحوها): ردّ هذا الدور "
+    "هو الشرح نفسه لا غير، وإن لم تقل الشرح الآن فلن يسمع المستخدم شرحاً أبداً."
 )
 # Sent for the SECOND+ highlight_target of a turn (hard backstop): the overlay
 # was NOT redrawn — forbid re-pointing AND force the explanation now (same as
@@ -72,7 +76,9 @@ HIGHLIGHT_ALREADY_SHOWN_AR = (
 SHAPES_ACK_TEXT_AR = (
     "توجيه داخلي (لا يراه المستخدم): الرسم صار ظاهراً على الشاشة. الآن قدّم "
     "شرحك مباشرةً — ما الذي يوضّحه الرسم ولماذا — وابدأ بالمعلومة من أول كلمة "
-    "بدون أي مقدمة أو تأكيد (لا \"أبشر\"، ولا \"رسمت لك\"، ولا \"تم\")."
+    "بدون أي مقدمة أو تأكيد (لا \"أبشر\"، ولا \"رسمت لك\"، ولا \"تم\"). "
+    "وممنوع أن تكرر كلمات تأكيدك السابقة (\"أبشر، شوف\" ونحوها): ردّ هذا الدور "
+    "هو الشرح نفسه لا غير، وإن لم تقل الشرح الآن فلن يسمع المستخدم شرحاً أبداً."
 )
 SHAPES_ALREADY_SHOWN_AR = (
     "الرسم معروض على الشاشة. لا تستدعِ draw_shapes أو highlight_target مرة "
@@ -118,8 +124,19 @@ def loop_tool_choice(gate: HighlightGate) -> str:
     return "none" if gate.drawn else "auto"
 
 
+# v7 Phase 3 (barge-in): the next-turn context note — an INTERNAL directive
+# (the persona's v5-B3 rule: obeyed, never read aloud or quoted) telling the
+# model its previous reply was cut off MID-SPEECH by the user, so it neither
+# assumes the explanation was heard nor takes offense at the interruption.
+INTERRUPTED_NOTE_AR = (
+    "(توجيه داخلي من النظام، ليس من كلام المستخدم ولا يراه: قاطعك المستخدم "
+    "قبل اكتمال نطق ردّك السابق — لبِّ طلبه الجديد مباشرة، واعلم أنه لم "
+    "يسمع شرحك السابق كاملاً.)"
+)
+
+
 __all__ = [
     "HighlightGate", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
-    "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR",
+    "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR", "INTERRUPTED_NOTE_AR",
     "draw_result_text", "highlight_result_text", "loop_tool_choice",
 ]

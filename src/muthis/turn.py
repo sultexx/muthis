@@ -17,10 +17,13 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional, Protocol, runtime_checkable
 
 from .cloud.protocol import ToolCall
+from .file_reader import FILE_ALREADY_READ_AR, FILE_READ_ERROR_AR, READ_FILE_TOOL
 from .highlight_gate import (
     HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR, HighlightGate,
     draw_result_text, highlight_result_text,
 )
+# Bug-3 strip: extracted to history_hygiene.py (≤300-line split); re-exported.
+from .history_hygiene import STALE_SCREENSHOT_NOTE_AR, strip_images_from_history
 from .tts import TTSResult
 
 
@@ -184,13 +187,19 @@ def build_tool_result_message(
     refresh_call: Optional[ToolCall] = None,
     fresh_screenshot: Optional[bytes] = None,
     gate: Optional[HighlightGate] = None,
+    read_result: Optional[tuple[ToolCall, str]] = None,
 ) -> Optional[dict[str, Any]]:
     """ONE user message pairing a tool_result with EVERY tool_use block the
     assistant just emitted (Option B — full pairing). The refresh id (when
     refresh_call is given) is answered with the fresh screenshot — or a text
     note when fresh_screenshot is None (e.g. the follow-up limit was hit).
 
-    Circuit breaker (hard backstop): every non-refresh id is a DRAW tool —
+    read_local_file (v7 Phase 4) is answered by NAME so it can NEVER touch the
+    draw gate: the serviced call (read_result = (call, content)) gets the file
+    content; any OTHER read id in the same pass gets the already-read
+    directive; a read id with NO servicing (legacy caller) gets the error note.
+
+    Circuit breaker (hard backstop): every remaining id is a DRAW tool —
     highlight_target or draw_shapes. With a `gate`, the FIRST one of the turn
     gets its tool's "explain now" ack and flips `gate.drawn` (ONE gate, BOTH
     tools); every later one (this pass or a future one, either tool) gets its
@@ -204,6 +213,7 @@ def build_tool_result_message(
     Lives here (not in claude_agent.py) so the orchestrator stays importable
     without the SDK stack."""
     refresh_id = refresh_call.tool_use_id if refresh_call else None
+    read_id = read_result[0].tool_use_id if read_result else None
     results: list[dict[str, Any]] = []
     for block in assistant_content:
         if block.get("type") != "tool_use":
@@ -211,6 +221,16 @@ def build_tool_result_message(
         tool_use_id = block.get("id")
         if tool_use_id is not None and tool_use_id == refresh_id:
             results.append(_refresh_tool_result_block(tool_use_id, fresh_screenshot))
+        elif block.get("name") == READ_FILE_TOOL:
+            if tool_use_id is not None and tool_use_id == read_id:
+                content = read_result[1]
+            else:
+                content = FILE_ALREADY_READ_AR if read_result else FILE_READ_ERROR_AR
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+            })
         else:
             results.append({
                 "type": "tool_result",
@@ -220,69 +240,6 @@ def build_tool_result_message(
     if not results:
         return None
     return {"role": "user", "content": results}
-
-
-# ─── Bug 3 — strip a request_screen_refresh frame from history after its turn ──
-
-# Replaces a refresh screenshot in STORED history once its turn is over. The fresh
-# frame already reached the model inside its tool_result for the iteration that
-# needed it; persisting the pixels would replay a now-stale view on the NEXT user
-# turn — the app-switch hallucination (still "seeing" a since-closed app). A fresh
-# frame is captured every turn, so nothing of value is lost; the id and the
-# pairing stay intact, only the image bytes are dropped. Not a spoken surface.
-STALE_SCREENSHOT_NOTE_AR = "(لقطة شاشة من دور سابق غير مرفقة)"
-
-
-def _tool_result_has_image(block: dict[str, Any]) -> bool:
-    """True iff `block` is a tool_result whose content list carries an image."""
-    inner = block.get("content")
-    return (
-        block.get("type") == "tool_result"
-        and isinstance(inner, list)
-        and any(b.get("type") == "image" for b in inner)
-    )
-
-
-def _strip_tool_result_images(block: dict[str, Any]) -> dict[str, Any]:
-    """Return a COPY of one tool_result with every image block swapped for a short
-    text note (the original — already sent this turn — is never mutated). Anything
-    that is not an image-bearing tool_result is returned unchanged (same object)."""
-    if not _tool_result_has_image(block):
-        return block
-    note = {"type": "text", "text": STALE_SCREENSHOT_NOTE_AR}
-    stripped = [note if b.get("type") == "image" else b for b in block["content"]]
-    return {**block, "content": stripped}
-
-
-def strip_images_from_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return `history` with every request_screen_refresh screenshot dropped from
-    its tool_result. Called ONCE per turn, AFTER the turn ends: the frame already
-    did its job for the iteration that needed it, and keeping it leaks a stale view
-    into the NEXT user turn (Bug 3 — the app-switch hallucination).
-
-    Structure is preserved EXACTLY — same messages, roles, and tool_use_ids — so
-    every tool_use/tool_result pairing stays valid and no message becomes empty.
-    New dicts are built ONLY for changed blocks; the originals (already handed to
-    earlier run() calls this turn) are never mutated, and an image-free history is
-    returned unchanged (same object)."""
-    def _has_image(message: dict[str, Any]) -> bool:
-        content = message.get("content")
-        return isinstance(content, list) and any(
-            _tool_result_has_image(block) for block in content)
-
-    if not any(_has_image(message) for message in history):
-        return history
-    sanitized: list[dict[str, Any]] = []
-    for message in history:
-        content = message.get("content")
-        if not isinstance(content, list):
-            sanitized.append(message)
-            continue
-        new_content = [_strip_tool_result_images(block) for block in content]
-        sanitized.append(
-            message if new_content == content
-            else {**message, "content": new_content})
-    return sanitized
 
 
 __all__ = [
