@@ -90,6 +90,26 @@ class SpeechSession:
         self._reader: Optional[asyncio.Task] = None
         self._error: Optional[BaseException] = None
 
+    async def abort(self) -> None:
+        """Barge-in (v7 Phase 3): silence NOW — no EOS, no reader drain, no
+        player tail. Cancels the bounded reader task, drops the socket, then
+        aborts the player mid-chunk (queued audio discarded). Never raises;
+        every decision-15 fallback is the CALLER's to mute (TurnVoice.interrupt
+        marks the turn closed BEFORE calling this)."""
+        _diag.info("[DIAG] session abort t=%.3f", time.monotonic())
+        reader = self._reader
+        if reader is not None and not reader.done():
+            reader.cancel()
+            try:
+                await reader
+            except BaseException:  # noqa: BLE001 — the cancellation is the point
+                pass
+        await self._abandon_ws()
+        if self._player is not None:
+            player_abort = getattr(self._player, "abort", None)  # duck-typed fakes
+            if player_abort is not None:
+                await player_abort()
+
     def played_seconds(self) -> float:
         """Seconds of this generation's audio the user has heard so far —
         the caption pacer's clock (v7 Phase 2), straight from the player.

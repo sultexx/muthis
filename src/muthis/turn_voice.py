@@ -206,6 +206,32 @@ class TurnVoice:
             logger.warning(
                 "[orchestrator] speech session close failed after audio (%s)", close_error)
 
+    async def interrupt(self) -> None:
+        """Barge-in (v7 Phase 3): the user spoke over the voice — go SILENT
+        now. Marks the turn closed FIRST, so the finally's finish() becomes a
+        no-op by idempotence and NO decision-15 fallback can re-speak text the
+        user just silenced. Clears the caption (its paced queue cancels via
+        the generation counter). The status light is NOT touched — the
+        barge-in press already set "listening" and this must not fight it.
+        Idempotent; safe mid-eager-open; never raises."""
+        if self._closed:
+            return
+        self._closed = True
+        _diag.info("[DIAG] turn-voice interrupt t=%.3f fed=%d",
+                   time.monotonic(), len(self._fed))
+        await self._settle_open()            # an in-flight handshake settles first
+        session = self._session
+        if session is not None:
+            session_abort = getattr(session, "abort", None)  # duck-typed fakes
+            try:
+                if session_abort is not None:
+                    await session_abort()
+                else:
+                    await session.close()    # older fakes: quiet release
+            except Exception:  # noqa: BLE001 — silencing must never raise
+                pass
+        self._voice.clear_caption()
+
     async def abandon(self) -> None:
         """Abnormal turn end (a pass died without TurnComplete): release the
         generation quietly — that branch never spoke on the buffered path

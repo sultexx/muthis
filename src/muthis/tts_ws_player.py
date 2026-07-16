@@ -74,6 +74,9 @@ class PcmStreamPlayer:
         # the first chunk hit the device and how many PCM seconds followed.
         self._first_write_t: Optional[float] = None
         self._audio_written_s = 0.0
+        # Barge-in (v7 Phase 3): abort() flips this and unblocks the worker.
+        self._aborted = False
+        self._stream = None  # the live device stream, for the cross-thread abort
 
     @property
     def got_audio(self) -> bool:
@@ -120,6 +123,27 @@ class PcmStreamPlayer:
         if self._error is not None:
             raise self._error
 
+    async def abort(self) -> None:
+        """Barge-in (v7 Phase 3): drop ALL queued audio and stop the device
+        NOW. Pa_AbortStream discards buffered audio immediately (stop() would
+        drain it) and is documented thread-safe — the ONE sanctioned
+        cross-thread stream call in this codebase; it also unblocks a
+        mid-chunk write, whose worker then sees _aborted and exits WITHOUT
+        draining. Idempotent; never raises (silencing must always succeed)."""
+        _diag.info("[DIAG] player abort t=%.3f", time.monotonic())
+        self._aborted = True
+        self._queue.put(_EOS)             # unblock a queue.get() wait
+        stream = self._stream
+        if stream is not None:
+            try:
+                stream.abort()
+            except Exception:  # noqa: BLE001 — already stopping; nothing to save
+                pass
+        thread = self._thread
+        if thread is not None:
+            await asyncio.to_thread(thread.join)
+            self._thread = None
+
     def _run(self) -> None:
         """Worker thread: open the stream, write chunks FIFO until EOS, then stop()
         — PortAudio's Pa_StopStream waits for pending audio to play, so the tail is
@@ -132,13 +156,14 @@ class PcmStreamPlayer:
         # them from the asyncio side (float reads are GIL-atomic).
         try:
             with self._stream_factory(self._sample_rate, self._channels) as stream:
+                self._stream = stream            # visible to the cross-thread abort
                 while True:
                     wait_t0 = time.monotonic()
                     chunk = self._queue.get()
                     waited_s = time.monotonic() - wait_t0
-                    if chunk is _EOS:
-                        _diag.info("[DIAG] player EOS t=%.3f audio_written=%.3fs",
-                                   time.monotonic(), self._audio_written_s)
+                    if chunk is _EOS or self._aborted:
+                        _diag.info("[DIAG] player EOS t=%.3f audio_written=%.3fs aborted=%s",
+                                   time.monotonic(), self._audio_written_s, self._aborted)
                         break
                     now = time.monotonic()
                     if self._first_write_t is None:
@@ -156,11 +181,22 @@ class PcmStreamPlayer:
                             # played_seconds() never counts silence as speech.
                             self._first_write_t += deficit_s
                     self._audio_written_s += len(chunk) / (2.0 * self._sample_rate * self._channels)
-                    stream.write(chunk)
-                stream.stop()  # drain pending audio before the context closes
+                    try:
+                        stream.write(chunk)
+                    except Exception:
+                        if self._aborted:
+                            break        # Pa_AbortStream unblocked the write — clean exit
+                        raise
+                if not self._aborted:
+                    stream.stop()  # drain pending audio before the context closes
         except BaseException as exc:  # noqa: BLE001 — surfaced to the caller via finish()
-            self._error = exc
-            logger.warning("[tts] PCM stream player failed: %s", exc)
+            if self._aborted:
+                logger.info("[tts] player stream closed during abort (expected)")
+            else:
+                self._error = exc
+                logger.warning("[tts] PCM stream player failed: %s", exc)
+        finally:
+            self._stream = None          # the abort path must never touch a dead stream
 
 
 __all__ = ["PcmStreamPlayer"]

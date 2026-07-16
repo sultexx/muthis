@@ -62,6 +62,7 @@ class FakeSession:
         self.flushes = []              # the flush flag of each successful feed
         self.opened = False
         self.closed = False
+        self.aborted = False           # barge-in (v7 Phase 3)
         self._fail_open = fail_open
         self._fail_feed_at = fail_feed_at
         self._fail_close = fail_close
@@ -82,6 +83,10 @@ class FakeSession:
         self.closed = True
         if self._fail_close:
             raise RuntimeError("close failed")
+
+    async def abort(self):
+        self.aborted = True
+        self.closed = True
 
     @property
     def got_audio(self):
@@ -327,6 +332,52 @@ async def test_eager_open_failure_still_degrades_to_live_buffered():
     await turn_voice.finish()
     assert factory.calls == 1                           # sticky per-turn failure
     assert fake_voice.spoken == [S1]
+
+
+# ───────────────────────── Barge-in interrupt (v7 Phase 3) ─────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_interrupt_silences_and_mutes_every_fallback():
+    # The user asked us to STOP TALKING: interrupt aborts the session and the
+    # later finish() must be a no-op — decision-15 would otherwise re-speak
+    # the very text that was just silenced (got_audio False + fed text).
+    session = FakeSession(silent=True)               # fed but nothing played
+    turn_voice, fake_voice, _overlay, _ = _voice(session)
+    await turn_voice.speak_or_feed(S1)
+
+    await turn_voice.interrupt()
+    await turn_voice.finish()                        # run_turn's finally
+
+    assert session.aborted                           # aborted, not drained
+    assert fake_voice.spoken == []                   # NO fallback re-speak
+    assert fake_voice.log[-1] == ("clear",)          # caption wiped with the voice
+
+
+@pytest.mark.asyncio
+async def test_interrupt_is_idempotent_and_leaves_the_light_alone():
+    session = FakeSession()
+    turn_voice, fake_voice, overlay, _ = _voice(session)
+    await turn_voice.speak_or_feed("سم")
+    states_before = list(overlay.states)
+
+    await turn_voice.interrupt()
+    await turn_voice.interrupt()                     # double press downstream
+
+    assert overlay.states == states_before           # the barge-in press owns
+    assert fake_voice.spoken == []                   # the "listening" light
+
+
+@pytest.mark.asyncio
+async def test_interrupt_mid_eager_open_settles_the_handshake():
+    session = FakeSession()
+    turn_voice, fake_voice, _overlay, factory = _voice(session)
+    turn_voice.begin_open()                          # handshake in flight
+
+    await turn_voice.interrupt()                     # user bailed immediately
+
+    assert factory.calls == 1 and session.aborted    # settled THEN silenced
+    assert fake_voice.spoken == []
 
 
 # ─────────────────────────────── Abandon path ───────────────────────────────

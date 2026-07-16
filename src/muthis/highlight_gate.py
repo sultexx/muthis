@@ -118,8 +118,19 @@ def loop_tool_choice(gate: HighlightGate) -> str:
     return "none" if gate.drawn else "auto"
 
 
+# v7 Phase 3 (barge-in): the next-turn context note — an INTERNAL directive
+# (the persona's v5-B3 rule: obeyed, never read aloud or quoted) telling the
+# model its previous reply was cut off MID-SPEECH by the user, so it neither
+# assumes the explanation was heard nor takes offense at the interruption.
+INTERRUPTED_NOTE_AR = (
+    "(توجيه داخلي من النظام، ليس من كلام المستخدم ولا يراه: قاطعك المستخدم "
+    "قبل اكتمال نطق ردّك السابق — لبِّ طلبه الجديد مباشرة، واعلم أنه لم "
+    "يسمع شرحك السابق كاملاً.)"
+)
+
+
 __all__ = [
     "HighlightGate", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
-    "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR",
+    "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR", "INTERRUPTED_NOTE_AR",
     "draw_result_text", "highlight_result_text", "loop_tool_choice",
 ]

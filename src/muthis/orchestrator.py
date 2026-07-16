@@ -34,7 +34,7 @@ from .draw_dispatch import DRAW_SHAPES_TOOL, DRAW_TOOLS
 from .stubs import (stub_downscale, stub_mic, stub_overlay, stub_screen_capture,
                     stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
-from .highlight_gate import HighlightGate
+from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
 from .turn_pass import REFRESH_TOOL, TurnPass
 from .turn import (
     AGENTIC_CAP_NOTE_AR, BUDGET_REFUSAL_AR, MIC_FAILED_AR, REFRESH_FOLLOWUP_TEXT_AR,
@@ -115,13 +115,13 @@ class Orchestrator:
             reasoner=reasoner, budget=budget, overlay=overlay, voice=self._voice,
             stream_tts=stream_tts, session_factory=speech_session_factory,
         )
+        # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
+        self._active_turn_voice = None
+        self._interrupted_last_turn = False
 
         # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
         self.history: list[dict[str, Any]] = []
-
-        # The single event queue (Law 3.3) — placeholder until hotkey phase.
-        self.event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
 
     # ─────────────────────────── Public API ───────────────────────────
 
@@ -146,6 +146,21 @@ class Orchestrator:
 
         return await self.run_turn(user_text)
 
+    async def interrupt_turn(self) -> None:
+        """Barge-in (v7 Phase 3): clear the UI, silence the active voice
+        (finish() then no-ops — no fallback re-speak), and mark the NEXT
+        turn's interrupted-context directive. The caller cancels the turn
+        task AFTER this returns. Safe no-op when no turn is active."""
+        _diag.info("[DIAG] interrupt-turn t=%.3f", time.monotonic())
+        turn_voice = self._active_turn_voice  # captured pre-await (race armor)
+        # UI first: the instant hide wipes board/shapes/captions/dim ~10 ms
+        # in, while the audio abort pays its ~130 ms WS close behind it.
+        self._auto_hide.cancel()
+        await self._overlay.hide()
+        if turn_voice is not None:
+            await turn_voice.interrupt()
+            self._interrupted_last_turn = True
+
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
         TurnResult reports what happened. Cancellation propagates normally."""
@@ -153,6 +168,9 @@ class Orchestrator:
         # then attach the internal directive ONCE per utterance — never on the
         # agentic loop's continuations or the refresh follow-up.
         user_text = self._verbosity.begin_turn(user_text)
+        if self._interrupted_last_turn:  # barge-in context (v7 Phase 3)
+            self._interrupted_last_turn = False
+            user_text = f"{INTERRUPTED_NOTE_AR}\n{user_text}"
         result = TurnResult()
         # Per-turn state (fresh by construction): the draw gate and the ONE
         # continuous speech generation every pass feeds into (v7). The gate is
@@ -160,6 +178,7 @@ class Orchestrator:
         # below safe on any pre-pipeline exit.
         self._highlight_gate = HighlightGate()
         turn_voice = self._pass.new_turn_voice()
+        self._active_turn_voice = turn_voice  # visible to interrupt_turn
         turn_voice.begin_open()  # Fix G: the WS handshake overlaps the vision pass
         try:
             async with asyncio.timeout(self._session_timeout_s):
@@ -168,26 +187,24 @@ class Orchestrator:
             result.timed_out = True
             logger.warning("[orchestrator] session bound (%.0fs) hit — turn truncated", self._session_timeout_s)
         finally:
+            self._active_turn_voice = None  # the barge-in window closes here
             # Outside the timeout scope, so the drain can await safely: close
             # the turn's generation (decision-15 fallbacks live inside) …
             await turn_voice.finish()
             # … then the WHITEBOARD lights come back on (v7 Phase 2): a
             # dim_screen draw fades out AT speech end — the un-dim is
-            # synchronized with the voice, while the shapes keep the 7 s
-            # grace below. Duck-typed: stubs/old fakes without it no-op.
+            # synchronized with the voice; the shapes keep the 7 s grace
+            # below. Duck-typed: stubs/old fakes without it no-op.
             if any(call.name == DRAW_SHAPES_TOOL and call.args.get("dim_screen")
                    for call in result.tool_calls):
                 undim = getattr(self._overlay, "undim_screen", None)
                 if undim is not None:
                     undim()
-            # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F,
-            # measured: a draw-time timer hid the rectangle mid-explanation,
-            # draw+7 s < speech end). finish() returns at SPEECH END, so the
-            # 7 s count from here keeps the rectangle visible through the
-            # whole explanation + 7 s. Keyed on the RECEIVED draw calls, not
-            # gate.drawn — the gate flips only at the pairing, which a fake
-            # or a mid-turn failure may never reach; a drawn-but-unpaired
-            # overlay must still hide.
+            # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F: a
+            # draw-time timer hid the rectangle mid-explanation). finish()
+            # returns at SPEECH END, so the 7 s count from here. Keyed on the
+            # RECEIVED draw calls, not gate.drawn (the gate flips only at the
+            # pairing, which a fake or mid-turn failure may never reach).
             if any(call.name in DRAW_TOOLS for call in result.tool_calls):
                 self._auto_hide.schedule()
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame

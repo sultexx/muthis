@@ -46,5 +46,7 @@ def _clear_cloud_tts_env(monkeypatch):
         # Whiteboard rollback flag (v7 Phase 2) — cleared so the documented
         # default (ON) holds deterministically.
         "MUTHIS_WHITEBOARD",
+        # Barge-in rollback flag (v7 Phase 3) — cleared, documented default ON.
+        "MUTHIS_BARGE_IN",
     ):
         monkeypatch.delenv(var, raising=False)
