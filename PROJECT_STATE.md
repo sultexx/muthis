@@ -1,8 +1,18 @@
 # PROJECT_STATE.md — Mut'his v7 condensed technical state
 
-> Token-saving snapshot (updated 2026-07-16, Phase 4). **`AGENTS.md` remains the
-> full source of truth**; this is the compressed map. Branch `v7-experimental`,
-> 461 tests green.
+> Token-saving snapshot (updated 2026-07-16, v1.0-RC1). **`AGENTS.md` remains
+> the full source of truth**; this is the compressed map. Branch
+> `v7-experimental`, 462 tests green.
+
+## CURRENT STATUS: v1.0-RC1 — UAT / STAGING (2026-07-16)
+V1 is FEATURE-COMPLETE and committed on `v7-experimental` as a RELEASE
+CANDIDATE — **NOT launched, NOT merged to main**. Sultan is running
+comprehensive manual real-world testing (UAT). Agent posture: STAND BY for
+his feedback; fix what UAT surfaces; open NO new work unprompted (the
+phase-gated SOP governs). RC1 = Phases 1-4 + the [DIAG] cleanup + the
+persona FORMATTING-SYNTAX BAN (speech is pure spoken prose — no ** / # /
+` / list dashes; the output surface is TTS + the captions bar, never a
+markdown renderer — the Phase 4 live run showed raw asterisks in captions).
 
 ## What Mut'his is
 Arabic-first, LOOK-only voice teacher for Windows 11. Hold **F9**, speak Arabic,

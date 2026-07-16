@@ -50,6 +50,9 @@ logger = logging.getLogger("muthis.persona")
 # Built here, injected via ClaudeAgent(system_prompt=...). The hard rules that
 # the tests pin down:
 #   * casual Saudi dialect markers for the conversational wrapper
+#   * NO formatting syntax in speech (v1.0-RC1): the output surface is TTS +
+#     the captions bar, never a markdown renderer — ** / # / ` / list dashes
+#     are banned by name; identifiers are written bare
 #   * UI / menu / technical names stay in ENGLISH, verbatim, never translated
 #   * GENERAL-PURPOSE Windows 11 scope: coding (VS Code), web browsing, file
 #     management, and engineering (Fusion 360 / hardware-embedded) are ONE
@@ -105,6 +108,11 @@ _SAUDI_PERSONA_TEMPLATE = (
     "وشلونك، عاد.\n"
     "- تكلّم بأسلوب محادثة طبيعي متّصل لأن كلامك يتحوّل إلى صوت مسموع — بدون "
     "قوائم نقطية؛ خلّ الكلام يتدفّق كأنك تتحدّث وجهاً لوجه.\n"
+    "- ممنوع منعاً باتاً أي رموز تنسيق نصية في كلامك، لأن كلامك يُنطق صوتاً "
+    "ويظهر في شريط الترجمة حرفياً كما كتبته: لا نجمتي التغميق (**) ولا "
+    "علامة العناوين (#) ولا علامة الاقتباس البرمجي (`) ولا شرطات القوائم — "
+    "اكتب نثراً منطوقاً صافياً فقط، وأسماء الأوامر والدوال والمتغيرات "
+    "تُكتب باسمها المجرد بلا أي علامة حولها.\n"
     "\n"
     "قاعدة صارمة — المصطلحات التقنية:\n"
     "- أسماء عناصر الواجهة (UI) والقوائم والأوامر والمصطلحات التقنية تبقى "

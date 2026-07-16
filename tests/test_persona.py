@@ -450,3 +450,21 @@ def test_pedagogy_no_boxes_when_content_not_on_screen():
     prompt = _prompt()
     assert "غير ظاهر على الشاشة" in prompt
     assert "بلا رسم" in prompt
+
+
+# ─────────────────── Formatting-syntax ban (v1.0-RC1) ───────────────────
+
+
+def test_prompt_forbids_formatting_syntax_in_speech():
+    # UAT polish (Sultan, 2026-07-16): the Phase 4 live run emitted markdown
+    # bold (**...**) and backticked identifiers into the spoken text — the
+    # captions bar showed the raw symbols. The persona now bans formatting
+    # syntax BY NAME: the output surface is TTS + the captions bar, never a
+    # markdown renderer, so speech must be pure prose.
+    prompt = _prompt()
+    assert "رموز تنسيق" in prompt, "missing the formatting-syntax ban"
+    assert "(**)" in prompt         # bold asterisks named
+    assert "(#)" in prompt          # heading marker named
+    assert "(`)" in prompt          # code backtick named
+    assert "نثراً منطوقاً" in prompt  # the positive rule: pure spoken prose
+    assert "باسمها المجرد" in prompt  # identifiers written bare
