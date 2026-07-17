@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
 from muthis.file_reader import FILE_ALREADY_READ_AR, FILE_READ_UNAVAILABLE_AR
-from muthis.highlight_gate import SHAPES_ACK_TEXT_AR
-from muthis.orchestrator import Orchestrator
-from muthis.turn import DownscaledImage
+from muthis.kernel.highlight_gate import SHAPES_ACK_TEXT_AR
+from muthis.kernel.orchestrator import Orchestrator
+from muthis.kernel.turn import DownscaledImage
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 FILE_CONTENT = "محتوى الملف blink.ino (الأسطر 1-2 من 2):\n    1 | int led = 2;\n    2 | void setup() {}"

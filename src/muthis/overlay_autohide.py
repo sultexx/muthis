@@ -33,7 +33,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from .turn import Overlay
+from .kernel.turn import Overlay
 
 logger = logging.getLogger("muthis.overlay_autohide")
 

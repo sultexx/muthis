@@ -24,11 +24,11 @@ import asyncio
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
-from muthis.orchestrator import Orchestrator
+from muthis.kernel.orchestrator import Orchestrator
 from muthis.overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
-from muthis.turn import DownscaledImage
+from muthis.kernel.turn import DownscaledImage
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 

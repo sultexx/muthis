@@ -15,16 +15,16 @@ import base64
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
-from muthis.orchestrator import (
+from muthis.kernel.orchestrator import (
     BUDGET_REFUSAL_AR, MAX_AGENTIC_ITERATIONS, Orchestrator,
 )
-from muthis.turn import (
+from muthis.kernel.turn import (
     AGENTIC_CAP_NOTE_AR, HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR,
     STALE_SCREENSHOT_NOTE_AR,
 )
-from muthis.verbosity import DIRECTIVE_OPEN_AR
+from muthis.kernel.verbosity import DIRECTIVE_OPEN_AR
 
 # ──────────────────────────────────────────────────────────────────────────
 # Fakes and recorders

@@ -20,12 +20,12 @@ import logging
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
-from muthis.highlight_gate import SHAPES_ACK_TEXT_AR, SHAPES_ALREADY_SHOWN_AR
-from muthis.orchestrator import Orchestrator
+from muthis.kernel.highlight_gate import SHAPES_ACK_TEXT_AR, SHAPES_ALREADY_SHOWN_AR
+from muthis.kernel.orchestrator import Orchestrator
 from muthis.shapes import Shape, parse_shapes_args
-from muthis.turn import DownscaledImage
+from muthis.kernel.turn import DownscaledImage
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 

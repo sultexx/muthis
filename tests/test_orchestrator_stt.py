@@ -16,9 +16,9 @@ import sys
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
-from muthis.orchestrator import MIC_FAILED_AR, STT_EMPTY_AR, Orchestrator
+from muthis.kernel.orchestrator import MIC_FAILED_AR, STT_EMPTY_AR, Orchestrator
 
 WAV_BYTES = b"RIFF" + b"\x00" * 64          # canned utterance "recording"
 TRANSCRIPT_AR = "وين زر الحفظ؟ رقمي السري 9999"  # PII-laden on purpose

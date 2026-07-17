@@ -51,13 +51,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .activation import ActivationController  # noqa: E402,F401 — re-export: old imports keep working
-from .budget import Budget  # noqa: E402
+from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .mic import Mic  # noqa: E402
-from .orchestrator import Orchestrator  # noqa: E402
+from .kernel.orchestrator import Orchestrator  # noqa: E402
 from .persona import resolve_system_prompt  # noqa: E402
 from .stt import STT  # noqa: E402
 from .tts import TTS  # noqa: E402

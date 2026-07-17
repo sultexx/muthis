@@ -14,7 +14,7 @@ import logging
 from typing import Any, Optional
 
 from .file_reader import FILE_READ_UNAVAILABLE_AR
-from .turn import DownscaledImage, PhysicalBBox
+from .kernel.turn import DownscaledImage, PhysicalBBox
 
 logger = logging.getLogger("muthis.stubs")
 

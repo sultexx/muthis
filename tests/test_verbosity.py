@@ -15,7 +15,7 @@ Run:  set PYTHONPATH=src && python -m pytest tests/test_verbosity.py -q
 
 from __future__ import annotations
 
-from muthis.verbosity import (
+from muthis.kernel.verbosity import (
     DETAILED,
     DIRECTIVE_OPEN_AR,
     EXACT,

@@ -28,9 +28,9 @@ from unittest.mock import patch
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT
-from muthis.orchestrator import Orchestrator
+from muthis.kernel.orchestrator import Orchestrator
 from muthis.persona import build_saudi_persona_prompt, resolve_system_prompt
 from muthis.tts import TTSResult
 

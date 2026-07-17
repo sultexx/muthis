@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from muthis.budget import Budget, DEFAULT_DAILY_LIMIT_USD, ENV_DAILY_BUDGET_USD
+from muthis.kernel.budget import Budget, DEFAULT_DAILY_LIMIT_USD, ENV_DAILY_BUDGET_USD
 from muthis.cloud.protocol import TurnComplete
 
 # ──────────────────────────────────────────────────────────────────────────

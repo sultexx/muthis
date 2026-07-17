@@ -19,7 +19,7 @@ from muthis.shapes import (
     scale_shape_to_physical,
     scale_shapes_to_physical,
 )
-from muthis.turn import scale_bbox_to_physical
+from muthis.kernel.turn import scale_bbox_to_physical
 
 
 # ───────────────────────────── The model ─────────────────────────────

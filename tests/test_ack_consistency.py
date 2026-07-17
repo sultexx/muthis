@@ -17,7 +17,7 @@ Run:  set PYTHONPATH=src && python -m pytest tests/test_ack_consistency.py -q
 
 from __future__ import annotations
 
-from muthis.highlight_gate import HIGHLIGHT_ACK_TEXT_AR, SHAPES_ACK_TEXT_AR
+from muthis.kernel.highlight_gate import HIGHLIGHT_ACK_TEXT_AR, SHAPES_ACK_TEXT_AR
 
 # The two ACKs the gate hands back for the FIRST draw of a turn (highlight_target
 # and draw_shapes) — they must be consistent, so they are tested together.

@@ -1,17 +1,15 @@
 # tests/test_kernel_layering.py
 """
-The V2 Phase-0 layering guards (the great split, decision Q-4).
+The V2 layering guards (Phase 0 birth; Phase 1 M1-1 settled decision Q-4:
+the compat shims are GONE and every consumer imports muthis.kernel.* —
+the shim-identity test retired with the shims it guarded).
 
-Three architectural invariants, enforced by test instead of review:
-  1. SHIM IDENTITY — every name a V1 compat shim re-exports IS the kernel
-     object (same `id`), so old-path and new-path importers can never drift
-     apart (a shim that re-bound a name would silently split monkeypatching
-     and isinstance checks between two module objects).
-  2. SDK PURITY — muthis_sdk imports nothing from muthis.*: the SDK must be
+Two architectural invariants remain, enforced by test instead of review:
+  1. SDK PURITY — muthis_sdk imports nothing from muthis.*: the SDK must be
      installable and importable with no app present (community plugins run
      against the SDK alone).
-  3. KERNEL ISOLATION — every kernel module imports cleanly on its own
-     (the ≤300-line law's "importable in isolation" clause survives the move).
+  2. KERNEL ISOLATION — every kernel module imports cleanly on its own
+     (the ≤300-line law's "importable in isolation" clause).
 """
 
 from __future__ import annotations
@@ -22,29 +20,31 @@ from pathlib import Path
 
 import muthis_sdk
 
-# Old shim path → new kernel path. The shims' __all__ is the re-export
-# contract; identity is asserted for EVERY listed name.
-SHIMMED = {
-    "muthis.orchestrator": "muthis.kernel.orchestrator",
-    "muthis.turn_pass": "muthis.kernel.turn_pass",
-    "muthis.turn": "muthis.kernel.turn",
-    "muthis.highlight_gate": "muthis.kernel.highlight_gate",
-    "muthis.draw_dispatch": "muthis.kernel.draw_dispatch",
-    "muthis.history_hygiene": "muthis.kernel.history_hygiene",
-    "muthis.verbosity": "muthis.kernel.verbosity",
-    "muthis.budget": "muthis.kernel.budget",
-}
+KERNEL_MODULES = (
+    "muthis.kernel.budget",
+    "muthis.kernel.draw_dispatch",
+    "muthis.kernel.highlight_gate",
+    "muthis.kernel.history_hygiene",
+    "muthis.kernel.orchestrator",
+    "muthis.kernel.tool_router",
+    "muthis.kernel.turn",
+    "muthis.kernel.turn_pass",
+    "muthis.kernel.verbosity",
+)
 
 
-def test_shims_reexport_identical_objects():
-    for shim_name, kernel_name in SHIMMED.items():
-        shim = importlib.import_module(shim_name)
-        kernel = importlib.import_module(kernel_name)
-        assert shim.__all__, f"{shim_name} must declare its re-export contract"
-        for name in shim.__all__:
-            assert getattr(shim, name) is getattr(kernel, name), (
-                f"{shim_name}.{name} is not the kernel object — the shim drifted"
-            )
+def test_the_shims_are_gone():
+    """Q-4 settled: the old flat paths must NOT resolve anymore — a revived
+    shim would silently split imports again."""
+    for retired in ("muthis.orchestrator", "muthis.turn", "muthis.budget",
+                    "muthis.turn_pass", "muthis.highlight_gate",
+                    "muthis.draw_dispatch", "muthis.history_hygiene",
+                    "muthis.verbosity"):
+        try:
+            importlib.import_module(retired)
+        except ModuleNotFoundError:
+            continue
+        raise AssertionError(f"{retired} still importable — a shim came back")
 
 
 def test_sdk_imports_nothing_from_the_app():
@@ -60,6 +60,6 @@ def test_sdk_imports_nothing_from_the_app():
 
 
 def test_kernel_modules_import_in_isolation():
-    for kernel_name in sorted(set(SHIMMED.values())):
+    for kernel_name in KERNEL_MODULES:
         module = importlib.import_module(kernel_name)
         assert module.__name__ == kernel_name

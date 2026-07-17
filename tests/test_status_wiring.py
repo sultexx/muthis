@@ -20,11 +20,11 @@ from __future__ import annotations
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
 from muthis.main import ActivationController
-from muthis.orchestrator import Orchestrator
-from muthis.turn import DownscaledImage
+from muthis.kernel.orchestrator import Orchestrator
+from muthis.kernel.turn import DownscaledImage
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 WAV_BYTES = b"RIFF" + b"\x00" * 64
