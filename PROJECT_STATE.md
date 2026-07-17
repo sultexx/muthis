@@ -1,10 +1,46 @@
-# PROJECT_STATE.md — Mut'his v7 condensed technical state
+# PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-16, v1.0-RC1). **`AGENTS.md` remains
+> Token-saving snapshot (updated 2026-07-17, V2 Phase 0). **`AGENTS.md` remains
 > the full source of truth**; this is the compressed map. Branch
-> `v7-experimental`, 462 tests green.
+> `feature/v2-phase0-kernel-split`; app suite 494 green (474 V1 oracle
+> untouched + 20 Phase-0 guards) + 18 sdk tests.
 
-## UAT ROUND 1 — two bugs found by Sultan, FIXED (v1.0-RC2, uncommitted)
+## CURRENT STATUS — V1 SIGNED OFF; V2 PHASE 0 CODE-COMPLETE (2026-07-17)
+**V1 UAT was CLOSED successfully by Sultan (2026-07-16 evening)** — the only
+residual (the Arabic TTS voice occasionally swallowing English terms) was
+diagnosed as a downstream voice-model configuration limit, not architecture.
+`v7-experimental` was merged to `main` and tagged **`v1.0.0`** (+ the
+`pre-v2-phase0` rollback anchor); Phase 0 executes on
+`feature/v2-phase0-kernel-split` per the approved execution plan (M0-M6,
+decisions Q1-Q5). **Exit gate pending: Sultan's live `diag_*` run + approval.**
+
+## V2 PHASE 0 — kernel split + muthis-sdk (M0-M6, zero behavioral change)
+- **kernel/**: orchestrator, turn_pass, turn, highlight_gate, draw_dispatch,
+  history_hygiene, verbosity, budget moved to `src/muthis/kernel/` (git mv);
+  old paths = explicit named re-export SHIMS until Phase 1 (Q-4), so the V1
+  474-test oracle + diag scripts run UNMODIFIED. Shim↔kernel identity,
+  SDK/plugin layering purity: test-enforced (`test_kernel_layering.py`).
+- **ToolRouter** (`kernel/tool_router.py`): turn_pass's bespoke read servicing
+  generalized (roadmap part 2 §1). Services ONLY `read_local_file`; the draw
+  path + refresh frame lifecycle NEVER cross it (ruling C-1). Never raises —
+  Arabic-note failure wall; cap 24; namespacing with core-name exemption
+  (C-3). `read_file=` kwarg contract unchanged; orchestrator untouched (AT
+  300 — the router injection seat moves to the Phase-1 broker composition).
+- **muthis-sdk 2.0.0a1** (`sdk/`, `pip install -e sdk`): ToolPlugin /
+  ToolDescriptor / ToolResult / ServiceOutcome (inert Phase-1 taint+cost
+  fields) / PluginContext / manifest loader. Zero deps; CLOSED capability
+  enum — no input.* exists (golden rule §1.1 by construction).
+- **Core plugins** (`src/muthis_plugins/`, Q-2): look_pointer + look_shapes +
+  screen_refresh (declaration-only, kernel_serviced) + file_read (routed via
+  ctx.files; FileReader gates stay kernel-side). Schemas moved VERBATIM;
+  `cloud/tool_schemas.py` = assembly re-export; model-visible catalog pinned
+  byte-for-byte to `tests/snapshots/look_tools_v1.json` (v1.0.0 bytes).
+- **Conformance kit** (`muthis plugin test <dir>`, roadmap §8.7): manifest /
+  Arabic lint / schema structure / fake-kernel golden run (+ warn-only
+  latency); permission-violation suite honestly SKIPPED until the Phase-1
+  broker. All four core plugins: ADMISSIBLE. Broken fixtures: REJECTED.
+
+## UAT ROUND 1 — two bugs found by Sultan, FIXED (v1.0-RC2, committed `2883321`)
 **Bug 1 (F9 overlap — the old audio never died).** Three real holes, all closed:
 (a) `run_turn`'s finally cleared `_active_turn_voice` BEFORE `finish()`'s
 drain — but the drain IS when the tail is audible and users interrupt; the
@@ -39,15 +75,12 @@ an open observation.
 Tests 474 green (+12 in `tests/test_uat_fixes.py`). Ceilings: orchestrator +
 turn_voice now AT 300 — extract before ANY addition.
 
-## CURRENT STATUS: v1.0-RC1 — UAT / STAGING (2026-07-16)
-V1 is FEATURE-COMPLETE and committed on `v7-experimental` as a RELEASE
-CANDIDATE — **NOT launched, NOT merged to main**. Sultan is running
-comprehensive manual real-world testing (UAT). Agent posture: STAND BY for
-his feedback; fix what UAT surfaces; open NO new work unprompted (the
-phase-gated SOP governs). RC1 = Phases 1-4 + the [DIAG] cleanup + the
-persona FORMATTING-SYNTAX BAN (speech is pure spoken prose — no ** / # /
-` / list dashes; the output surface is TTS + the captions bar, never a
-markdown renderer — the Phase 4 live run showed raw asterisks in captions).
+## V1 HISTORY: v1.0-RC1 — UAT / STAGING (2026-07-16, now CLOSED — see top)
+RC1 = Phases 1-4 + the [DIAG] cleanup + the persona FORMATTING-SYNTAX BAN
+(speech is pure spoken prose — no ** / # / ` / list dashes; the output
+surface is TTS + the captions bar, never a markdown renderer — the Phase 4
+live run showed raw asterisks in captions). UAT round 2 passed; V1 signed
+off and released as `v1.0.0` on `main`.
 
 ## What Mut'his is
 Arabic-first, LOOK-only voice teacher for Windows 11. Hold **F9**, speak Arabic,
