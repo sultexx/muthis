@@ -55,6 +55,7 @@ from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
+from .kernel.tool_router import build_core_router  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .mic import Mic  # noqa: E402
 from .kernel.orchestrator import Orchestrator  # noqa: E402
@@ -120,7 +121,10 @@ def _build_orchestrator(
         screen_capture=ScreenCapture().capture,  # REAL primary-monitor PNG (DPI-aware)
         downscale=downscale_to_max_width,        # REAL payload COPY (≤ max width)
         overlay=overlay,                         # REAL overlay (hidden before each capture)
-        read_file=FileReader().read,             # REAL read_local_file (v7 Phase 4)
+        # V2 Phase 1: the ToolRouter composed HERE, at the composition root
+        # (roadmap part 2 §1 — main.py mounts the router). The read seam rides
+        # inside it; the Phase-1 broker will join this same composition.
+        router=build_core_router(read_file=FileReader().read),
     )
 
 
