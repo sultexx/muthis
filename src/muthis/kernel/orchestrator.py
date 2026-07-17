@@ -1,0 +1,300 @@
+# src/muthis/kernel/orchestrator.py
+"""
+Orchestrator — the heart of Mut'his v4.1.
+
+Owns everything the wrappers are forbidden to own (Law 11): the single asyncio
+loop, the event queue (Law 3.3), all locks, the session lifecycle, and the
+conversation history. ClaudeAgent.run() is one blind provider turn; Budget is
+an accounting gate; both are only ever *asked*.
+
+STUB-FIRST BUILD: the hotkey is the last injected stub; mic/STT/TTS/screen/
+downscale/overlay are REAL via injection (tests inject fakes through the same
+seams). handle_activation: mic → STT → run_turn; mic/STT failures are spoken in
+Arabic and end the turn EARLY (no provider call). Playback is buffer-then-speak
+per assistant message. Contracts + TurnResult live in turn.py (≤300-line split).
+
+Turn pipeline (run_turn, ≤ 90 s) is an AGENTIC LOOP of ≤ MAX_AGENTIC_ITERATIONS
+run() calls while stop_reason == "tool_use", so Muthis explains AFTER pointing.
+Per pass: budget gate; buffer + speak (Option B); apply the ONE buffered draw
+(highlight_target OR draw_shapes — unified gate) at speak-time; pair EVERY
+tool_use with a tool_result; hide before EVERY capture; Bug-3 strip at turn-end.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import Any, Callable, Optional
+
+from .budget import Budget
+from ..cloud.protocol import CloudReasoner, UserInput
+from .draw_dispatch import DRAW_SHAPES_TOOL, DRAW_TOOLS
+from ..file_reader import ReadFileFn
+# STUB defaults — each is replaced by its real component in a later phase.
+from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
+                     stub_screen_capture, stub_stt, stub_tts)
+# turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
+from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .turn_pass import REFRESH_TOOL, TurnPass
+from .turn import (
+    AGENTIC_CAP_NOTE_AR, BUDGET_REFUSAL_AR, MIC_FAILED_AR, REFRESH_FOLLOWUP_TEXT_AR,
+    STT_EMPTY_AR, DownscaleFn, MicFn, Overlay, ScreenCaptureFn, SttFn, TtsFn,
+    TurnResult, build_tool_result_message, strip_images_from_history,
+)
+from ..overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .verbosity import VerbosityController
+from ..voice_out import VoiceOut
+
+logger = logging.getLogger("muthis.orchestrator")
+
+
+# ─── Session constants ────────────────────────────────────────────────────────
+
+# Hard wall-clock bound for one whole turn, follow-ups included (v4.1 §9.3).
+SESSION_TIMEOUT_S = 90.0
+
+# One follow-up un-stales a view; more is a model loop burning the budget.
+MAX_REFRESH_FOLLOWUPS = 1
+
+# Hard cap on agentic run() calls per utterance — bounds a never-ending tool_use.
+MAX_AGENTIC_ITERATIONS = 4
+
+ALLOWED_OVERLAY_TOOL = "highlight_target"
+# REFRESH_TOOL moved to turn_pass.py with the pass-draining code (re-exported
+# via the import above so existing references keep working).
+
+# Hide our rectangle, then yield this long before grabbing so the Tk thread has
+# cleared it — Claude never sees a ghost of the previous highlight. 50 ms is ample.
+OVERLAY_SETTLE_S = 0.05
+
+
+# ─── Orchestrator ─────────────────────────────────────────────────────────────
+
+class Orchestrator:
+    """One per process. Owns loop, queue, history, and the turn pipeline."""
+
+    def __init__(
+        self,
+        *,
+        reasoner: CloudReasoner,
+        budget: Budget,
+        mic: MicFn = stub_mic,
+        stt: SttFn = stub_stt,
+        tts: TtsFn = stub_tts,
+        screen_capture: ScreenCaptureFn = stub_screen_capture,
+        downscale: DownscaleFn = stub_downscale,
+        overlay: Overlay = stub_overlay,
+        read_file: ReadFileFn = stub_read_file,
+        session_timeout_s: float = SESSION_TIMEOUT_S,
+        overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
+        verbosity: Optional[VerbosityController] = None,
+        stream_tts: Optional[bool] = None,
+        speech_session_factory: Optional[Callable[[], object]] = None,
+    ) -> None:
+        self._reasoner = reasoner
+        self._budget = budget
+        self._mic = mic
+        self._stt = stt
+        self._screen_capture = screen_capture
+        self._downscale = downscale
+        self._overlay = overlay
+        # The spoken surfaces (privacy boundary + status choreography + budget
+        # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
+        self._voice = VoiceOut(tts, overlay)
+        # Verbosity state lives ACROSS turns (sticky SHORT/DETAILED) — a real
+        # default like the other seams, so main.py needs no wiring (v5 B3).
+        self._verbosity = verbosity or VerbosityController()
+        self._session_timeout_s = session_timeout_s
+        self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
+        # Pass-draining (incl. the draw→auto-hide→speak sync point) lives in
+        # turn_pass.py — the ≤300-line split; built from the same seams. The
+        # C2 streaming seams (flag + session factory) ride through untouched.
+        self._pass = TurnPass(
+            reasoner=reasoner, budget=budget, overlay=overlay, voice=self._voice,
+            stream_tts=stream_tts, session_factory=speech_session_factory,
+            read_file=read_file,  # v7 Phase 4: the read_local_file seam
+        )
+        # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
+        self._active_turn_voice = None
+        self._interrupted_last_turn = False
+
+        # Conversation history (Claude message-dict format). Owned HERE and
+        # nowhere else — the wrapper stores nothing between calls.
+        self.history: list[dict[str, Any]] = []
+
+    # ─────────────────────────── Public API ───────────────────────────
+
+    async def handle_activation(self) -> TurnResult:
+        """PTT entry point: mic → STT → run_turn. Mic/STT failures are
+        spoken in Arabic and end the turn EARLY — no provider call, no
+        budget burn. The transcript's ONLY consumer is run_turn → Claude;
+        it must never be routed to the TTS (privacy boundary).
+        # STUB — the real Ctrl+Shift+Space listener arrives in the hotkey
+        phase; until then callers invoke this directly."""
+        audio = await self._mic()
+        if not audio:
+            logger.warning("[orchestrator] mic capture failed — turn aborted")
+            await self._voice.speak(MIC_FAILED_AR)
+            return TurnResult()
+
+        user_text = (await self._stt(audio)).strip()
+        if not user_text:
+            logger.warning("[orchestrator] empty transcript — turn aborted")
+            await self._voice.speak(STT_EMPTY_AR)
+            return TurnResult()
+
+        return await self.run_turn(user_text)
+
+    async def interrupt_turn(self) -> None:
+        """Barge-in (v7 Phase 3): clear the UI, silence the active voice
+        (finish() then no-ops — no fallback re-speak), and mark the NEXT
+        turn's interrupted-context directive. The caller cancels the turn
+        task AFTER this returns. Safe no-op when no turn is active."""
+        turn_voice = self._active_turn_voice  # captured pre-await (race armor)
+        # UI first: the instant hide wipes board/shapes/captions/dim ~10 ms
+        # in, while the audio abort pays its ~130 ms WS close behind it.
+        self._auto_hide.cancel()
+        await self._overlay.hide()
+        if turn_voice is not None:
+            await turn_voice.interrupt()
+            self._interrupted_last_turn = True
+
+    async def run_turn(self, user_text: str) -> TurnResult:
+        """Execute one full (stubbed) turn. Never raises on timeout — the
+        TurnResult reports what happened. Cancellation propagates normally."""
+        # Verbosity (option A): detect a voice command in the RAW transcript,
+        # then attach the internal directive ONCE per utterance — never on the
+        # agentic loop's continuations or the refresh follow-up.
+        user_text = self._verbosity.begin_turn(user_text)
+        if self._interrupted_last_turn:  # barge-in context (v7 Phase 3)
+            self._interrupted_last_turn = False
+            user_text = f"{INTERRUPTED_NOTE_AR}\n{user_text}"
+        result = TurnResult()
+        # Per-turn state (fresh by construction): the draw gate and the ONE
+        # continuous speech generation every pass feeds into (v7). The gate is
+        # also rebuilt at the pipeline top; this early build keeps the finally
+        # below safe on any pre-pipeline exit.
+        self._highlight_gate = HighlightGate()
+        turn_voice = self._pass.new_turn_voice()
+        self._active_turn_voice = turn_voice  # visible to interrupt_turn
+        turn_voice.begin_open()  # Fix G: the WS handshake overlaps the vision pass
+        try:
+            async with asyncio.timeout(self._session_timeout_s):
+                await self._run_turn_pipeline(user_text, result, turn_voice)
+        except TimeoutError:
+            result.timed_out = True
+            logger.warning("[orchestrator] session bound (%.0fs) hit — turn truncated", self._session_timeout_s)
+        finally:
+            # v1.0-RC2 (UAT 1): the barge-in window stays OPEN through the drain.
+            try:
+                # Outside the timeout scope, so the drain can await safely: close
+                # the turn's generation (decision-15 fallbacks live inside) …
+                await turn_voice.finish()
+                # … then the WHITEBOARD lights come back on (v7 Phase 2): a
+                # dim_screen draw fades out AT speech end — the un-dim is
+                # synchronized with the voice; the shapes keep the 7 s grace
+                # below. Duck-typed: stubs/old fakes without it no-op.
+                if any(call.name == DRAW_SHAPES_TOOL and call.args.get("dim_screen")
+                       for call in result.tool_calls):
+                    undim = getattr(self._overlay, "undim_screen", None)
+                    if undim is not None:
+                        undim()
+                # … and arm the auto-hide — the ONLY arm site (v7.1 Fix F: a
+                # draw-time timer hid the rectangle mid-explanation). finish()
+                # returns at SPEECH END, so the 7 s count from here. Keyed on the
+                # RECEIVED draw calls, not gate.drawn (the gate flips only at the
+                # pairing, which a fake or mid-turn failure may never reach).
+                if any(call.name in DRAW_TOOLS for call in result.tool_calls):
+                    self._auto_hide.schedule()
+            finally:
+                self._active_turn_voice = None  # the barge-in window closes here
+        self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
+        # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
+        # any earlier would strip it before the tool_choice="none" explain pass.
+        self._verbosity.end_turn()
+        return result
+
+    # ───────────────────────── Turn pipeline ─────────────────────────
+
+    async def _run_turn_pipeline(self, user_text: str, result: TurnResult,
+                                 turn_voice) -> None:
+        user_input = UserInput(text=user_text)
+        screenshot = await self._capture_downscaled(result)
+        refresh_used = 0
+        self._highlight_gate = HighlightGate()  # circuit breaker — fresh per turn
+
+        # Agentic loop — ONE run() call per pass; the cap stops a model that, after
+        # a tool_use, never says end_turn (point → explain normally needs ≤2 passes).
+        for _iteration in range(MAX_AGENTIC_ITERATIONS):
+            if not self._budget.can_afford():            # Rule 10, before EVERY call
+                # Spoken through the turn voice: audio from an earlier pass may
+                # still be playing — the refusal must queue behind it, never overlap.
+                await self._voice.refuse_for_budget(
+                    result, self._budget, speak=turn_voice.speak_or_feed)
+                return
+            turn_complete, refresh_call, read_result = await self._pass.consume(
+                user_input, screenshot, list(self.history),
+                self._highlight_gate, result, turn_voice)
+            if turn_complete is None:                    # stream died, no TurnComplete
+                await turn_voice.abandon()               # release the generation quietly
+                return
+
+            # History grows here only. Utterance stored text-only (images never
+            # replayed); a continuation has empty text → only assistant + pairing.
+            if user_input.text:
+                self.history.append(
+                    {"role": "user", "content": [{"type": "text", "text": user_input.text}]})
+            self.history.append(
+                {"role": "assistant", "content": list(turn_complete.assistant_content)})
+
+            # Option B: pair EVERY tool_use with a tool_result NOW — even at end_turn
+            # — or the next turn 400s on an orphan (refresh→image, else ack).
+            serviced_refresh = (
+                refresh_call is not None and refresh_used < MAX_REFRESH_FOLLOWUPS)
+            fresh = await self._capture_downscaled(result) if serviced_refresh else None
+            pairing = build_tool_result_message(
+                turn_complete.assistant_content, refresh_call, fresh,
+                self._highlight_gate, read_result)
+            if pairing is not None:
+                self.history.append(pairing)
+            refresh_used += int(serviced_refresh)
+
+            # Continue ONLY while paused on a tool_use (deliver the explanation
+            # planned AFTER pointing); end_turn/None or a past-limit refresh ends it.
+            if turn_complete.stop_reason != "tool_use":
+                if turn_complete.stop_reason is None:
+                    logger.warning("[orchestrator] stop_reason=None — ending loop cleanly")
+                return
+            if refresh_call is not None and not serviced_refresh:
+                logger.warning("[orchestrator] refresh limit reached — ignoring %s", refresh_call.tool_use_id)
+                return
+            user_input = (UserInput(text=REFRESH_FOLLOWUP_TEXT_AR)
+                          if serviced_refresh else UserInput(text=""))
+            # Keep the SAME frame for the explain pass (ephemeral; Bug 3 text-only).
+            screenshot = None if serviced_refresh else screenshot
+
+        logger.warning("[orchestrator] agentic cap (%d) hit — stopping cleanly", MAX_AGENTIC_ITERATIONS)
+        await turn_voice.speak_or_feed(AGENTIC_CAP_NOTE_AR)  # queues behind playing audio
+
+    # ───────────────────────── Helpers ─────────────────────────
+
+    async def _capture_downscaled(self, result: TurnResult) -> Optional[bytes]:
+        """Capture physical pixels → the downscaled COPY (the ONLY thing sent),
+        recording the physical↔sent scale factors so highlight coords map back.
+        Ghosting: clear the status dot + hide the rectangle BEFORE every grab —
+        the one chokepoint for the initial capture AND each in-loop refresh; order
+        is load-bearing (clear + hide → settle → capture)."""
+        self._auto_hide.cancel()  # drop any stale auto-hide before the explicit hide
+        self._overlay.clear_status_light()  # ghost the corner dot — Claude never sees it
+        await self._overlay.hide()
+        await asyncio.sleep(OVERLAY_SETTLE_S)
+        sent = await self._downscale(await self._screen_capture())
+        self._overlay.set_state("thinking")  # dot reappears (thinking) after the grab
+        result.sent_width, result.sent_height = sent.sent_width, sent.sent_height
+        result.scale_x, result.scale_y = sent.scale_x, sent.scale_y
+        return sent.sent_bytes
+
+
+__all__ = ["Orchestrator", "TurnResult", "BUDGET_REFUSAL_AR", "AGENTIC_CAP_NOTE_AR",
+           "MIC_FAILED_AR", "STT_EMPTY_AR", "SESSION_TIMEOUT_S",
+           "MAX_REFRESH_FOLLOWUPS", "MAX_AGENTIC_ITERATIONS", "OVERLAY_SETTLE_S"]
