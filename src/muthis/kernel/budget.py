@@ -36,7 +36,7 @@ import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 if TYPE_CHECKING:
     # Typing only — at runtime we duck-type (read .cost_usd), so budget.py
@@ -57,6 +57,13 @@ DEFAULT_BUDGET_FILENAME = "budget.json"
 
 # round(x, MONEY_DECIMALS) on every store — keeps the ledger drift-free.
 MONEY_DECIMALS = 6
+
+# V2 Phase 1 (roadmap part 2 §1: "a column, not a contract change"): the
+# reserved ledger key holding per-plugin attribution buckets, shaped
+# {"YYYY-MM-DD": {provenance: {"calls": int, "spent_usd": float}}}. Legacy
+# ledgers (dates only) stay loadable; old readers would treat a new-format
+# file as corrupt→zero — the documented, accepted degradation mode.
+PLUGINS_KEY = "plugins"
 
 
 def _utc_today() -> str:
@@ -103,7 +110,7 @@ class Budget:
         )
         # Injected clock so tests can freeze the date (no sleeping).
         self._today_fn = today_fn
-        self._ledger: dict[str, float] = self._load_ledger()
+        self._ledger: dict[str, Any] = self._load_ledger()
 
     # ─────────────────────────── Public API ───────────────────────────
 
@@ -142,6 +149,35 @@ class Budget:
                 "further turns will be refused.",
                 new_total, self.daily_limit_usd,
             )
+
+    def record_plugin_call(self, plugin: str, cost_usd: Optional[float] = None) -> None:
+        """V2 Phase 1 — the per-plugin column. Counts ONE serviced call for
+        `plugin` (a provenance tag like "core:file_read") and, when the call
+        carried a real cost, adds it BOTH to the plugin's bucket AND to the
+        day's sovereign total (a paid plugin call is spend like any other —
+        the global can_afford() gate must see it). Never raises; a blank
+        plugin tag or an invalid cost degrades to a logged count-only."""
+        if not plugin or not isinstance(plugin, str):
+            logger.warning("[budget] plugin call with no provenance — ignored")
+            return
+        cost = 0.0 if cost_usd is None else float(cost_usd)
+        if not math.isfinite(cost) or cost < 0.0:
+            logger.warning("[budget] invalid plugin cost %r — counting the call only", cost_usd)
+            cost = 0.0
+        today = self._today_fn()
+        buckets = self._ledger.setdefault(PLUGINS_KEY, {}).setdefault(today, {})
+        bucket = buckets.setdefault(plugin, {"calls": 0, "spent_usd": 0.0})
+        bucket["calls"] += 1
+        bucket["spent_usd"] = round(bucket["spent_usd"] + cost, MONEY_DECIMALS)
+        if cost > 0.0:
+            self._ledger[today] = round(
+                float(self._ledger.get(today, 0.0)) + cost, MONEY_DECIMALS)
+        self._save_ledger()
+
+    def plugin_spend_today(self) -> dict[str, dict[str, float]]:
+        """Today's per-plugin attribution buckets (a defensive copy)."""
+        buckets = self._ledger.get(PLUGINS_KEY, {}).get(self._today_fn(), {})
+        return {name: dict(bucket) for name, bucket in buckets.items()}
 
     def spent_today_usd(self) -> float:
         """Total recorded spend for the current UTC day."""
@@ -190,9 +226,11 @@ class Budget:
             data = json.loads(raw_text)
             if not isinstance(data, dict):
                 raise ValueError(f"ledger root must be an object, got {type(data).__name__}")
-            ledger: dict[str, float] = {}
+            ledger: dict[str, Any] = {}
             for key, value in data.items():
-                if isinstance(key, str) and isinstance(value, (int, float)):
+                if key == PLUGINS_KEY and isinstance(value, dict):
+                    ledger[key] = value  # the Phase-1 attribution column
+                elif isinstance(key, str) and isinstance(value, (int, float)):
                     ledger[key] = round(float(value), MONEY_DECIMALS)
                 else:
                     raise ValueError(f"bad ledger entry: {key!r}: {value!r}")

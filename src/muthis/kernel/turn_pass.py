@@ -79,8 +79,13 @@ class TurnPass:
         # kwarg contract is UNCHANGED: by default the router is built from
         # that same seam (production: FileReader().read; None degrades to the
         # Arabic unavailable note inside the router). An explicit `router`
-        # wins — the Phase-1 broker's composition point.
-        self._router = router if router is not None else build_core_router(read_file=read_file)
+        # wins — the Phase-1 broker's composition point. M1-3: the default
+        # router feeds the per-plugin budget column when the injected budget
+        # carries it (getattr: V1 fakes with only can_afford/record_turn
+        # stay valid — accounting is additive, never a new requirement).
+        self._router = router if router is not None else build_core_router(
+            read_file=read_file,
+            plugin_ledger=getattr(budget, "record_plugin_call", None))
         # v7: sentence streaming — flag-gated (default OFF). The factory seam
         # resolves lazily to the real TTS().open_speech_session on first
         # flag-ON use, so the buffered default path never imports the TTS layer.

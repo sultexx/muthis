@@ -124,7 +124,8 @@ def _build_orchestrator(
         # V2 Phase 1: the ToolRouter composed HERE, at the composition root
         # (roadmap part 2 §1 — main.py mounts the router). The read seam rides
         # inside it; the Phase-1 broker will join this same composition.
-        router=build_core_router(read_file=FileReader().read),
+        router=build_core_router(read_file=FileReader().read,
+                                 plugin_ledger=budget.record_plugin_call),
     )
 
 
