@@ -1,20 +1,60 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-17, V2 Phase 0). **`AGENTS.md` remains
+> Token-saving snapshot (updated 2026-07-17, V2 Phase 1). **`AGENTS.md` remains
 > the full source of truth**; this is the compressed map. Branch
-> `feature/v2-phase0-kernel-split`; app suite 494 green (474 V1 oracle
-> untouched + 20 Phase-0 guards) + 18 sdk tests.
+> `feature/v2-phase1-broker-mcp`; app suite 532 green (V1 474-oracle
+> preserved through the Q-4 import flip) + 27 sdk tests.
 
-## CURRENT STATUS — V1 SIGNED OFF; V2 PHASE 0 CODE-COMPLETE (2026-07-17)
-**V1 UAT was CLOSED successfully by Sultan (2026-07-16 evening)** — the only
-residual (the Arabic TTS voice occasionally swallowing English terms) was
-diagnosed as a downstream voice-model configuration limit, not architecture.
-`v7-experimental` was merged to `main` and tagged **`v1.0.0`** (+ the
-`pre-v2-phase0` rollback anchor); Phase 0 executes on
-`feature/v2-phase0-kernel-split` per the approved execution plan (M0-M6,
-decisions Q1-Q5). **Exit gate pending: Sultan's live `diag_*` run + approval.**
+## CURRENT STATUS — PHASE 1 CODE-COMPLETE (2026-07-17); LIVE GATE PENDING
+Phase 0 CLOSED by Sultan after live UAT (all four diags on real hardware);
+merged to `main` (+ `pre-v2-phase1` anchor). Phase 1 (broker + privileges +
+MCP bridge) executed M1-0→M1-7 per the approved plan (decisions Q-1.0→Q-1.4).
+**Exit gate pending Sultan's live run:** `diag_hello_plugin.py` +
+`diag_mcp_mount.py` (both zero-cost, both PASSED in engineering smoke) +
+V1 regression diags (`diag_pedagogy` at minimum).
 
-## V2 PHASE 0 — kernel split + muthis-sdk (M0-M6, zero behavioral change)
+## V2 PHASE 1 — broker, privileges, MCP (M1-0→M1-7, zero V1 behavior change)
+- **Q-4 settled (M1-1):** the 8 compat shims are GONE; every consumer imports
+  `muthis.kernel.*`; a revived old path FAILS a guard test.
+- **M1-2:** `kernel/frame_capture.py` extracted (hide→settle→capture, order
+  load-bearing) → orchestrator 284/300 with the ONE router seam injected;
+  `main.py` composes `build_core_router` at the root (deviation D-1 settled).
+- **M1-3:** per-plugin budget column (`plugins` ledger key): every serviced
+  call counted per provenance; REAL plugin costs feed the plugin bucket AND
+  the sovereign daily total; `can_afford`/`record_turn` contracts untouched.
+- **M1-4:** `broker/` — GrantsStore (consent sha256-pinned to manifest BYTES;
+  any change invalidates = update-diff by construction), Broker (grant →
+  capability-gated PluginContext; denial = absent seam; FileReader gates
+  kernel-side), trust flow `python -m muthis.broker.trust <path>`; the
+  conformance kit's permission-violation suite went LIVE (starved-context
+  denial + undeclared-use spy detection) — 0 SKIPs on the core four.
+- **M1-5:** the MCP layer, stdlib (Q-1.1): sdk `mcp/` framing+messages
+  (protocol PINNED 2025-06-18, 4MiB frame wall) + broker `mcp/` client
+  (20s call timeout; EOF fails in-flight INSTANTLY; sampling refused),
+  policy (readOnlyHint-only exposure; text-only, 16k cap, §3.2 source-
+  wrapping), host (plugins.d, lazy catalog-then-close, three-strikes +
+  Arabic announce seam, list_changed quarantine), proxy (namespaced,
+  taint=True). `ServiceOutcome.taint`/`TurnResult.taint` live (recorded;
+  enforcement with Phase-2 high-impact tools). UTF-8 wire armor (Windows
+  cp1256 pipes) at runtime/client/fixtures — live-critical on this machine.
+- **M1-6:** `muthis_sdk.mcp_runtime` (SYNC stdio, owns its encoding): any
+  ToolPlugin becomes an MCP server; muthis-profile/1 negotiation backs
+  ctx.files/ctx.screen with `muthis/read_file`/`muthis/capture` bridge
+  requests serviced through `broker.context_for` (refusal =
+  CAPABILITY_NOT_GRANTED_AR as ordinary text); annotate deferred (Q-1.2).
+  `examples/hello_world` = the reference community plugin.
+- **M1-7:** root composition in `main.py` (router+broker+host; bridge capture
+  rides the SAME chokepoint via a broker-owned FrameCapture; mount at boot;
+  children terminated at shutdown). `examples/demo_server` = the Q-1.4
+  self-contained Python foreign server with a destructive DECOY the filter
+  hides. **Phase-1 scope law:** mounted MCP tools live in the ROUTER only —
+  the model-visible catalog stays the byte-pinned V1 four until Phase 2.
+- Announce seam logs for now (spoken delivery joins the voice line with
+  Phase 2's first high-impact plugin — the audio path stayed untouched).
+
+## V2 PHASE 0 — kernel split + muthis-sdk (CLOSED 2026-07-17, live-verified)
+
+### Phase 0 detail (historical)
 - **kernel/**: orchestrator, turn_pass, turn, highlight_gate, draw_dispatch,
   history_hygiene, verbosity, budget moved to `src/muthis/kernel/` (git mv);
   old paths = explicit named re-export SHIMS until Phase 1 (Q-4), so the V1
