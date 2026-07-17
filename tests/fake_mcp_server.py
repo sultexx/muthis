@@ -18,6 +18,12 @@ import json
 import sys
 import time
 
+# A well-behaved foreign server declares its UTF-8 wire explicitly (the MCP
+# stdio contract) instead of trusting the Windows locale codepage.
+for _stream in (sys.stdin, sys.stdout):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
+
 MODE = sys.argv[1] if len(sys.argv) > 1 else "standard"
 
 TOOLS = [

@@ -22,6 +22,7 @@ turn is a short Arabic ToolResult note, never an exception (§8.5).
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import tomllib
 from dataclasses import dataclass, field
@@ -138,10 +139,37 @@ class McpHost:
             return state.session
         session = McpSession(
             state.manifest.name, state.manifest.entry,
+            bridge=self._bridge_factory(state),
             on_list_changed=lambda: self._quarantine(state))
         await session.start()
         state.session = session
         return session
+
+    # ─────────────────── The muthis-profile/1 bridge (M1-6) ───────────────────
+
+    def _bridge_factory(self, state: _ServerState):
+        """Server→client requests, serviced INSIDE the kernel through the
+        broker's gated context — the §8.4 door. The grant check is the
+        context itself: an ungranted capability is an ABSENT seam, answered
+        with the broker's Arabic refusal as ordinary result text (the same
+        never-raise surface FileReader taught everything else)."""
+        async def bridge(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            from ..broker import CAPABILITY_NOT_GRANTED_AR
+            ctx = self._broker.context_for(state.manifest, state.manifest_path)
+            if method == "muthis/read_file":
+                if ctx.files is None:
+                    return {"text": CAPABILITY_NOT_GRANTED_AR}
+                return {"text": await ctx.files.read(params.get("args") or {})}
+            if method == "muthis/capture":
+                if ctx.screen is None:
+                    return {"image_base64": None,
+                            "note_ar": CAPABILITY_NOT_GRANTED_AR}
+                png = await ctx.screen.capture()
+                encoded = (base64.standard_b64encode(png).decode("ascii")
+                           if png else None)
+                return {"image_base64": encoded}
+            raise ValueError(f"bridge method out of profile: {method}")
+        return bridge
 
     # ─────────────────────────── Calls ───────────────────────────
 

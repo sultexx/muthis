@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import shlex
 from typing import Any, Awaitable, Callable, Optional
 
@@ -91,12 +92,18 @@ class McpSession:
                 for token in shlex.split(self._entry, posix=False)]
         if not argv:
             raise McpSessionError(f"{self.name}: empty entry command")
+        # UTF-8 armor for PYTHON children: Windows pipes default to the
+        # locale codepage (cp1256 here), which breaks the strict-UTF-8 wire
+        # the moment Arabic crosses it. Non-python servers own their own
+        # compliance (the protocol mandates UTF-8).
+        env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
         try:
             self._proc = await asyncio.create_subprocess_exec(
                 *argv,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
         except OSError as exc:
             raise McpSessionError(f"{self.name}: cannot spawn {argv[0]!r}: {exc}") from exc
