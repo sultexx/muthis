@@ -34,10 +34,14 @@ DEFAULT_GRANTS_FILENAME = "grants.json"
 MANIFEST_FILENAME = "muthis-plugin.toml"
 
 
-def manifest_sha256(plugin_dir: str | Path) -> Optional[str]:
+def manifest_sha256(manifest_path: str | Path) -> Optional[str]:
     """The pin: sha256 over the manifest FILE BYTES (not a parse — byte
-    identity is the tamper/update detector). None when unreadable."""
-    path = Path(plugin_dir) / MANIFEST_FILENAME
+    identity is the tamper/update detector). Accepts a plugin DIRECTORY
+    (containing muthis-plugin.toml) or a flat manifest FILE (the plugins.d
+    registration form, roadmap §8.2). None when unreadable."""
+    path = Path(manifest_path)
+    if path.is_dir():
+        path = path / MANIFEST_FILENAME
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError as e:

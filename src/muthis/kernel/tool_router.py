@@ -62,6 +62,7 @@ class _Mounted:
     plugin: ToolPlugin
     ctx: PluginContext
     provenance: str
+    taint: bool = False         # external route (MCP): outcomes untrusted by definition
 
 
 class ToolRouter:
@@ -93,6 +94,7 @@ class ToolRouter:
         ctx: Optional[PluginContext] = None,
         namespace: Optional[str] = None,
         provenance: str = "plugin",
+        taint: bool = False,
     ) -> None:
         """Register every descriptor a plugin offers.
 
@@ -118,6 +120,7 @@ class ToolRouter:
                 plugin=plugin,
                 ctx=ctx,
                 provenance=provenance,
+                taint=taint,
             )
 
     def descriptors(self) -> list[ToolDescriptor]:
@@ -157,7 +160,7 @@ class ToolRouter:
             self._record(route.provenance, None)
             return ServiceOutcome(
                 result=ToolResult(text_ar=FILE_READ_UNAVAILABLE_AR, is_error=True),
-                provenance=route.provenance,
+                provenance=route.provenance, taint=route.taint,
             )
         try:
             result = await route.plugin.execute(route.bare_name, args, route.ctx)
@@ -166,9 +169,10 @@ class ToolRouter:
             self._record(route.provenance, None)
             return ServiceOutcome(
                 result=ToolResult(text_ar=PLUGIN_FAILED_NOTE_AR, is_error=True),
-                provenance=route.provenance,
+                provenance=route.provenance, taint=route.taint,
             )
-        outcome = ServiceOutcome(result=result, provenance=route.provenance)
+        outcome = ServiceOutcome(result=result, provenance=route.provenance,
+                                 taint=route.taint)
         self._record(route.provenance, outcome.cost_usd)
         return outcome
 

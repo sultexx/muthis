@@ -138,6 +138,11 @@ class TurnResult:
     sent_height: int = 0
     scale_x: float = 1.0
     scale_y: float = 1.0
+    # V2 Phase 1 (M1-5): the turn-level taint flag — True once ANY serviced
+    # outcome this turn carried untrusted external content (an MCP result).
+    # Phase 1 RECORDS it (coarse by design, §3.2); enforcement — flipping
+    # high-impact tools to confirm-first — arrives with those tools (Phase 2).
+    taint: bool = False
 
 
 # ─── tool_result builders — Option B "full pairing" keeps history API-valid ──

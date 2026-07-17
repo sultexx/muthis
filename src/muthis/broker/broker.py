@@ -56,6 +56,12 @@ class Broker:
         self._read_file = read_file
         self._capture = capture
 
+    def has_grant(self, manifest: PluginManifest, plugin_dir: str | Path) -> bool:
+        """True iff a HASH-CURRENT consent record exists — distinct from
+        granted() == frozenset(), which a zero-capability plugin also gets."""
+        current = manifest_sha256(plugin_dir)
+        return self._grants.granted_capabilities(manifest.name, current) is not None
+
     def granted(self, manifest: PluginManifest, plugin_dir: str | Path) -> frozenset[str]:
         """The plugin's LIVE capability set: consented AND hash-current."""
         current = manifest_sha256(plugin_dir)

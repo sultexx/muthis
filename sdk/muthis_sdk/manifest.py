@@ -51,6 +51,9 @@ class PluginManifest:
     description_ar: str
     description_en: str = ""
     entry: str = ""
+    # kind=mcp only (roadmap §8.2): eager session at mount instead of the
+    # lazy default (catalog fetched then the pipe closed until first need).
+    warm: bool = False
     capabilities_required: tuple[str, ...] = ()
     capabilities_optional: tuple[str, ...] = ()
     tools: tuple[ToolEntry, ...] = field(default_factory=tuple)
@@ -101,6 +104,10 @@ def parse_manifest(data: dict[str, Any], *, source: str = MANIFEST_FILENAME) -> 
     if not isinstance(entry, str):
         raise ManifestError("plugin entry must be a string")
 
+    warm = plugin.get("warm", False)
+    if not isinstance(warm, bool):
+        raise ManifestError("plugin warm must be a boolean")
+
     descriptions = data.get("descriptions")
     if not isinstance(descriptions, dict) or not str(descriptions.get("ar", "")).strip():
         # Arabic is the reference language (§3.7) — a manifest without an
@@ -137,6 +144,7 @@ def parse_manifest(data: dict[str, Any], *, source: str = MANIFEST_FILENAME) -> 
         description_ar=description_ar,
         description_en=description_en,
         entry=entry,
+        warm=warm,
         capabilities_required=required,
         capabilities_optional=optional,
         tools=tuple(tools),

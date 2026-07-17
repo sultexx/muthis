@@ -194,6 +194,11 @@ class TurnPass:
         if read_call is not None:
             outcome = await self._router.service(read_call.name, read_call.args)
             read_result = (read_call, outcome.result.text_ar)
+            if outcome.taint and not result.taint:
+                # §3.2: coarse turn-level taint — recorded here, enforced by
+                # the high-impact gates when those tools exist (Phase 2).
+                result.taint = True
+                logger.info("[orchestrator] turn tainted by %s", outcome.provenance)
         return turn_complete, refresh_call, read_result
 
 
