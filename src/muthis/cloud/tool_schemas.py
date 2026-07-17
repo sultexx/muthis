@@ -1,16 +1,20 @@
 # src/muthis/cloud/tool_schemas.py
 """
-LOOK-only tool schemas (v4.1 §9.5, reduced to the LOOK subset).
+LOOK-only tool schemas — the ASSEMBLY point (V2 Phase 0 M4).
 
-Moved out of claude_agent.py — that file sits at the ≤300-line ceiling
-(AGENTS.md §17.4: split, don't compress), so adding draw_shapes lives here.
-claude_agent.py re-imports LOOK_ONLY_TOOLS, so every existing import path
-(`from muthis.cloud.claude_agent import LOOK_ONLY_TOOLS`) keeps working.
+The four schema dicts moved VERBATIM into their core plugin packages
+(src/muthis_plugins/*/schema.py — the dogfood re-founding, roadmap §3.1);
+this module re-assembles LOOK_ONLY_TOOLS in the EXACT V1 order so
+claude_agent.py and every existing importer keep working unchanged. The
+model-visible bytes are pinned by tests/snapshots/look_tools_v1.json
+(byte-equality test in tests/test_core_plugins.py): editing a schema in a
+plugin package intentionally fails that snapshot.
 
 LOOK-ONLY BUILD: highlight_target and draw_shapes only DRAW overlay graphics —
 they never move the mouse, never click, never type. type_text / press_hotkey /
 real_click DO NOT EXIST here — they arrive with Trust Modes in a later phase,
-behind trust/confirm_gate.py. Do not add them here.
+behind trust/confirm_gate.py. Do not add them here (and the muthis-sdk
+capability enum has no member they could ever request — golden rule §1.1).
 
 draw_shapes geometry mirrors shapes.Shape exactly: ONE uniform (x1, y1, x2, y2)
 per kind — line/arrow endpoints (arrow head at x2,y2), rectangle corners, and
@@ -22,141 +26,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from muthis_plugins.file_read.schema import READ_LOCAL_FILE_SCHEMA
+from muthis_plugins.look_pointer.schema import HIGHLIGHT_TARGET_SCHEMA
+from muthis_plugins.look_shapes.schema import DRAW_SHAPES_SCHEMA
+from muthis_plugins.screen_refresh.schema import SCREEN_REFRESH_SCHEMA
+
+# The V1 order is load-bearing (the model-visible catalog): pointer, shapes,
+# refresh, read — exactly as v1.0.0 shipped it.
 LOOK_ONLY_TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "highlight_target",
-        "description": (
-            "Draw a cyan rectangle highlight around ONE UI element on the "
-            "user's screen. This does NOT move or click the user's mouse and "
-            "does NOT type anything — it only points. Coordinates are pixels "
-            "in the provided screenshot, origin top-left."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "x1": {"type": "integer", "description": "Left edge"},
-                "y1": {"type": "integer", "description": "Top edge"},
-                "x2": {"type": "integer", "description": "Right edge"},
-                "y2": {"type": "integer", "description": "Bottom edge"},
-                "label_ar": {
-                    "type": "string",
-                    "description": "Short Arabic caption shown near the rectangle",
-                },
-            },
-            "required": ["x1", "y1", "x2", "y2", "label_ar"],
-        },
-    },
-    {
-        "name": "draw_shapes",
-        "description": (
-            "Draw one or MORE geometric overlay graphics (line / arrow / "
-            "circle / rectangle / step) on the user's screen to illustrate "
-            "or annotate what you are explaining. This does NOT move or "
-            "click the user's mouse and does NOT type anything — it only "
-            "draws. ONE call may carry SEVERAL shapes together (e.g. a line "
-            "+ a circle + an arrow) and that is the expected way to draw a "
-            "composite illustration. Coordinates are pixels in the provided "
-            "screenshot, origin top-left. Every kind uses the same four "
-            "values: line/arrow endpoints (the arrow HEAD is at x2,y2), "
-            "rectangle corners, and for a circle the ENCLOSING bounding box "
-            "of the circle. A 'step' is a small NUMBERED badge circle (its "
-            "ENCLOSING bounding box, ~30-50px in screenshot pixels) placed "
-            "ON a UI element to mark one step of a sequential how-to; steps "
-            "are numbered AUTOMATICALLY 1, 2, 3... by their order in the "
-            "shapes list, so send them in execution order. Set "
-            "dim_screen=true for WHITEBOARD mode: the whole screen fades "
-            "dark like a classroom blackboard behind your drawing while you "
-            "explain — use it when illustrating a CONCEPT or abstract idea; "
-            "leave it false/absent when annotating the user's own content "
-            "(code, UI, documents) that they must keep seeing in full."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "dim_screen": {
-                    "type": "boolean",
-                    "description": (
-                        "Whiteboard mode: dim the whole screen behind the "
-                        "shapes for a concept explanation (default false)."
-                    ),
-                },
-                "shapes": {
-                    "type": "array",
-                    "minItems": 1,
-                    "description": "All shapes to draw, together in ONE call.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "kind": {
-                                "type": "string",
-                                "enum": ["line", "arrow", "circle",
-                                         "rectangle", "step"],
-                            },
-                            "x1": {"type": "integer"},
-                            "y1": {"type": "integer"},
-                            "x2": {"type": "integer"},
-                            "y2": {"type": "integer"},
-                            "label_ar": {
-                                "type": "string",
-                                "description": (
-                                    "Optional short Arabic caption shown near "
-                                    "the shape"
-                                ),
-                            },
-                        },
-                        "required": ["kind", "x1", "y1", "x2", "y2"],
-                    },
-                },
-            },
-            "required": ["shapes"],
-        },
-    },
-    {
-        "name": "request_screen_refresh",
-        "description": (
-            "Ask for a fresh screenshot when the current view is stale or "
-            "missing. The orchestrator will answer with a tool_result that "
-            "contains the new image."
-        ),
-        "input_schema": {"type": "object", "properties": {}},
-    },
-    {
-        "name": "read_local_file",
-        "description": (
-            "READ the text content of ONE local file on the user's machine "
-            "(code, SQL, config, data, notes) so your analysis is grounded "
-            "in the REAL content instead of guessing from screenshot pixels. "
-            "READ-ONLY and passive: it never writes, executes, clicks, or "
-            "types anything. Use the exact path the user said or the path "
-            "visible on screen (an editor tab/title bar); prefer an absolute "
-            "Windows path. The tool_result returns the content with 1-based "
-            "LINE NUMBERS so you can reference specific lines aloud and aim "
-            "draw_shapes rectangles at them on screen. Large files are "
-            "truncated — pass start_line/end_line to read a specific range. "
-            "Secret-bearing files (.env, keys, credentials) are refused."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": (
-                        "The file's path — absolute preferred (e.g. "
-                        "C:\\Users\\name\\project\\main.py)."
-                    ),
-                },
-                "start_line": {
-                    "type": "integer",
-                    "description": "Optional 1-based first line of the range.",
-                },
-                "end_line": {
-                    "type": "integer",
-                    "description": "Optional 1-based last line of the range.",
-                },
-            },
-            "required": ["path"],
-        },
-    },
+    HIGHLIGHT_TARGET_SCHEMA,
+    DRAW_SHAPES_SCHEMA,
+    SCREEN_REFRESH_SCHEMA,
+    READ_LOCAL_FILE_SCHEMA,
 ]
 
 __all__ = ["LOOK_ONLY_TOOLS"]

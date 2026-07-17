@@ -154,32 +154,29 @@ class ToolRouter:
         return ServiceOutcome(result=result, provenance=route.provenance)
 
 
-class _SeamReadPlugin(ToolPlugin):
-    """M3-interim core plugin: read_local_file over the injected seam.
-
-    Replaced in M4 by muthis_plugins.file_read (the real SDK dogfood); kept
-    private here so the M3 commit stands green on its own. Descriptor-less
-    for the schema list (the V1 schema still lives in cloud/tool_schemas.py
-    until M4) — it exists purely to route service()."""
-
-    def descriptors(self) -> list[ToolDescriptor]:
-        return [ToolDescriptor(name=READ_FILE_TOOL, schema={"name": READ_FILE_TOOL})]
-
-    async def execute(self, tool: str, args: dict[str, Any], ctx: PluginContext) -> ToolResult:
-        # ctx.files is guaranteed by the router's degradation rule above.
-        return ToolResult(text_ar=await ctx.files.read(args))
-
-
 def build_core_router(*, read_file: Optional[ReadFileFn] = None) -> ToolRouter:
-    """The default kernel router (M3 shape): the read seam mounted as a core
-    plugin. M4 swaps the interim plugin for the four real muthis_plugins
-    packages without touching any caller."""
+    """The default kernel router: the four V1 tools mounted as core plugins
+    (M4 dogfood) in the EXACT V1 catalog order — pointer, shapes, refresh,
+    read — so descriptors() mirrors cloud.tool_schemas.LOOK_ONLY_TOOLS
+    (snapshot-pinned). Only file_read is router-serviced; the other three are
+    kernel_serviced declarations (conflict ruling C-1)."""
+    # Composition-point import (lazy, the ONE documented kernel→plugins
+    # direction): the ToolRouter class itself stays plugin-agnostic, and
+    # kernel modules keep importing in isolation without the plugins tree.
+    from muthis_plugins.file_read import FileReadPlugin
+    from muthis_plugins.look_pointer import LookPointerPlugin
+    from muthis_plugins.look_shapes import LookShapesPlugin
+    from muthis_plugins.screen_refresh import ScreenRefreshPlugin
+
     router = ToolRouter()
+    router.mount(LookPointerPlugin(), provenance="core:look_pointer")
+    router.mount(LookShapesPlugin(), provenance="core:look_shapes")
+    router.mount(ScreenRefreshPlugin(), provenance="core:screen_refresh")
     files = FilesCapability(read=read_file) if read_file is not None else None
     router.mount(
-        _SeamReadPlugin(),
+        FileReadPlugin(),
         ctx=PluginContext(files=files),
-        namespace=None,  # core: V1 names verbatim
+        namespace=None,  # core: V1 names verbatim (C-3 exemption)
         provenance="core:file_read",
     )
     return router
