@@ -38,8 +38,9 @@ from typing import Any, Callable, Optional
 
 from ..cloud.protocol import TextDelta, ToolCall, TurnComplete, UserInput
 from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
-from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL, ReadFileFn
+from ..file_reader import READ_FILE_TOOL, ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
+from .tool_router import ToolRouter, build_core_router
 from .turn import TurnResult
 from ..turn_voice import TurnVoice
 
@@ -67,14 +68,19 @@ class TurnPass:
         stream_tts: Optional[bool] = None,
         session_factory: Optional[Callable[[], object]] = None,
         read_file: Optional[ReadFileFn] = None,
+        router: Optional[ToolRouter] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
         self._overlay = overlay
         self._voice = voice
-        # v7 Phase 4: the read_local_file seam (production: FileReader().read).
-        # None (a legacy caller) degrades to the Arabic unavailable note.
-        self._read_file = read_file
+        # V2 Phase 0: the bespoke read seam generalized into the ToolRouter
+        # (roadmap part 2 §1 — the one surgical change). The `read_file=`
+        # kwarg contract is UNCHANGED: by default the router is built from
+        # that same seam (production: FileReader().read; None degrades to the
+        # Arabic unavailable note inside the router). An explicit `router`
+        # wins — the Phase-1 broker's composition point.
+        self._router = router if router is not None else build_core_router(read_file=read_file)
         # v7: sentence streaming — flag-gated (default OFF). The factory seam
         # resolves lazily to the real TTS().open_speech_session on first
         # flag-ON use, so the buffered default path never imports the TTS layer.
@@ -176,13 +182,13 @@ class TurnPass:
             # BEHIND its playback (the measured 3.48s gap).
             await turn_voice.speak_or_feed(message_text)
         # Phase 4: service the pass's ONE read AFTER the audio is moving (local
-        # I/O must never delay the spoken ack). The seam never raises.
+        # I/O must never delay the spoken ack). Routed through the ToolRouter
+        # (V2 Phase 0) at the SAME site with the same await discipline; the
+        # router never raises — every failure is already an Arabic note.
         read_result: Optional[tuple[ToolCall, str]] = None
         if read_call is not None:
-            if self._read_file is None:
-                read_result = (read_call, FILE_READ_UNAVAILABLE_AR)
-            else:
-                read_result = (read_call, await self._read_file(read_call.args))
+            outcome = await self._router.service(read_call.name, read_call.args)
+            read_result = (read_call, outcome.result.text_ar)
         return turn_complete, refresh_call, read_result
 
 
