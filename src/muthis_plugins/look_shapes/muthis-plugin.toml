@@ -1,0 +1,18 @@
+# draw_shapes as a core native plugin (V2 Phase 0 dogfood, kernel-serviced).
+
+[plugin]
+name    = "look_shapes"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.look_shapes.plugin:LookShapesPlugin"
+
+[descriptions]
+ar = "يرسم أشكالًا هندسية توضيحية (خط، سهم، دائرة، مستطيل، شارة خطوة) فوق الشاشة مع وضع السبورة للمفاهيم — رسم فقط، لا لمس"
+en = "Draws illustrative overlay shapes (line, arrow, circle, rectangle, step badge) with whiteboard mode for concepts — draw-only"
+
+[capabilities]
+required = ["annotate.overlay"]
+
+[tools.draw_shapes]
+read_only = true

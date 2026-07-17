@@ -1,0 +1,25 @@
+# muthis-sdk — the public plugin contract for Mut'his V2 (V2_ROADMAP.md §3.6).
+# Independently semver'd (roadmap: 2.0.0 final ships at Phase 4); zero runtime
+# third-party dependencies by design — the protocol.py culture, importable in
+# isolation. Installed editable into the app venv: `pip install -e sdk`.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "muthis-sdk"
+version = "2.0.0a1"
+description = "Public plugin contract for Mut'his V2: plugin types, manifest loader, and the conformance kit"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = []
+
+[project.scripts]
+# The roadmap §8.7 developer command: `muthis plugin test .` (Phase 0 birth).
+muthis = "muthis_sdk.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["muthis_sdk*"]
+exclude = ["tests*"]

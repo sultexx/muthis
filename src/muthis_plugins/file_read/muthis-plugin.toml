@@ -1,0 +1,18 @@
+# read_local_file as a core native plugin (V2 Phase 0 dogfood — the routed executor).
+
+[plugin]
+name    = "file_read"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.file_read.plugin:FileReadPlugin"
+
+[descriptions]
+ar = "يقرأ ملفًا نصّيًا محليًا واحدًا بأسطر مرقّمة ليؤسس الشرح على المحتوى الحقيقي — قراءة صرفة عبر بوابات النواة، وملفات الأسرار مرفوضة بالاسم"
+en = "Reads ONE local text file with numbered lines to ground explanations in real content — read-only through kernel gates; secret files refused by name"
+
+[capabilities]
+required = ["perceive.files.read"]
+
+[tools.read_local_file]
+read_only = true

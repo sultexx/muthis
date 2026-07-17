@@ -1,0 +1,18 @@
+# highlight_target as a core native plugin (V2 Phase 0 dogfood, kernel-serviced).
+
+[plugin]
+name    = "look_pointer"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.look_pointer.plugin:LookPointerPlugin"
+
+[descriptions]
+ar = "يرسم مستطيلًا سماويًا حول عنصر واحد على الشاشة ليدل المستخدم عليه — يشير فقط، لا يلمس الفأرة ولا لوحة المفاتيح"
+en = "Draws a cyan rectangle around ONE on-screen UI element to point at it — LOOK-only, never touches mouse or keyboard"
+
+[capabilities]
+required = ["annotate.overlay"]
+
+[tools.highlight_target]
+read_only = true

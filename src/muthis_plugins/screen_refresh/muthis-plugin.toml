@@ -1,0 +1,18 @@
+# request_screen_refresh as a core native plugin (V2 Phase 0 dogfood, kernel-serviced).
+
+[plugin]
+name    = "screen_refresh"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.screen_refresh.plugin:ScreenRefreshPlugin"
+
+[descriptions]
+ar = "يطلب لقطة شاشة جديدة عندما تكون الرؤية الحالية قديمة أو ناقصة — إدراك محض تخدمه النواة بخط الالتقاط الآمن"
+en = "Requests a fresh screenshot when the current view is stale — pure perception, serviced by the kernel capture line"
+
+[capabilities]
+required = ["perceive.screen"]
+
+[tools.request_screen_refresh]
+read_only = true
