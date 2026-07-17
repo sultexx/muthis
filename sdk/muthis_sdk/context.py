@@ -29,6 +29,20 @@ class FilesCapability:
         self.read = read
 
 
+# perceive.screen: returns the downscaled payload PNG (the kernel's own
+# hide→settle→capture line produced it) or None when capture failed.
+CaptureFn = Callable[[], Awaitable[Optional[bytes]]]
+
+
+class ScreenCapability:
+    """The perceive.screen seam (V2 Phase 1, sdk 2.0.0a2). In-proc plugins
+    get the kernel callable directly; out-of-proc plugins get a transparent
+    stub the MCP runtime backs with a muthis/capture profile request."""
+
+    def __init__(self, capture: CaptureFn) -> None:
+        self.capture = capture
+
+
 @dataclass
 class PluginContext:
     """What the kernel hands a plugin for one execute() call.
@@ -39,6 +53,7 @@ class PluginContext:
     """
 
     files: Optional[FilesCapability] = None
+    screen: Optional[ScreenCapability] = None
     locale: str = "ar"
     logger: logging.Logger = field(
         default_factory=lambda: logging.getLogger("muthis.plugins")

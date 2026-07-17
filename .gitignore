@@ -27,3 +27,6 @@ dist/
 *.safetensors
 *.pt
 *.pth
+
+# Capability consent ledger (V2 Phase 1) — per-machine, never committed
+grants.json

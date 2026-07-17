@@ -127,6 +127,56 @@ async def golden_run(
     return "PASS", "golden run clean: " + "; ".join(notes)
 
 
-def check_permission_violations() -> tuple[str, str]:
-    """Phase-1 honesty marker: there is no broker to violate yet."""
-    return "SKIP", "permission-violation suite arrives with the Phase-1 broker"
+async def permission_checks(
+    plugin: ToolPlugin, descriptors: list[ToolDescriptor], manifest: PluginManifest
+) -> tuple[str, str]:
+    """The Phase-1 permission-violation suite (the M1-4 activation of the
+    Phase-0 SKIP marker). Two refusal contracts, both MUST hold:
+
+    1. STARVED CONTEXT — execute() against a bare PluginContext (every
+       capability absent, exactly what the broker hands an ungranted
+       plugin) must DEGRADE to a ToolResult, never raise: a plugin that
+       crashes when denied is a plugin that cannot be safely refused.
+    2. UNDECLARED USE — execute() against an INSTRUMENTED context (every
+       seam present, each access recorded) must touch only capabilities
+       the manifest declares (required or optional): silent capability
+       use is a permission violation even when the seam happens to exist.
+    """
+    from ..context import FilesCapability, ScreenCapability
+
+    declared = set(manifest.capabilities_required) | set(manifest.capabilities_optional)
+
+    # 1) The starved run — the broker's denial posture.
+    for d in descriptors:
+        try:
+            result = await plugin.execute(d.name, {}, PluginContext())
+        except Exception as exc:  # noqa: BLE001
+            return "FAIL", (f"{d.name}: raised on a capability-starved context "
+                            f"({exc!r}) — denial must degrade, never crash")
+        if not isinstance(result, ToolResult):
+            return "FAIL", f"{d.name}: starved run returned {type(result).__name__}"
+
+    # 2) The instrumented run — silent capability use is a violation.
+    accessed: set[str] = set()
+
+    async def _spy_read(args: dict[str, Any]) -> str:
+        accessed.add("perceive.files.read")
+        return "سطر تجريبي"
+
+    async def _spy_capture() -> Optional[bytes]:
+        accessed.add("perceive.screen")
+        return b"\x89PNG"
+
+    spy_ctx = PluginContext(files=FilesCapability(read=_spy_read),
+                            screen=ScreenCapability(capture=_spy_capture))
+    for d in descriptors:
+        try:
+            await plugin.execute(d.name, {}, spy_ctx)
+        except Exception as exc:  # noqa: BLE001
+            return "FAIL", f"{d.name}: raised on the instrumented context ({exc!r})"
+    undeclared = accessed - declared
+    if undeclared:
+        return "FAIL", (f"capabilities used but not declared in the manifest: "
+                        f"{sorted(undeclared)}")
+    note = f"used={sorted(accessed)}" if accessed else "no capability touched"
+    return "PASS", f"starved-context denial degrades politely; {note}, all declared"
