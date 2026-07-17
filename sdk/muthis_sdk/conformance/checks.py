@@ -25,7 +25,8 @@ LATENCY_WARN_MS = 1000.0          # golden-run per-call soft budget (Phase 0: wa
 def check_entry_class(manifest: PluginManifest) -> tuple[str, str, Optional[ToolPlugin]]:
     """Import manifest.entry ("module:Class") and instantiate it."""
     if manifest.kind != "native":
-        return "SKIP", "kind=mcp entry spawning arrives with the Phase-1 broker", None
+        return "SKIP", ("kind=mcp: the runtime suite covers out-of-proc serving; "
+                        "kit-driven child spawning arrives in Phase 2"), None
     if ":" not in manifest.entry:
         return "FAIL", f"entry {manifest.entry!r} is not 'module:Class'", None
     module_name, _, class_name = manifest.entry.partition(":")

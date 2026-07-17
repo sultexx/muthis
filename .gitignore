@@ -30,3 +30,7 @@ dist/
 
 # Capability consent ledger (V2 Phase 1) — per-machine, never committed
 grants.json
+
+# plugins.d: real registrations are per-machine; samples/README are committed
+plugins.d/*.toml
+!plugins.d/*.toml.sample
