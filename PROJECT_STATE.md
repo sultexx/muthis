@@ -82,13 +82,17 @@ V1 regression diags (`diag_pedagogy` at minimum).
 - **Reason:** decision Q-1.2 — keep the draw path isolated and sacred one more
   phase; no Phase-1 external plugin needs server-side drawing, and the draw
   circuit stayed untouched (ruling C-1).
-- **Lands in:** UNASSIGNED in V2_ROADMAP.md — earliest sensible is a phase
-  where a granted external plugin needs to draw (Phase 2+). **Needs Sultan's
-  explicit phase assignment; deliberately not guessed here.**
-- **Closing condition:** `muthis/annotate` added to the profile and routed
-  through the ONE HighlightGate behind an `annotate.overlay` grant, with the
-  V1 draw circuit byte-unchanged, proven by a live diag of an external plugin
-  drawing via the gate.
+- **Lands in:** INTENTIONALLY UNASSIGNED — this item stays deferred until
+  `V2_ROADMAP.md` formally assigns it a landing phase through roadmap
+  governance. No phase is committed here; the earlier informal "Phase 2+" hint
+  is withdrawn, because assigning a landing phase is a roadmap decision, never
+  an implementation guess.
+- **Closing condition:** two gated steps — (1) `V2_ROADMAP.md` formally assigns
+  `muthis/annotate` a landing phase through roadmap governance; THEN (2) it is
+  added to the profile and routed through the ONE HighlightGate behind an
+  `annotate.overlay` grant, with the V1 draw circuit byte-unchanged, proven by
+  a live diag of an external plugin drawing via the gate. Until step (1), the
+  item remains deferred and unscheduled.
 
 ### (c) Conformance-kit real-child boot check
 - **Item:** the kit's `entry-class` check SKIPs `kind=mcp` plugins — it
