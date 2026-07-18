@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, TurnComplete
-from muthis.orchestrator import Orchestrator
-from muthis.turn import DownscaledImage
+from muthis.kernel.orchestrator import Orchestrator
+from muthis.kernel.turn import DownscaledImage
 
 PHYSICAL_PNG = b"\x89PNG\r\n\x1a\n" + b"PHYSICAL" * 4
 SENT_PNG = b"\x89PNG\r\n\x1a\n" + b"SENTSENT" * 2

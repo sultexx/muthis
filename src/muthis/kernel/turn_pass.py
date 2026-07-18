@@ -79,8 +79,13 @@ class TurnPass:
         # kwarg contract is UNCHANGED: by default the router is built from
         # that same seam (production: FileReader().read; None degrades to the
         # Arabic unavailable note inside the router). An explicit `router`
-        # wins — the Phase-1 broker's composition point.
-        self._router = router if router is not None else build_core_router(read_file=read_file)
+        # wins — the Phase-1 broker's composition point. M1-3: the default
+        # router feeds the per-plugin budget column when the injected budget
+        # carries it (getattr: V1 fakes with only can_afford/record_turn
+        # stay valid — accounting is additive, never a new requirement).
+        self._router = router if router is not None else build_core_router(
+            read_file=read_file,
+            plugin_ledger=getattr(budget, "record_plugin_call", None))
         # v7: sentence streaming — flag-gated (default OFF). The factory seam
         # resolves lazily to the real TTS().open_speech_session on first
         # flag-ON use, so the buffered default path never imports the TTS layer.
@@ -189,6 +194,11 @@ class TurnPass:
         if read_call is not None:
             outcome = await self._router.service(read_call.name, read_call.args)
             read_result = (read_call, outcome.result.text_ar)
+            if outcome.taint and not result.taint:
+                # §3.2: coarse turn-level taint — recorded here, enforced by
+                # the high-impact gates when those tools exist (Phase 2).
+                result.taint = True
+                logger.info("[orchestrator] turn tainted by %s", outcome.provenance)
         return turn_complete, refresh_call, read_result
 
 

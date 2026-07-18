@@ -1,0 +1,24 @@
+# The self-contained Python "foreign" MCP server (decision Q-1.4) — proves
+# the read-only filter live: delete_file exists server-side and Mut'his
+# must hide it. Copy to demo_server.toml, then:
+#     python -m muthis.broker.trust plugins.d/demo_server.toml
+
+[plugin]
+name    = "demo_server"
+version = "1.0.0"
+sdk     = ">=2.0.0a2,<3"
+kind    = "mcp"
+entry   = "python examples/demo_server/server.py"
+
+[descriptions]
+ar = "خادم العرض المستقل — معلومات النظام وقائمة مجلد للقراءة فقط، وأداة حذف مفخخة يجب أن تختفي خلف فلتر «انظر وانصح»"
+en = "The standalone demo server — read-only system info + dir listing, plus a decoy destructive tool the filter must hide"
+
+[capabilities]
+
+[tools.system_info]
+read_only = true
+[tools.list_dir]
+read_only = true
+[tools.delete_file]
+read_only = false

@@ -1,0 +1,19 @@
+# The reference community plugin, out-of-process via the SDK runtime.
+# Copy to hello_world.toml, adjust `python` to your venv if needed, then:
+#     python -m muthis.broker.trust plugins.d/hello_world.toml
+
+[plugin]
+name    = "hello_world"
+version = "1.0.0"
+sdk     = ">=2.0.0a2,<3"
+kind    = "mcp"
+entry   = "python -m muthis_sdk.mcp_runtime examples.hello_world.plugin:HelloWorldPlugin"
+
+[descriptions]
+ar = "إضافة الترحيب المرجعية — تقول مرحبًا بالعربية من خارج العملية عبر عقد muthis-sdk"
+en = "The reference greeting plugin — Arabic hello, out-of-process over the muthis-sdk contract"
+
+[capabilities]
+
+[tools.say_hello]
+read_only = true

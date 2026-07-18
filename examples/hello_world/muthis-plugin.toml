@@ -1,0 +1,21 @@
+# The reference community plugin (V2 Phase 1 exit-gate subject; the Phase-4
+# template grows from this seed). Out-of-process via the SDK runtime — the
+# author wrote ONE simple class; muthis_sdk.mcp_runtime is the whole server.
+
+[plugin]
+name    = "hello_world"
+version = "1.0.0"
+sdk     = ">=2.0.0a2,<3"
+kind    = "mcp"
+entry   = "python -m muthis_sdk.mcp_runtime examples.hello_world.plugin:HelloWorldPlugin"
+
+[descriptions]
+ar = "إضافة الترحيب المرجعية — تقول مرحبًا بالعربية من خارج العملية عبر عقد muthis-sdk"
+en = "The reference greeting plugin — says hello in Arabic, out-of-process over the muthis-sdk contract"
+
+[capabilities]
+# Deliberately EMPTY: the community archetype's first step needs no kernel
+# power at all — a grant still gates RUNNING it (trust = consent to spawn).
+
+[tools.say_hello]
+read_only = true

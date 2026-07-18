@@ -1,0 +1,3 @@
+# Snapshot files are BYTE contracts (the zero-behavior clause compares raw
+# bytes) — git must never eol-convert them on checkout or commit.
+tests/snapshots/** -text

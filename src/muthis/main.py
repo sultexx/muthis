@@ -51,13 +51,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .activation import ActivationController  # noqa: E402,F401 — re-export: old imports keep working
-from .budget import Budget  # noqa: E402
+from .broker.broker import Broker  # noqa: E402
+from .broker.grants import GrantsStore  # noqa: E402
+from .broker.mcp.host import McpHost  # noqa: E402
+from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
+from .kernel.frame_capture import FrameCapture  # noqa: E402
+from .kernel.tool_router import ToolRouter, build_core_router  # noqa: E402
+from .kernel.turn import TurnResult  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .mic import Mic  # noqa: E402
-from .orchestrator import Orchestrator  # noqa: E402
+from .kernel.orchestrator import Orchestrator  # noqa: E402
 from .persona import resolve_system_prompt  # noqa: E402
 from .stt import STT  # noqa: E402
 from .tts import TTS  # noqa: E402
@@ -104,8 +110,43 @@ def _pointer_anim_ms() -> int:
         return DEFAULT_POINTER_ANIM_MS
 
 
+class _BridgeAutoHide:
+    """The broker's capture runs OUTSIDE any turn, so there is no pending
+    auto-hide timer to cancel — a stale one firing later is harmless (hide
+    is idempotent and every capture hides first anyway)."""
+
+    def cancel(self) -> None:
+        pass
+
+
+def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
+                        reader: FileReader) -> tuple[ToolRouter, McpHost]:
+    """V2 Phase 1 (M1-7): the router + broker + MCP host composed at the
+    root (roadmap part 2 §1). The bridge's screenshot rides the SAME
+    hide→settle→capture chokepoint as every turn frame (§3.3); FileReader's
+    gates guard the read seam for core plugin and bridge alike."""
+    router = build_core_router(read_file=reader.read,
+                               plugin_ledger=budget.record_plugin_call)
+    bridge_frames = FrameCapture(
+        overlay=overlay, screen_capture=ScreenCapture().capture,
+        downscale=downscale_to_max_width, auto_hide=_BridgeAutoHide())
+
+    async def bridge_capture():
+        return await bridge_frames.capture(TurnResult())
+
+    broker = Broker(grants=GrantsStore(), read_file=reader.read,
+                    capture=bridge_capture)
+    # Three-strikes announcements log for now; the SPOKEN delivery joins the
+    # voice line with Phase 2's first high-impact plugin (audio path sacred).
+    host = McpHost(broker=broker,
+                   announce=lambda note_ar: logger.warning(
+                       "[main] mcp server disabled: %s", note_ar))
+    return router, host
+
+
 def _build_orchestrator(
     agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay, mic_seam,
+    router: ToolRouter,
 ) -> Orchestrator:
     """Wire the FULL production graph through the existing DI seams. Tests inject
     fakes through these very same seams — production just passes the real ones.
@@ -120,7 +161,7 @@ def _build_orchestrator(
         screen_capture=ScreenCapture().capture,  # REAL primary-monitor PNG (DPI-aware)
         downscale=downscale_to_max_width,        # REAL payload COPY (≤ max width)
         overlay=overlay,                         # REAL overlay (hidden before each capture)
-        read_file=FileReader().read,             # REAL read_local_file (v7 Phase 4)
+        router=router,                           # V2 Phase 1: the ONE injected seam
     )
 
 
@@ -145,7 +186,9 @@ async def run() -> None:
     overlay = SidekickOverlay(anim_duration_ms=_pointer_anim_ms())  # cyan rect + gliding pointer (DPI-aware, click-through)
     mic = Mic()                  # REAL streaming mic (hold to talk, release to send)
     earcons = EarconPlayer()     # pleasant lifecycle cues (MUTHIS_EARCONS, default on)
-    orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop)
+    reader = FileReader()
+    router, mcp_host = _build_broker_graph(budget, overlay, reader)
+    orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop, router)
 
     loop = asyncio.get_running_loop()
     controller = ActivationController(
@@ -171,6 +214,14 @@ async def run() -> None:
     )
     listener.start()
 
+    # V2 Phase 1: mount trusted plugins.d servers (read-only tools only) into
+    # the router. NOT offered to the model in this phase — the model-visible
+    # catalog stays the byte-pinned V1 four; router-level mounting is the
+    # Phase-1 gate, the model merge is Phase 2's designed change.
+    mounted = await mcp_host.mount_all(router)
+    if mounted:
+        logger.info("[main] mcp servers mounted: %s", ", ".join(mounted))
+
     print(f"مطحس جاهز. اضغط مع الاستمرار على {hotkey.upper()} وتكلّم بالعربية، ثم اترك الزر ليرد. (Ctrl+C للخروج)")
 
     # Run forever. KeyboardInterrupt (Ctrl+C) propagates out of the wait and into
@@ -180,6 +231,7 @@ async def run() -> None:
         await stop_event.wait()
     finally:
         listener.stop()       # stop the keyboard thread first (no new turns)
+        await mcp_host.shutdown()  # terminate MCP children before the UI goes
         overlay.close()       # stop the overlay's Tk thread
         await agent.aclose()  # release the shared httpx client (root owns shutdown)
         logger.info("[main] shutdown complete")

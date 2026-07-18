@@ -16,9 +16,9 @@ import sys
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.mic import Mic
-from muthis.orchestrator import STT_EMPTY_AR, Orchestrator
+from muthis.kernel.orchestrator import STT_EMPTY_AR, Orchestrator
 
 
 class FakeStream:

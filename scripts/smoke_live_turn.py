@@ -42,10 +42,10 @@ from dotenv import load_dotenv
 # import/instantiation time.
 load_dotenv()
 
-from muthis.budget import Budget                                    # noqa: E402
+from muthis.kernel.budget import Budget                                    # noqa: E402
 from muthis.cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from muthis.mic import Mic                                          # noqa: E402
-from muthis.orchestrator import Orchestrator                        # noqa: E402
+from muthis.kernel.orchestrator import Orchestrator                        # noqa: E402
 from muthis.persona import resolve_system_prompt                    # noqa: E402
 from muthis.stt import STT                                          # noqa: E402
 from muthis.tts import TTS                                          # noqa: E402

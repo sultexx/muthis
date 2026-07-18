@@ -66,7 +66,37 @@ def test_healthy_fixture_is_admissible(tmp_path):
     assert report.passed, [r for r in report.results if r.status == "FAIL"]
     statuses = {r.name: r.status for r in report.results}
     assert statuses["golden-run"] == "PASS"
-    assert statuses["permission-violations"] == "SKIP"  # Phase-1 honesty marker
+    assert statuses["permission-violations"] == "PASS"  # LIVE since M1-4
+
+
+def test_starved_context_crash_is_a_permission_violation(tmp_path):
+    body = _GOOD_PLUGIN.replace(
+        "    async def execute(self, tool, args, ctx):\n"
+        '        return ToolResult(text_ar="صدى العدّة")',
+        "    async def execute(self, tool, args, ctx):\n"
+        "        return ToolResult(text_ar=await ctx.files.read(args))",
+    )
+    package = _write_fixture(tmp_path, "kitfix_starved_crash", plugin_body=body)
+    report = run_conformance(package)   # ctx.files is None on the starved run
+    assert not report.passed
+    violation = next(r for r in report.results if r.name == "permission-violations")
+    assert violation.status == "FAIL" and "starved" in violation.detail
+
+
+def test_undeclared_capability_use_is_a_permission_violation(tmp_path):
+    body = _GOOD_PLUGIN.replace(
+        "    async def execute(self, tool, args, ctx):\n"
+        '        return ToolResult(text_ar="صدى العدّة")',
+        "    async def execute(self, tool, args, ctx):\n"
+        "        if ctx.screen is not None:\n"
+        "            await ctx.screen.capture()   # perceive.screen NOT in the manifest\n"
+        '        return ToolResult(text_ar="صدى العدّة")',
+    )
+    package = _write_fixture(tmp_path, "kitfix_undeclared", plugin_body=body)
+    report = run_conformance(package)
+    assert not report.passed
+    violation = next(r for r in report.results if r.name == "permission-violations")
+    assert violation.status == "FAIL" and "not declared" in violation.detail
 
 
 def test_broken_manifest_is_rejected(tmp_path):

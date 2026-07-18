@@ -48,10 +48,10 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Law 5.1: .env before any muthis import that reads keys
 
-from muthis.budget import Budget                                       # noqa: E402
+from muthis.kernel.budget import Budget                                       # noqa: E402
 from muthis.cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from muthis.file_reader import FileReader                              # noqa: E402
-from muthis.orchestrator import Orchestrator                           # noqa: E402
+from muthis.kernel.orchestrator import Orchestrator                           # noqa: E402
 from muthis.overlay import SidekickOverlay                             # noqa: E402
 from muthis.persona import resolve_system_prompt                      # noqa: E402
 from muthis.tts import TTS                                             # noqa: E402

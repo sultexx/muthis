@@ -49,7 +49,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from .verbosity import normalize_ar
+from .kernel.verbosity import normalize_ar
 
 logger = logging.getLogger("muthis.orchestrator")
 

@@ -36,7 +36,7 @@ import io
 import logging
 import os
 
-from ..turn import DownscaledImage
+from ..kernel.turn import DownscaledImage
 
 logger = logging.getLogger("muthis.vision.downscale")
 

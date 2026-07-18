@@ -24,9 +24,9 @@ import asyncio
 
 import pytest
 
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
-from muthis.orchestrator import BUDGET_REFUSAL_AR, Orchestrator
+from muthis.kernel.orchestrator import BUDGET_REFUSAL_AR, Orchestrator
 from muthis.tts import TTSResult
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -463,7 +463,7 @@ class CaptionRecordingOverlay:
 @pytest.mark.asyncio
 async def test_caption_bar_shows_only_assistant_speech_then_clears(tmp_path):
     # No env needed: captions are ON by default (Sultan, 2026-07-15).
-    from muthis.verbosity import DIRECTIVE_OPEN_AR
+    from muthis.kernel.verbosity import DIRECTIVE_OPEN_AR
 
     script = [TextDelta(ASSISTANT_TEXT_AR), _turn_complete()]
     fake_tts = FakeTTS()

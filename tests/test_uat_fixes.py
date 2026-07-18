@@ -35,13 +35,13 @@ import asyncio
 import pytest
 
 from muthis import tts_elevenlabs, tts_gemini
-from muthis.budget import Budget
+from muthis.kernel.budget import Budget
 from muthis.cloud.protocol import TextDelta, TurnComplete
-from muthis.orchestrator import Orchestrator
+from muthis.kernel.orchestrator import Orchestrator
 from muthis.speech_stream import EchoGuard, strip_leading_repeat
 from muthis.tts import TTS
 from muthis.tts_elevenlabs import stream_pcm
-from muthis.turn import DownscaledImage
+from muthis.kernel.turn import DownscaledImage
 from muthis.turn_voice import TurnVoice
 
 ACK = "أبشر، شوف"

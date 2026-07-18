@@ -72,8 +72,6 @@ def run_conformance(plugin_dir: str | Path) -> ConformanceReport:
     status, detail, plugin = checks.check_entry_class(manifest)
     report.add("entry-class", status, detail)
     if plugin is None:
-        if status == "SKIP":
-            report.add("permission-violations", *checks.check_permission_violations())
         return report
 
     # 4) Descriptors + manifest consistency + schema structure.
@@ -85,9 +83,11 @@ def run_conformance(plugin_dir: str | Path) -> ConformanceReport:
                *checks.check_manifest_consistency(manifest, descriptors))
     report.add("schema-structure", *checks.check_schema_structure(descriptors))
 
-    # 5) The fake-kernel golden run (latency measured, warn-only in Phase 0).
+    # 5) The fake-kernel golden run (latency measured, warn-only).
     report.add("golden-run", *asyncio.run(checks.golden_run(plugin, descriptors)))
 
-    # 6) Phase-1 suite, honestly skipped.
-    report.add("permission-violations", *checks.check_permission_violations())
+    # 6) The permission-violation suite (LIVE since Phase 1 M1-4: starved
+    #    denial + undeclared-use detection; the Phase-0 SKIP retired).
+    report.add("permission-violations",
+               *asyncio.run(checks.permission_checks(plugin, descriptors, manifest)))
     return report

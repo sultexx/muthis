@@ -37,9 +37,16 @@
 - Capabilities come from the CLOSED enum only; an unknown capability fails
   manifest load. Community plugins are `kind = "mcp"` (out-of-process,
   Phase 1+); `kind = "native"` is reserved for signed core plugins.
+- **Out-of-process quickstart (Phase 1):** write your `ToolPlugin` class,
+  then `entry = "python -m muthis_sdk.mcp_runtime your_pkg.plugin:YourPlugin"`
+  in the manifest — the runtime is the whole MCP server, and kernel powers
+  (file read, screen) arrive through the granted context only. Register the
+  manifest in `plugins.d/` and consent once:
+  `python -m muthis.broker.trust plugins.d/your_plugin.toml`.
 - **Registry admission bar:** `muthis plugin test <your-plugin-dir>` must
-  print ADMISSIBLE (exit 0). The permission-violation suite joins the kit
-  with the Phase-1 broker.
+  print ADMISSIBLE (exit 0) — the permission-violation suite is LIVE:
+  starved-context denial must degrade politely, and touching a capability
+  your manifest never declared is a failure.
 
 ## Workflow
 

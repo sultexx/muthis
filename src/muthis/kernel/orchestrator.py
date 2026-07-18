@@ -34,7 +34,9 @@ from ..file_reader import ReadFileFn
 from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
                      stub_screen_capture, stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
+from .frame_capture import FrameCapture
 from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
 from .turn import (
     AGENTIC_CAP_NOTE_AR, BUDGET_REFUSAL_AR, MIC_FAILED_AR, REFRESH_FOLLOWUP_TEXT_AR,
@@ -61,11 +63,8 @@ MAX_AGENTIC_ITERATIONS = 4
 
 ALLOWED_OVERLAY_TOOL = "highlight_target"
 # REFRESH_TOOL moved to turn_pass.py with the pass-draining code (re-exported
-# via the import above so existing references keep working).
-
-# Hide our rectangle, then yield this long before grabbing so the Tk thread has
-# cleared it — Claude never sees a ghost of the previous highlight. 50 ms is ample.
-OVERLAY_SETTLE_S = 0.05
+# via the import above so existing references keep working). OVERLAY_SETTLE_S
+# moved to frame_capture.py with the capture chokepoint (M1-2 extraction).
 
 
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
@@ -85,6 +84,7 @@ class Orchestrator:
         downscale: DownscaleFn = stub_downscale,
         overlay: Overlay = stub_overlay,
         read_file: ReadFileFn = stub_read_file,
+        router: Optional[ToolRouter] = None,
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
@@ -95,8 +95,6 @@ class Orchestrator:
         self._budget = budget
         self._mic = mic
         self._stt = stt
-        self._screen_capture = screen_capture
-        self._downscale = downscale
         self._overlay = overlay
         # The spoken surfaces (privacy boundary + status choreography + budget
         # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
@@ -106,6 +104,10 @@ class Orchestrator:
         self._verbosity = verbosity or VerbosityController()
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
+        # The hide→settle→capture chokepoint lives in frame_capture.py — the
+        # M1-2 extraction that makes the router seam fit under the 300 law.
+        self._frames = FrameCapture(overlay=overlay, screen_capture=screen_capture,
+                                    downscale=downscale, auto_hide=self._auto_hide)
         # Pass-draining (incl. the draw→auto-hide→speak sync point) lives in
         # turn_pass.py — the ≤300-line split; built from the same seams. The
         # C2 streaming seams (flag + session factory) ride through untouched.
@@ -113,6 +115,7 @@ class Orchestrator:
             reasoner=reasoner, budget=budget, overlay=overlay, voice=self._voice,
             stream_tts=stream_tts, session_factory=speech_session_factory,
             read_file=read_file,  # v7 Phase 4: the read_local_file seam
+            router=router,  # V2 Phase 1: the ONE injected seam (roadmap §1)
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
@@ -219,7 +222,7 @@ class Orchestrator:
     async def _run_turn_pipeline(self, user_text: str, result: TurnResult,
                                  turn_voice) -> None:
         user_input = UserInput(text=user_text)
-        screenshot = await self._capture_downscaled(result)
+        screenshot = await self._frames.capture(result)
         refresh_used = 0
         self._highlight_gate = HighlightGate()  # circuit breaker — fresh per turn
 
@@ -251,7 +254,7 @@ class Orchestrator:
             # — or the next turn 400s on an orphan (refresh→image, else ack).
             serviced_refresh = (
                 refresh_call is not None and refresh_used < MAX_REFRESH_FOLLOWUPS)
-            fresh = await self._capture_downscaled(result) if serviced_refresh else None
+            fresh = await self._frames.capture(result) if serviced_refresh else None
             pairing = build_tool_result_message(
                 turn_complete.assistant_content, refresh_call, fresh,
                 self._highlight_gate, read_result)
@@ -276,25 +279,6 @@ class Orchestrator:
         logger.warning("[orchestrator] agentic cap (%d) hit — stopping cleanly", MAX_AGENTIC_ITERATIONS)
         await turn_voice.speak_or_feed(AGENTIC_CAP_NOTE_AR)  # queues behind playing audio
 
-    # ───────────────────────── Helpers ─────────────────────────
-
-    async def _capture_downscaled(self, result: TurnResult) -> Optional[bytes]:
-        """Capture physical pixels → the downscaled COPY (the ONLY thing sent),
-        recording the physical↔sent scale factors so highlight coords map back.
-        Ghosting: clear the status dot + hide the rectangle BEFORE every grab —
-        the one chokepoint for the initial capture AND each in-loop refresh; order
-        is load-bearing (clear + hide → settle → capture)."""
-        self._auto_hide.cancel()  # drop any stale auto-hide before the explicit hide
-        self._overlay.clear_status_light()  # ghost the corner dot — Claude never sees it
-        await self._overlay.hide()
-        await asyncio.sleep(OVERLAY_SETTLE_S)
-        sent = await self._downscale(await self._screen_capture())
-        self._overlay.set_state("thinking")  # dot reappears (thinking) after the grab
-        result.sent_width, result.sent_height = sent.sent_width, sent.sent_height
-        result.scale_x, result.scale_y = sent.scale_x, sent.scale_y
-        return sent.sent_bytes
-
-
 __all__ = ["Orchestrator", "TurnResult", "BUDGET_REFUSAL_AR", "AGENTIC_CAP_NOTE_AR",
            "MIC_FAILED_AR", "STT_EMPTY_AR", "SESSION_TIMEOUT_S",
-           "MAX_REFRESH_FOLLOWUPS", "MAX_AGENTIC_ITERATIONS", "OVERLAY_SETTLE_S"]
+           "MAX_REFRESH_FOLLOWUPS", "MAX_AGENTIC_ITERATIONS"]

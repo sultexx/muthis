@@ -18,7 +18,7 @@ layer only; the broker that ENFORCES grants arrives in Phase 1 behind these
 same types.
 """
 
-from .context import FilesCapability, PluginContext
+from .context import FilesCapability, PluginContext, ScreenCapability
 from .manifest import ManifestError, PluginManifest, ToolEntry, load_manifest
 from .plugin import ToolPlugin
 from .types import (
@@ -28,7 +28,7 @@ from .types import (
     ToolResult,
 )
 
-__version__ = "2.0.0a1"
+__version__ = "2.0.0a2"
 
 __all__ = [
     "CAPABILITIES",
@@ -36,6 +36,7 @@ __all__ = [
     "ManifestError",
     "PluginContext",
     "PluginManifest",
+    "ScreenCapability",
     "ServiceOutcome",
     "ToolDescriptor",
     "ToolEntry",
