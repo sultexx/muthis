@@ -119,6 +119,8 @@ The test suite and live diags caught four real defects (not speculative — each
 
 ## 10. Close-Out Documentation Audit (REPORTED, not resolved — awaiting approval)
 
+> **UPDATE (post-snapshot):** D1–D10 were approved by Sultan and closed in commit `50a57bf`; D11–D12 (found in the follow-up exhaustive audit) closed in `1d208b8`. This section is retained UNEDITED as the report's dated point-in-time snapshot (like the Phase-0 historical sections) — not authority.
+
 Per the Task-1 instruction and the architectural-discrepancy governance rule,
 the full Key Files table was audited for M1-0..M1-7 drift. The sdk row was
 corrected (authorized); the following are **reported for Sultan's approval,
