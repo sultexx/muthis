@@ -4,6 +4,7 @@
 > the full source of truth**; this is the compressed map. Branch
 > `feature/v2-phase1-broker-mcp`; app suite 532 green (V1 474-oracle
 > preserved through the Q-4 import flip) + 27 sdk tests.
+> Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
 ## CURRENT STATUS — PHASE 1 CODE-COMPLETE (2026-07-17); LIVE GATE PENDING
 Phase 0 CLOSED by Sultan after live UAT (all four diags on real hardware);

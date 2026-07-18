@@ -315,6 +315,9 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
 
 ## Code Style & Conventions
 
+- **Architectural decisions live in `DECISIONS.md`** (repo root): record every significant
+  architectural decision there, and on ANY architectural ambiguity STOP and log it in `DECISIONS.md`
+  instead of guessing (binding governance rule).
 - **Clarity over concision** (Clicky rule, adopted): names must be self-explanatory to a zero-context reader.
   `pending_tool` not `pt`; `detect_image_media_type` not `sniff`. No single-character names.
 - **Every module ≤ 300 lines, single responsibility, importable in isolation** (Law §17.4). If a module
