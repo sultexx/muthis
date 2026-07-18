@@ -52,6 +52,59 @@ V1 regression diags (`diag_pedagogy` at minimum).
 - Announce seam logs for now (spoken delivery joins the voice line with
   Phase 2's first high-impact plugin — the audio path stayed untouched).
 
+## DEFERRED / DEVIATIONS (gate-audited ledger)
+
+> Every intentional deferral or deviation lives here so NO deferral is lost.
+> Each future phase gate MUST audit this list and close any item whose closing
+> condition its phase satisfies. Per item: the item / its reason / the phase
+> where it lands / its closing condition.
+
+### (a) Spoken three-strikes eviction announcement
+- **Item:** when an MCP server is disabled after three consecutive failures,
+  `McpHost` emits an Arabic announcement through an injected `announce` seam;
+  in Phase 1 `main.py` wires that seam to the LOGGER, not the spoken voice
+  line. The seam exists and is unit-tested — only the audible delivery is
+  deferred.
+- **Reason:** wiring it to `VoiceOut`/the turn voice touches the sacred audio
+  path, and Phase 1 ships no high-impact plugin whose eviction a user would
+  need to hear; adding audio plumbing for a non-existent consumer is
+  unjustified risk (the audio path stayed byte-untouched this phase).
+- **Lands in:** Phase 2 (with the first high-impact plugin, `sandbox_exec`).
+- **Closing condition:** `McpHost.announce` routed through the turn voice so
+  an evicted server is spoken in Arabic (queued behind any playing audio,
+  never overlapping), proven by a live diag showing an eviction announced
+  aloud.
+
+### (b) The `muthis/annotate` profile bridge (Q-1.2)
+- **Item:** `muthis-profile/1` ships `muthis/read_file` + `muthis/capture`
+  only; the roadmap §8.4 `muthis/annotate` (a granted external plugin drawing
+  via the ONE HighlightGate) is NOT implemented.
+- **Reason:** decision Q-1.2 — keep the draw path isolated and sacred one more
+  phase; no Phase-1 external plugin needs server-side drawing, and the draw
+  circuit stayed untouched (ruling C-1).
+- **Lands in:** UNASSIGNED in V2_ROADMAP.md — earliest sensible is a phase
+  where a granted external plugin needs to draw (Phase 2+). **Needs Sultan's
+  explicit phase assignment; deliberately not guessed here.**
+- **Closing condition:** `muthis/annotate` added to the profile and routed
+  through the ONE HighlightGate behind an `annotate.overlay` grant, with the
+  V1 draw circuit byte-unchanged, proven by a live diag of an external plugin
+  drawing via the gate.
+
+### (c) Conformance-kit real-child boot check
+- **Item:** the kit's `entry-class` check SKIPs `kind=mcp` plugins — it
+  validates the manifest/schema but does NOT spawn the child and exercise the
+  real stdio handshake + `tools/call`. (Out-of-process serving is instead
+  cross-validated by `sdk/tests/test_mcp_runtime.py` against real children.)
+- **Reason:** kit-driven child spawning adds process-lifecycle machinery the
+  kit did not need in Phase 1; the runtime tests already prove real children,
+  so the SKIP is honest, not a coverage gap.
+- **Lands in:** Phase 2 (the kit's SKIP message already reads "kit-driven
+  child spawning arrives in Phase 2").
+- **Closing condition:** the kit spawns the `kind=mcp` child, runs
+  `initialize` + `tools/list` + a golden `tools/call` over the real transport
+  and asserts the profile-degradation path, replacing the SKIP with a live
+  check.
+
 ## V2 PHASE 0 — kernel split + muthis-sdk (CLOSED 2026-07-17, live-verified)
 
 ### Phase 0 detail (historical)
