@@ -466,6 +466,11 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
 - Branch naming: `feature/description` or `fix/description`.
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`), imperative mood, explain the why.
 - Do not force-push to main.
+- **Phase/milestone reports are version-controlled** (convention set 2026-07-18): write each to
+  `docs/reports/phaseN.md` — clean UTF-8 markdown, English, all-ASCII content so the bytes cannot
+  reverse — inside that phase's closing commit. Never an external paste or PDF. Each report carries at
+  minimum: files changed, tests executed, documentation updates, architectural decisions, deferred
+  items, known limitations, and the commit ledger.
 
 ## Self-Update Instructions
 
