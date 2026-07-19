@@ -494,11 +494,16 @@ When you make changes that affect the information in this file, update it:
 2. **Deleted files**: remove their entries.
 3. **Architecture changes**: update the Architecture section (and flag any conflict with ARCHITECTURE_v4_1.md
    to the user instead of silently resolving it).
-4. **Phase changes**: if the user explicitly opens the Trust Modes phase, rewrite the LOOK-only paragraphs and
-   the first "Do NOT" bullet — that is the ONLY way the **input-device / machine-control** boundary moves. The
-   **execution** boundary moved once, by explicit sign-off, when the constitutional sandbox carve-out was
-   ratified (V2 Roadmap decision #0 → DEC-3, 2026-07-19); any further change to execution scope likewise requires
-   an explicit user sign-off logged in DECISIONS.md — never widen it silently.
+4. **Phase / boundary changes** — two SEPARATE boundaries with distinct move-conditions; do not conflate them:
+   - **Input-device / machine-control** (mouse / keyboard / clipboard; the `type_text` / `press_hotkey` /
+     `real_click` / `set_trust_mode` bans in the first "Do NOT" bullet) is **absolute and does not move at all** —
+     Trust Modes (ASSIST / AUTOPILOT), its only ever-designed mover, is **cancelled from the product vision**
+     (Sultan's decision, `plan_v6.md`, 2026-07-14 — cancelled, not deferred). Preserve every input-device ban
+     verbatim; never add their tools, not even as stubs.
+   - **Sandbox execution** (`sandbox.execute`, isolated in-container execution) moved **once**, by Sultan's
+     constitutional sign-off ratifying the V2 Roadmap decision #0 carve-out (→ DEC-3, 2026-07-19). It is NOT Trust
+     Modes and does NOT touch the input-device boundary. Any further change to execution scope needs a fresh
+     explicit sign-off logged in DECISIONS.md — never widen it silently.
 5. **New conventions**: if the user establishes a convention mid-session, record it under Conventions.
 6. **Line count drift**: refresh counts that drift by more than 50 lines.
 
