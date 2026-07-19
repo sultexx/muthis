@@ -12,3 +12,79 @@
 - **Proposed (post-Phase-1):** shorten each row to a concise description and migrate the detailed history to `docs/reports/`.
 - **Constraint:** Execute the row-shortening milestone by milestone, not in one pass; re-run the full suite after each row — a wide edit to the source of truth must not itself introduce drift.
 - **Why deferred:** it is a large edit to the source of truth and must not land before the Phase 1 merge.
+
+---
+
+## DEC-2 (2026-07-19) — Session-sticky taint — APPROVED
+
+- **Item:** Taint (the untrusted-content protection flag) is SESSION-STICKY, not per-turn. The first untrusted
+  content raises the protection level for the REST of the session; while tainted, high-impact tools require voice
+  confirmation before they run.
+- **Reason:** Once untrusted content (web / MCP / document results) has entered the context, the prompt-injection
+  and exfiltration risk persists across turns — it does not end when the ingesting turn ends. A per-turn flag
+  drops the guard too early; session-stickiness matches the threat's real lifetime.
+- **Resolution:** One session-level taint state. Any untrusted content raises it; it stays raised for the rest of
+  the session; every high-impact tool call made while tainted routes through the existing voice-confirmation
+  seam. Per-message (fine-grained) taint tagging is OUT of scope — post-launch research. (The turn-level
+  `ServiceOutcome.taint` / `TurnResult.taint` recorded since Phase 1 is the coarse precursor; this decision is the
+  session-sticky escalation + enforcement.)
+- **Implementation timing:** Enforcement lands with the `web_research` milestone — the first tool that ingests
+  untrusted external content. Recorded now because `sandbox_exec` references the tainted-run confirmation path
+  (DEC-3-A).
+
+---
+
+## DEC-3 (2026-07-19) — sandbox_exec boundaries — APPROVED
+
+- **Item:** The architectural boundaries for the `sandbox_exec` milestone (V2 Roadmap §2, "الصندوق المعزول").
+  Points A–E.
+- **Reason:** The Roadmap approved the sandbox in principle (decisions #0 / #1 / #5, 2026-07-16) but left
+  interpretive gaps — e.g. §2.5 says `SandboxGate` "mirrors `HighlightGate`" without saying decoupled-clone vs.
+  shared-instance, and §2.3 / §2.8 imply but never spell out that network-less runs skip confirmation. These
+  points pin those gaps and fix the decoupling / kernel-blindness absolutes that keep the sealed kernel free of
+  Docker knowledge and protect the friction-less loop.
+- **Resolution:**
+  - **(A)** NO voice confirmation for isolated network-less runs — the friction-less loop is protected.
+    Confirmation is reserved for network-enabled OR tainted-context runs (per DEC-2). (Roadmap §2.3:
+    `--network none` default, network is a separate per-run-confirmed privilege; §2.8: tainted content →
+    confirmation before an open-network run.)
+  - **(B)** `SandboxGate` is FULLY DECOUPLED from `HighlightGate` — its own object built on the PATTERN, not the
+    instance; it lives in the plugin / broker domain, NEVER in the sealed kernel. ("Mirror" in §2.5 = a decoupled
+    clone, not a shared gate.)
+  - **(C)** The kernel gains a GENERIC `on_interrupt` hook list and stays BLIND to Docker; the sandbox registers
+    its `docker kill` there (Roadmap §2.6). F9 = silence + board clear + container death, one consistent
+    behavior; the kernel never learns the word "Docker".
+  - **(D)** A pre-packaged, fingerprint(sha256)-pinned image with a spoken first-pull (Roadmap §2.4).
+  - **(E)** `/work/out` file-output retrieval is DEFERRED post-launch — stdout suffices for launch (Roadmap §2.4).
+- **Implementation timing:** Lands with the `sandbox_exec` milestone (Phase 2, first infrastructure addition —
+  not yet opened). (E) is post-launch.
+
+---
+
+## DEC-4 (2026-07-19) — doc_rag wrapping + injection threshold — APPROVED
+
+- **Item:** For `doc_rag` (the visual-citation feature, «الاستشهاد المرئي»): where untrusted-content wrapping and
+  taint-raising live, the injection threshold, and OCR honesty.
+- **Reason:** Security a plugin author can weaken is not security. Centralizing the wrap + taint in the
+  kernel / broker makes it an absolute every tool inherits; §3.2 delimiters + per-passage taint are the injection
+  defense; a fixed env threshold keeps behavior predictable; honest OCR refusal preserves community credibility.
+- **Resolution:** Wrapping and taint-raising live in the KERNEL / BROKER, NEVER in the plugin — a kernel-level
+  security absolute that ALL tools inherit. §3.2 delimiters wrap every retrieved passage, and every retrieved
+  passage raises taint (feeding DEC-2). The injection threshold is env-driven — `MUTHIS_DOC_INJECT_LIMIT=50000` —
+  with NO auto-scaling. OCR is refused honestly (no silent low-confidence OCR).
+- **Implementation timing:** Lands with the `doc_rag` milestone, inheriting the `web_research` defense (DEC-2).
+
+---
+
+## DEC-5 (2026-07-19) — muthis/capture during an active turn — APPROVED
+
+- **Item:** How a plugin's `muthis/capture` bridge request is handled when it arrives while the kernel is
+  mid-turn.
+- **Reason:** The kernel's frame-capture chokepoint (hide → settle → capture) is turn-owned and load-bearing; a
+  mid-turn bridge capture would race the overlay / draw lifecycle. Refusing politely (never raising) matches the
+  `FileReader` / `tool_result` pattern.
+- **Resolution:** A `muthis/capture` request received during an active turn is politely REFUSED with a short
+  Arabic note; capture is served ONLY BETWEEN turns. A queue / concurrent-capture mechanism is OUT of scope —
+  post-launch research.
+- **Implementation timing:** Implemented with the FIRST real bridge consumer (the muthis-profile/1 capture bridge
+  exists since Phase 1 but has no real consumer yet).
