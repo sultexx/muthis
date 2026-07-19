@@ -88,3 +88,24 @@
   post-launch research.
 - **Implementation timing:** Implemented with the FIRST real bridge consumer (the muthis-profile/1 capture bridge
   exists since Phase 1 but has no real consumer yet).
+
+---
+
+## DEC-6 (2026-07-20) — Trust Modes cancelled from the product vision — APPROVED
+
+- **Item:** Trust Modes (the ASSIST / AUTOPILOT trust tiers that would grant real control over the user's mouse /
+  keyboard / clipboard) are **cancelled from the product vision** — permanently removed, not deferred to a later
+  phase.
+- **Reason:** Sultan's decision, recorded at `plan_v6.md:27` (2026-07-14): the ACTION / click idea (Trust Modes)
+  is **permanently removed from the product vision**. Mut'his's value is the LOOK-only teacher; owning the user's
+  input devices is out of scope by **design, not by timing**. Formalized here so the canonical decision log — not
+  only a V1-era plan file — carries it, since V2 governance already references it (AGENTS.md Self-Update rule #4,
+  commit `323ee2a`).
+- **Resolution:** The **input-device / machine-control boundary is PERMANENT and does not move at all** — there is
+  no future "Trust Modes opening." The `type_text` / `press_hotkey` / `real_click` / `set_trust_mode` bans
+  (AGENTS.md first "Do NOT" bullet) are absolute and final. This is DISTINCT from the sandbox-execution boundary,
+  which moved once under DEC-3 / Roadmap #0 (in-container execution is not device control).
+- **Implementation timing:** In force since 2026-07-14 (decision date); recorded canonically 2026-07-20. The
+  documentary follow-through (purging the stale "designed / not in scope yet / until Trust Modes opens" wordings +
+  the §12 Trust Modes section) is a separate DEFERRED cleanup — see DEC-7 — so logging DEC-6 does not itself
+  trigger a doc sweep.
