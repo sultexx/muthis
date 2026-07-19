@@ -14,11 +14,19 @@ and Mut'his answers with Arabic speech (ElevenLabs TTS, Gemini fallback) while p
 **cyan rectangle overlay**. Reasoning + vision: **Claude Sonnet** (`claude-sonnet-4-6`) via the official
 `anthropic` SDK with SSE streaming.
 
-**CURRENT PHASE: LOOK-only.** Mut'his speaks and points. It does **not** click, type, press hotkeys, or touch
-the clipboard. Trust Modes (ASSIST / AUTOPILOT) are designed in ARCHITECTURE_v4_1.md §12 but are **not in scope
-yet** — do not build them, do not stub them, do not add their tools to any schema. **v7 Phase 4 added
-`read_local_file`** — a READ-ONLY perception tool (like `request_screen_refresh`): it reads a local TEXT file so
-explanations are grounded in real content, never writes/executes anything, and does NOT move the action boundary.
+**CURRENT PHASE: LOOK-only.** Mut'his speaks and points, with **zero control over the user's session, system, and
+input devices** — it does **not** click, type, press hotkeys, or touch the clipboard. Trust Modes (ASSIST /
+AUTOPILOT) are designed in ARCHITECTURE_v4_1.md §12 but are **not in scope yet** — do not build them, do not stub
+them, do not add their tools to any schema. **The one constitutionally-approved execution carve-out (V2 Roadmap
+decision #0; boundary sign-off 2026-07-19 — see DEC-3):** code execution is permitted **EXCLUSIVELY inside the
+Mut'his-owned sandbox** (`sandbox.execute`) — `--network none` by default, no user-file access without explicit
+per-run consent, instantly killable (F9). This does **NOT** relax LOOK-only for the user's machine: the mouse /
+keyboard / clipboard boundary above is **untouched and absolute**, execution is confined to the container (never
+the user's session), and the `type_text` / `press_hotkey` / `real_click` / `set_trust_mode` bans below stay in
+force — this is the ONLY boundary that moves, and only by explicit sign-off. `sandbox_exec` is a Phase-2
+milestone: do not build it until that milestone is explicitly opened. **v7 Phase 4 added `read_local_file`** — a
+READ-ONLY perception tool (like `request_screen_refresh`): it reads a local TEXT file so explanations are grounded
+in real content, never writes or executes anything itself, and does NOT move the action boundary.
 
 Hardware target: Windows 11, RTX 4060 8 GB. The app must use ~0 GB VRAM and never compete with the user's
 Blender/YOLO workloads. Everything heavy is cloud.
@@ -487,7 +495,10 @@ When you make changes that affect the information in this file, update it:
 3. **Architecture changes**: update the Architecture section (and flag any conflict with ARCHITECTURE_v4_1.md
    to the user instead of silently resolving it).
 4. **Phase changes**: if the user explicitly opens the Trust Modes phase, rewrite the LOOK-only paragraphs and
-   the first "Do NOT" bullet — this is the ONLY way that boundary moves.
+   the first "Do NOT" bullet — that is the ONLY way the **input-device / machine-control** boundary moves. The
+   **execution** boundary moved once, by explicit sign-off, when the constitutional sandbox carve-out was
+   ratified (V2 Roadmap decision #0 → DEC-3, 2026-07-19); any further change to execution scope likewise requires
+   an explicit user sign-off logged in DECISIONS.md — never widen it silently.
 5. **New conventions**: if the user establishes a convention mid-session, record it under Conventions.
 6. **Line count drift**: refresh counts that drift by more than 50 lines.
 
