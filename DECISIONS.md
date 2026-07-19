@@ -109,3 +109,25 @@
   documentary follow-through (purging the stale "designed / not in scope yet / until Trust Modes opens" wordings +
   the §12 Trust Modes section) is a separate DEFERRED cleanup — see DEC-7 — so logging DEC-6 does not itself
   trigger a doc sweep.
+
+---
+
+## DEC-7 (2026-07-20) — Trust Modes documentary sweep — DEFERRED
+
+- **Status:** DEFERRED — do NOT execute before the first Phase-2 milestone (`sandbox_exec`) ships.
+- **Item:** The full documentary cleanup that follows the DEC-6 cancellation: the stale "designed in
+  ARCHITECTURE_v4_1.md §12 but **not in scope yet**" (AGENTS.md ~line 18-19), "LOOK-only is a hard boundary
+  **until the Trust Modes phase is explicitly opened**" (AGENTS.md first "Do NOT" bullet, ~line 463), and the
+  **§12 Trust Modes section itself in `ARCHITECTURE_v4_1.md`** (referenced from AGENTS.md:18). Also sweep sibling
+  mentions — `MIGRATION_PLAN.md`, `LESSONS.md`, and the "future AUTOPILOT basis" framing around the frozen
+  `reference/cursor_control.py`.
+- **Reason:** Low-impact **stale wording about an already-cancelled feature**. The HARD contradiction it could
+  cause was already resolved in AGENTS.md Self-Update rule #4 (`323ee2a`, which names DEC-6 / `plan_v6.md` as
+  authority); what remains is imprecise phrasing, not a logical conflict. It is Sultan's own pre-existing deferred
+  item (`plan_v6.md:361`). It does NOT block `sandbox_exec`, and doing it now (a multi-file sweep touching
+  ARCHITECTURE_v4_1.md §12) would delay implementation for cosmetic gain.
+- **Resolution / constraint:** Execute as a STANDALONE docs pass **AFTER** the first Phase-2 milestone lands —
+  never before, never bundled into implementation work. When done: restate the AGENTS.md LOOK-only wordings as
+  permanent (per DEC-6), retire or "cancelled — see DEC-6"-mark the §12 section, reconcile the sibling mentions,
+  and settle the frozen `cursor_control.py`'s disposition. Re-run the full suite (532 + 27) after the sweep.
+- **Implementation timing:** Post-first-Phase-2-milestone — a dedicated cleanup commit.
