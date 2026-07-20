@@ -170,3 +170,28 @@
     no-new-privileges` + memory/cpu/pids-capped, so a writable rootfs only affects the doomed container. A DEC-3
     revision.
   - T2 is STOPPED until this is ruled — no runner code written; the finding was proven by scratchpad probes only.
+  - **→ RESOLVED by DEC-9** (2026-07-20): keep `--read-only`, deliver via a stdin bootstrap; supersedes the
+    `docker cp` staging mechanism entirely.
+
+---
+
+## DEC-9 (2026-07-20) — sandbox_exec file staging via a stdin bootstrap — APPROVED (supersedes DEC-8's mechanism)
+
+- **Item:** How model-provided `files[]` + the user `code` are delivered into the sandbox container, now that
+  `docker cp` is proven incompatible with the DEC-3 `--read-only` flag (see the DEC-8 finding above).
+- **Reason:** All three worked-around options sacrificed something (drop `--read-only`, or rebuild an image per
+  run breaking the ~0.5 s warm cycle). A fourth path sacrifices NOTHING: it keeps every DEC-3 flag AND avoids
+  `docker cp` at the root rather than working around it.
+- **Resolution:** Sultan's sign-off. **Keep `--read-only`** (defence in depth — the code cannot write system
+  libraries or plant files in exec paths). The `--tmpfs /work:rw` is the ONLY writable region (already DEC-3).
+  Input files and the user code are passed **via stdin** to a tiny fixed **bootstrap** that is the container
+  command; it writes them into the writable `/work` and executes from `cwd=/work`. **NO `docker cp` anywhere;**
+  no bind mounts; no host env. The sequence stays `create → start -a` (start runs the bootstrap, which stages
+  then execs) — no split lifecycle. File contents cross the stdin wire **base64-encoded** (`files[]` is ≤ 1 MB
+  per §2.4, so the overhead is trivial). This SUPERSEDES DEC-8's read-only-cp staging path while fully preserving
+  DEC-8's intent (inputs reach the container, code runs directly) by a safer mechanism. Verified live before
+  implementation — the bootstrap writes `/work` under `--read-only`, and `--workdir /work` must NOT be used (it
+  makes Docker pre-create `/work` root-owned `0755`, blocking the `nobody` user; cwd is set by the bootstrap's
+  own subprocess instead).
+- **Implementation timing:** T2 (`runner.py` + `bootstrap.py`). FileReader gates (secret-name / binary) apply to
+  each file before base64 encoding; the §2.1 total-size cap (1 MB) is enforced in the runner.
