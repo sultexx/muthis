@@ -151,3 +151,22 @@
   of the tool description).
 - **Implementation timing:** Lands in T2 (the runner's staging step). Resolves the §2.2-vs-tmpfs tension P0
   surfaced.
+- **T2 IMPLEMENTATION FINDING (2026-07-20) — BLOCKING, awaiting Sultan's re-ruling:** Building T2 revealed
+  DEC-8 is NOT implementable as approved. Docker 29.6.1 REFUSES `docker cp` into ANY container created with the
+  DEC-3 `--read-only` flag — verified twice, live — for BOTH the read-only rootfs AND the tmpfs `/work`, whether
+  the container is merely created or already running: `Error response from daemon: container rootfs is marked
+  read-only`. So `docker cp` staging (Roadmap §2.2) and `--read-only` (§2.3) are **mutually exclusive**; BOTH
+  DEC-8 Option A (start→cp) and Option B (cp→start) are dead — they both depend on `docker cp`. The choice is now
+  between two DEC-3-level directions, and only Sultan rules it:
+  - **(1) KEEP `--read-only`, drop `docker cp`:** deliver files via a stdin bootstrap — a small fixed wrapper is
+    the container command; `files[]` + code are framed on stdin; the wrapper writes them into the writable tmpfs
+    `/work` and runs the code (cwd `/work`). Keeps ALL DEC-3 flags; no cp, no bind mount. Cost: more runner code
+    (bootstrap + stdin framing, and a runtime present in the image); DEC-8's "read-only inputs" property becomes
+    UNENFORCEABLE (the nobody code owns what it writes) — the FileReader secret/binary/size gates still apply at
+    staging.
+  - **(2) DROP `--read-only`, keep `docker cp`:** deliver files via `docker cp` exactly as Roadmap §2.2 states.
+    Simple and cp-faithful. Cost: the rootfs is writable — but harmless in practice, since the container stays
+    ephemeral (rm -f'd) + non-root (`--user 65534`) + `--network none` + `--cap-drop ALL` + `--security-opt
+    no-new-privileges` + memory/cpu/pids-capped, so a writable rootfs only affects the doomed container. A DEC-3
+    revision.
+  - T2 is STOPPED until this is ruled — no runner code written; the finding was proven by scratchpad probes only.
