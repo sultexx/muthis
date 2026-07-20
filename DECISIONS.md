@@ -131,3 +131,23 @@
   permanent (per DEC-6), retire or "cancelled — see DEC-6"-mark the §12 section, reconcile the sibling mentions,
   and settle the frozen `cursor_control.py`'s disposition. Re-run the full suite (532 + 27) after the sweep.
 - **Implementation timing:** Post-first-Phase-2-milestone — a dedicated cleanup commit.
+
+---
+
+## DEC-8 (2026-07-20) — sandbox_exec file staging path — APPROVED
+
+- **Item:** How model-provided `files[]` are delivered into the sandbox container given the DEC-3
+  `--tmpfs /work` flag.
+- **Reason:** P0 found LIVE that the Roadmap §2.2 ordering (`create → docker cp to /work → start`) does NOT
+  deliver files under `--tmpfs /work` (§2.3): `/work` does not exist in the created container before start
+  (`docker cp` fails with "destination must be a directory"), and the tmpfs would mask any pre-start write anyway
+  (the container saw the staged file MISSING). A real §2.2-vs-§2.3 conflict, caught before writing T2.
+- **Resolution:** Option (B), Sultan's sign-off. Input files are `docker cp`'d to a READ-ONLY path BEFORE start,
+  preserving the `create → cp → start -a` sequence that runs the code directly (Roadmap §2.2 in spirit). `/work`
+  stays the writable tmpfs scratchpad. Rationale: read-only inputs are inherently safer (code reads its sources,
+  never mutates them); it keeps the container lifecycle simple (no split start/exec — a smaller error surface in
+  our first execution tool); and "inputs read from a fixed path, `/work` is the scratchpad" is a cleaner mental
+  model. Accepted trade-off: code that wants to MODIFY an input copies it into `/work` itself (covered by one line
+  of the tool description).
+- **Implementation timing:** Lands in T2 (the runner's staging step). Resolves the §2.2-vs-tmpfs tension P0
+  surfaced.
