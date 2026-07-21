@@ -195,3 +195,38 @@
   own subprocess instead).
 - **Implementation timing:** T2 (`runner.py` + `bootstrap.py`). FileReader gates (secret-name / binary) apply to
   each file before base64 encoding; the §2.1 total-size cap (1 MB) is enforced in the runner.
+
+---
+
+## T5 SCOPE FINDING (2026-07-21) — BLOCKING, awaiting Sultan's ruling
+
+Investigating T5 against the real code shows its stated shape — "wire into the `ToolRouter` in `main.py`" +
+"route through the **EXISTING** high-impact voice-confirmation seam" — does not match reality. Four concrete
+gaps, none guessable:
+
+1. **`run_code` is refused, not serviced — a KERNEL change is required.** `turn_pass.consume()` detects only the
+   draw tools, `request_screen_refresh`, and `read_local_file`; EVERY other tool falls to the `else` branch and
+   is logged + dropped as a "LOOK-only violation" (`turn_pass.py:155-160`). So `sandbox.run_code` would be
+   refused. Servicing it needs a NEW branch in `turn_pass.py` (route through `router.service`, like the read at
+   194-196) + result-pairing in `turn.py`'s `build_tool_result_message` + the agentic loop continuing on it —
+   ≥2 kernel modules, NOT main.py wiring, and it re-opens "T4 is the ONE kernel touch."
+2. **The confirmation seam does NOT exist.** No `trust/` package; `claude_agent.py:9` / `tool_schemas.py:16`
+   reference an intended `trust/confirm_gate.py`, and `turn_pass.py:199` / `turn.py:143-144` / `policy.py:8-9` /
+   `main.py:140` all say confirm-first enforcement "arrives with Phase 2's first high-impact tool." So "EXISTING"
+   is inaccurate — it must be BUILT, and "confirmation" is undefined: a BLOCKING user yes/no voice round-trip
+   (record → STT → parse), or the existing one-way spoken ack?
+3. **`TurnResult.taint` is TURN-level, not the session-sticky flag DEC-2 describes** (`turn.py:141-145`), and
+   there is NO mechanism to reset a per-turn `SandboxGate` — the kernel is blind to the sandbox and T4 was the
+   only kernel touch, so nothing resets the gate at turn start without another kernel seam.
+4. **The `docker kill` hook cannot learn the active container name.** T4's hook fires a generic `Callable`; the
+   kill must target `muthis-run-<uuid>`, but the runner does not expose its active container yet (a seam needed).
+
+Also note: in THIS milestone confirmation is essentially never triggered — the launch schema has NO network
+param (so no network-enabled run), and taint is only populated later by `web_research`; the plan itself calls
+DEC-2 enforcement here "PARTIAL / dead code."
+
+**STOPPED — no T5 code written. Sultan to rule on:** (a) the additional KERNEL touches (turn_pass run_code
+routing + `turn.py` pairing; a generic turn-start reset hook for the gate) — authorize or re-architect;
+(b) what "confirmation" IS (build a blocking voice yes/no gate; OR wire only the confirmation DECISION behind an
+injectable seam and DEFER the voice round-trip, since it is unexercised this milestone; OR reuse the one-way
+ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b the confirmation gate).
