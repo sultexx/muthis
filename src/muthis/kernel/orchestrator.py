@@ -36,6 +36,7 @@ from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .frame_capture import FrameCapture
 from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .interrupt_hooks import InterruptHooks
 from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
 from .turn import (
@@ -120,6 +121,9 @@ class Orchestrator:
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
         self._interrupted_last_turn = False
+        # DEC-3-C: the GENERIC F9 hook seam — fired on interrupt; the kernel
+        # stays blind to what a hook does (a plugin registers its own).
+        self._interrupts = InterruptHooks()
 
         # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
@@ -152,8 +156,13 @@ class Orchestrator:
         """Barge-in (v7 Phase 3): clear the UI, silence the active voice
         (finish() then no-ops — no fallback re-speak), and mark the NEXT
         turn's interrupted-context directive. The caller cancels the turn
-        task AFTER this returns. Safe no-op when no turn is active."""
+        task AFTER this returns. Safe no-op when no turn is active.
+
+        DEC-3-C: F9 also fires the generic interrupt hooks — fire-and-forget
+        on their own threads, PARALLEL to the silence, never blocking it."""
         turn_voice = self._active_turn_voice  # captured pre-await (race armor)
+        if turn_voice is not None:
+            self._interrupts.fire()  # generic F9 side effects, alongside the silence
         # UI first: the instant hide wipes board/shapes/captions/dim ~10 ms
         # in, while the audio abort pays its ~130 ms WS close behind it.
         self._auto_hide.cancel()
@@ -161,6 +170,10 @@ class Orchestrator:
         if turn_voice is not None:
             await turn_voice.interrupt()
             self._interrupted_last_turn = True
+
+    def add_interrupt_hook(self, hook: Callable[[], None]) -> None:
+        """Register a fire-and-forget F9 hook (DEC-3-C) — fired on its own thread."""
+        self._interrupts.add(hook)
 
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
