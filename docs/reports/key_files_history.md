@@ -158,3 +158,130 @@ Evolution:
   re-exports.
 - **V2 Phase 2 (T5):** `build_tool_result_message` pairs `sandbox.run_code` BY NAME
   (Option B), routing its serviced result like the read.
+
+---
+
+## src/muthis/kernel/budget.py
+
+Current shape: the sovereign daily spend gate (Rule 10) -- see AGENTS.md.
+
+- **V2 Phase 1 (M1-3):** added the reserved `plugins` ledger key --
+  `record_plugin_call(provenance, cost)` counts every serviced call and adds real plugin
+  costs to BOTH the plugin bucket and the sovereign daily total; the
+  `can_afford`/`record_turn` contracts were untouched; legacy dates-only ledgers still
+  load unchanged.
+
+## src/muthis/kernel/verbosity.py
+
+Current shape: the voice-controlled reply-length state (`VerbosityController`) -- see
+AGENTS.md.
+
+- **v5 Phase B:** born as the reply-length controller, held by the Orchestrator ACROSS
+  turns (unlike the per-turn HighlightGate).
+- **STT-tolerant detection internals:** `normalize_ar` strips tashkeel/tatweel, unifies
+  hamza-alif and taa-marbuta -> haa, maps Arabic-Indic digits -> ASCII, and drops
+  punctuation -- on a MATCHING copy only; the transcript is never altered. `detect_command`
+  priority: EXACT_N (number words 1-10, digits, the "two-words" dual) -> reset phrases ->
+  explicit anywhere-phrases (substring) -> the ISOLATION rule for ambiguous single words
+  (a bare "shorten"/"longer" fires only as a standalone utterance -- an in-sentence use
+  like "which side is longer?" never flips the state).
+
+## src/muthis/kernel/interrupt_hooks.py
+
+Current shape: the kernel's Docker-BLIND F9 eradication seam -- see AGENTS.md.
+
+- **V2 Phase 2 M1 (T4, DEC-3-C):** born as the ONE kernel touch of the sandbox_exec
+  milestone -- a generic `on_interrupt` hook list; the sandbox (at T5) registers its
+  `docker kill` there. The kernel owns the mechanism; the plugin owns the content; the
+  kernel never names Docker (source-asserted in test_barge_in).
+
+## src/muthis/kernel/frame_capture.py
+
+Current shape: the hide->settle->capture chokepoint (order load-bearing) -- see AGENTS.md.
+
+- **V2 Phase 1 (M1-2):** extracted WHOLE from the orchestrator (extract-BEFORE-inject
+  under the <=300-line law) to free room for the injected `router` seam. The order was
+  unchanged and stays load-bearing: cancel stale auto-hide -> clear dot -> hide -> settle
+  -> grab -> downscale -> relight -> record dims+scales. `OVERLAY_SETTLE_S` moved here
+  with it. Used by every turn frame AND the broker's bridge capture.
+
+## src/muthis/kernel/history_hygiene.py
+
+Current shape: the Bug-3 stale-frame strip -- see AGENTS.md.
+
+- **v7 Phase 4:** extracted WHOLE from turn.py (which had sat at 298; Law 17.4);
+  `STALE_SCREENSHOT_NOTE_AR` + `strip_images_from_history` moved here, and turn.py
+  re-exports both.
+
+## src/muthis/kernel/highlight_gate.py  (draw circuit -- universal invariants)
+
+Current shape: the draw circuit breaker, unified over both draw tools -- see AGENTS.md.
+The row keeps ALL invariants (first-draw-wins, the internal-directive tool_result
+surfaces, the `tool_choice`->"none" hard terminator, the hosted `INTERRUPTED_NOTE_AR`);
+only the phase tags migrated here.
+
+- **Its own module:** split out so orchestrator.py/turn.py stay <=300.
+- **The completion-framing rationale (kept live in the row):** `HIGHLIGHT_ACK_TEXT_AR`
+  carries NO completion lead and no success ("bi-najah") framing because those framings
+  caused the pass-2 bare-ack regression -- the surface COMMANDS the explanation to start
+  with the info instead.
+- **v7 Phase 3:** also began hosting `INTERRUPTED_NOTE_AR`, the barge-in next-turn
+  internal directive.
+
+## src/muthis/kernel/draw_dispatch.py  (draw circuit -- universal invariants)
+
+Current shape: unified draw dispatch (`DRAW_TOOLS` / `PendingDraw` / `next_draw`) -- see
+AGENTS.md. The row keeps ALL invariants (first-draw-wins across both tools, the physical
+buffering, the dim-before-draw whiteboard order, the malformed-draw-still-gated rule);
+only the split history migrated here.
+
+- **B-1:** split into its own module because orchestrator.py had no room (it was 284
+  after the M1-2 extraction -- now 299/300) and highlight_gate.py can't host it (turn.py
+  imports highlight_gate; importing turn back would cycle). Hence: its own module to avoid
+  the turn<->highlight_gate import cycle.
+- **v7 Phase 2:** `PendingDraw` gained the `dim` command -> the whiteboard (`apply()`
+  calls the duck-typed `overlay.dim_screen()` BEFORE the draw so the board forms under the
+  chalk).
+
+## src/muthis/shapes.py  (draw circuit -- universal invariants)
+
+Current shape: the geometric-drawing data model + scaling + tool-args parsing -- see
+AGENTS.md. The row keeps ALL invariants (the frozen `Shape` contract, the enclosing-bbox
+rule, `parse_shapes_args`'s defensive drop, `scale_shapes_to_physical` as the ONLY
+multiply site + the per-axis mirror of `turn.scale_bbox_to_physical`, the separate
+`ShapesOverlay` protocol, the honest region-level accuracy limit); only the phase tags
+migrated.
+
+- **v6 B:** added the `step` kind -- a numbered how-to badge whose 4-tuple is the badge
+  circle's enclosing bbox (like circle) and which carries NO number field (badges number
+  by their ORDER among the list's step shapes).
+- **B-1:** added `parse_shapes_args` (the defensive draw_shapes args parser) and the
+  scaling functions; the `ShapesOverlay` protocol was kept OUT of `turn.Overlay` so
+  existing overlay fakes keep passing isinstance (Phase B types against it).
+
+## src/muthis/kernel/tool_router.py
+
+Current shape: the dispatch registry (`ToolRouter` / namespacing / `service()`) -- see
+AGENTS.md.
+
+- **V2 Phase 0:** born as "the one surgical change" (roadmap part 2 section 1). Only
+  `file_read` is router-serviced; the DRAW path never crosses the router and the refresh
+  frame lifecycle stays kernel state (ruling C-1). `service()` never raises.
+- **DEC-11 (Phase 2 M1, live-caught):** the non-core namespace separator became `__`
+  (double underscore) not `.` -- a dot fails the Anthropic tool-name pattern
+  `^[a-zA-Z0-9_-]{1,128}$`; the separator lives once in `namespaced_name`/`NAMESPACE_SEP`
+  and every catalog name derives from it. The core four keep bare V1 names (C-3's
+  exemption, unchanged).
+- **V2 Phase 1:** `build_core_router(plugin_ledger=...)` attributes serviced calls to the
+  per-plugin budget column (M1-3); `mount(taint=...)` tags external (MCP) routes so their
+  `ServiceOutcome.taint` is set (M1-5).
+
+## src/muthis/kernel/__init__.py
+
+Current shape: the sealed kernel package root -- see AGENTS.md.
+
+- **V2 Phase 1 (M1-1, decision Q-4):** the 8 flat compat shims
+  (`muthis.orchestrator`/`.turn_pass`/`.turn`/`.highlight_gate`/`.draw_dispatch`/
+  `.history_hygiene`/`.verbosity`/`.budget`) that briefly re-exported the moved kernel
+  modules were REMOVED; every consumer now imports `muthis.kernel.*`, and
+  `test_the_shims_are_gone` fails any revived old path (the live guard, kept in the row).
