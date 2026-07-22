@@ -230,3 +230,24 @@ routing + `turn.py` pairing; a generic turn-start reset hook for the gate) — a
 (b) what "confirmation" IS (build a blocking voice yes/no gate; OR wire only the confirmation DECISION behind an
 injectable seam and DEFER the voice round-trip, since it is unexercised this milestone; OR reuse the one-way
 ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b the confirmation gate).
+
+---
+
+## DEC-10 (2026-07-21) — high-impact confirmation path deferred to web_research — APPROVED
+
+- **Item:** WHEN the high-impact voice-confirmation path (DEC-3-A) is built, given the T5 finding that it does
+  not exist and has no trigger this milestone.
+- **Reason:** Proven live that confirmation has NO trigger in the sandbox_exec milestone — the launch schema has
+  no network param (so no network-enabled run per DEC-3-A), and taint is unpopulated until `web_research`.
+  Building the confirmation seam now violates stub-first ("do not build before the need") and would be dead code
+  with no consumer; its actual shape (blocking voice yes/no vs. the one-way ack) is only knowable at its first
+  real consumer.
+- **Resolution:** Sultan's sign-off. **DEFER the entire high-impact voice-confirmation path to the
+  `web_research` milestone** — its first real consumer (network access + populated session taint), where its
+  shape is knowable. This corrects the original T5 brief's false premise ("route through the EXISTING seam") and
+  preserves DEC-3-A's intent (confirmation for network / tainted runs) by binding the mechanism to its consumer.
+  T5's scope is corrected to **core wiring only**: the turn_pass service branch, the `turn.py` result pairing,
+  the `docker kill` on_interrupt registration, and the byte-pinned v2 catalog snapshot — NO confirmation, NO
+  network-param plumbing, NO web-taint plumbing (all deferred).
+- **Implementation timing:** The confirmation mechanism lands WITH `web_research`. T5 (this milestone) ships
+  without it. A network-less untainted run — the only kind possible now — runs directly with no confirmation.
