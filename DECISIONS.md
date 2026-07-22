@@ -287,3 +287,59 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Implementation timing:** Now (the T5 fix). The separator lives in ONE place — `tool_router.namespaced_name`
   — so no name is hardcoded twice; a NEW guard test validates EVERY catalog name against the API pattern (the
   missing guard that let this reach a live run — the real defect).
+
+---
+
+## DEC-12 (2026-07-22) — security-guard live-SOP checks must be DETERMINISTIC, not model-mediated — APPROVED
+
+- **Item:** How the live SOP (`diag_sandbox.py`) verifies a SECURITY guard — specifically CHECK 3, the sandbox's
+  secret-file refusal.
+- **Reason (the failure):** The first live SOP's CHECK 3 asked the MODEL to read a planted `.env`. The model
+  refused from its persona instructions and never invoked a tool (`tools=[]`), so `stage_file_gate` — the
+  deterministic guard that model-provided `files[]` actually flow through — was NEVER exercised. The canary
+  "passed" only because nothing was read at all: a FALSE NEGATIVE on the primary guard. Prompt-layer refusal is
+  probabilistic (it shifts with phrasing, with tainted context under `web_research`, and with a different provider
+  under the multi-provider protocol); the gate is deterministic. The constitution states secrets are refused BY
+  NAME inside the FileReader family and that we must NEVER rely on the prompt to protect them — so a live run that
+  leaves the gate untouched proves nothing. Closing an execution milestone without proving its primary guard is
+  unacceptable.
+- **Resolution:** Sultan's sign-off. A security guard is verified by DRIVING THE GUARD DIRECTLY, never by trusting
+  model judgment. CHECK 3 is rewritten to construct a `run_code` invocation whose `files[]` carries a secret-named
+  file and drive it straight through the real `SandboxService` / `stage_file_gate`, asserting on the GATE's
+  behavior alone: (a) the file is refused, (b) the refusal is a short Arabic note, (c) the canary is absent from
+  the tool_result, (d) the canary is absent from the logs; plus a benign-file positive control (so the refusal is
+  the gate acting, not a dead pipeline). A model-mediated request is kept ONLY as a labelled OBSERVATION — never
+  an acceptance criterion; a prompt-layer refusal there is fine and logged as such. A unit test
+  (`tests/test_stage_file_gate.py`) mirrors the live check so CI prevents regression. GENERAL PRINCIPLE: every
+  security guard's SOP check must be deterministic and must fail if the guard is removed — a check that can pass
+  without exercising the guard is not a check.
+- **Implementation timing:** Now (the CHECK-3 rewrite + the unit guard). Binds all future security-guard SOP
+  checks (`web_research` taint/confirmation, `doc_rag` injection wrapping): exercise the guard directly.
+
+---
+
+## GATE FINDING (2026-07-22) — `stage_file_gate` does not basename-ify — OPEN, awaiting Sultan's ruling
+
+- **Item:** While building the DEC-12 deterministic gate check, a SECOND gap surfaced (empirically reproduced):
+  `stage_file_gate(name, data)` calls `_blocked_name(name)` on the RAW name, whereas `FileReader.read` matches on
+  the BASENAME (`_blocked_name(path.name)` + the resolved target — "raw AND resolved path", symlink armor). So a
+  path-PREFIXED secret name slips past the exact/prefix matchers:
+  - REFUSED (correct): `.env`, `.env.local`, `id_rsa`, `credentials`, `.netrc`, `server.pem`, and — because
+    `Path().suffix` is directory-agnostic — even `dir/server.pem`, `dir/private.key`.
+  - NOT REFUSED (the gap): `sub/.env`, `a/b/.env`, `/tmp/.env`, `..\.env`, `sub/credentials`, `sub/id_rsa`,
+    `sub/.env.local` — all return `None` from the gate.
+- **Why it matters:** `stage_file_gate`'s own docstring claims "the SAME secret-name … refusals as read()", but it
+  is WEAKER than `read()` for path-y names — the docstring over-claims. Severity is LOW in practice (the `files[]`
+  content is model-PROVIDED, not read off the user's disk; the schema declares `files[].name` as "no directory";
+  and the bootstrap's `open("/work/" + name)` fails anyway for a subdir path or a `..` traversal under
+  `--read-only`). But it is a security-gate correctness gap in the very milestone whose point is to PROVE that
+  gate, and "be defensive — the model chooses the path" is the FileReader family's stated posture.
+- **Not guessed — logged (per the standing rule):** two candidate rulings, only Sultan decides:
+  - **(1) HARDEN — make the gate match the basename**, mirroring `read()`: `_blocked_name(PurePosixPath(name).name)`
+    (the container path is POSIX). Smallest change; makes the gate honor its own docstring.
+  - **(2) HARDEN by REJECTING structure** — refuse any `files[].name` containing a path separator (`/` or `\`) or
+    `..`, enforcing the schema's "no directory" contract at the gate (also closes the `/work/..` traversal).
+    Stricter; a clearer invariant.
+- **Status:** NOT acted on. `tests/test_stage_file_gate.py` deliberately covers only the proven BARE-name contract
+  (it does not encode the gap as a green assertion). The CHECK-3 rewrite (DEC-12) and this finding are independent;
+  the fix waits on a ruling.
