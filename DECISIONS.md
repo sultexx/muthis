@@ -251,3 +251,18 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   network-param plumbing, NO web-taint plumbing (all deferred).
 - **Implementation timing:** The confirmation mechanism lands WITH `web_research`. T5 (this milestone) ships
   without it. A network-less untainted run — the only kind possible now — runs directly with no confirmation.
+
+---
+
+## CONSTRAINT (2026-07-22) — orchestrator.py ceiling debt — TRACKED
+
+- **Item:** `orchestrator.py` sits at **299/300** lines after T5 (the sandbox seam threading) — a ONE-line margin.
+- **Reason:** The ≤300-line law now leaves no room. An edit that adds even a single line without extracting first
+  would blow the ceiling mid-implementation — the exact surprise the "extract, don't compress" law (§17.4)
+  exists to prevent.
+- **Resolution / constraint:** ANY future touch to `orchestrator.py` — notably **web_research (Phase-2
+  Milestone 2)** — MUST **extract before adding**, NEVER compress. Identify the extraction candidate at PLANNING
+  time, not mid-implementation. (A likely candidate: the `run_turn` `finally` teardown — the whiteboard-undim +
+  auto-hide arm — could move to a small `turn_teardown.py`, mirroring the frame_capture / voice_out extractions.)
+- **Implementation timing:** No action now (299 is legal). A planning-time flag for the next
+  orchestrator-touching milestone.
