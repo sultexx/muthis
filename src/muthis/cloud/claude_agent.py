@@ -104,11 +104,16 @@ class ClaudeAgent:
         base_url: str = DEFAULT_BASE_URL,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         system_prompt: str = LOOK_SYSTEM_PROMPT,
+        tools: list[dict[str, Any]] = LOOK_ONLY_TOOLS,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.model = model
         self._max_tokens = max_tokens
         self._system_prompt = system_prompt
+        # V2 Phase 2 (T5): the model-visible catalog is injectable — main.py
+        # passes the v2 catalog (the V1 four + sandbox.run_code). Default stays
+        # the byte-pinned V1 four, so tests/other callers are unchanged.
+        self._tools = tools
         # ONE shared client per agent — the SDK and the TLS warmup must use
         # the same connection pool or the warmup is theater.
         self._http_client = http_client or httpx.AsyncClient(
@@ -200,7 +205,7 @@ class ClaudeAgent:
             max_tokens=self._max_tokens,
             system=self._system_prompt,
             messages=messages,
-            tools=LOOK_ONLY_TOOLS,
+            tools=self._tools,
             tool_choice={"type": tool_choice},
         ) as stream:
             async for event in stream:

@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -260,6 +261,61 @@ async def test_interrupt_with_no_active_turn_is_a_safe_noop(tmp_path):
     reasoner.release.set()
     await orchestrator.run_turn("سؤال عادي")
     assert INTERRUPTED_NOTE_AR not in reasoner.calls[0]  # no phantom note
+
+
+# ─────────────────── DEC-3-C: the generic on_interrupt hooks ───────────────────
+
+
+def _boom():
+    raise RuntimeError("interrupt hook boom")            # a hook that misbehaves
+
+
+@pytest.mark.asyncio
+async def test_interrupt_fires_generic_hooks_and_a_raising_hook_never_breaks_it(tmp_path):
+    reasoner, overlay = GatedReasoner(), RecorderOverlay()
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    fired = threading.Event()
+    orchestrator.add_interrupt_hook(_boom)               # raises — must be swallowed
+    orchestrator.add_interrupt_hook(fired.set)           # e.g. an isolated-run kill
+
+    task = asyncio.create_task(orchestrator.run_turn("سؤال"))
+    await _until(lambda: len(reasoner.calls) == 1)       # mid-stream, hanging
+    hides_before = overlay.hides
+
+    await orchestrator.interrupt_turn()                  # the silence-first path stays intact …
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    await _until(fired.is_set)                            # … the good hook fired on its own thread
+    assert overlay.hides == hides_before + 1             # the raising hook never broke the path
+
+
+@pytest.mark.asyncio
+async def test_hooks_do_not_fire_without_an_active_turn(tmp_path):
+    reasoner, overlay = GatedReasoner(), RecorderOverlay()
+    orchestrator = _orchestrator(tmp_path, reasoner, overlay)
+
+    fired = threading.Event()
+    orchestrator.add_interrupt_hook(fired.set)
+    await orchestrator.interrupt_turn()                  # nothing running
+    await asyncio.sleep(0.02)
+    assert not fired.is_set()                            # hooks fire F9-during-a-run only
+
+
+def test_kernel_stays_blind_to_docker_dec_3_c():
+    import muthis.kernel.interrupt_hooks as hooks_mod
+    import muthis.kernel.orchestrator as orch_mod
+    import muthis.kernel.turn_pass as pass_mod
+    # DEC-3-C: no kernel module ever names Docker — it fires/services generic
+    # seams (a "sandbox" servicer whose Docker-ness the kernel never learns; it
+    # could equally be the section 2.7 fallback engine).
+    for mod in (orch_mod, hooks_mod, pass_mod):
+        src = Path(mod.__file__).read_text(encoding="utf-8").lower()
+        assert "docker" not in src, f"{mod.__name__} names Docker"
+    # the pure interrupt-hook mechanism names neither Docker NOR the sandbox.
+    hooks_src = Path(hooks_mod.__file__).read_text(encoding="utf-8").lower()
+    assert "sandbox" not in hooks_src, "interrupt_hooks names the sandbox"
 
 
 # ─────────────────── ActivationController: the barge-in machine ───────────────────

@@ -24,6 +24,7 @@ from .highlight_gate import (
 )
 # Bug-3 strip: extracted to history_hygiene.py (≤300-line split); re-exported.
 from .history_hygiene import STALE_SCREENSHOT_NOTE_AR, strip_images_from_history
+from .tool_router import namespaced_name  # DEC-11: the ONE separator source
 from ..tts import TTSResult
 
 
@@ -187,12 +188,19 @@ def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) ->
     return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
 
 
+RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not scattered
+# Second / unserviced run_code ids in a pass keep Option-B pairing API-valid.
+RUN_CODE_ALREADY_AR = "شغّلتَ الكود قبل قليل في هذه الجولة — استخدم نتيجته وأكمل."
+RUN_CODE_UNAVAILABLE_AR = "التنفيذ المعزول غير متاح في هذه الجلسة."
+
+
 def build_tool_result_message(
     assistant_content: list[dict[str, Any]],
     refresh_call: Optional[ToolCall] = None,
     fresh_screenshot: Optional[bytes] = None,
     gate: Optional[HighlightGate] = None,
     read_result: Optional[tuple[ToolCall, str]] = None,
+    run_result: Optional[tuple[ToolCall, str]] = None,
 ) -> Optional[dict[str, Any]]:
     """ONE user message pairing a tool_result with EVERY tool_use block the
     assistant just emitted (Option B — full pairing). The refresh id (when
@@ -219,6 +227,7 @@ def build_tool_result_message(
     without the SDK stack."""
     refresh_id = refresh_call.tool_use_id if refresh_call else None
     read_id = read_result[0].tool_use_id if read_result else None
+    run_id = run_result[0].tool_use_id if run_result else None
     results: list[dict[str, Any]] = []
     for block in assistant_content:
         if block.get("type") != "tool_use":
@@ -231,6 +240,19 @@ def build_tool_result_message(
                 content = read_result[1]
             else:
                 content = FILE_ALREADY_READ_AR if read_result else FILE_READ_ERROR_AR
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+            })
+        elif block.get("name") == RUN_CODE_TOOL:
+            # T5: answered BY NAME (like read) so a run can NEVER hit the draw
+            # branch. The serviced run gets its Arabic output; a second run_code
+            # id in the same pass gets the already-ran note.
+            if tool_use_id is not None and tool_use_id == run_id:
+                content = run_result[1]
+            else:
+                content = RUN_CODE_ALREADY_AR if run_result else RUN_CODE_UNAVAILABLE_AR
             results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -255,6 +277,6 @@ __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR", "MIC_FAILED_AR", "STT_EMPTY_AR",
     "AGENTIC_CAP_NOTE_AR", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
     "next_highlight",
-    "TurnResult", "build_tool_result_message",
+    "TurnResult", "build_tool_result_message", "RUN_CODE_TOOL",
     "STALE_SCREENSHOT_NOTE_AR", "strip_images_from_history",
 ]

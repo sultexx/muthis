@@ -25,6 +25,7 @@ KERNEL_MODULES = (
     "muthis.kernel.draw_dispatch",
     "muthis.kernel.highlight_gate",
     "muthis.kernel.history_hygiene",
+    "muthis.kernel.interrupt_hooks",
     "muthis.kernel.orchestrator",
     "muthis.kernel.tool_router",
     "muthis.kernel.turn",

@@ -1,18 +1,53 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-17, V2 Phase 1). **`AGENTS.md` remains
-> the full source of truth**; this is the compressed map. Branch
-> `feature/v2-phase1-broker-mcp`; app suite 532 green (V1 474-oracle
-> preserved through the Q-4 import flip) + 27 sdk tests.
+> Token-saving snapshot (updated 2026-07-22, V2 Phase 2 M1 `sandbox_exec`
+> CLOSED). **`AGENTS.md` remains the full source of truth**; this is the
+> compressed map. Branch `feature/v2-phase2-sandbox` (main untouched at
+> `637c687`); app suite 604 green (V1 474-oracle preserved) + 27 sdk tests.
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — PHASE 1 CODE-COMPLETE (2026-07-17); LIVE GATE PENDING
-Phase 0 CLOSED by Sultan after live UAT (all four diags on real hardware);
-merged to `main` (+ `pre-v2-phase1` anchor). Phase 1 (broker + privileges +
-MCP bridge) executed M1-0→M1-7 per the approved plan (decisions Q-1.0→Q-1.4).
-**Exit gate pending Sultan's live run:** `diag_hello_plugin.py` +
-`diag_mcp_mount.py` (both zero-cost, both PASSED in engineering smoke) +
-V1 regression diags (`diag_pedagogy` at minimum).
+## CURRENT STATUS — V2 PHASE 2, M1 `sandbox_exec` CLOSED (live-signed 2026-07-22)
+Phase 0 CLOSED + merged to `main`. **Phase 1** (broker + privileges + MCP bridge,
+M1-0→M1-7) CLOSED + MERGED to `main` (`dbfec3a`, tag `v2-phase1-complete`) after
+Sultan's live gate. **Phase 2, Milestone 1 — `sandbox_exec`** is now CLOSED on
+`feature/v2-phase2-sandbox` (cut from `main` at `637c687`; **main untouched**):
+the model runs code in an isolated throwaway container via `sandbox__run_code` —
+the FIRST execution capability — with no LOOK-only guarantee weakened. Sultan ran
+the full Live SOP on his hardware 2026-07-22 (CHECK 1 run / CHECK 2 ≤3
+self-correct gate / CHECK 3 the staging gate blocked direct AND path-traversal
+secrets, zero leaks — all PASSED) and signed off personally. Closure record:
+`docs/reports/phase2_m1_sandbox.md`; rulings DEC-8..DEC-13 in `DECISIONS.md`.
+**Next (Sultan's):** merge the branch to `main`; then the now-unblocked DEC-7
+Trust-Modes doc sweep + the DEC-1 Key-Files cleanup.
+
+## V2 PHASE 2 — M1 `sandbox_exec` (CLOSED, live-signed 2026-07-22)
+Isolated code execution behind `sandbox.execute`. Gates P0→T6, each STOP-gated.
+- **The tool:** `sandbox__run_code` — a declaration plugin mounted namespaced →
+  JOINS the model catalog (byte-pinned `look_tools_v2.json`, the FIRST
+  model-visible change since Phase 1). DEC-11 fixed the namespace separator to
+  `__` (a dot fails the Anthropic tool-name pattern), living in ONE place
+  (`tool_router.namespaced_name`) + a guard test over EVERY catalog name.
+- **The engine** (`src/muthis_plugins/sandbox_exec/`, muthis_sdk + stdlib only):
+  `runner.py` (one container lifecycle over injected asyncio-subprocess + gate
+  seams; ALL DEC-3 flags incl. `--read-only`; bounded ANSI tails; wall timeout →
+  `docker kill` → `rm -f` always; NEVER raises), `bootstrap.py` (DEC-9 stdin
+  staging into the tmpfs `/work` — NO `docker cp`), `sandbox_gate.py` (≤3
+  runs/turn, DEC-3-B, decoupled from HighlightGate), `service.py` (turn-aware
+  gate + runner + F9 kill).
+- **Kernel touch = ONE:** the generic `on_interrupt` hook (`kernel/
+  interrupt_hooks.py`, DEC-3-C) the sandbox registers `docker kill` into; the
+  sealed kernel never names "docker". `turn_pass` services `run_code` after the
+  sync point (like read — NEVER the draw gate); `turn.py` pairs it by name.
+- **The staging guard** (`file_reader.stage_file_gate`): secret NAMES refused,
+  path structure refused OUTRIGHT (DEC-13 — `/` `\` `..` → no `/work` escape, by
+  construction), binary refused, content never logged. Proven DETERMINISTICALLY
+  in the live SOP (DEC-12), never via model judgment.
+- **Confirmation / session-taint DEFERRED to `web_research`** (DEC-10 — no
+  trigger here: the launch schema has no network param, taint is unpopulated).
+- **Untouched:** the draw path / Option-A sync / HighlightGate (git-verified);
+  main at `637c687`. `orchestrator.py` 299/300 = tracked ceiling debt (extract
+  before `web_research`). 604 app + 27 sdk green; ADMISSIBLE. Full detail:
+  `docs/reports/phase2_m1_sandbox.md`.
 
 ## V2 PHASE 1 — broker, privileges, MCP (M1-0→M1-7, zero V1 behavior change)
 - **Q-4 settled (M1-1):** the 8 compat shims are GONE; every consumer imports

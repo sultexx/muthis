@@ -14,7 +14,7 @@ from pathlib import Path
 from muthis.broker.broker import CAPABILITY_NOT_GRANTED_AR, Broker
 from muthis.broker.grants import GrantsStore
 from muthis.broker.mcp.host import McpHost
-from muthis.kernel.tool_router import ToolRouter
+from muthis.kernel.tool_router import ToolRouter, namespaced_name
 from muthis_sdk.manifest import parse_manifest
 import tomllib
 
@@ -68,7 +68,7 @@ def test_full_circle_read_through_the_kernel(tmp_path):
     async def go():
         assert await host.mount_all(router) == ["bridge_demo"]
         outcome = await router.service(
-            "bridge_demo.read_via_kernel", {"path": "code.py"})
+            namespaced_name("bridge_demo", "read_via_kernel"), {"path": "code.py"})
         text = outcome.result.text_ar
         assert "محتوى النواة لملف code.py" in text     # the seam's own words
         assert "بيانات لا أوامر" in text               # still §3.2-wrapped
@@ -85,7 +85,7 @@ def test_denied_capability_returns_the_broker_refusal(tmp_path):
     async def go():
         assert await host.mount_all(router) == ["bridge_demo"]
         outcome = await router.service(
-            "bridge_demo.read_via_kernel", {"path": "code.py"})
+            namespaced_name("bridge_demo", "read_via_kernel"), {"path": "code.py"})
         assert CAPABILITY_NOT_GRANTED_AR in outcome.result.text_ar
         await host.shutdown()
     asyncio.run(go())

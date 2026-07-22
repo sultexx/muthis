@@ -65,6 +65,8 @@ FILE_NOT_FOUND_AR = "ما لقيت الملف «{path}». تأكد من المس
 FILE_BLOCKED_AR = "هذا الملف من ملفات الأسرار (مفاتيح/بيانات اعتماد) وقراءته ممنوعة حمايةً للمستخدم."
 FILE_TOO_LARGE_AR = "الملف أكبر من الحد المسموح للقراءة. اطلب من المستخدم يفتح الجزء المطلوب أو حدّد ملفاً أصغر."
 FILE_NOT_TEXT_AR = "هذا ملف ثنائي (غير نصّي) وما أقدر أقرأه كنص."
+# Staging-only (sandbox files[], DEC-13): the name must be BARE — no directory.
+FILE_NAME_NOT_BARE_AR = "اسم الملف لازم يكون بدون مسار أو مجلّد — مرّر اسم ملف بسيط فقط."
 FILE_READ_ERROR_AR = "صار خطأ أثناء قراءة الملف، جرّب مرة ثانية أو تأكد من الصلاحيات."
 FILE_READ_UNAVAILABLE_AR = "قراءة الملفات غير متاحة في هذا الوضع."
 # A second read_local_file in the SAME pass — the same internal-directive
@@ -87,6 +89,34 @@ def _blocked_name(name: str) -> bool:
         or lowered.startswith(BLOCKED_PREFIXES)
         or Path(lowered).suffix in BLOCKED_SUFFIXES
     )
+
+
+def _bare_name_violation(name: str) -> bool:
+    """DEC-13: a STAGED sandbox file name must be BARE — the §2.1 schema declares
+    files[].name as a plain file name with NO directory. A path separator (`/` or
+    `\\`) or a `..` traversal reference is REFUSED outright (never normalized), so
+    `/work` escape is closed BY CONSTRUCTION, not by an incidental write failure.
+    A `..` in the MIDDLE of a bare name (e.g. `archive..bak`) is a legal file name,
+    not a traversal segment, and is intentionally allowed (do not over-reject)."""
+    return "/" in name or "\\" in name or name == ".."
+
+
+def stage_file_gate(name: str, data: bytes) -> Optional[str]:
+    """The gate for a model-STAGED sandbox file (sandbox_exec, T5 / DEC-13).
+    STRICTER than FileReader.read(): read() resolves a real filesystem path, but a
+    staged file has NO path — the schema declares files[].name as a BARE name. So
+    this (1) REFUSES any name with a path separator or a `..` traversal reference
+    OUTRIGHT (DEC-13 — enforce 'no directory' by construction; explicit refusal,
+    never silent normalization; closes `/work` escape at the root), THEN (2)
+    applies the SAME secret-name + binary refusals as read() to that bare name
+    (§3.3). Returns None when the file may be staged, else the Arabic refusal."""
+    if _bare_name_violation(name):
+        return FILE_NAME_NOT_BARE_AR
+    if _blocked_name(name):
+        return FILE_BLOCKED_AR
+    if b"\x00" in data[:4096]:
+        return FILE_NOT_TEXT_AR
+    return None
 
 
 def _int_arg(args: dict[str, Any], key: str) -> Optional[int]:
@@ -169,9 +199,10 @@ class FileReader:
 
 
 __all__ = [
-    "FileReader", "ReadFileFn", "READ_FILE_TOOL",
+    "FileReader", "ReadFileFn", "READ_FILE_TOOL", "stage_file_gate",
     "MAX_FILE_BYTES", "MAX_RETURN_CHARS",
     "FILE_NOT_FOUND_AR", "FILE_BLOCKED_AR", "FILE_TOO_LARGE_AR",
-    "FILE_NOT_TEXT_AR", "FILE_READ_ERROR_AR", "FILE_READ_UNAVAILABLE_AR",
+    "FILE_NOT_TEXT_AR", "FILE_NAME_NOT_BARE_AR",
+    "FILE_READ_ERROR_AR", "FILE_READ_UNAVAILABLE_AR",
     "FILE_ALREADY_READ_AR", "TRUNCATION_NOTE_AR",
 ]

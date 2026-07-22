@@ -36,6 +36,7 @@ from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .frame_capture import FrameCapture
 from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .interrupt_hooks import InterruptHooks
 from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
 from .turn import (
@@ -85,6 +86,7 @@ class Orchestrator:
         overlay: Overlay = stub_overlay,
         read_file: ReadFileFn = stub_read_file,
         router: Optional[ToolRouter] = None,
+        sandbox: Optional[Any] = None,
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
@@ -116,10 +118,14 @@ class Orchestrator:
             stream_tts=stream_tts, session_factory=speech_session_factory,
             read_file=read_file,  # v7 Phase 4: the read_local_file seam
             router=router,  # V2 Phase 1: the ONE injected seam (roadmap §1)
+            sandbox=sandbox,  # V2 Phase 2 (T5): the run_code servicer
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
         self._interrupted_last_turn = False
+        # DEC-3-C: the GENERIC F9 hook seam — fired on interrupt; the kernel
+        # stays blind to what a hook does (a plugin registers its own).
+        self._interrupts = InterruptHooks()
 
         # Conversation history (Claude message-dict format). Owned HERE and
         # nowhere else — the wrapper stores nothing between calls.
@@ -152,8 +158,13 @@ class Orchestrator:
         """Barge-in (v7 Phase 3): clear the UI, silence the active voice
         (finish() then no-ops — no fallback re-speak), and mark the NEXT
         turn's interrupted-context directive. The caller cancels the turn
-        task AFTER this returns. Safe no-op when no turn is active."""
+        task AFTER this returns. Safe no-op when no turn is active.
+
+        DEC-3-C: F9 also fires the generic interrupt hooks — fire-and-forget
+        on their own threads, PARALLEL to the silence, never blocking it."""
         turn_voice = self._active_turn_voice  # captured pre-await (race armor)
+        if turn_voice is not None:
+            self._interrupts.fire()  # generic F9 side effects, alongside the silence
         # UI first: the instant hide wipes board/shapes/captions/dim ~10 ms
         # in, while the audio abort pays its ~130 ms WS close behind it.
         self._auto_hide.cancel()
@@ -161,6 +172,10 @@ class Orchestrator:
         if turn_voice is not None:
             await turn_voice.interrupt()
             self._interrupted_last_turn = True
+
+    def add_interrupt_hook(self, hook: Callable[[], None]) -> None:
+        """Register a fire-and-forget F9 hook (DEC-3-C) — fired on its own thread."""
+        self._interrupts.add(hook)
 
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
@@ -235,7 +250,7 @@ class Orchestrator:
                 await self._voice.refuse_for_budget(
                     result, self._budget, speak=turn_voice.speak_or_feed)
                 return
-            turn_complete, refresh_call, read_result = await self._pass.consume(
+            turn_complete, refresh_call, read_result, run_result = await self._pass.consume(
                 user_input, screenshot, list(self.history),
                 self._highlight_gate, result, turn_voice)
             if turn_complete is None:                    # stream died, no TurnComplete
@@ -257,7 +272,7 @@ class Orchestrator:
             fresh = await self._frames.capture(result) if serviced_refresh else None
             pairing = build_tool_result_message(
                 turn_complete.assistant_content, refresh_call, fresh,
-                self._highlight_gate, read_result)
+                self._highlight_gate, read_result, run_result)
             if pairing is not None:
                 self.history.append(pairing)
             refresh_used += int(serviced_refresh)

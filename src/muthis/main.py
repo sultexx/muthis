@@ -43,6 +43,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import subprocess
 
 from dotenv import load_dotenv
 
@@ -57,10 +58,13 @@ from .broker.mcp.host import McpHost  # noqa: E402
 from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .earcons import EarconPlayer  # noqa: E402
-from .file_reader import FileReader  # noqa: E402
+from .file_reader import FileReader, stage_file_gate  # noqa: E402
 from .kernel.frame_capture import FrameCapture  # noqa: E402
 from .kernel.tool_router import ToolRouter, build_core_router  # noqa: E402
 from .kernel.turn import TurnResult  # noqa: E402
+from muthis_plugins.sandbox_exec import SandboxExecPlugin  # noqa: E402
+from muthis_plugins.sandbox_exec.runner import SandboxRunner  # noqa: E402
+from muthis_plugins.sandbox_exec.service import SandboxService  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .mic import Mic  # noqa: E402
 from .kernel.orchestrator import Orchestrator  # noqa: E402
@@ -144,9 +148,33 @@ def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
     return router, host
 
 
+def _build_sandbox() -> SandboxService:
+    """V2 Phase 2 (T5): the run_code servicer — a SandboxRunner (Docker CLI,
+    DEC-9 stdin staging) behind the FileReader gates, wrapped in the ≤3/turn
+    SandboxGate. The section 2.7 fallback engine is NOT built: a docker info
+    failure surfaces the runner's honest Arabic note, never a silent degrade."""
+    return SandboxService(runner=SandboxRunner(stage_gate=stage_file_gate))
+
+
+def _log_docker_fallback_decision() -> None:
+    """Honest startup logging (never silently degrade): whether Docker is up,
+    and that the section 2.7 Job-Objects fallback is DEFERRED — at runtime a
+    docker info failure surfaces the runner's Arabic note, not a silent swap."""
+    try:
+        ok = subprocess.run(["docker", "info"], capture_output=True,
+                            timeout=10).returncode == 0
+    except Exception:  # noqa: BLE001 — the probe must never crash startup
+        ok = False
+    if ok:
+        logger.info("[main] docker available — sandbox__run_code is live")
+    else:
+        logger.warning("[main] docker unavailable — run_code refuses aloud; the "
+                       "section 2.7 fallback engine is deferred (not built)")
+
+
 def _build_orchestrator(
     agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay, mic_seam,
-    router: ToolRouter,
+    router: ToolRouter, sandbox: SandboxService,
 ) -> Orchestrator:
     """Wire the FULL production graph through the existing DI seams. Tests inject
     fakes through these very same seams — production just passes the real ones.
@@ -162,19 +190,13 @@ def _build_orchestrator(
         downscale=downscale_to_max_width,        # REAL payload COPY (≤ max width)
         overlay=overlay,                         # REAL overlay (hidden before each capture)
         router=router,                           # V2 Phase 1: the ONE injected seam
+        sandbox=sandbox,                         # V2 Phase 2 (T5): the run_code servicer
     )
 
 
 async def run() -> None:
     """Build the real graph, register the hotkey, run forever until interrupted."""
     sent_width, sent_height = _size_sent_image()
-
-    # Persona resolved with the sent-image dims and injected through ClaudeAgent's
-    # existing system_prompt seam. resolve_system_prompt falls back loudly to
-    # LOOK_SYSTEM_PROMPT if the builder is empty/raises.
-    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_width, sent_height)
-    agent = ClaudeAgent(system_prompt=persona_prompt)  # reads ANTHROPIC_API_KEY
-    await agent.warm_up_tls()  # warm the shared TLS session before the first call
 
     budget = Budget()
     # No hard exit when the budget is exhausted: the orchestrator gates every
@@ -188,7 +210,23 @@ async def run() -> None:
     earcons = EarconPlayer()     # pleasant lifecycle cues (MUTHIS_EARCONS, default on)
     reader = FileReader()
     router, mcp_host = _build_broker_graph(budget, overlay, reader)
-    orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop, router)
+    # V2 Phase 2 (T5): mount run_code (namespaced) into the catalog + build its
+    # servicer. The v2 model catalog is the router's descriptors — the FIRST
+    # model-visible change since Phase 1 (byte-pinned to look_tools_v2.json).
+    sandbox = _build_sandbox()
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    model_tools = [descriptor.schema for descriptor in router.descriptors()]
+    _log_docker_fallback_decision()
+
+    # Persona resolved with the sent-image dims and injected through ClaudeAgent's
+    # existing system_prompt seam. resolve_system_prompt falls back loudly to
+    # LOOK_SYSTEM_PROMPT if the builder is empty/raises.
+    persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_width, sent_height)
+    agent = ClaudeAgent(system_prompt=persona_prompt, tools=model_tools)  # reads ANTHROPIC_API_KEY
+    await agent.warm_up_tls()  # warm the shared TLS session before the first call
+
+    orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop, router, sandbox)
+    orchestrator.add_interrupt_hook(sandbox.kill_active)  # F9 kills the live container (T4 seam)
 
     loop = asyncio.get_running_loop()
     controller = ActivationController(

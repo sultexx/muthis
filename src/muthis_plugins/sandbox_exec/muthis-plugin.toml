@@ -1,0 +1,27 @@
+# sandbox_exec — isolated in-container code execution behind sandbox.execute
+# (V2 Phase 2, Milestone 1 — the founding execution privilege; Roadmap §2, DEC-3).
+# LOOK-only is untouched: execution lives ONLY in a throwaway container, never on
+# the user's machine (DEC-3 — execution is not control).
+
+[plugin]
+name    = "sandbox_exec"
+version = "0.1.0"
+sdk     = ">=2.0.0a2,<3"
+kind    = "native"
+entry   = "muthis_plugins.sandbox_exec.plugin:SandboxExecPlugin"
+
+[descriptions]
+ar = "يشغّل مقطع كود قصيرًا داخل صندوق معزول بلا شبكة يُعدَم بعد التشغيل، فيعيد المُخرَج الحقيقي — لتقدّم كودًا جرّبتَه لا كودًا مُخمَّنًا؛ لا يمسّ جهاز المستخدم إطلاقًا"
+en = "Runs a short code snippet inside an isolated, network-less, throwaway sandbox and returns the real output — so you hand over code you have actually run, never untested code; never touches the user's machine"
+
+[capabilities]
+required = ["sandbox.execute"]
+# Reserved for the separate network privilege (DEC-3-A): opening the network is a
+# per-run, voice-confirmed grant; the launch run_code is always --network none.
+optional = ["net.fetch"]
+
+[tools.run_code]
+# read_only w.r.t. the USER'S machine: the run is confined to a throwaway
+# container and destroyed after — no host/session mutation (DEC-3). It aligns
+# with DEC-3-A treating a network-less run as friction-less (no confirmation).
+read_only = true

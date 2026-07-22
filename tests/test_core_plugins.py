@@ -19,6 +19,7 @@ from pathlib import Path
 import muthis_plugins
 from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
 from muthis.kernel.tool_router import build_core_router
+from muthis.kernel.turn import RUN_CODE_TOOL
 from muthis_plugins.common import FILES_CAPABILITY_ABSENT_AR, KERNEL_SERVICED_AR
 from muthis_plugins.file_read import FileReadPlugin
 from muthis_plugins.look_pointer import LookPointerPlugin
@@ -27,6 +28,7 @@ from muthis_plugins.screen_refresh import ScreenRefreshPlugin
 from muthis_sdk import FilesCapability, PluginContext, load_manifest
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v1.json"
+V2_SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v2.json"
 PLUGINS_DIR = Path(muthis_plugins.__file__).parent
 
 PLUGIN_SET = {
@@ -51,6 +53,44 @@ def test_v1_catalog_order_is_preserved():
     assert [t["name"] for t in LOOK_ONLY_TOOLS] == [
         "highlight_target", "draw_shapes", "request_screen_refresh", "read_local_file",
     ]
+
+
+def test_v2_catalog_byte_pins_sandbox_run_code():
+    """T5 — the FIRST model-visible change since Phase 1: sandbox.run_code joins
+    the catalog. Byte-pinned to look_tools_v2.json; the V1 snapshot stays as the
+    untouched historical anchor."""
+    from muthis_plugins.sandbox_exec import SandboxExecPlugin
+    router = build_core_router(read_file=None)
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    catalog = [d.schema for d in router.descriptors()]
+    canonical = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
+    assert canonical.encode("utf-8") == V2_SNAPSHOT.read_bytes(), (
+        "the v2 catalog drifted from look_tools_v2.json — a model-visible change; "
+        "revert the schema edit or re-approve the snapshot")
+    assert [t["name"] for t in catalog] == [
+        "highlight_target", "draw_shapes", "request_screen_refresh",
+        "read_local_file", RUN_CODE_TOOL]
+    # the sandbox descriptor is a DECLARATION (kernel-serviced, catalog-only)
+    assert router.descriptors()[-1].kernel_serviced is True
+    # the V1 snapshot is untouched (the historical anchor)
+    assert (json.dumps(LOOK_ONLY_TOOLS, ensure_ascii=False, indent=2) + "\n").encode(
+        "utf-8") == SNAPSHOT.read_bytes()
+
+
+def test_every_model_visible_tool_name_matches_the_anthropic_pattern():
+    """The lesson of the T6 live 400 (DEC-11): a dot-namespaced name broke the
+    Anthropic tool-name pattern, and NOTHING in the suite caught it. Guard EVERY
+    model-visible catalog name here — this must fail loudly if any future plugin
+    (namespaced or bare) ships a name the API would reject."""
+    api_name = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
+    from muthis_plugins.sandbox_exec import SandboxExecPlugin
+    router = build_core_router(read_file=None)
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    for descriptor in router.descriptors():
+        name = descriptor.schema["name"]
+        assert api_name.match(name), f"tool name {name!r} violates ^[a-zA-Z0-9_-]{{1,128}}$"
+    for tool in LOOK_ONLY_TOOLS:  # the byte-pinned V1 four are valid too (bare names)
+        assert api_name.match(tool["name"]), tool["name"]
 
 
 def test_router_descriptors_are_the_same_schema_objects():

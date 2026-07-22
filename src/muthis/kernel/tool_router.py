@@ -47,6 +47,18 @@ logger = logging.getLogger("muthis.kernel.tool_router")
 # the merged list is hard-capped; semantic filtering arrives when catalogs grow.
 MAX_TOOLS = 24
 
+# DEC-11: the namespace↔tool separator for NON-core plugin tools. A DOUBLE
+# underscore — NOT a dot (the Anthropic tool-name pattern ^[a-zA-Z0-9_-]{1,128}$
+# forbids dots; a live 400 surfaced it), and NOT a single _ (ambiguous with an
+# underscore inside a tool name, which would break namespace parsing). THE
+# single source of the separator — every namespaced name derives from here.
+NAMESPACE_SEP = "__"
+
+
+def namespaced_name(namespace: str, tool: str) -> str:
+    """The model-visible name for a namespaced plugin tool (DEC-11)."""
+    return f"{namespace}{NAMESPACE_SEP}{tool}"
+
 # Arabic tool_result notes — the model-facing refusal surfaces (never spoken).
 UNROUTED_TOOL_NOTE_AR = "هذه الأداة غير متاحة في هذه الجلسة."
 KERNEL_SERVICED_NOTE_AR = "هذه الأداة تخدمها النواة مباشرة، لا هذا المسار."
@@ -106,7 +118,7 @@ class ToolRouter:
         for descriptor in plugin.descriptors():
             exposed = descriptor
             if namespace:
-                exposed_name = f"{namespace}.{descriptor.name}"
+                exposed_name = namespaced_name(namespace, descriptor.name)
                 exposed = dataclasses.replace(
                     descriptor,
                     name=exposed_name,
@@ -211,6 +223,8 @@ def build_core_router(
 
 __all__ = [
     "MAX_TOOLS",
+    "NAMESPACE_SEP",
+    "namespaced_name",
     "KERNEL_SERVICED_NOTE_AR",
     "PLUGIN_FAILED_NOTE_AR",
     "UNROUTED_TOOL_NOTE_AR",

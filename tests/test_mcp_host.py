@@ -18,7 +18,7 @@ from muthis.broker.mcp.host import (
     SERVER_QUARANTINED_NOTE_AR,
 )
 from muthis.kernel.budget import Budget
-from muthis.kernel.tool_router import ToolRouter
+from muthis.kernel.tool_router import ToolRouter, namespaced_name
 from muthis_sdk import load_manifest
 from muthis_sdk.manifest import parse_manifest
 import tomllib
@@ -75,9 +75,10 @@ def test_mount_filters_and_namespaces_and_taints(tmp_path):
         mounted = await host.mount_all(router)
         assert mounted == ["demo"]
         names = [d.name for d in router.descriptors()]
-        assert "demo.echo_ro" in names and "demo.fetch_open" in names
+        echo, fetch = namespaced_name("demo", "echo_ro"), namespaced_name("demo", "fetch_open")
+        assert echo in names and fetch in names
         assert not any("delete_all" in n or "mystery" in n for n in names)
-        outcome = await router.service("demo.echo_ro", {"text": "سلام"})
+        outcome = await router.service(echo, {"text": "سلام"})
         assert outcome.taint is True                      # external by definition
         assert "echo:سلام" in outcome.result.text_ar
         assert "بيانات لا أوامر" in outcome.result.text_ar  # §3.2 wrapping
@@ -105,7 +106,7 @@ def test_lazy_posture_respawns_for_the_call(tmp_path):
         await host.mount_all(router)
         state = host._servers["demo"]
         assert state.session is None                      # lazy: pipe shut
-        outcome = await router.service("demo.echo_ro", {"text": "hi"})
+        outcome = await router.service(namespaced_name("demo", "echo_ro"), {"text": "hi"})
         assert "echo:hi" in outcome.result.text_ar
         assert state.session is not None                  # respawned on need
         await host.shutdown()
@@ -120,10 +121,10 @@ def test_three_strikes_disable_with_spoken_announcement(tmp_path):
     async def go():
         await host.mount_all(router)
         for _ in range(MAX_STRIKES):
-            outcome = await router.service("demo.echo_ro", {})
+            outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
             assert outcome.result.is_error is True
         # The fourth call refuses WITHOUT touching the dead server.
-        outcome = await router.service("demo.echo_ro", {})
+        outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
         assert outcome.result.text_ar == SERVER_DISABLED_NOTE_AR
         await host.shutdown()
     asyncio.run(go())
@@ -142,7 +143,7 @@ def test_list_changed_quarantines_the_server(tmp_path):
                 break
             await asyncio.sleep(0.05)
         assert host._servers["demo"].quarantined is True
-        outcome = await router.service("demo.echo_ro", {})
+        outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
         assert outcome.result.text_ar == SERVER_QUARANTINED_NOTE_AR
         await host.shutdown()
     asyncio.run(go())

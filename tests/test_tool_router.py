@@ -23,6 +23,7 @@ from muthis.kernel.tool_router import (
     UNROUTED_TOOL_NOTE_AR,
     ToolRouter,
     build_core_router,
+    namespaced_name,
 )
 from muthis_sdk import PluginContext, ToolDescriptor, ToolPlugin, ToolResult
 
@@ -111,9 +112,10 @@ def test_namespaced_mount_fences_name_and_schema():
     plugin = _FakePlugin("search_web")
     router.mount(plugin, namespace="web")
     (descriptor,) = router.descriptors()
-    assert descriptor.name == "web.search_web"
-    assert descriptor.schema["name"] == "web.search_web"
-    outcome = asyncio.run(router.service("web.search_web", {"q": "x"}))
+    expected = namespaced_name("web", "search_web")  # DEC-11: "web__search_web"
+    assert descriptor.name == expected
+    assert descriptor.schema["name"] == expected
+    outcome = asyncio.run(router.service(expected, {"q": "x"}))
     assert outcome.result.text_ar == "نفّذت search_web"  # plugin sees its BARE name
     assert plugin.calls == [("search_web", {"q": "x"})]
 
