@@ -86,6 +86,7 @@ class Orchestrator:
         overlay: Overlay = stub_overlay,
         read_file: ReadFileFn = stub_read_file,
         router: Optional[ToolRouter] = None,
+        sandbox: Optional[Any] = None,
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
@@ -117,6 +118,7 @@ class Orchestrator:
             stream_tts=stream_tts, session_factory=speech_session_factory,
             read_file=read_file,  # v7 Phase 4: the read_local_file seam
             router=router,  # V2 Phase 1: the ONE injected seam (roadmap §1)
+            sandbox=sandbox,  # V2 Phase 2 (T5): the run_code servicer
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
@@ -248,7 +250,7 @@ class Orchestrator:
                 await self._voice.refuse_for_budget(
                     result, self._budget, speak=turn_voice.speak_or_feed)
                 return
-            turn_complete, refresh_call, read_result = await self._pass.consume(
+            turn_complete, refresh_call, read_result, run_result = await self._pass.consume(
                 user_input, screenshot, list(self.history),
                 self._highlight_gate, result, turn_voice)
             if turn_complete is None:                    # stream died, no TurnComplete
@@ -270,7 +272,7 @@ class Orchestrator:
             fresh = await self._frames.capture(result) if serviced_refresh else None
             pairing = build_tool_result_message(
                 turn_complete.assistant_content, refresh_call, fresh,
-                self._highlight_gate, read_result)
+                self._highlight_gate, read_result, run_result)
             if pairing is not None:
                 self.history.append(pairing)
             refresh_used += int(serviced_refresh)

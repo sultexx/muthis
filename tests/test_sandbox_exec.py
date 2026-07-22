@@ -12,8 +12,8 @@ import asyncio
 from pathlib import Path
 
 import muthis_plugins
+from muthis_plugins.common import KERNEL_SERVICED_AR
 from muthis_plugins.sandbox_exec import SandboxExecPlugin
-from muthis_plugins.sandbox_exec.plugin import SANDBOX_UNAVAILABLE_AR
 from muthis_plugins.sandbox_exec.schema import (
     DEFAULT_TIMEOUT_S,
     LANGUAGES,
@@ -39,7 +39,7 @@ def test_manifest_declares_the_execution_capability():
 def test_descriptor_and_schema_are_consistent():
     (descriptor,) = SandboxExecPlugin().descriptors()
     assert descriptor.name == "run_code"
-    assert descriptor.read_only is True and descriptor.kernel_serviced is False
+    assert descriptor.read_only is True and descriptor.kernel_serviced is True
     # the descriptor exposes the exact schema object (one source of truth)
     assert descriptor.schema is RUN_CODE_SCHEMA
     assert RUN_CODE_SCHEMA["name"] == "run_code"
@@ -61,7 +61,7 @@ def test_execute_returns_a_note_and_never_raises():
     # context both degrade to the same note — T1 touches no seam; the engine is T2.
     for ctx in (PluginContext(), PluginContext(files=FilesCapability(read=_fake_read))):
         result = asyncio.run(plugin.execute("run_code", args, ctx))
-        assert result.text_ar == SANDBOX_UNAVAILABLE_AR and result.is_error is True
+        assert result.text_ar == KERNEL_SERVICED_AR and result.is_error is True
 
 
 def test_conformance_kit_reports_admissible():

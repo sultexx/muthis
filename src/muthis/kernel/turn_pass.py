@@ -41,7 +41,7 @@ from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
 from ..file_reader import READ_FILE_TOOL, ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .tool_router import ToolRouter, build_core_router
-from .turn import TurnResult
+from .turn import RUN_CODE_TOOL, TurnResult
 from ..turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
@@ -69,6 +69,7 @@ class TurnPass:
         session_factory: Optional[Callable[[], object]] = None,
         read_file: Optional[ReadFileFn] = None,
         router: Optional[ToolRouter] = None,
+        sandbox: Optional[Any] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -91,11 +92,17 @@ class TurnPass:
         # flag-ON use, so the buffered default path never imports the TTS layer.
         self._stream_tts = _stream_tts_from_env() if stream_tts is None else stream_tts
         self._session_factory = session_factory
+        # T5: the plugin-domain sandbox servicer (gate + runner + kill), injected
+        # at composition. None → run_code is unavailable (never offered anyway).
+        self._sandbox = sandbox
 
     def new_turn_voice(self) -> TurnVoice:
         """A fresh per-turn voice (built by run_turn like the HighlightGate):
         ONE speech generation the whole turn feeds into. Flag OFF / no key →
-        the TurnVoice simply routes everything through buffered speak()."""
+        the TurnVoice simply routes everything through buffered speak().
+        Also the per-turn setup hook: resets the sandbox run gate (T5)."""
+        if self._sandbox is not None:
+            self._sandbox.new_turn()  # fresh ≤3-runs/turn budget, like HighlightGate
         if self._stream_tts and self._session_factory is None:
             from ..tts import TTS  # lazy real default: only the flag-ON path pays
             self._session_factory = TTS().open_speech_session
@@ -112,7 +119,7 @@ class TurnPass:
         result: TurnResult,
         turn_voice: TurnVoice,
     ) -> tuple[Optional[TurnComplete], Optional[ToolCall],
-               Optional[tuple[ToolCall, str]]]:
+               Optional[tuple[ToolCall, str]], Optional[tuple[ToolCall, str]]]:
         """Drain one provider turn into result. Returns (turn_complete,
         refresh_call, read_result): refresh_call is set iff the model asked
         for a new screenshot; read_result is (call, content) for the FIRST
@@ -121,6 +128,7 @@ class TurnPass:
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
         read_call: Optional[ToolCall] = None
+        run_call: Optional[ToolCall] = None  # T5: the pass's run_code (first wins)
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
         tool_choice = loop_tool_choice(gate)
@@ -152,6 +160,12 @@ class TurnPass:
                     result.tool_calls.append(event)
                     if read_call is None:
                         read_call = event
+                elif self._sandbox is not None and event.name == RUN_CODE_TOOL:
+                    # T5: an EXECUTION tool, serviced after the sync point like a
+                    # read — it NEVER gates the draw. First run of the pass wins.
+                    result.tool_calls.append(event)
+                    if run_call is None:
+                        run_call = event
                 else:
                     # LOOK-only hard boundary: an action tool is a contract violation.
                     logger.error(
@@ -165,7 +179,7 @@ class TurnPass:
             # Abnormal pass end: the pipeline abandons the turn voice — this
             # branch never spoke on the buffered path either.
             logger.error("[orchestrator] provider stream ended without TurnComplete")
-            return None, None, None
+            return None, None, None, None
 
         result.input_tokens += turn_complete.input_tokens
         result.output_tokens += turn_complete.output_tokens
@@ -199,7 +213,12 @@ class TurnPass:
                 # the high-impact gates when those tools exist (Phase 2).
                 result.taint = True
                 logger.info("[orchestrator] turn tainted by %s", outcome.provenance)
-        return turn_complete, refresh_call, read_result
+        # T5: service run_code AFTER the sync point too — bounded ≤3/turn by the
+        # SandboxGate inside the servicer; the draw gate is never touched.
+        run_result: Optional[tuple[ToolCall, str]] = None
+        if run_call is not None and self._sandbox is not None:
+            run_result = (run_call, await self._sandbox.run(run_call.args))
+        return turn_complete, refresh_call, read_result, run_result
 
 
 __all__ = ["TurnPass", "REFRESH_TOOL", "STREAM_TTS_ENV"]

@@ -306,10 +306,16 @@ async def test_hooks_do_not_fire_without_an_active_turn(tmp_path):
 def test_kernel_stays_blind_to_docker_dec_3_c():
     import muthis.kernel.interrupt_hooks as hooks_mod
     import muthis.kernel.orchestrator as orch_mod
-    for mod in (orch_mod, hooks_mod):
+    import muthis.kernel.turn_pass as pass_mod
+    # DEC-3-C: no kernel module ever names Docker — it fires/services generic
+    # seams (a "sandbox" servicer whose Docker-ness the kernel never learns; it
+    # could equally be the section 2.7 fallback engine).
+    for mod in (orch_mod, hooks_mod, pass_mod):
         src = Path(mod.__file__).read_text(encoding="utf-8").lower()
         assert "docker" not in src, f"{mod.__name__} names Docker"
-        assert "sandbox" not in src, f"{mod.__name__} names the sandbox"
+    # the pure interrupt-hook mechanism names neither Docker NOR the sandbox.
+    hooks_src = Path(hooks_mod.__file__).read_text(encoding="utf-8").lower()
+    assert "sandbox" not in hooks_src, "interrupt_hooks names the sandbox"
 
 
 # ─────────────────── ActivationController: the barge-in machine ───────────────────

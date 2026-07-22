@@ -27,6 +27,7 @@ from muthis_plugins.screen_refresh import ScreenRefreshPlugin
 from muthis_sdk import FilesCapability, PluginContext, load_manifest
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v1.json"
+V2_SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v2.json"
 PLUGINS_DIR = Path(muthis_plugins.__file__).parent
 
 PLUGIN_SET = {
@@ -51,6 +52,28 @@ def test_v1_catalog_order_is_preserved():
     assert [t["name"] for t in LOOK_ONLY_TOOLS] == [
         "highlight_target", "draw_shapes", "request_screen_refresh", "read_local_file",
     ]
+
+
+def test_v2_catalog_byte_pins_sandbox_run_code():
+    """T5 — the FIRST model-visible change since Phase 1: sandbox.run_code joins
+    the catalog. Byte-pinned to look_tools_v2.json; the V1 snapshot stays as the
+    untouched historical anchor."""
+    from muthis_plugins.sandbox_exec import SandboxExecPlugin
+    router = build_core_router(read_file=None)
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    catalog = [d.schema for d in router.descriptors()]
+    canonical = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
+    assert canonical.encode("utf-8") == V2_SNAPSHOT.read_bytes(), (
+        "the v2 catalog drifted from look_tools_v2.json — a model-visible change; "
+        "revert the schema edit or re-approve the snapshot")
+    assert [t["name"] for t in catalog] == [
+        "highlight_target", "draw_shapes", "request_screen_refresh",
+        "read_local_file", "sandbox.run_code"]
+    # the sandbox descriptor is a DECLARATION (kernel-serviced, catalog-only)
+    assert router.descriptors()[-1].kernel_serviced is True
+    # the V1 snapshot is untouched (the historical anchor)
+    assert (json.dumps(LOOK_ONLY_TOOLS, ensure_ascii=False, indent=2) + "\n").encode(
+        "utf-8") == SNAPSHOT.read_bytes()
 
 
 def test_router_descriptors_are_the_same_schema_objects():

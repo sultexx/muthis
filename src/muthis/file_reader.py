@@ -89,6 +89,17 @@ def _blocked_name(name: str) -> bool:
     )
 
 
+def stage_file_gate(name: str, data: bytes) -> Optional[str]:
+    """The FileReader gates applied to a model-STAGED file (sandbox_exec, T5):
+    the SAME secret-name + binary refusals as read(), REUSED not re-implemented
+    (§3.3). Returns None when the file may be staged, else the Arabic refusal."""
+    if _blocked_name(name):
+        return FILE_BLOCKED_AR
+    if b"\x00" in data[:4096]:
+        return FILE_NOT_TEXT_AR
+    return None
+
+
 def _int_arg(args: dict[str, Any], key: str) -> Optional[int]:
     """A best-effort int (the model occasionally sends "12"); None on garbage."""
     value = args.get(key)
@@ -169,7 +180,7 @@ class FileReader:
 
 
 __all__ = [
-    "FileReader", "ReadFileFn", "READ_FILE_TOOL",
+    "FileReader", "ReadFileFn", "READ_FILE_TOOL", "stage_file_gate",
     "MAX_FILE_BYTES", "MAX_RETURN_CHARS",
     "FILE_NOT_FOUND_AR", "FILE_BLOCKED_AR", "FILE_TOO_LARGE_AR",
     "FILE_NOT_TEXT_AR", "FILE_READ_ERROR_AR", "FILE_READ_UNAVAILABLE_AR",

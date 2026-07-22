@@ -73,12 +73,16 @@ class SandboxRunner:
         stage_gate: Optional[StageGateFn] = None,
         default_timeout_s: int = DEFAULT_TIMEOUT_S,
         max_timeout_s: int = MAX_TIMEOUT_S,
+        on_active: Optional[Callable[[Optional[str]], None]] = None,
     ) -> None:
         self._image = image
         self._exec = exec_fn
         self._gate = stage_gate
         self._default_timeout = default_timeout_s
         self._max_timeout = max_timeout_s
+        # T5: announced the LIVE container name (and None when it is gone) so the
+        # F9 on_interrupt hook can eradicate it. Public: the service wires it.
+        self.on_active = on_active
 
     async def run(self, args: dict[str, Any], *, attempt: int = 1) -> SandboxOutcome:
         """Service one run_code call. Never raises — the outer wall."""
@@ -146,10 +150,12 @@ class SandboxRunner:
             logger.warning("[sandbox.runner] create rc=%s", create_rc)
             await self._reap(name)
             return SandboxOutcome(attempt=attempt, note_ar=DOCKER_UNAVAILABLE_AR)
+        self._announce(name)  # container is live — F9 can eradicate it now
         try:
             out, err, code, timed = await self._start(name, payload, timeout)
         finally:
-            await self._reap(name)  # rm -f ALWAYS
+            self._announce(None)     # container gone
+            await self._reap(name)   # rm -f ALWAYS
         return SandboxOutcome(
             exit_code=code,
             stdout_tail=tail_text(out, STREAM_TAIL_BYTES),
@@ -185,6 +191,14 @@ class SandboxRunner:
             await self._short(build_rm(name))
         except Exception:  # noqa: BLE001 — teardown must never surface
             logger.warning("[sandbox.runner] rm -f failed for %s", name)
+
+    def _announce(self, name: Optional[str]) -> None:
+        if self.on_active is None:
+            return
+        try:
+            self.on_active(name)
+        except Exception:  # noqa: BLE001 — tracking must never break a run
+            logger.warning("[sandbox.runner] on_active seam raised — ignored")
 
 
 async def _read_tail(reader: Any, cap: int = STREAM_TAIL_BYTES) -> bytes:
