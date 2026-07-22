@@ -15,12 +15,14 @@ questions, in this order:
   (2) a deliberate traceback → self-correct cycle → the ≤3-runs/turn SandboxGate
       holds (a 4th run gets the internal-directive refusal, never a 4th container);
   (3) the FILE-STAGING GATE — DETERMINISTIC, proven by the gate's own behavior
-      (the model is NOT in this loop, DEC-12): a secret-named file passed in
-      files[] is REFUSED by stage_file_gate BEFORE any container, a benign file
-      otherwise stages+runs (the positive control), and a planted canary never
-      reaches the tool_result or the logs. A separate model-mediated request is
-      recorded as an OBSERVATION only — NEVER an acceptance criterion, since a
-      prompt-layer refusal (as in the first SOP) leaves the gate unexercised;
+      (the model is NOT in this loop, DEC-12/13): a bare secret-named file passed
+      in files[] is REFUSED by stage_file_gate BEFORE any container, a
+      PATH-PREFIXED secret name (sub/.env) is refused OUTRIGHT too (the closed
+      /work escape, DEC-13), a benign file otherwise stages+runs (the positive
+      control), and a planted canary never reaches the tool_result or the logs. A
+      separate model-mediated request is recorded as an OBSERVATION only — NEVER
+      an acceptance criterion, since a prompt-layer refusal (as in the first SOP)
+      leaves the gate unexercised;
   (4) after every turn → ZERO leaked `muthis-run-` containers.
 Prints PASS/FAIL per check + measured latencies (turn start → first audio;
 the container wall time is shown inside each run_code line). F9 → container death
@@ -50,7 +52,9 @@ load_dotenv()  # Law 5.1: .env before any muthis import that reads keys
 
 from muthis.kernel.budget import Budget                                  # noqa: E402
 from muthis.cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT    # noqa: E402
-from muthis.file_reader import FileReader, stage_file_gate               # noqa: E402
+from muthis.file_reader import (                                         # noqa: E402
+    FILE_NAME_NOT_BARE_AR, FileReader, stage_file_gate,
+)
 from muthis.kernel.orchestrator import Orchestrator                      # noqa: E402
 from muthis.kernel.tool_router import build_core_router                  # noqa: E402
 from muthis.kernel.turn import RUN_CODE_TOOL                             # noqa: E402
@@ -141,20 +145,22 @@ async def _drive_turn(orchestrator, clock, label, question):
 
 
 async def check_staging_gate(canary: str) -> tuple[dict, dict]:
-    """CHECK 3, DETERMINISTIC (DEC-12): drive files[] straight through the REAL
+    """CHECK 3, DETERMINISTIC (DEC-12/13): drive files[] straight through the REAL
     SandboxService / stage_file_gate — the exact path the sandbox stages files —
-    and prove the secret-file guard by the GATE'S OWN behavior, with NO model in
-    the loop. A secret-named file is refused before any container; a benign file
-    otherwise stages and runs (the positive control, so the refusal is the gate
-    ACTING, not a dead pipeline); the canary never reaches the tool_result or the
-    logs. Runs without an API key (only the benign control needs Docker)."""
+    and prove the file guard by the GATE'S OWN behavior, with NO model in the
+    loop. (3a) a BARE secret name is refused before any container; (3a-t, DEC-13)
+    a PATH-PREFIXED secret name is refused outright (the closed /work escape);
+    (3b) a benign bare file otherwise stages and runs (the positive control, so
+    the refusals are the gate ACTING, not a dead pipeline). The canary never
+    reaches a tool_result or a log line. Runs without an API key (only the benign
+    control needs Docker)."""
     service = SandboxService(runner=SandboxRunner(stage_gate=stage_file_gate))
     checks: dict = {}
     evidence: dict = {}
 
-    # (3a) THE GUARD — a secret-named file is refused BEFORE staging (no Docker
-    #      needed; the gate fires ahead of the container). Capture muthis logs to
-    #      prove the secret never lands in a log line (privacy law).
+    # (3a / 3a-t) THE GUARD — refused BEFORE staging (no Docker needed; the gate
+    #   fires ahead of the container). Capture muthis logs to prove the secret
+    #   never lands in a log line (privacy law), across BOTH canary-bearing runs.
     log_buf = io.StringIO()
     handler = logging.StreamHandler(log_buf)
     muthis_log = logging.getLogger("muthis")
@@ -165,17 +171,26 @@ async def check_staging_gate(canary: str) -> tuple[dict, dict]:
             "language": "bash", "code": "cat .env",
             "files": [{"name": ".env", "content": f"API_KEY={canary}"}],
         })
+        service.new_turn()
+        traversal_out = await service.run({   # DEC-13: a secret laundered behind a dir
+            "language": "bash", "code": "cat .env",
+            "files": [{"name": "sub/.env", "content": f"API_KEY={canary}"}],
+        })
     finally:
         muthis_log.removeHandler(handler)
     evidence["secret note"] = secret_out
-    checks["3a gate REFUSED the secret-named file"] = "الأسرار" in secret_out and "ممنوع" in secret_out
+    evidence["traversal note"] = traversal_out
+    checks["3a bare secret name REFUSED"] = "الأسرار" in secret_out and "ممنوع" in secret_out
     checks["3a container never ran (refused pre-stage)"] = "رمز الخروج" not in secret_out
-    checks["3a canary absent from the tool_result"] = canary not in secret_out
+    checks["3a-t path-prefixed secret REFUSED — /work escape closed (DEC-13)"] = (
+        traversal_out == FILE_NAME_NOT_BARE_AR)
+    checks["3a-t container never ran on the traversal name"] = "رمز الخروج" not in traversal_out
+    checks["3a canary absent from both tool_results"] = canary not in secret_out and canary not in traversal_out
     checks["3a canary absent from the logs"] = canary not in log_buf.getvalue()
 
-    # (3b) POSITIVE CONTROL — a benign file DOES stage and run, so 3a's refusal
-    #      is the gate acting and not a broken pipeline (needs Docker → SKIP if
-    #      the daemon is absent; the guard in 3a stands regardless).
+    # (3b) POSITIVE CONTROL — a benign bare file DOES stage and run, so the
+    #   refusals above are the gate acting, not a broken pipeline (needs Docker →
+    #   SKIP if the daemon is absent; the guards in 3a/3a-t stand regardless).
     marker = "BENIGN_STAGE_OK_2f7c"
     service.new_turn()
     benign_out = await service.run({
@@ -251,8 +266,9 @@ async def main() -> None:
         print("\n──────── CHECK 3 — file-staging gate (deterministic) ────────")
         gate_checks, gate_ev = await check_staging_gate(CANARY)
         checks.update(gate_checks)
-        print(f"    secret-file note: {gate_ev['secret note'][:90]}")
-        print(f"    benign-file note: {gate_ev['benign note']}")
+        print(f"    secret-file note   : {gate_ev['secret note'][:88]}")
+        print(f"    traversal note     : {gate_ev['traversal note'][:88]}")
+        print(f"    benign-file note   : {gate_ev['benign note']}")
 
         # OBSERVATION — NOT an acceptance criterion (DEC-12). Does the model
         # actually reach for files[] with a secret name? If it refuses at the

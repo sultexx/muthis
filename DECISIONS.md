@@ -340,6 +340,32 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   - **(2) HARDEN by REJECTING structure** — refuse any `files[].name` containing a path separator (`/` or `\`) or
     `..`, enforcing the schema's "no directory" contract at the gate (also closes the `/work/..` traversal).
     Stricter; a clearer invariant.
-- **Status:** NOT acted on. `tests/test_stage_file_gate.py` deliberately covers only the proven BARE-name contract
-  (it does not encode the gap as a green assertion). The CHECK-3 rewrite (DEC-12) and this finding are independent;
-  the fix waits on a ruling.
+- **Status:** **→ CLOSED by DEC-13** (2026-07-22). At log time it was NOT acted on and
+  `tests/test_stage_file_gate.py` covered only the proven BARE-name contract (the gap was not encoded as a green
+  assertion); Sultan then ruled Option 2 — see DEC-13.
+
+---
+
+## DEC-13 (2026-07-22) — harden `stage_file_gate`: reject path structure in staged names — APPROVED (closes the GATE FINDING)
+
+- **Item:** The GATE FINDING above — `stage_file_gate` matched secret names on the RAW name, so a path-prefixed
+  secret name (`sub/.env`, `../.env`) slipped past the exact/prefix matchers into a staged sandbox file.
+- **Reason:** Sultan's ruling. The "low severity" assessment was accurate TODAY but every mitigation cited was
+  CIRCUMSTANTIAL, not structural: `files[]` content is model-supplied, and under `web_research` that model will be
+  operating in TAINTED web context where an injection could supply `sub/.env`; the bootstrap's failure on
+  subdirectories is incidental protection from a DIFFERENT layer. The constitution is explicit — guards protect BY
+  CONSTRUCTION, never by coincidence; "it fails for another reason" is not a defense.
+- **Resolution:** Sultan's sign-off — **Option 2 (enforce the contract), NOT Option 1 (strip/normalize).** The
+  §2.1 schema already declares `files[].name` as "a file name with no directory", so the correct behavior is to
+  ENFORCE that contract with an EXPLICIT refusal, not to silently normalize a malformed input. `stage_file_gate`
+  now REFUSES any name containing a path separator (`/` or `\`) or a bare `..` traversal reference, with a short
+  Arabic note (`FILE_NAME_NOT_BARE_AR`), BEFORE the secret-name and binary checks — closing `/work` traversal at
+  the root. The existing secret-name matching is UNCHANGED (bare secrets still refuse via `FILE_BLOCKED_AR`). A
+  `..` in the MIDDLE of a bare name (`archive..bak`) is a legal file name, not a traversal segment, and is
+  intentionally ALLOWED (no over-rejection). Explicit refusal beats silent normalization. The `stage_file_gate`
+  docstring, which had over-claimed "the SAME refusals as read()", is corrected to state the actual, stricter
+  contract (read() resolves real paths; a staged name must be bare).
+- **Implementation timing:** Now. `tests/test_stage_file_gate.py` gains a refusal case for EVERY demonstrated
+  escape (`sub/.env`, `../.env`, `/tmp/.env`, `sub/credentials`, `sub/id_rsa`, backslash variants, bare `..`) plus
+  no-over-reject cases; `diag_sandbox.py` CHECK 3 gains a deterministic live assertion that a path-prefixed secret
+  name is refused — the live SOP now proves the CLOSED hole, not only the original one.

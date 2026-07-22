@@ -8,19 +8,23 @@ gate's contract against regression in CI: secret-BEARING names are refused by
 name with the blocked note and ZERO file content echoed back; ordinary text
 files pass; binary content is refused as non-text.
 
-SCOPE NOTE: these assert the gate's proven contract for BARE names (the sandbox
-schema declares files[].name as "no directory"). The separate question of
-path-PREFIXED secret names (e.g. `sub/.env`) — which `stage_file_gate` does NOT
-currently basename-ify, unlike `FileReader.read` — is logged as an OPEN gate
-finding in DECISIONS.md (DEC-12) awaiting a ruling; it is deliberately NOT
-encoded here as a green assertion, so this file never overstates the guarantee.
+The path-structure guard (DEC-13) is proven too: a staged name is BARE by
+contract (schema §2.1), so any name with a path separator or a `..` traversal
+reference is refused OUTRIGHT — closing `/work` escape at the root — while a
+legal `..` inside a separator-free name (`archive..bak`) still passes. Enforce
+the contract; do NOT over-reject.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from muthis.file_reader import FILE_BLOCKED_AR, FILE_NOT_TEXT_AR, stage_file_gate
+from muthis.file_reader import (
+    FILE_BLOCKED_AR,
+    FILE_NAME_NOT_BARE_AR,
+    FILE_NOT_TEXT_AR,
+    stage_file_gate,
+)
 
 # A canary that must never appear in a returned note (privacy: no content leak).
 SECRET_CONTENT = b"API_KEY=stage_gate_leak_canary_value"
@@ -53,3 +57,26 @@ def test_case_folding_defeats_a_capitalised_secret_name():
     # The model must not launder a secret past the gate by changing case.
     assert stage_file_gate("ID_RSA", SECRET_CONTENT) == FILE_BLOCKED_AR
     assert stage_file_gate("Server.PEM", SECRET_CONTENT) == FILE_BLOCKED_AR
+
+
+# ─── DEC-13: a staged name must be BARE — path structure is refused outright ───
+
+@pytest.mark.parametrize("name", [
+    "sub/.env", "a/b/.env", "/tmp/.env", "sub/.env.local",   # secret laundered behind a dir
+    "sub/credentials", "sub/id_rsa", "dir/server.pem",       # more path-prefixed secrets
+    "..\\.env", "sub\\.env", "..\\credentials",              # backslash separator variants
+    "..", "sub/main.py", "/etc/passwd",                      # traversal / any dir / absolute
+])
+def test_path_structure_in_a_staged_name_is_refused(name):
+    # The escape the GATE FINDING demonstrated: a secret laundered behind a
+    # directory. DEC-13 refuses ANY non-bare name by construction — before the
+    # secret-name check even runs — so /work traversal is closed at the root.
+    assert stage_file_gate(name, SECRET_CONTENT) == FILE_NAME_NOT_BARE_AR
+
+
+@pytest.mark.parametrize("name", ["archive..bak", "..config", "my.notes.txt", "v1..2.data"])
+def test_a_double_dot_inside_a_bare_name_is_not_a_traversal(name):
+    # `..` leading or embedded in a separator-free name is a legal file name, not
+    # a traversal segment — allowing it proves DEC-13 enforces the contract
+    # WITHOUT over-rejecting (a guard that refuses everything is not a guard).
+    assert stage_file_gate(name, b"ordinary content") is None
