@@ -2,9 +2,13 @@
 
 ---
 
-## DEC-1 (2026-07-19) — Key Files rows mix description with history — DEFERRED
+## DEC-1 (2026-07-19) — Key Files rows mix description with history — batches 1-3 DONE (2026-07-22); batches 4-8 DEFERRED (bundled with DEC-7)
 
-- **Status:** DEFERRED — do NOT act on it before the Phase 1 merge.
+- **Status:** PARTIALLY EXECUTED. Batches 1-3 (the two named drifts + all kernel and
+  draw-circuit rows) are DONE, 2026-07-22, after the Phase-2 M1 merge (Sultan's ruling).
+  Batches 4-8 (the rest of the table) are DEFERRED — see the Execution & resolution
+  block below. (Original directive, kept for the record: DEFERRED — do NOT act on it
+  before the Phase 1 merge.)
 - **Observation (root cause):** AGENTS.md Key Files rows mix file description with file history, which is the root cause of the repeated documentation drift (D1–D12).
 - **Named examples (still-open drift, to be fixed BY this cleanup — NOT before the merge):**
   - `cloud/tool_schemas.py` row (~line 104): claims "~162" lines and describes the file as holding the LOOK-only schemas, but since Phase-0 M4 it is a ~43-line assembly re-export (the schemas live in `src/muthis_plugins/*/schema.py`) — contradicts the `muthis_plugins/` row (~line 127).
@@ -12,6 +16,13 @@
 - **Proposed (post-Phase-1):** shorten each row to a concise description and migrate the detailed history to `docs/reports/`.
 - **Constraint:** Execute the row-shortening milestone by milestone, not in one pass; re-run the full suite after each row — a wide edit to the source of truth must not itself introduce drift.
 - **Why deferred:** it is a large edit to the source of truth and must not land before the Phase 1 merge.
+- **Execution & resolution (2026-07-22 — Sultan's narrowed-scope ruling):** The cleanup ran after the Phase-2 M1 merge (main `dcfa25f`) on branch `docs/dec1-key-files-cleanup`, milestone by milestone, full suite (604 + 27) green after each batch, docs only (zero source/code change):
+  - **Batch 1 — `824be97`:** the two named drifts above — `tool_schemas.py` row ~162 → ~43 (assembly re-export); the stale "Planned next: geometric drawing Phase B" block deleted (it contradicted the "…is COMPLETE" statement).
+  - **Batch 2 — `1d6e535`:** the three heaviest kernel rows (`orchestrator`/`turn_pass`/`turn`) shortened; established the migration destination **`docs/reports/key_files_history.md`** (the per-file evolution log) + a one-time table-top pointer note.
+  - **Batch 3 — `09e2b61`:** the rest of the kernel rows + the draw-circuit rows (`highlight_gate`/`draw_dispatch`/`shapes`) — the latter handled with extra care: every universal invariant kept precise, only phase tags/asides migrated.
+  - **Pattern (approved by Sultan):** keep each row's current purpose + accurate line count + LIVE constraints; migrate only the version-by-version narrative to `docs/reports/key_files_history.md`. Drifted line counts were corrected in passing.
+  - **Batches 4-8 DEFERRED (Sultan's ruling): execute them in ONE consolidated docs pass together with DEC-7 (the Trust-Modes documentary sweep), AFTER the `web_research` milestone.** These are the rows a `web_research` agent will never read against — voice/TTS, overlay, the plugin/SDK/broker/MCP layer beyond the kernel, the `tests/*` rows, and the post-table status narratives. **Reason:** batches 1-3 already cover the kernel and the universal draw-circuit invariants that an agent building `web_research` actually reasons against, where accuracy prevents real errors; batches 4-8 are **low-impact** organisational tidiness that **prevents no defect** and opens no capability, so executing them now would put six documentation batches between the project and its highest-security milestone — **momentum is preserved for the security-critical milestone**. Documentation serves the architecture; it does not become the project. Bundling the remainder with DEC-7 (also a post-milestone docs pass) closes the DEC-1 loop as one tracked deferral instead of leaving it half-open.
+  - **Merge:** the `docs/dec1-key-files-cleanup` branch merge into main is Sultan's, as is any push.
 
 ---
 
