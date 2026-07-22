@@ -15,15 +15,13 @@ import asyncio
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
 from muthis.kernel.budget import Budget
 from muthis.kernel.orchestrator import Orchestrator
-from muthis.kernel.turn import DownscaledImage
+from muthis.kernel.turn import DownscaledImage, RUN_CODE_TOOL
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
 
 
 class _FakeSandbox:
-    """The injected servicer seam: tool_name + new_turn() + async run()."""
-
-    tool_name = "sandbox.run_code"
+    """The injected servicer seam: new_turn() + async run()."""
 
     def __init__(self, output="انتهى التشغيل برمز الخروج 0. المخرَج:\n1"):
         self.runs: list[dict] = []
@@ -39,7 +37,7 @@ class _FakeSandbox:
 
 
 _ARGS = {"language": "python", "code": "print(1)"}
-_TOOL_USE = {"type": "tool_use", "id": "run_1", "name": "sandbox.run_code", "input": _ARGS}
+_TOOL_USE = {"type": "tool_use", "id": "run_1", "name": RUN_CODE_TOOL, "input": _ARGS}
 
 
 class _RunCodeReasoner:
@@ -51,7 +49,7 @@ class _RunCodeReasoner:
     async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.calls.append((user_input.text, tool_choice))
         if len(self.calls) == 1:
-            yield ToolCall(name="sandbox.run_code", args=_ARGS, tool_use_id="run_1")
+            yield ToolCall(name=RUN_CODE_TOOL, args=_ARGS, tool_use_id="run_1")
             yield TurnComplete(input_tokens=10, output_tokens=5, cost_usd=0.0001,
                                stop_reason="tool_use", model="claude-sonnet-4-6",
                                assistant_content=[_TOOL_USE])

@@ -19,6 +19,7 @@ from pathlib import Path
 import muthis_plugins
 from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
 from muthis.kernel.tool_router import build_core_router
+from muthis.kernel.turn import RUN_CODE_TOOL
 from muthis_plugins.common import FILES_CAPABILITY_ABSENT_AR, KERNEL_SERVICED_AR
 from muthis_plugins.file_read import FileReadPlugin
 from muthis_plugins.look_pointer import LookPointerPlugin
@@ -68,12 +69,28 @@ def test_v2_catalog_byte_pins_sandbox_run_code():
         "revert the schema edit or re-approve the snapshot")
     assert [t["name"] for t in catalog] == [
         "highlight_target", "draw_shapes", "request_screen_refresh",
-        "read_local_file", "sandbox.run_code"]
+        "read_local_file", RUN_CODE_TOOL]
     # the sandbox descriptor is a DECLARATION (kernel-serviced, catalog-only)
     assert router.descriptors()[-1].kernel_serviced is True
     # the V1 snapshot is untouched (the historical anchor)
     assert (json.dumps(LOOK_ONLY_TOOLS, ensure_ascii=False, indent=2) + "\n").encode(
         "utf-8") == SNAPSHOT.read_bytes()
+
+
+def test_every_model_visible_tool_name_matches_the_anthropic_pattern():
+    """The lesson of the T6 live 400 (DEC-11): a dot-namespaced name broke the
+    Anthropic tool-name pattern, and NOTHING in the suite caught it. Guard EVERY
+    model-visible catalog name here — this must fail loudly if any future plugin
+    (namespaced or bare) ships a name the API would reject."""
+    api_name = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
+    from muthis_plugins.sandbox_exec import SandboxExecPlugin
+    router = build_core_router(read_file=None)
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    for descriptor in router.descriptors():
+        name = descriptor.schema["name"]
+        assert api_name.match(name), f"tool name {name!r} violates ^[a-zA-Z0-9_-]{{1,128}}$"
+    for tool in LOOK_ONLY_TOOLS:  # the byte-pinned V1 four are valid too (bare names)
+        assert api_name.match(tool["name"]), tool["name"]
 
 
 def test_router_descriptors_are_the_same_schema_objects():

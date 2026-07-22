@@ -24,6 +24,7 @@ from .highlight_gate import (
 )
 # Bug-3 strip: extracted to history_hygiene.py (≤300-line split); re-exported.
 from .history_hygiene import STALE_SCREENSHOT_NOTE_AR, strip_images_from_history
+from .tool_router import namespaced_name  # DEC-11: the ONE separator source
 from ..tts import TTSResult
 
 
@@ -187,7 +188,7 @@ def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) ->
     return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
 
 
-RUN_CODE_TOOL = "sandbox.run_code"  # the namespaced model-visible name (T5)
+RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not scattered
 # Second / unserviced run_code ids in a pass keep Option-B pairing API-valid.
 RUN_CODE_ALREADY_AR = "شغّلتَ الكود قبل قليل في هذه الجولة — استخدم نتيجته وأكمل."
 RUN_CODE_UNAVAILABLE_AR = "التنفيذ المعزول غير متاح في هذه الجلسة."

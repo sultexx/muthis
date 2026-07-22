@@ -2,7 +2,8 @@
 """The sandbox `run_code` tool contract + data-model bounds (Roadmap §2.1).
 
 The bare tool name is `run_code`; the ToolRouter namespaces it to
-`sandbox.run_code` at mount time (T5, `mount(namespace="sandbox")`) — the
+`sandbox__run_code` at mount time (T5, `mount(namespace="sandbox")`; DEC-11's
+double-underscore separator — a dot fails the Anthropic tool-name pattern) — the
 plugin stays free of the dotted name the manifest name regex forbids anyway.
 
 The bounds below are the SINGLE SOURCE for both the model-facing schema text

@@ -266,3 +266,24 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   auto-hide arm — could move to a small `turn_teardown.py`, mirroring the frame_capture / voice_out extractions.)
 - **Implementation timing:** No action now (299 is legal). A planning-time flag for the next
   orchestrator-touching milestone.
+
+---
+
+## DEC-11 (2026-07-22) — namespaced plugin tools use "__" not "." — APPROVED (amends ruling C-3)
+
+- **Item:** The separator between a plugin's namespace and its tool name in the model-visible catalog.
+- **Reason:** The T6 LIVE SOP hit a HARD Anthropic API rejection on CHECK 1: `tools.4.custom.name: String should
+  match pattern '^[a-zA-Z0-9_-]{1,128}$'` (request_id req_011CdGm91DEbN9Y9GRZxsLwa). Ruling C-3's dot-namespacing
+  (`sandbox.run_code`) is INCOMPATIBLE with that pattern — the dot is not permitted. `sandbox.run_code` was the
+  FIRST namespaced tool ever exposed to the model (the V1 four use bare names under C-3's core-name exemption),
+  so the incompatibility was latent in the architecture until a live run surfaced it — a correctness failure,
+  not cosmetic, caught by a real 400 and not by theory.
+- **Resolution:** Sultan's sign-off. Namespaced plugin tools are **`<namespace>__<tool>`** (DOUBLE underscore) —
+  e.g. `sandbox__run_code`. A double underscore satisfies the API pattern AND (unlike a single `_`) keeps the
+  namespace boundary UNAMBIGUOUS and programmatically reversible (a single `_` is indistinguishable from an
+  underscore inside a tool name, breaking router namespace parsing). This AMENDS ruling C-3's separator for ALL
+  namespaced plugin tools — present and future (`web_research`, `doc_rag`, community plugins, and the MCP proxy
+  mounts). The core-name exemption for the V1 four is UNCHANGED — they stay bare and byte-pinned.
+- **Implementation timing:** Now (the T5 fix). The separator lives in ONE place — `tool_router.namespaced_name`
+  — so no name is hardcoded twice; a NEW guard test validates EVERY catalog name against the API pattern (the
+  missing guard that let this reach a live run — the real defect).

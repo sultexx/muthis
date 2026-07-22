@@ -48,6 +48,7 @@ from muthis.cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT    # noqa:
 from muthis.file_reader import FileReader, stage_file_gate               # noqa: E402
 from muthis.kernel.orchestrator import Orchestrator                      # noqa: E402
 from muthis.kernel.tool_router import build_core_router                  # noqa: E402
+from muthis.kernel.turn import RUN_CODE_TOOL                             # noqa: E402
 from muthis.overlay import SidekickOverlay                               # noqa: E402
 from muthis.persona import resolve_system_prompt                         # noqa: E402
 from muthis.tts import TTS                                               # noqa: E402
@@ -93,7 +94,6 @@ class _SandboxProbe:
 
     def __init__(self, real: SandboxService):
         self._real = real
-        self.tool_name = real.tool_name
         self.runs_this_turn: list[str] = []
 
     def new_turn(self) -> None:
@@ -191,7 +191,7 @@ async def main() -> None:
 
         # (1) run fibonacci
         r1 = await _drive_turn(orchestrator, clock, "CHECK 1 — fibonacci run", Q_FIB)
-        ran = any(c.name == probe.tool_name for c in r1.tool_calls)
+        ran = any(c.name == RUN_CODE_TOOL for c in r1.tool_calls)
         exit0 = any("رمز الخروج 0" in o for o in probe.runs_this_turn)
         checks["1 run_code executed with exit 0"] = ran and exit0
         checks["1 output surfaced in Arabic speech"] = bool(r1.spoken_text.strip())

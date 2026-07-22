@@ -22,9 +22,6 @@ from .sandbox_gate import SandboxGate
 
 logger = logging.getLogger("muthis.sandbox.service")
 
-# The model-visible (namespaced) tool name — the kernel matches on it.
-SANDBOX_TOOL_NAME = "sandbox.run_code"
-
 
 def format_outcome_ar(outcome: SandboxOutcome) -> str:
     """The Arabic tool_result the model reads: the exit code + stdout/stderr
@@ -46,9 +43,8 @@ def format_outcome_ar(outcome: SandboxOutcome) -> str:
 class SandboxService:
     """Turn-aware run_code servicer. Built once at composition (main.py) from a
     SandboxRunner + a SandboxGate; wires the runner's on_active seam to track
-    the live container for eradication."""
-
-    tool_name = SANDBOX_TOOL_NAME
+    the live container for eradication. The kernel matches run_code on
+    turn.RUN_CODE_TOOL (derived from the ONE separator), so this holds no name."""
 
     def __init__(self, *, runner: SandboxRunner, gate: Optional[SandboxGate] = None) -> None:
         self._runner = runner
@@ -86,4 +82,4 @@ class SandboxService:
             logger.warning("[sandbox.service] kill of %s failed — ignored", name)
 
 
-__all__ = ["SandboxService", "SANDBOX_TOOL_NAME", "format_outcome_ar"]
+__all__ = ["SandboxService", "format_outcome_ar"]

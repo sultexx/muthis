@@ -166,7 +166,7 @@ def _log_docker_fallback_decision() -> None:
     except Exception:  # noqa: BLE001 — the probe must never crash startup
         ok = False
     if ok:
-        logger.info("[main] docker available — sandbox.run_code is live")
+        logger.info("[main] docker available — sandbox__run_code is live")
     else:
         logger.warning("[main] docker unavailable — run_code refuses aloud; the "
                        "section 2.7 fallback engine is deferred (not built)")

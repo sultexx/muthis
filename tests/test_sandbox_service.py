@@ -11,11 +11,7 @@ import asyncio
 
 from muthis_plugins.sandbox_exec.runner import SandboxOutcome
 from muthis_plugins.sandbox_exec.sandbox_gate import SANDBOX_GATE_EXHAUSTED_AR
-from muthis_plugins.sandbox_exec.service import (
-    SANDBOX_TOOL_NAME,
-    SandboxService,
-    format_outcome_ar,
-)
+from muthis_plugins.sandbox_exec.service import SandboxService, format_outcome_ar
 
 
 class _FakeRunner:
@@ -58,11 +54,6 @@ def test_tracks_the_live_container_and_kill_is_a_safe_noop():
     runner.on_active(None)                               # container gone
     assert svc._active is None
     svc.kill_active()                                    # no active container → safe no-op
-
-
-def test_tool_name_is_the_namespaced_name():
-    assert SANDBOX_TOOL_NAME == "sandbox.run_code"
-    assert SandboxService(runner=_FakeRunner()).tool_name == "sandbox.run_code"
 
 
 def test_a_hard_failure_note_passes_through():
