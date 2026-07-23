@@ -725,3 +725,46 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   path — which this milestone must not.
 - **Implementation timing:** post-`web_research`, in the consolidated docs/cleanup/measurement pass. Re-run the
   full suite (604 + 27) after any change.
+
+---
+
+## ENVIRONMENT FINDING (2026-07-24) — ElevenLabs `voice_id_does_not_exist` forces the Gemini TTS fallback: severe first-audio latency + captions ahead of audio — NOT a code defect, NO code action
+
+- **Status:** ENVIRONMENT FINDING, not a code defect. Recorded for Sultan; the agent takes **NO code action** and
+  did **NOT read `.env` values** — the cause is Sultan's ElevenLabs account / `.env` voice-id configuration.
+  Resolving `ELEVENLABS_VOICE_ID` is a **PREREQUISITE for the T7 live SOP** (see the gate implication below).
+- **Observation:** The just-completed extraction-phase live verification runs (barge-in, `sandbox__run_code`
+  run + self-correct, clean shutdown) show ElevenLabs returning `voice_id_does_not_exist` on every turn, so every
+  turn falls back to Gemini TTS — the designed cascade in `tts.py`.
+- **Consequence (measured, precise):** ElevenLabs streams audio **PROGRESSIVELY** (intra-audio streaming, the
+  designed ~0.26 s draw→first-audio), whereas the Gemini fallback is **COLLECT-THEN-PLAY** (the whole clip is
+  synthesized before any playback starts). So first-audio latency degrades **SEVERELY**: measured
+  **turn→first-audio = 9567 ms** against the designed **~0.26 s** draw→first-audio. Because the audio is delayed by
+  the collect phase while the caption pacer schedules each caption against its *estimated* audio start, the live
+  **captions consequently run AHEAD of the audio** for the whole turn.
+- **Proof this is NOT an extraction regression (VERIFIED this session):**
+  - The three DEC-21 mechanical extractions touched ONLY: `persona.py` + `persona_rules.py` (`c901208`),
+    `main.py` + `composition.py` (`e3f82b8`), `turn.py` + `kernel/tool_result_pairing.py` (`76dd8d8`) — verified by
+    `git show --stat`. **NONE** of `tts.py` / `tts_elevenlabs.py` / `tts_session.py` / `turn_voice.py` /
+    `voice_out.py` was touched by any extraction.
+  - The voice id is read **inside `tts.py`** via `os.getenv("ELEVENLABS_VOICE_ID")` (`tts.py:155`) and **never
+    passes through `main.py` or the extracted `composition.py`** — verified by grep (`tts_elevenlabs.py` names it
+    only in a comment). The extraction surface and the voice-id resolution surface are disjoint by construction.
+  - ElevenLabs worked **WITHOUT error in the Task-4b live run that immediately FOLLOWED the extractions** (DEC-21
+    verification / the 2026-07-24 caption observation above). A configuration that regressed *with* the extractions
+    could not then have worked in the very next run — the account/voice-id state changed between runs, not the code.
+- **Graceful degradation behaved exactly as designed:** the cascade caught the ElevenLabs failure and fell back to
+  Gemini; **NO turn was lost**, no crash, no orphaned `tool_use`. The degradation path (`tts.py` cascade →
+  `provider="gemini"`) is doing precisely its job — the finding is about the *account/env precondition*, never the
+  fallback logic.
+- **Distinct from the 2026-07-24 caption DEFERRED OBSERVATION (above):** that observation is a **slight char-rate
+  ESTIMATE drift on the WORKING ElevenLabs progressive path** (Task 4b, `ARABIC_TTS_CHARS_PER_SEC = 11.5`); this
+  finding is a **severe latency + caption-lead degradation on the Gemini FALLBACK path** caused by a missing voice
+  id. Do NOT conflate them — different mechanism, different path, different fix (a valid `ELEVENLABS_VOICE_ID` here;
+  a re-measured char-rate there).
+- **T7 gate implication:** audio-sync measurements taken on the Gemini fallback path are **MEANINGLESS** — they
+  measure collect-then-play latency, not the designed progressive path. `ELEVENLABS_VOICE_ID` must resolve to a
+  real native-Arabic voice **BEFORE** the `web_research` T7 live SOP, so the citation/domain-badge audio-sync
+  (DEC-20) and caption pacing are measured on the real primary path.
+- **Action:** NONE by the agent. Sultan sets a valid `ELEVENLABS_VOICE_ID` in the git-ignored `.env` (Law 5.1)
+  before T7. No code change; no `.env` value was read.
