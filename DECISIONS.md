@@ -42,6 +42,9 @@
 - **Implementation timing:** Enforcement lands with the `web_research` milestone — the first tool that ingests
   untrusted external content. Recorded now because `sandbox_exec` references the tainted-run confirmation path
   (DEC-3-A).
+- **→ Enforcement mechanism DEFINED by DEC-15** (2026-07-23): this session-sticky taint is enforced by a
+  standalone `SessionTaint` object injected into the `ToolRouter` (the single chokepoint every result crosses),
+  with kernel-side classification; the orchestrator is NOT touched. See DEC-15.
 
 ---
 
@@ -69,6 +72,10 @@
   - **(E)** `/work/out` file-output retrieval is DEFERRED post-launch — stdout suffices for launch (Roadmap §2.4).
 - **Implementation timing:** Lands with the `sandbox_exec` milestone (Phase 2, first infrastructure addition —
   not yet opened). (E) is post-launch.
+- **→ Point (A) REFINED by DEC-15** (2026-07-23): under the "the effect escapes the isolation" principle, a
+  network-LESS sandbox run is NOT high-impact even under taint (the isolation is the containment) — so it needs
+  NO confirmation. This settles (A)'s "network-enabled OR tainted-context runs" reading for the network-less case.
+  See DEC-15.
 
 ---
 
@@ -242,6 +249,10 @@ routing + `turn.py` pairing; a generic turn-start reset hook for the gate) — a
 injectable seam and DEFER the voice round-trip, since it is unexercised this milestone; OR reuse the one-way
 ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b the confirmation gate).
 
+- **→ Point (b) ANSWERED by DEC-16** (2026-07-23): "confirmation" is defined as a TWO-TURN gate with a
+  deterministic raw-transcript detector — neither a blocking mid-turn voice yes/no nor the one-way ack. This is
+  the DEC-10-deferred path, now specified. See DEC-16.
+
 ---
 
 ## DEC-10 (2026-07-21) — high-impact confirmation path deferred to web_research — APPROVED
@@ -262,6 +273,9 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   network-param plumbing, NO web-taint plumbing (all deferred).
 - **Implementation timing:** The confirmation mechanism lands WITH `web_research`. T5 (this milestone) ships
   without it. A network-less untainted run — the only kind possible now — runs directly with no confirmation.
+- **→ DELIVERED by DEC-16** (2026-07-23): the deferred high-impact confirmation path is defined as a TWO-TURN
+  confirmation with a deterministic raw-transcript detector — the blocking mid-turn voice yes/no is rejected.
+  See DEC-16.
 
 ---
 
@@ -277,6 +291,9 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   auto-hide arm — could move to a small `turn_teardown.py`, mirroring the frame_capture / voice_out extractions.)
 - **Implementation timing:** No action now (299 is legal). A planning-time flag for the next
   orchestrator-touching milestone.
+- **→ REFINED by DEC-19** (2026-07-23): the `run_turn` `finally`-teardown extraction candidate floated above is
+  REJECTED (it hosts three live-found fixes); if orchestrator extraction is ever needed, select the candidate BY
+  MEASUREMENT and present it to Sultan. `web_research` honors the ceiling with ZERO orchestrator touch. See DEC-19.
 
 ---
 
@@ -594,3 +611,20 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   not "this sentence came from this domain"; precise per-claim attribution is **POST-LAUNCH research**.
 - **Implementation timing:** T6 — the citation persona law (into the T1-extracted module), the internal directive
   on the wrapped result, and the kernel-drawn domain badge; the never-log discipline lands with the T2 fetcher.
+
+---
+
+## DEFERRED DOC ITEM (2026-07-23) — V2_ROADMAP §3.2/§3.4 "taint status line" wording superseded by DEC-15 — DEFERRED (fold into the DEC-7 + DEC-1 batches-4-8 consolidated pass)
+
+- **Status:** DEFERRED — do NOT sweep the roadmap now. Fold into the ONE consolidated post-milestone docs pass
+  already bundled with DEC-1 batches 4-8 and DEC-7, AFTER the `web_research` milestone. The roadmap file is left
+  untouched now (Sultan's ruling).
+- **Item:** `V2_ROADMAP.md` §3.2 (point 3) and §3.4 describe the taint flag as «راية التلويث سطر حالة واحد في
+  سياق الدورة» — one model-visible status line in the turn context. DEC-15 SUPERSEDES this: enforcement is
+  STRUCTURAL at the router and the taint state is NOT surfaced to the model (no model-visible status line).
+- **Reason:** Stale wording in a PLANNING document, not a logical conflict blocking implementation — the DEC-7
+  category. DEC-15 already governs and its body records the supersession, so the roadmap edit prevents no defect.
+  Opening a documentation loop before the highest-security milestone is exactly what DEC-1 (batches 4-8) declined
+  to do; momentum is preserved for the security-critical milestone.
+- **Implementation timing:** With the consolidated post-`web_research` docs pass (DEC-1 batches 4-8 + DEC-7):
+  restate §3.2/§3.4 to match DEC-15's structural enforcement. Re-run the full suite after the sweep.
