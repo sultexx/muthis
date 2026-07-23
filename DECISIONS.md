@@ -697,3 +697,31 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   `read_local_file` turn, a `sandbox__run_code` turn — the slot generalization touches the V1 read + M1 sandbox
   paths, so a regression there would be silent in unit tests). (E) lands with the T3 SearchProvider extraction
   seam. NO feature code and NO new dependency until the three extractions are green.
+
+---
+
+## DEFERRED OBSERVATION (2026-07-24) — live-caption pacing can drift from the audio — re-MEASUREMENT task, DEFERRED
+
+- **Status:** DEFERRED — do NOT touch the caption path now. This is a re-MEASUREMENT task (NOT a bug fix),
+  executed AFTER the `web_research` milestone, bundled with the existing consolidated docs/cleanup pass (DEC-1
+  batches 4-8 + DEC-7 + the roadmap-wording DEFERRED DOC ITEM).
+- **Item:** During the DEC-21 extraction-phase live verification (Task 4b, Sultan's hardware), the on-screen live
+  captions were observed to drift slightly from the spoken audio.
+- **Context (why this is NOT an extraction regression):** the three DEC-21 extractions were CONFIRMED LIVE —
+  Task 4a a full clean headless boot (22/22 real components constructed, clean teardown, no lingering threads, no
+  orphaned MCP children); Task 4b on Sultan's machine a clean boot with Docker detected + the sandbox live, THREE
+  consecutive tool-using turns with ZERO 400 errors (the pairing seam's proof — an orphan `tool_use` surfaces on
+  the NEXT turn, so three clean successive turns validates it), the two-pass persona flow intact, the
+  echo-suppression guard firing, and the auto-hide arming at 7.00 s after SPEECH END (Fix F intact). The
+  extractions provably did NOT touch the caption path: `TurnVoice` → `VoiceOut.show_caption` → `show_caption_later`
+  → the caption bar were all untouched.
+- **Root cause (by design, not a defect):** the caption↔audio sync is a documented ESTIMATE —
+  `ARABIC_TTS_CHARS_PER_SEC = 11.5`, measured over three runs in v7 Phase 2 (each caption defers to its sentence's
+  estimated audio start = cumulative fed chars / 11.5, minus the starvation-aware player clock). An estimate
+  drifts, and the real char-rate varies with digits and embedded English terms, so some drift is EXPECTED.
+- **Resolution / nature:** a re-MEASUREMENT on the v6 Phase-A measurement pattern — measure the real Arabic-TTS
+  char-rate over several live runs (varying digit / English density), then PROPOSE a refined
+  `ARABIC_TTS_CHARS_PER_SEC` (or a small model) to Sultan. It is NOT a fix to land now, and it touches the caption
+  path — which this milestone must not.
+- **Implementation timing:** post-`web_research`, in the consolidated docs/cleanup/measurement pass. Re-run the
+  full suite (604 + 27) after any change.
