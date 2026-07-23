@@ -12,19 +12,21 @@ importable in isolation (no SDK, no Pillow).
 
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional, Protocol, runtime_checkable
 
 from ..cloud.protocol import ToolCall
-from ..file_reader import FILE_ALREADY_READ_AR, FILE_READ_ERROR_AR, READ_FILE_TOOL
 from .highlight_gate import (
     HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR, HighlightGate,
-    draw_result_text, highlight_result_text,
+    highlight_result_text,
 )
 # Bug-3 strip: extracted to history_hygiene.py (≤300-line split); re-exported.
 from .history_hygiene import STALE_SCREENSHOT_NOTE_AR, strip_images_from_history
-from .tool_router import namespaced_name  # DEC-11: the ONE separator source
+# Pairing + run_code surfaces extracted to tool_result_pairing.py (≤300-line
+# split, DEC-21 #3); re-exported so existing importers keep working.
+from .tool_result_pairing import (
+    NO_SCREENSHOT_TOOL_RESULT_AR, RUN_CODE_TOOL, build_tool_result_message,
+)
 from ..tts import TTSResult
 
 
@@ -110,7 +112,6 @@ def scale_bbox_to_physical(args: dict[str, Any], scale_x: float, scale_y: float)
 
 BUDGET_REFUSAL_AR = "عذراً، استهلكنا ميزانية اليوم كاملة. نكمل بكرة إن شاء الله."
 REFRESH_FOLLOWUP_TEXT_AR = "هذه لقطة الشاشة المحدثة."
-NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
 MIC_FAILED_AR = "ما قدرت أوصل للمايكروفون، تأكد إنه موصول."
 STT_EMPTY_AR = "ما سمعت شي واضح، جرّب مرة ثانية."
 # Spoken when the agentic loop hits MAX_AGENTIC_ITERATIONS — a clean stop instead
@@ -166,107 +167,6 @@ def next_highlight(
     if gate.drawn or pending is not None:
         return pending
     return (scale_bbox_to_physical(args, scale_x, scale_y), args.get("label_ar", ""))
-
-
-def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) -> dict[str, Any]:
-    """The single tool_result block answering a request_screen_refresh: the
-    fresh, already-downscaled payload COPY (a minimal PNG/JPEG sniff sets
-    media_type so the SDK stack is NOT imported here), or an Arabic
-    'no new screenshot' note when no fresh capture is available."""
-    if screenshot:
-        media_type = "image/png" if screenshot[:4] == b"\x89PNG" else "image/jpeg"
-        inner: list[dict[str, Any]] = [{
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": media_type,
-                "data": base64.standard_b64encode(screenshot).decode("ascii"),
-            },
-        }]
-    else:
-        inner = [{"type": "text", "text": NO_SCREENSHOT_TOOL_RESULT_AR}]
-    return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
-
-
-RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not scattered
-# Second / unserviced run_code ids in a pass keep Option-B pairing API-valid.
-RUN_CODE_ALREADY_AR = "شغّلتَ الكود قبل قليل في هذه الجولة — استخدم نتيجته وأكمل."
-RUN_CODE_UNAVAILABLE_AR = "التنفيذ المعزول غير متاح في هذه الجلسة."
-
-
-def build_tool_result_message(
-    assistant_content: list[dict[str, Any]],
-    refresh_call: Optional[ToolCall] = None,
-    fresh_screenshot: Optional[bytes] = None,
-    gate: Optional[HighlightGate] = None,
-    read_result: Optional[tuple[ToolCall, str]] = None,
-    run_result: Optional[tuple[ToolCall, str]] = None,
-) -> Optional[dict[str, Any]]:
-    """ONE user message pairing a tool_result with EVERY tool_use block the
-    assistant just emitted (Option B — full pairing). The refresh id (when
-    refresh_call is given) is answered with the fresh screenshot — or a text
-    note when fresh_screenshot is None (e.g. the follow-up limit was hit).
-
-    read_local_file (v7 Phase 4) is answered by NAME so it can NEVER touch the
-    draw gate: the serviced call (read_result = (call, content)) gets the file
-    content; any OTHER read id in the same pass gets the already-read
-    directive; a read id with NO servicing (legacy caller) gets the error note.
-
-    Circuit breaker (hard backstop): every remaining id is a DRAW tool —
-    highlight_target or draw_shapes. With a `gate`, the FIRST one of the turn
-    gets its tool's "explain now" ack and flips `gate.drawn` (ONE gate, BOTH
-    tools); every later one (this pass or a future one, either tool) gets its
-    "already shown — don't redraw, explain" note — draw_result_text picks the
-    wording by tool name. Without a gate (legacy) it always returns the ack.
-
-    Returns None when the assistant turn carried no tool_use, so the caller
-    appends NOTHING and never stores an empty message. Bundling all results
-    into one message keeps them in the single user message that immediately
-    follows the assistant turn — exactly what the API's pairing rule needs.
-    Lives here (not in claude_agent.py) so the orchestrator stays importable
-    without the SDK stack."""
-    refresh_id = refresh_call.tool_use_id if refresh_call else None
-    read_id = read_result[0].tool_use_id if read_result else None
-    run_id = run_result[0].tool_use_id if run_result else None
-    results: list[dict[str, Any]] = []
-    for block in assistant_content:
-        if block.get("type") != "tool_use":
-            continue
-        tool_use_id = block.get("id")
-        if tool_use_id is not None and tool_use_id == refresh_id:
-            results.append(_refresh_tool_result_block(tool_use_id, fresh_screenshot))
-        elif block.get("name") == READ_FILE_TOOL:
-            if tool_use_id is not None and tool_use_id == read_id:
-                content = read_result[1]
-            else:
-                content = FILE_ALREADY_READ_AR if read_result else FILE_READ_ERROR_AR
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": content,
-            })
-        elif block.get("name") == RUN_CODE_TOOL:
-            # T5: answered BY NAME (like read) so a run can NEVER hit the draw
-            # branch. The serviced run gets its Arabic output; a second run_code
-            # id in the same pass gets the already-ran note.
-            if tool_use_id is not None and tool_use_id == run_id:
-                content = run_result[1]
-            else:
-                content = RUN_CODE_ALREADY_AR if run_result else RUN_CODE_UNAVAILABLE_AR
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": content,
-            })
-        else:
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": draw_result_text(gate, block.get("name", "")),
-            })
-    if not results:
-        return None
-    return {"role": "user", "content": results}
 
 
 __all__ = [
