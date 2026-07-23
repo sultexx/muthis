@@ -628,3 +628,72 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   to do; momentum is preserved for the security-critical milestone.
 - **Implementation timing:** With the consolidated post-`web_research` docs pass (DEC-1 batches 4-8 + DEC-7):
   restate §3.2/§3.4 to match DEC-15's structural enforcement. Re-run the full suite after the sweep.
+
+---
+
+## DEC-21 (2026-07-23) — web_research P0 feasibility gate: census, three mechanical extractions, the zero-orchestrator-touch container, the IP-pinning proof, and the urllib3-bypass guard — APPROVED (refines DEC-19)
+
+- **Item:** The MEASURED outcome of the `web_research` P0 feasibility gate (five probes) and the rulings it
+  produced: which modules breach the ≤300-line law and how each is relieved; the CONFIRMED
+  zero-orchestrator-touch mechanism and its two shape constraints; the IP-pinning proof; a NEW structural guard
+  against bypassing the hardened fetcher; and the provider-key state. Refines DEC-19 (adds two extractions beyond
+  the one it named, and pins the zero-touch shape).
+- **Reason:** DEC-19 mandated planning-time identification of ceiling breaches and named ONE extraction
+  (`persona.py`); measuring the real files surfaced TWO more CERTAIN breaches (`main.py`, `turn.py`) — exactly the
+  mid-implementation surprise DEC-19 exists to prevent. The zero-touch goal needed a concrete mechanism, found by
+  grep at planning time. IP pinning was the milestone's technical unknown and had to be proven LIVE before the
+  fetcher is built. And P0 surfaced a bypass vector (trafilatura's own `urllib3`) whose only current mitigation
+  was CIRCUMSTANTIAL — the reasoning class DEC-13 rejects.
+- **Resolution (Sultan's sign-off):**
+  - **(A) Census (measured `wc -l`, the §17.4 tracked count):** `persona.py` 299, `main.py` 294,
+    `orchestrator.py` 299, `turn.py` 282, `tool_router.py` 233, `turn_pass.py` 224. **Certain breaches:**
+    `persona.py` (+3 laws), `main.py` (+SessionTaint / confirm-gate / fetcher / SearchProvider / mount / teardown,
+    only 6 lines of headroom), `turn.py` (+web pairing, ≤18 lines of headroom). **Fit with headroom:**
+    `tool_router.py` (~260-270 — wrap / taint / confirm are INJECTED implementations, the router holds only
+    call-sites + ctor params; the `_Mounted.taint` flag at `tool_router.py:77` already carries the kernel-side
+    classification), `turn_pass.py` (~261). `orchestrator.py` stays 299 — ZERO touch (see C).
+  - **(B) THREE mechanical extractions APPROVED** — each MOVE-ONLY (zero behavior change, zero new rules, zero
+    re-design during the move; the three new persona laws land later, in the feature work), each its OWN commit,
+    full suite (604 + 27) after each, followed by a live test:
+    1. `persona.py` → the tool + safety rules out of `_SAUDI_PERSONA_TEMPLATE` into a new `persona_rules.py`,
+       injected into `build_saudi_persona_prompt`; the composed output stays BYTE-IDENTICAL so `test_persona.py`
+       passes UNMODIFIED (DEC-19's named extraction).
+    2. `main.py` → the composition / build helpers (`_size_sent_image` … `_build_orchestrator`) into a new
+       `composition.py`, re-imported (NEW — surfaced by P0).
+    3. `turn.py` → `build_tool_result_message` (+ `_refresh_tool_result_block`, the RUN_CODE constants) into a new
+       `kernel/tool_result_pairing.py`, re-exported from `turn.py` (the `highlight_gate` / `history_hygiene`
+       precedent; NEW — surfaced by P0).
+    NONE of the three touches `orchestrator.py`, the draw path, Option-A sync, the unified draw gate, or
+    `HighlightGate`.
+  - **(C) Zero-orchestrator-touch CONFIRMED + its shape pinned.** `orchestrator.py` references `read_result` /
+    `run_result` ONLY at line 253 (unpack) and line 275 (forward into `build_tool_result_message`) — never
+    inspected (grep-verified). Web serviced results ride the EXISTING opaquely-forwarded slot, so the orchestrator
+    stays BYTE-IDENTICAL. TWO CONSTRAINTS: **(a)** generalize the slot into a **CLEANLY NAMED container type keyed
+    by `tool_use_id`** — do NOT abuse a tuple position, and do NOT add a 5th element to `consume()`'s return
+    (either would change `orchestrator.py:253/275`, which is forbidden); **(b)** the container is UNPACKED in the
+    extracted `kernel/tool_result_pairing.py` (extraction #3), since that module is being carved out in this same
+    phase.
+  - **(D) IP pinning PROVEN — DEC-17 option 3 NOT needed.** Live against `example.com`→`104.20.23.154` on the
+    stock `httpx 0.28.1`: connect to the pre-resolved IP with `Host: <hostname>` +
+    `extensions={"sni_hostname": <hostname>}` → TLS verified against the HOSTNAME → 200; a WRONG `sni_hostname` on
+    the same IP was rejected at the handshake (the NEGATIVE control — proves verification is real, not disabled).
+    So DEC-17's resolve-once / connect-to-IP / preserve-Host+SNI is buildable on the EXISTING dependency; the
+    custom-transport fallback (DEC-17 option 3) is NOT required. Redirect control also proven
+    (`follow_redirects=False` → a 301 is returned, not followed). `trafilatura` installs cleanly on Python 3.14
+    (all wheels, no build, no VRAM deps) and extracts inside `asyncio.to_thread`.
+  - **(E) NEW — the urllib3-bypass guard (DEC-13 posture).** `trafilatura` ships its OWN `urllib3` and a
+    `fetch_url()` / `fetch_response()` that fetch DIRECTLY — a one-line bypass of the ENTIRE DEC-17 hardened
+    fetcher (no IP pinning, no SSRF validation, no robots, no limits, no clean logging). "Dormant because we feed
+    it HTML" is CIRCUMSTANTIAL, not structural — exactly the reasoning DEC-13 rejects ("it is safe for another
+    reason" is not a defense). Ruling: convert it to FORBIDDEN BY CONSTRUCTION. When the extraction path lands
+    (T3), add an AST-SCAN guard test on the proven `tests/test_pointer_look_only.py` precedent asserting the web
+    path NEVER calls `trafilatura.fetch_url` / `fetch_response` and NEVER imports `urllib3` directly; extraction
+    uses ONLY `trafilatura.extract` (/`bare_extraction`) on HTML the broker fetcher already retrieved.
+  - **(F) Provider state (probe 5).** No `TAVILY_*` / `BRAVE_*` / `SEARXNG_*` key in `.env` (variable NAMES read,
+    values never). Sultan will add `TAVILY_API_KEY` to the git-ignored `.env` (Law 5.1 — never in code) BEFORE T7;
+    T1–T6 proceed WITHOUT it, exercising the DEC-18 missing-provider Arabic-note path until then.
+- **Implementation timing:** (A) / (C) / (D) / (F) recorded now (docs). (B) executes next as three mechanical
+  commits (persona → main → turn, full suite after each) followed by ONE live 3-path check (a pointing turn, a
+  `read_local_file` turn, a `sandbox__run_code` turn — the slot generalization touches the V1 read + M1 sandbox
+  paths, so a regression there would be silent in unit tests). (E) lands with the T3 SearchProvider extraction
+  seam. NO feature code and NO new dependency until the three extractions are green.
