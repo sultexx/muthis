@@ -23,6 +23,7 @@ redirect chain can never starve the turn.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, replace
 from typing import Optional
@@ -89,6 +90,7 @@ class HardenedFetcher:
         rate_limiter: Optional[RateLimiter] = None,
         cache: Optional["SessionCache[FetchResult]"] = None,
         robots_enabled: bool = True,
+        total_budget_s: float = TIMEOUT_S,
     ) -> None:
         # ONE long-lived client, SEPARATE from the key-bearing API client. Zero
         # creds: trust_env=False kills proxy / NETRC / host env; no cookies are
@@ -107,6 +109,7 @@ class HardenedFetcher:
             user_agent_token=USER_AGENT_TOKEN,
             enabled=robots_enabled,
         )
+        self._total_budget_s = total_budget_s
 
     async def aclose(self) -> None:
         """Close the long-lived client (lifecycle owned by the composition
@@ -115,9 +118,22 @@ class HardenedFetcher:
 
     async def fetch_readable(self, url: str) -> FetchResult:
         """The net.fetch entry: an SSRF-hardened GET returning readable content
-        or a short Arabic note. NEVER raises (Law 11)."""
+        or a short Arabic note. Runs under ONE TOTAL wall-clock budget covering
+        the ENTIRE operation — DNS resolve + robots.txt + every redirect hop +
+        streaming (DEC-22) — so a tainted slow chain can never starve the 90 s
+        turn. On budget expiry it fails CLOSED to the timeout note. NEVER raises
+        (Law 11)."""
+        domain = urlsplit(url).hostname or ""
         try:
-            return await self._fetch_readable(url)
+            async with asyncio.timeout(self._total_budget_s):
+                return await self._fetch_readable(url)
+        except TimeoutError:
+            # The whole operation (incl. an uninterruptible getaddrinfo) is cut
+            # here; a detached resolver thread may finish in the background, but
+            # the TURN is freed. A per-turn fetch cap in web_research (T6) is the
+            # structural bound on accumulation.
+            logger.info("[fetch] %s total-budget-exceeded", domain)
+            return FetchResult(ok=False, text_ar=TIMEOUT_AR, domain=domain)
         except Exception as exc:  # noqa: BLE001 — a fetch must never kill the turn
             logger.warning("[fetch] unexpected error (%s)", type(exc).__name__)
             return FetchResult(ok=False, text_ar=NETWORK_ERROR_AR)

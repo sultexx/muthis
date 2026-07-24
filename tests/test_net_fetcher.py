@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 import httpx
 import pytest
@@ -328,3 +329,80 @@ def test_non_http_scheme_is_a_note_not_a_raise():
     result = _run(lambda request: httpx.Response(200), "file:///etc/passwd",
                   mapping={}, robots_enabled=False)
     assert result.ok is False and result.text_ar == SCHEME_AR
+
+
+# ── DEC-22: the TOTAL wall-clock budget (a tainted slow chain must not starve
+#    the turn). The budget covers DNS + robots + every hop + streaming. ────────
+def test_total_budget_cuts_a_slow_multi_hop_chain():
+    calls = []
+
+    def slow_resolver(hostname, port):
+        calls.append(hostname)
+        time.sleep(0.15)  # each hop is well UNDER any per-hop timeout
+        return ["104.20.23.154"]
+
+    hop = {"n": 0}
+
+    def handler(request):
+        hop["n"] += 1
+        return httpx.Response(301, headers={"location": f"https://hop{hop['n']}.example/"})
+
+    async def go():
+        fetcher = HardenedFetcher(client=_client(handler), resolver=slow_resolver,
+                                  robots_enabled=False, total_budget_s=0.35)
+        try:
+            return await fetcher.fetch_readable("https://start.example/")
+        finally:
+            await fetcher.aclose()
+
+    result = asyncio.run(go())
+    # No single hop is slow enough to trip a per-hop timeout; only the TOTAL
+    # budget across hops can cut this -> the timeout note, NOT too-many-redirects.
+    # Remove the budget and the chain runs all 6 hops -> TOO_MANY_REDIRECTS_AR (RED).
+    assert result.ok is False and result.text_ar == TIMEOUT_AR
+    assert result.text_ar != TOO_MANY_REDIRECTS_AR
+    assert len(calls) >= 2  # it was a multi-hop chain, cut mid-flight
+
+
+def test_total_budget_includes_the_robots_lookup():
+    # The FIRST resolve (robots.txt) alone is slow enough to exhaust the budget.
+    # If robots were OUTSIDE the budget it would complete and the (fast) page
+    # would be fetched ok; because it is INSIDE, the page is never reached.
+    n = {"i": 0}
+
+    def resolver(hostname, port):
+        n["i"] += 1
+        if n["i"] == 1:
+            time.sleep(0.5)  # the robots.txt round-trip alone > the budget
+        return ["104.20.23.154"]
+
+    reached = {"page": False}
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /",
+                                  headers={"content-type": "text/plain"})
+        reached["page"] = True
+        return httpx.Response(200, text="page", headers={"content-type": "text/html"})
+
+    async def go():
+        fetcher = HardenedFetcher(client=_client(handler), resolver=resolver,
+                                  robots_enabled=True, total_budget_s=0.2)
+        try:
+            return await fetcher.fetch_readable("https://r.example/page")
+        finally:
+            await fetcher.aclose()
+
+    result = asyncio.run(go())
+    assert result.ok is False and result.text_ar == TIMEOUT_AR
+    assert reached["page"] is False  # the budget was spent on robots; the doc never ran
+
+
+def test_fast_fetch_is_unaffected_by_the_budget():
+    # A normal fetch (default 10 s budget) completes well within it.
+    def handler(request):
+        return httpx.Response(200, text="quick", headers={"content-type": "text/html"})
+
+    result = _run(handler, "https://fast.example/",
+                  mapping={"fast.example": ["104.20.23.154"]}, robots_enabled=False)
+    assert result.ok and result.content == "quick"
