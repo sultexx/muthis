@@ -5,56 +5,48 @@ HardenedFetcher — the broker-owned embodiment of the net.fetch capability
 receive `ctx.net.fetch_readable(url)` backed by this object, and web_research
 (first party) eats the same dogfood with NO privileged path.
 
-Defenses, each a DEC-17 clause:
-  * SSRF — every URL and every redirect hop is validated by `address_guard`
-    (resolve once, validate the IP OBJECT, connect to THAT IP with Host + SNI
-    preserved so TLS verifies the hostname). Redirects are followed MANUALLY
-    (follow_redirects=False), each hop re-validated IN FULL, capped at 5.
-  * Limits — 2 MB raw cap, content-type allowlist (html / plain / json), 10 s
-    timeout, honest MuthisBot agent, per-domain rate limit, RAM-only session
-    LRU (the cache never launders taint).
-  * Policy — robots.txt respected (`robots.py`); PDF refused honestly until
-    doc_rag.
-  * Isolation — ZERO credentials (no cookies, no auth headers, trust_env=False)
-    on a SEPARATE long-lived httpx client, never the key-bearing API client
-    (the Clicky lesson).
-  * Discipline — NEVER raises (every failure is a short Arabic note, Law 11)
-    and NEVER logs content: domain + status + size, English only, error paths
-    too.
+This module is the READABLE ORCHESTRATION layer: cache → robots → rate-limit →
+(wire) → content-type → decode → FetchResult. The wire layer (SSRF re-validation
+per hop, manual redirects, the 2 MB cap) lives in `transport.py` (PinnedTransport,
+split out under the ≤300-line law — DEC-23); its names are re-exported here so
+importers are unaffected. Address validation is `address_guard`; robots and the
+rate-limit/LRU are `robots` / `session_policy`.
 
-Third-party: httpx (the SAME 0.28.1 P0 pinned the SNI technique on). Siblings
-`address_guard` / `robots` / `session_policy`; otherwise stdlib.
+Defenses, each a DEC-17 clause: content-type allowlist (html/plain/json), honest
+MuthisBot agent, per-domain rate limit, RAM-only session LRU (never launders
+taint), robots respected → an Arabic vision-path note, PDF refused honestly;
+a SEPARATE long-lived httpx client, trust_env=False, zero cookies/auth (the
+Clicky lesson); NEVER raises (Law 11); content is NEVER logged. The whole
+operation runs under one TOTAL wall-clock budget (DEC-22) so a tainted slow
+redirect chain can never starve the turn.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, replace
-from typing import Optional, Union
-from urllib.parse import urljoin, urlsplit
+from typing import Optional
+from urllib.parse import urlsplit
 
 import httpx
 
-from .address_guard import (
-    PinnedRequest,
-    Resolver,
-    system_resolver,
-    validate_and_pin,
-)
+from .address_guard import Resolver, system_resolver
 from .robots import RobotsCache
 from .session_policy import RateLimiter, SessionCache
+from .transport import (  # re-exported below so importers keep working
+    MAX_BYTES,
+    MAX_REDIRECTS,
+    NETWORK_ERROR_AR,
+    TIMEOUT_AR,
+    TIMEOUT_S,
+    TOO_LARGE_AR,
+    TOO_MANY_REDIRECTS_AR,
+    USER_AGENT,
+    USER_AGENT_TOKEN,
+    PinnedTransport,
+)
 
 logger = logging.getLogger("muthis.broker.net")
-
-# An honest, self-identifying agent (never a browser impersonation).
-USER_AGENT_TOKEN = "MuthisBot"
-USER_AGENT = f"{USER_AGENT_TOKEN}/1.0 (+https://muthis.local/bot)"
-
-MAX_BYTES = 2_000_000       # §3.3 raw cap
-TIMEOUT_S = 10.0            # §3.3 per-request wall
-MAX_REDIRECTS = 5          # §3.3 hop cap (5 redirects followed, the 6th refused)
-_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 # content-type allowlist (main type only; charset params stripped).
 ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset(
@@ -62,15 +54,10 @@ ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset(
 )
 _PDF_CONTENT_TYPE = "application/pdf"
 
-# ─── Model-facing Arabic notes (fetch-loop domain; validation notes live in
-#     address_guard). Every failure is one of these — the fetcher never raises.
+# ─── Policy-layer Arabic notes (transport notes live in transport.py) ─────────
 ROBOTS_BLOCKED_AR = "الموقع يمنع الوصول الآلي — افتحه على شاشتك وأنا أقرأه لك."
 PDF_UNSUPPORTED_AR = "هذا ملف PDF وقراءته ما زالت غير متاحة. افتحه على شاشتك وأنا أشرح لك منه."
 CONTENT_TYPE_AR = "نوع محتوى هذا الرابط غير مدعوم — أقرأ صفحات الويب والنص وJSON فقط."
-TOO_LARGE_AR = "محتوى الرابط أكبر من الحد المسموح (٢ ميغابايت). جرّب صفحة أصغر أو افتحه على شاشتك."
-TIMEOUT_AR = "انتهت مهلة الاتصال بالموقع. جرّب مرة ثانية أو افتحه على شاشتك."
-NETWORK_ERROR_AR = "ما قدرت أوصل للموقع. تأكد من الرابط والاتصال، أو افتحه على شاشتك."
-TOO_MANY_REDIRECTS_AR = "الرابط فيه إعادة توجيه كثيرة. جرّب الرابط النهائي مباشرة."
 
 
 @dataclass(frozen=True)
@@ -90,17 +77,6 @@ class FetchResult:
     from_cache: bool = False
 
 
-@dataclass(frozen=True)
-class _Raw:
-    """The transport-layer result of one validated fetch (post-redirects)."""
-
-    status: int
-    content_type: str
-    body: bytes
-    final_url: str
-    domain: str
-
-
 class HardenedFetcher:
     """One per session, composed at the root; owns ONE long-lived httpx client
     distinct from the API client. `fetch_readable` is the only public entry."""
@@ -116,14 +92,14 @@ class HardenedFetcher:
     ) -> None:
         # ONE long-lived client, SEPARATE from the key-bearing API client. Zero
         # creds: trust_env=False kills proxy / NETRC / host env; no cookies are
-        # ever set; follow_redirects=False so WE re-validate every hop.
+        # ever set; follow_redirects=False so the transport re-validates each hop.
         self._client = client or httpx.AsyncClient(
             trust_env=False,
             follow_redirects=False,
             timeout=httpx.Timeout(TIMEOUT_S),
             headers={"User-Agent": USER_AGENT},
         )
-        self._resolver = resolver
+        self._transport = PinnedTransport(self._client, resolver)
         self._rate = rate_limiter or RateLimiter()
         self._cache: "SessionCache[FetchResult]" = cache or SessionCache()
         self._robots = RobotsCache(
@@ -162,7 +138,7 @@ class HardenedFetcher:
         if domain:
             await self._rate.acquire(domain)
 
-        raw = await self._fetch_raw(url)
+        raw = await self._transport.fetch_raw(url)
         if isinstance(raw, str):  # an Arabic-note failure (SSRF / limit / network)
             return FetchResult(ok=False, text_ar=raw, domain=domain)
 
@@ -183,84 +159,11 @@ class HardenedFetcher:
         logger.info("[fetch] %s status=%s bytes=%s", raw.domain, raw.status, len(raw.body))
         return result
 
-    async def _fetch_raw(self, url: str) -> Union[_Raw, str]:
-        """Validate → pin → issue → follow redirects MANUALLY (each hop
-        re-validated IN FULL, ≤5) → cap at 2 MB. Returns _Raw or an Arabic
-        note. Robots / content-type / cache do NOT live here — this is reused
-        to fetch robots.txt itself, so it must not recurse or over-filter."""
-        current = url
-        for _hop in range(MAX_REDIRECTS + 1):
-            pinned, note = await asyncio.to_thread(
-                validate_and_pin, current, resolver=self._resolver
-            )
-            if note is not None:
-                return note
-            assert pinned is not None
-            resp = await self._issue(pinned)
-            if isinstance(resp, str):
-                return resp
-            try:
-                if resp.status_code in _REDIRECT_STATUSES:
-                    location = resp.headers.get("location")
-                    if not location:
-                        return NETWORK_ERROR_AR
-                    current = urljoin(current, location)
-                    continue
-                body = await self._read_capped(resp)
-                if isinstance(body, str):
-                    return body
-                ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
-                return _Raw(
-                    status=resp.status_code, content_type=ctype, body=body,
-                    final_url=current, domain=pinned.hostname,
-                )
-            finally:
-                await resp.aclose()
-        logger.info("[fetch] %s too-many-redirects", urlsplit(url).hostname or "")
-        return TOO_MANY_REDIRECTS_AR
-
-    async def _issue(self, pinned: PinnedRequest) -> Union[httpx.Response, str]:
-        """Issue exactly the pinned request (connect to the IP, Host + SNI carry
-        the hostname). Streamed so the body cap runs incrementally. httpx errors
-        become Arabic notes — never a raise."""
-        headers = {"Host": pinned.host_header, "User-Agent": USER_AGENT}
-        extensions = {"sni_hostname": pinned.sni_hostname} if pinned.sni_hostname else {}
-        try:
-            req = self._client.build_request(
-                "GET", pinned.pinned_url, headers=headers, extensions=extensions
-            )
-            return await self._client.send(req, stream=True)
-        except httpx.TimeoutException:
-            logger.info("[fetch] %s timeout", pinned.hostname)
-            return TIMEOUT_AR
-        except httpx.HTTPError as exc:
-            logger.info("[fetch] %s transport-error (%s)", pinned.hostname, type(exc).__name__)
-            return NETWORK_ERROR_AR
-
-    async def _read_capped(self, resp: httpx.Response) -> Union[bytes, str]:
-        """Enforce the 2 MB raw cap: refuse early on an honest Content-Length,
-        and enforce again while streaming (a lying / absent length can't slip
-        past). Returns the bytes or the too-large / network Arabic note."""
-        clen = resp.headers.get("content-length")
-        if clen and clen.isdigit() and int(clen) > MAX_BYTES:
-            return TOO_LARGE_AR
-        chunks = bytearray()
-        try:
-            async for chunk in resp.aiter_bytes():
-                chunks.extend(chunk)
-                if len(chunks) > MAX_BYTES:
-                    return TOO_LARGE_AR
-        except httpx.TimeoutException:
-            return TIMEOUT_AR
-        except httpx.HTTPError:
-            return NETWORK_ERROR_AR
-        return bytes(chunks)
-
     async def _fetch_robots_text(self, robots_url: str) -> Optional[str]:
-        """The RobotsCache seam: fetch robots.txt through the SAME hardened path
-        (so it is SSRF-guarded too). Decoded text on success, None on any
-        blocked / unreachable / capped result."""
-        raw = await self._fetch_raw(robots_url)
+        """The RobotsCache seam: fetch robots.txt through the SAME hardened
+        transport (so it is SSRF-guarded too). Decoded text on success, None on
+        any blocked / unreachable / capped result."""
+        raw = await self._transport.fetch_raw(robots_url)
         if isinstance(raw, str):
             return None
         return raw.body.decode("utf-8", errors="replace")
@@ -284,14 +187,17 @@ def _cache_key(url: str) -> str:
     fragment dropped (creds are never retained, even in a RAM key; the query
     distinguishes pages; the fragment never reaches the server)."""
     p = urlsplit((url or "").strip())
-    host = (p.hostname or "")
+    host = p.hostname or ""
     port = f":{p.port}" if p.port else ""
     return f"{p.scheme}://{host}{port}{p.path}?{p.query}"
 
 
 __all__ = [
-    "HardenedFetcher", "FetchResult", "USER_AGENT", "USER_AGENT_TOKEN",
-    "MAX_BYTES", "TIMEOUT_S", "MAX_REDIRECTS", "ALLOWED_CONTENT_TYPES",
+    "HardenedFetcher", "FetchResult",
+    # policy notes
     "ROBOTS_BLOCKED_AR", "PDF_UNSUPPORTED_AR", "CONTENT_TYPE_AR",
-    "TOO_LARGE_AR", "TIMEOUT_AR", "NETWORK_ERROR_AR", "TOO_MANY_REDIRECTS_AR",
+    "ALLOWED_CONTENT_TYPES",
+    # re-exported transport surface (importers keep working)
+    "USER_AGENT", "USER_AGENT_TOKEN", "MAX_BYTES", "TIMEOUT_S", "MAX_REDIRECTS",
+    "TIMEOUT_AR", "NETWORK_ERROR_AR", "TOO_LARGE_AR", "TOO_MANY_REDIRECTS_AR",
 ]
