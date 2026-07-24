@@ -309,7 +309,19 @@ pip install -e sdk
 #                                  user's words; DEFAULT ON — set falsey to restore press-refused),
 #             MUTHIS_EARCONS (UI lifecycle sounds, default on; Windows-only),
 #             MUTHIS_MIN_RECORD_SECONDS (min hold before a tap counts as empty, default 0.35),
-#             MUTHIS_RECORD_SECONDS (dev smoke scripts' fixed window only)
+#             MUTHIS_RECORD_SECONDS (dev smoke scripts' fixed window only),
+#   web_research search providers (V2 Phase-2 M2, DEC-18 — selection is CONFIGURATION, never a
+#   tool argument; nothing configured = a short Arabic "add a key in .env" note, never a crash
+#   and never a missing tool):
+#             MUTHIS_SEARCH_PROVIDER (which vendor answers: tavily. Unset = auto-detect from the
+#                                  keys below, in DEC-18's order),
+#             TAVILY_API_KEY (the DEC-18 DEFAULT provider — Tavily returns EXTRACTED CONTENT, not
+#                                  only links, so it collapses the search→fetch cycle: fewer
+#                                  fetches = a narrower SSRF surface, lower cost, lower latency),
+#             TAVILY_BASE_URL (optional endpoint override, default https://api.tavily.com — the
+#                                  base URL is CONFIGURATION-ONLY BY CONSTRUCTION: no tool
+#                                  argument and no model input can supply one, so a tainted model
+#                                  can never aim the key-bearing client at another host)
 
 # Tests (no network needed)
 set PYTHONPATH=src && python -m pytest tests/ -q
