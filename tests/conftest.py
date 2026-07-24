@@ -53,5 +53,6 @@ def _clear_cloud_tts_env(monkeypatch):
         # would otherwise pick a LIVE provider (and change which one answers) in
         # a test that must deterministically see "no provider configured".
         "MUTHIS_SEARCH_PROVIDER", "TAVILY_API_KEY", "TAVILY_BASE_URL",
+        "BRAVE_API_KEY", "BRAVE_BASE_URL", "SEARXNG_BASE_URL",
     ):
         monkeypatch.delenv(var, raising=False)

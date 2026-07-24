@@ -975,3 +975,42 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Action:** NONE in code. Run the suite with `.venv/Scripts/python.exe` (or activate `.venv` first), per
   AGENTS.md. If a future session sees exactly these 10 HTML-extraction failures, CHECK THE INTERPRETER before
   reading it as a regression.
+
+---
+
+## LOGGING FINDING (2026-07-25) — `httpx`'s OWN logger prints the full request URL at INFO, defeating the DEC-20 never-log-content discipline — OPEN, awaiting Sultan's ruling
+
+- **Item:** Every module of this milestone logs with discipline — the fetcher emits `domain + status + size`,
+  English only, zero content (DEC-20); the search seam emits `provider + status + result count` and never the
+  query. **Underneath both, `httpx` logs the FULL request URL at INFO on every request**, from its own global
+  `httpx` logger inside `_send_single_request` — and `main.py:162` configures
+  `logging.basicConfig(level=logging.INFO)`, so it is **live in production**, not theoretical.
+- **Measured (this session, mocked transport, no network):** the committed `HardenedFetcher` fetching
+  `https://docs.example.com/page?q=what+is+my+private+question` produced, in order:
+  - `INFO httpx: HTTP Request: GET https://104.20.23.154/page?q=what+is+my+private+question "HTTP/1.1 200 OK"`
+  - `INFO muthis.broker.net: [fetch] docs.example.com status=200 bytes=38 chars=5`
+  Our line is exactly right; the line above it is the leak. The same happens for the T3b **GET** providers
+  (Brave, SearXNG), where the logged URL embeds the **user's search query** — the surface DEC-18 already
+  singles out, since the query is authored by a model **that sees the screen**.
+- **Why it matters (and why it is not cosmetic):** DEC-20 names this exact vector — "a URL can carry
+  `?q=<the user's private query>`" — when it restricts the domain badge to the DOMAIN, never the full URL. The
+  same reasoning applies to the log file. This is the **DEC-13 posture in reverse**: our guard is correct, but a
+  layer beneath it silently undoes the property, so the protection is CIRCUMSTANTIAL (it holds only while nobody
+  reads the log). Scope: it matters where a URL carries user/model content — **the fetcher (any fetched URL) and
+  GET search providers (the query)**. The Anthropic and STT clients post to fixed paths with no query string, so
+  their lines carry nothing sensitive.
+- **NOT GUESSED — logged (per the standing rule).** Two candidate rulings, only Sultan decides:
+  - **(1) SILENCE at the composition root** — `logging.getLogger("httpx").setLevel(logging.WARNING)` beside
+    `basicConfig` in `main.py`. One line, closes it for every httpx user in the app. Cost: loses httpx
+    request-level visibility when debugging (could be restored under `MUTHIS_DEBUG`).
+  - **(2) REDACT with a broker-owned logging filter** on the `httpx` logger — keep the status/timing line, strip
+    the path + query. Narrower and keeps debuggability; costs a small module and still installs a global side
+    effect at the root.
+- **Status / what was done:** NOTHING in code — the fix lives at the composition root (`main.py`), which this
+  milestone's scope explicitly does not wire, and choosing between visibility and privacy is a governance call,
+  not an implementation guess. T3b's test is **scoped honestly** to what the seam owns
+  (`test_the_seam_never_logs_the_query` asserts over `muthis.*` records only) and its docstring points here, so
+  the limit is recorded rather than papered over.
+- **Implementation timing:** Sultan's ruling; the fix is one commit at the composition root and should land
+  BEFORE the T7 live SOP, since T7 runs the real app with real URLs and real queries and will write them to a
+  real log.

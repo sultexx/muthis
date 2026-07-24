@@ -13,7 +13,10 @@ ORDER:
      configured, that is a configuration mistake: say so in the log and degrade
      to the no-provider note — never silently answer with a different vendor than
      the one that was asked for.
-  2. Otherwise auto-detect, in DEC-18's order (Tavily is the default).
+  2. Otherwise auto-detect. The order is DERIVED, not invented: Tavily first
+     because DEC-18 makes it the DEFAULT, then the roadmap §3.1 enumeration
+     («نشحن Tavily وBrave … وSearXNG»). When several are configured the log names
+     the one that answered, and `MUTHIS_SEARCH_PROVIDER` is the explicit override.
   3. Otherwise NO provider — the ordinary short Arabic note, never an exception.
 
 NOTHING IS ECHOED FROM THE ENVIRONMENT into the logs — not even an unrecognized
@@ -29,7 +32,9 @@ from typing import Callable, Optional
 
 import httpx
 
+from .brave import BraveProvider
 from .protocol import NoSearchProvider, SearchProvider
+from .searxng import SearxngProvider
 from .tavily import TavilyProvider
 
 logger = logging.getLogger("muthis.broker.search")
@@ -38,15 +43,21 @@ Builder = Callable[..., SearchProvider]
 Configured = Callable[[], bool]
 
 # name -> (is it configured?, how to build it). A provider is "configured" when
-# the .env holds what it needs — a key, or (SearXNG, T3b commit 2) a base URL.
+# the .env holds what it NEEDS: a key for the commercial vendors, a base URL for
+# SearXNG — which needs no key at all, and for which no default is ever invented
+# (an unset base URL means the user has not made that trust decision).
 _PROVIDERS: dict[str, tuple[Configured, Builder]] = {
     "tavily": (lambda: bool(os.getenv("TAVILY_API_KEY", "").strip()), TavilyProvider),
+    "brave": (lambda: bool(os.getenv("BRAVE_API_KEY", "").strip()), BraveProvider),
+    "searxng": (lambda: bool(os.getenv("SEARXNG_BASE_URL", "").strip()), SearxngProvider),
 }
 
-# DEC-18's preference order for auto-detection: Tavily first — it returns
-# extracted content, so it collapses the search→fetch cycle (a narrower SSRF
-# surface, lower cost and latency).
-_AUTO_ORDER: tuple[str, ...] = ("tavily",)
+# Auto-detection order. Tavily first because DEC-18 makes it the DEFAULT (it
+# returns extracted content, so it collapses the search→fetch cycle — a narrower
+# SSRF surface, lower cost and latency); the rest follow the roadmap §3.1
+# enumeration, so the order is derived from the governing documents rather than
+# chosen here. An explicit MUTHIS_SEARCH_PROVIDER always overrides it.
+_AUTO_ORDER: tuple[str, ...] = ("tavily", "brave", "searxng")
 
 
 def build_search_provider(*, client: Optional[httpx.AsyncClient] = None) -> SearchProvider:

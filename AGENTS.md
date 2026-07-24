@@ -313,15 +313,32 @@ pip install -e sdk
 #   web_research search providers (V2 Phase-2 M2, DEC-18 — selection is CONFIGURATION, never a
 #   tool argument; nothing configured = a short Arabic "add a key in .env" note, never a crash
 #   and never a missing tool):
-#             MUTHIS_SEARCH_PROVIDER (which vendor answers: tavily. Unset = auto-detect from the
-#                                  keys below, in DEC-18's order),
+#             MUTHIS_SEARCH_PROVIDER (which vendor answers: tavily | brave | searxng. Unset =
+#                                  auto-detect in DEC-18's order — Tavily, then Brave, then
+#                                  SearXNG),
 #             TAVILY_API_KEY (the DEC-18 DEFAULT provider — Tavily returns EXTRACTED CONTENT, not
 #                                  only links, so it collapses the search→fetch cycle: fewer
 #                                  fetches = a narrower SSRF surface, lower cost, lower latency),
 #             TAVILY_BASE_URL (optional endpoint override, default https://api.tavily.com — the
 #                                  base URL is CONFIGURATION-ONLY BY CONSTRUCTION: no tool
 #                                  argument and no model input can supply one, so a tainted model
-#                                  can never aim the key-bearing client at another host)
+#                                  can never aim the key-bearing client at another host),
+#             BRAVE_API_KEY / BRAVE_BASE_URL (the keyed alternative — links + snippets, so a
+#                                  follow-up fetch is needed more often than with Tavily; default
+#                                  https://api.search.brave.com),
+#             SEARXNG_BASE_URL (the MAXIMUM-PRIVACY option — SearXNG is self-hosted: NO key, no
+#                                  credential of any kind on the request, 0.0 cost, and the query
+#                                  never reaches a commercial vendor (the §8.6 privacy exit). It
+#                                  has NO default: an unset base URL means the user has not made
+#                                  the trust decision, and Mut'his never invents an instance.
+#                                  Pointing it at localhost / a private LAN address is NORMAL and
+#                                  legitimate here — precisely the destination the DEC-17 fetcher
+#                                  blocks by design — because THIS address comes from the machine
+#                                  owner's own .env, while the fetcher's URL comes from the model
+#                                  reading TAINTED web content. That distinction only holds while
+#                                  the base URL stays configuration-only, which is enforced by the
+#                                  shape of the provider classes and asserted by name in
+#                                  tests/test_search_provider.py)
 
 # Tests (no network needed)
 set PYTHONPATH=src && python -m pytest tests/ -q

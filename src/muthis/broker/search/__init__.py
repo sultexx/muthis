@@ -5,9 +5,11 @@ The broker-owned SearchProvider seam (DEC-18) — the second half of the
 
 The consumer is BLIND to which vendor answered: one protocol (`protocol.py`),
 one key-bearing client (`client.py`), one `.env` switch (`selection.py`), and a
-vendor module per provider. A provider takes a QUERY STRING and answers with
-results or a short Arabic note — never an exception (Law 11), never a socket,
-never the key.
+vendor module per provider — Tavily (the DEC-18 default: extracted content, so
+fewer follow-up fetches), Brave (keyed, links + snippets), and SearXNG (the
+MAXIMUM-PRIVACY option: no key, self-hosted, 0.0 cost by construction). A
+provider takes a QUERY STRING and answers with results or a short Arabic note —
+never an exception (Law 11), never a socket, never the key.
 
 Nothing here is wired into a plugin yet: HOW `web_research` reaches a provider
 (the `ctx.net` analogue, DEC-24), the model-visible tool, the taint + wrapping at
@@ -18,6 +20,12 @@ machine, not its consumer.
 
 from __future__ import annotations
 
+from .brave import (
+    BRAVE_COST_PER_QUERY_USD,
+    BRAVE_DEFAULT_BASE_URL,
+    BRAVE_SEARCH_PATH,
+    BraveProvider,
+)
 from .client import (
     SEARCH_FAILED_AR,
     SEARCH_MALFORMED_AR,
@@ -41,6 +49,11 @@ from .protocol import (
     clean_query,
     response_from,
     results_from_items,
+)
+from .searxng import (
+    SEARXNG_COST_PER_QUERY_USD,
+    SEARXNG_SEARCH_PATH,
+    SearxngProvider,
 )
 from .selection import build_search_provider
 from .tavily import (
@@ -80,4 +93,11 @@ __all__ = [
     "TAVILY_DEFAULT_BASE_URL",
     "TAVILY_SEARCH_PATH",
     "TAVILY_COST_PER_QUERY_USD",
+    "BraveProvider",
+    "BRAVE_DEFAULT_BASE_URL",
+    "BRAVE_SEARCH_PATH",
+    "BRAVE_COST_PER_QUERY_USD",
+    "SearxngProvider",
+    "SEARXNG_SEARCH_PATH",
+    "SEARXNG_COST_PER_QUERY_USD",
 ]
