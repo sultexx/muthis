@@ -905,3 +905,73 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   false under duplication). The T7 measurement MUST check this interaction EXPLICITLY (does a real duplicated page
   truncate spuriously and mislead the user?), not only the raw token cost. Still no fix now.
 - **Implementation timing:** T7 real-page measurement; bundle any proposed remedy into that gate. No change now.
+
+---
+
+## DEC-26 (2026-07-25) — search-provider cost + wire contracts are DOC-DERIVED: verification is a T7 acceptance gate — APPROVED
+
+- **Item:** The status of the constants the T3b `SearchProvider` seam pins from vendor documentation —
+  `TAVILY_COST_PER_QUERY_USD = 0.008` and the Tavily wire contract (`POST {base}/search`, `Authorization: Bearer
+  <key>`, reply `results[].content`) — and what must happen before the milestone can close.
+- **Reason:** This machine has **no provider key** (DEC-21-F: Sultan adds `TAVILY_API_KEY` before T7), so T3b was
+  built and tested against a **mocked transport**. Both the price and the request/response shape therefore come
+  from the vendor's published documentation and have **never touched the real service**. The wire contract fails
+  loudly and safely if it drifted (a shape change degrades to a short Arabic note — Law 11), but **the cost
+  constant fails SILENTLY**: at T6 it feeds `record_plugin_call`, which adds to the plugin bucket **AND the
+  sovereign daily total** (M1-3). A wrong constant therefore corrupts the very budget ceiling **Rule 10** exists
+  to enforce — with no symptom until the ceiling behaves wrongly. That asymmetry is why the cost figure is called
+  out specifically.
+- **Resolution:** Both are ACCEPTED for T3b and recorded as DOC-DERIVED, with **verification against a real key
+  as an explicit T7 acceptance gate** — the pattern of DEC-25 (the unit contract proves OUR side; only a live run
+  proves the vendor's). The same status attaches to **every other provider constant behind this seam**: Brave's
+  price and wire contract (T3b COMMIT 2) are equally doc-derived and equally T7-gated. **SearXNG is 0.0 BY
+  CONSTRUCTION, not by documentation** — it is self-hosted, there is no vendor to bill — so it needs no
+  verification. Where a paid vendor offers a free tier, the constant pins the **PAID** price on purpose: for a
+  sovereign ledger, over-attribution stops the day early (safe) while under-attribution overspends (unsafe), so
+  the conservative direction is the correct default until measured.
+- **Implementation timing:** T7 live SOP — confirm the per-query cost against a real account and confirm the
+  request/response shape against a real call, for every CONFIGURED provider; re-pin any constant that drifted
+  (the `_PRICE_TABLE_USD_PER_MTOK` re-pin discipline). Recorded now so it survives to milestone close.
+
+---
+
+## DEC-27 (2026-07-25) — the search provider reaches the plugin by INJECTION, not by a capability — APPROVED (assigned to T6; DEC-24 style)
+
+- **Item:** HOW the `web_research` plugin obtains a `SearchProvider` (T3b built the seam but deliberately wired no
+  consumer), and whether the CLOSED capability enum (§1.1) must gain a `web.search` member.
+- **Reason:** T3b surfaced that the access route had **no assigned home** — the exact gap DEC-24 exists to
+  prevent ("a deferral with no assigned home can fall between tasks") — and that the closed enum carries
+  `net.fetch` but **no `web.search`**, so a capability route would require a constitutional amendment.
+- **Resolution (Sultan's ruling, recorded verbatim in substance):** **INJECTION, not a capability. Do NOT add
+  `web.search` to the closed capability enum.** The closed enum enumerates powers a plugin holds **over the
+  USER'S MACHINE OR RESOURCES** — see the screen, read a file, reach the network, execute. A search provider is
+  **none of those**: it is a **BROKER-OWNED, CONFIGURED CLOUD SERVICE paid for by Sultan's key**. The plugin
+  never touches the network — it hands over a **query string** and receives **results**; the network power stays
+  in the broker, where `net.fetch` already lives. Adding `web.search` would be a **CATEGORY ERROR**: it would
+  imply the plugin holds a network power it demonstrably does not, weakening the enum's meaning as the inventory
+  of **REAL authority** — which is precisely what makes it the golden rule's foundation. Therefore the provider
+  is **INJECTED into the plugin at composition time** (the broker owns the client, the key and the endpoint; the
+  plugin sees results only), landing at **T6** with its first consumer, and **NO constitutional amendment is
+  needed**. Recorded also: **`net.fetch` remains the plugin's ONLY network-related grant**, still
+  **granted-but-unwired** per DEC-24 until T6 wires `ctx.net` and makes the contract binary (granted → seam
+  PRESENT, denied → seam ABSENT).
+- **Implementation timing:** T6 (the `web_research` plugin), inseparable from it — T6 owns the injection exactly
+  as DEC-24 gave it the `ctx.net` seam. The SDK capability enum is UNCHANGED by this milestone.
+
+---
+
+## ENVIRONMENT FINDING (2026-07-25) — two virtualenvs on this machine: `.venv-v5` lacks trafilatura, so 10 net tests fail there — NOT a regression, NO code action
+
+- **Status:** ENVIRONMENT FINDING, not a code defect. Recorded so a future session does not misread it as a
+  regression and start "fixing" green code.
+- **Observation:** The repo has TWO virtualenvs. A shell opened for this project defaults to
+  **`.venv-v5\Scripts\python.exe`**, which does **not** have `trafilatura` / `lxml` installed; the project venv
+  named by AGENTS.md's Build & Run block is **`.venv`** (Python 3.14.4, `trafilatura 2.1.0`).
+- **Consequence (measured, T3b session):** under `.venv-v5` the suite reports **10 failed, 684 passed** — every
+  failure is an HTML-extraction path returning `EXTRACT_FAILED_AR`, because `extract_html`'s lazy
+  `import trafilatura` fails and the never-raise wall degrades to the Arabic note exactly as designed (the
+  failure is the DEGRADATION working, not the fetcher breaking). Under **`.venv` the same commit is GREEN**
+  (694 + 27 at T3a close; 726 + 27 after T3b COMMIT 1).
+- **Action:** NONE in code. Run the suite with `.venv/Scripts/python.exe` (or activate `.venv` first), per
+  AGENTS.md. If a future session sees exactly these 10 HTML-extraction failures, CHECK THE INTERPRETER before
+  reading it as a regression.
