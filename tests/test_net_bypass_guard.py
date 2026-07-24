@@ -35,6 +35,19 @@ never false-positive. httpx is out of scope entirely (the allow-list targets
 trafilatura + urllib3), so the hardened fetcher's legitimate httpx use — and
 T3b's provider client, also httpx — is never caught.
 
+KNOWN LIMITS (recorded, both accepted — the same limits test_pointer_look_only.py
+carries, and for the same reason):
+  * A DYNAMIC import — importlib.import_module("trafilatura"), __import__, a
+    getattr() on a string-built name — is invisible to a static AST scan and
+    would not be caught.
+  * The scan covers src/ ONLY; scripts/ (the live-SOP diag scripts) is not
+    scanned.
+Both are acceptable because the THREAT MODEL here is ACCIDENTAL bypass — a
+developer reaching for the nearest function that fetches a URL — not an
+adversarial insider deliberately hiding a dynamic import. A guard against that
+adversary would have to be a runtime import hook, which buys nothing against a
+contributor who can already edit the fetcher itself.
+
 Run:  set PYTHONPATH=src && python -m pytest tests/test_net_bypass_guard.py -q
 """
 
