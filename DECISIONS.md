@@ -768,3 +768,101 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   (DEC-20) and caption pacing are measured on the real primary path.
 - **Action:** NONE by the agent. Sultan sets a valid `ELEVENLABS_VOICE_ID` in the git-ignored `.env` (Law 5.1)
   before T7. No code change; no `.env` value was read.
+
+---
+
+## DEC-22 (2026-07-24) — web_research fetch needs a TOTAL wall-clock budget: the per-hop timeout is a turn-budget DoS under taint — APPROVED
+
+- **Item:** WHETHER the DEC-17 "10 s timeout" is per-hop or total, and the fix for the turn-budget
+  denial-of-service it opens. (T2 follow-up A1.)
+- **Finding (measured against the committed T2 code):** the 10 s is **PER httpx REQUEST**, not total. The
+  redirect loop issues up to 6 requests, and the robots.txt lookup is a **separate** `_fetch_raw` (its own
+  up-to-6-request chain), so a single `fetch_readable` is bounded only at **robots chain (≤6×10 s) + document
+  chain (≤6×10 s) ≈ 120 s** — worse than the 5×10 s=50 s first estimate — PLUS `getaddrinfo` (the DNS resolve in
+  `to_thread`) has **no timeout at all** and can hang the turn on its own. Against the **90 s** turn bound this is
+  a real **denial-of-service on the turn budget**, and it is **INSIDE the threat model, not theoretical**: under
+  DEC-15 the URL is chosen by **TAINTED** content, so injected content can point at a deliberately slow redirect
+  chain (or slow-resolving DNS) and starve the turn — the user hears silence, then the turn times out.
+- **Resolution:** Add a **TOTAL wall-clock budget covering the ENTIRE fetch operation** — DNS resolve + robots
+  lookup + every redirect hop + the streaming read — implemented as `asyncio.timeout()` wrapping the whole
+  operation in `HardenedFetcher.fetch_readable`. The **DEC-17 "10 s timeout" is now the TOTAL operation budget**
+  (per-request httpx waits stay 10 s as a subsumed backstop). On expiry the fetch **fails closed** to the Arabic
+  timeout note (never raises — Law 11). The budget is **injectable** (`total_budget_s`) so a test drives it
+  deterministically. Proven (scratchpad): `asyncio.timeout(0.10)` cut a 0.30 s slow-DNS resolve at 0.108 s with
+  the streamed `finally: aclose()` running cleanly and **zero task-destroyed warnings**; `TimeoutError is
+  asyncio.TimeoutError` on py3.14 so the catch is exact.
+- **Test (DEC-12 guard-sensitive):** a slow redirect chain (a resolver that blocks per hop) is **cut at the total
+  budget → the timeout note**, NOT `TOO_MANY_REDIRECTS` — so removing the budget flips the result to a different
+  note and the test goes RED; plus a test that the **robots.txt lookup is INSIDE the budget** (a slow robots
+  round-trip alone exhausts it → timeout before the document is fetched).
+- **HONEST LIMIT (recorded):** `getaddrinfo` cannot be truly cancelled — on a budget cut the resolver thread runs
+  to completion in the background (bounded by the OS resolver's own timeout) while the TURN is unblocked. Under
+  sustained attack these detached threads could accumulate; the **structural** mitigation is a per-turn fetch cap
+  in the `web_research` plugin (T6), not the fetcher. The budget VALUE (10 s) is revisable by Sultan; it is the
+  faithful inheritance of DEC-17's single stated timeout.
+- **Implementation timing:** NOW — a focused fix commit (its own test) on top of the mechanical `transport.py`
+  extraction the ≤300-line law requires first (DEC-23).
+
+---
+
+## DEC-23 (2026-07-24) — fetcher.py ceiling debt — TRACKED CONSTRAINT + the named transport split (follows the 2026-07-22 orchestrator precedent)
+
+- **Item:** `fetcher.py` reached **297/300** at T2 close — three lines of headroom on the milestone's
+  **most security-critical module** (the SSRF/pinning fetch loop). (T2 follow-up A2.)
+- **Reason:** The ≤300-line law (§17.4) leaves almost no room, and the **T7 live SOP is expected to surface a fix**
+  to exactly this module. A mid-fix compression under pressure is the precise failure the "extract, don't compress"
+  law exists to prevent — the same posture as the 2026-07-22 `orchestrator.py` ceiling CONSTRAINT.
+- **Resolution / constraint:** **ANY future touch to `fetcher.py`** (notably a T7-driven fix) MUST **extract before
+  adding, NEVER compress**, and the extraction candidate is identified at **PLANNING time**, not mid-fix. **The
+  natural split, named now:** the **transport layer** — the redirect loop `_fetch_raw` + `_issue` + `_read_capped`
+  ("given a URL, get validated bytes over the wire: SSRF re-validation per hop + manual redirects + the 2 MB
+  cap") — versus the **readable orchestration** — `_fetch_readable` ("cache → robots → rate-limit → content-type →
+  decode → FetchResult"). `address_guard` (validator) and `robots` / `session_policy` (policy) are already their
+  own modules.
+- **Execution NOW:** the DEC-22 total-budget fix would breach the ceiling, so this split is **executed immediately
+  as a MECHANICAL, behavior-identical commit** — `_fetch_raw`/`_issue`/`_read_capped` + their transport
+  constants/notes move to `broker/net/transport.py` (a `PinnedTransport` over the injected client + resolver);
+  `fetcher.py` delegates and RE-EXPORTS the moved names (the `turn.py`↔`highlight_gate` precedent) so no test
+  import changes. Full suite (678 + 27) green before the DEC-22 fix lands on top. The CONSTRAINT then stands for
+  all future touches.
+- **Implementation timing:** the extraction commit precedes the DEC-22 fix commit (this session).
+
+---
+
+## DEC-24 (2026-07-24) — ctx.net seam ownership: assigned to T6, and the granted-but-unwired state must not survive the milestone — APPROVED
+
+- **Item:** WHERE the `ctx.net.fetch_readable` capability seam lands (T2 deferred it), and the temporary
+  granted-but-unwired state of `net.fetch`. (T2 follow-up A3.)
+- **Reason:** T2's deferral of the seam is correct (stub-first, the DEC-10 precedent — no consumer exists until the
+  `web_research` plugin does). But a deferral with no assigned home can fall between tasks, and the current
+  half-wired state quietly violates the M1-4 broker contract if left standing.
+- **Resolution:**
+  - **(a) The seam is ASSIGNED to T6** — the SDK `NetCapability` + the broker wiring (`Broker(net_fetch=…)` →
+    `context_for` hands out `NetCapability` when `net.fetch` is granted) + the composition-root construction of the
+    long-lived `HardenedFetcher` all land **with the `web_research` plugin (T6)**, their first consumer. It cannot
+    be dropped between tasks — T6 owns it.
+  - **(b) The current GRANTED-BUT-UNWIRED state at `broker.py:92` is TEMPORARY and MUST NOT survive this
+    milestone.** Today `net.fetch` sits in the `context_for` "granted-but-unwired" subtraction set, so a plugin
+    that was **granted** `net.fetch` and one that was **denied** it see the **SAME** thing — an absent seam — which
+    is an undefined THIRD state that contradicts M1-4 ("denial = an ABSENT seam, never a different API" presumes the
+    grant, when wired, PRODUCES the seam). When wired at T6 the contract is **BINARY**: granted → seam **PRESENT**,
+    denied → seam **ABSENT**, no third case. **A test MUST assert BOTH directions** (the `test_broker.py`
+    partial-grant pattern), and `net.fetch` must be REMOVED from the unwired subtraction set at that point.
+- **Implementation timing:** T6 (the `web_research` plugin), inseparable from it.
+
+---
+
+## DEC-25 (2026-07-24) — the T7 live SOP MUST include the REAL-handshake SNI negative control — APPROVED
+
+- **Item:** The division of proof for the SNI pin between the T2 unit contract and the T7 live SOP. (T2 follow-up
+  A4.)
+- **Reason:** The T2 unit test proves **OUR contract** — the fetcher fails closed on a handshake error and pins SNI
+  to the **hostname, not the IP** (verify never disabled) — but a no-network unit test **cannot** prove the TLS
+  layer actually rejects a wrong SNI; only a live handshake can. This is the SAME division of proof as DEC-12's
+  deterministic-guard rule: the unit test drives our guard, the live run proves the underlying layer. It must not
+  be lost at milestone close.
+- **Resolution:** The **T7 live SOP MUST include the REAL-handshake SNI negative control** — a **wrong SNI against
+  a correct IP is rejected at the TLS handshake** — as an explicit acceptance gate, exercising the real TLS layer
+  (the pin technique P0/DEC-21-D proved once live on `example.com`). The unit contract (T2) and the live handshake
+  (T7) together are the full proof; neither alone suffices.
+- **Implementation timing:** T7 (the live SOP), recorded now so it survives to milestone close.
