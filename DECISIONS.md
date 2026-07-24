@@ -895,4 +895,13 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   measurement, not doctrine** — a bounded remedy (a conservative full-body-repeat collapse, a different extractor
   setting, or an alternative extractor), and present it to Sultan. If real pages are clean (as probing suggested),
   close this as a no-op. Either way the cap already bounds the blast radius.
+- **Cap INTERACTION — MUST be checked at T7 (Sultan's ruling, 2026-07-25):** the duplication INTERACTS with the
+  extract cap (`MAX_EXTRACT_CHARS`), and that interaction is worse than the raw token doubling. A page whose REAL
+  body is ~9k chars becomes ~18k when duplicated, so it **truncates at the cap** — a SPURIOUS truncation, because all
+  the real content actually fit under 4k tokens. Two consequences: (1) doubled tokens (bounded by the cap, as above);
+  and (2) the truncation's "request more" affordance becomes **MISLEADING** — the cut tail is a DUPLICATE, not new
+  content, so `EXTRACT_TRUNCATED_AR` implies there is more to read when there is not (the current note routes to the
+  vision path, not a re-fetch, so it does not literally re-fetch duplicates — but the incompleteness it signals is
+  false under duplication). The T7 measurement MUST check this interaction EXPLICITLY (does a real duplicated page
+  truncate spuriously and mislead the user?), not only the raw token cost. Still no fix now.
 - **Implementation timing:** T7 real-page measurement; bundle any proposed remedy into that gate. No change now.
