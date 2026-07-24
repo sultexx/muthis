@@ -252,6 +252,10 @@ landed as package modules under `src/muthis/`.)
 # Windows 11, Python 3.14.x venv (3.11+ required — tomllib; separate from the frozen v3.0 SafeGuard venv)
 python -m venv .venv && .venv\Scripts\activate
 pip install "anthropic>=0.40" httpx pydantic python-dotenv websockets sounddevice pytest pytest-asyncio mss pillow "pynput==1.7.7"
+# web_research fetch path (V2 Phase-2 M2, DEC-18/DEC-21): trafilatura extracts readable
+# text from fetched HTML; lxml is its parser. Placed with the module that needs them
+# (src/muthis/broker/net/extract.py); lazy-imported so non-web paths never load them.
+pip install trafilatura lxml
 # DEV/ASSET ONLY (NOT a runtime dep): numpy — used solely by scripts/generate_earcons.py
 # to synthesize assets/earcons/*.wav. Runtime earcons need only winsound + those WAVs.
 #   python scripts/generate_earcons.py   # (re)generate the bundled earcon WAVs

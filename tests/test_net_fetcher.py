@@ -23,7 +23,10 @@ import pytest
 from muthis.broker.net.address_guard import BLOCKED_ADDRESS_AR, SCHEME_AR
 from muthis.broker.net.fetcher import (
     CONTENT_TYPE_AR,
+    EXTRACT_FAILED_AR,
+    EXTRACT_TRUNCATED_AR,
     MAX_BYTES,
+    MAX_EXTRACT_CHARS,
     NETWORK_ERROR_AR,
     PDF_UNSUPPORTED_AR,
     ROBOTS_BLOCKED_AR,
@@ -34,6 +37,12 @@ from muthis.broker.net.fetcher import (
     FetchResult,
     HardenedFetcher,
 )
+
+
+def _html(text: str) -> str:
+    """Minimal HTML that trafilatura extracts to EXACTLY `text` (verified live in
+    the T3a probes) — so a content assertion can pin the extraction path."""
+    return f"<html><body><p>{text}</p></body></html>"
 
 
 def _resolver(mapping):
@@ -78,7 +87,7 @@ def test_pin_connects_to_ip_preserving_host_and_sni():
         seen["sni"] = request.extensions.get("sni_hostname")
         seen["cookie"] = request.headers.get("cookie")
         seen["auth"] = request.headers.get("authorization")
-        return httpx.Response(200, text="hello world", headers={"content-type": "text/html"})
+        return httpx.Response(200, text=_html("hello world"), headers={"content-type": "text/html"})
 
     result = _run(handler, "https://example.com/p?q=1",
                   mapping={"example.com": ["104.20.23.154"]}, robots_enabled=False)
@@ -193,15 +202,20 @@ def test_timeout_is_its_own_note():
 
 
 # ── content-type allowlist ───────────────────────────────────────────────────
-@pytest.mark.parametrize("ctype", ["text/html", "text/plain", "application/json",
-                                    "text/html; charset=utf-8"])
-def test_allowed_content_types_pass(ctype):
+@pytest.mark.parametrize("ctype, raw_body, expected", [
+    # HTML is EXTRACTED; text/plain + JSON are already readable and pass through.
+    ("text/html", _html("readable body"), "readable body"),
+    ("text/html; charset=utf-8", _html("readable body"), "readable body"),
+    ("text/plain", "readable body", "readable body"),
+    ("application/json", '{"k": "v"}', '{"k": "v"}'),
+])
+def test_allowed_content_types_pass(ctype, raw_body, expected):
     def handler(request):
-        return httpx.Response(200, text="body", headers={"content-type": ctype})
+        return httpx.Response(200, text=raw_body, headers={"content-type": ctype})
 
     result = _run(handler, "https://ct.example/",
                   mapping={"ct.example": ["104.20.23.154"]}, robots_enabled=False)
-    assert result.ok and result.content == "body"
+    assert result.ok and result.content == expected
 
 
 def test_pdf_refused_honestly():
@@ -228,7 +242,7 @@ def _robots_handler(*, disallow):
         if request.url.path == "/robots.txt":
             rules = "User-agent: *\nDisallow: /" if disallow else "User-agent: *\nAllow: /"
             return httpx.Response(200, text=rules, headers={"content-type": "text/plain"})
-        return httpx.Response(200, text="page", headers={"content-type": "text/html"})
+        return httpx.Response(200, text=_html("page"), headers={"content-type": "text/html"})
 
     return handler
 
@@ -249,7 +263,7 @@ def test_missing_robots_defaults_to_allow():
     def handler(request):
         if request.url.path == "/robots.txt":
             return httpx.Response(404, text="not found")
-        return httpx.Response(200, text="page", headers={"content-type": "text/html"})
+        return httpx.Response(200, text=_html("page"), headers={"content-type": "text/html"})
 
     result = _run(handler, "https://r.example/page",
                   mapping={"r.example": ["104.20.23.154"]}, robots_enabled=True)
@@ -261,7 +275,7 @@ def test_page_content_is_never_logged(caplog):
     canary = "CANARY-9f3a-secret-token"
 
     def handler(request):
-        return httpx.Response(200, text=f"page carrying {canary} inline",
+        return httpx.Response(200, text=_html(f"page carrying {canary} inline"),
                               headers={"content-type": "text/html"})
 
     with caplog.at_level(logging.DEBUG, logger="muthis.broker.net"):
@@ -291,7 +305,7 @@ def test_second_fetch_is_served_from_cache():
 
     def handler(request):
         calls["n"] += 1
-        return httpx.Response(200, text="cached-body", headers={"content-type": "text/html"})
+        return httpx.Response(200, text=_html("cached-body"), headers={"content-type": "text/html"})
 
     async def go():
         fetcher = HardenedFetcher(client=_client(handler),
@@ -401,8 +415,70 @@ def test_total_budget_includes_the_robots_lookup():
 def test_fast_fetch_is_unaffected_by_the_budget():
     # A normal fetch (default 10 s budget) completes well within it.
     def handler(request):
-        return httpx.Response(200, text="quick", headers={"content-type": "text/html"})
+        return httpx.Response(200, text=_html("quick"), headers={"content-type": "text/html"})
 
     result = _run(handler, "https://fast.example/",
                   mapping={"fast.example": ["104.20.23.154"]}, robots_enabled=False)
     assert result.ok and result.content == "quick"
+
+
+# ── DEC-18: readable extraction over the fetch path ──────────────────────────
+_ARTICLE_HTML = (
+    "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+    "<title>Understanding Binary Search</title></head><body>"
+    "<header><nav>Home | Docs | Blog SHOULD-DROP</nav></header><main><article>"
+    "<h1>Understanding Binary Search</h1>"
+    "<p>Binary search is a fundamental algorithm that locates a target value within "
+    "a sorted array by repeatedly halving the portion that could contain it.</p>"
+    "<p>This gives it a worst-case time complexity of O(log n), far better than the "
+    "O(n) of a linear scan over large sorted datasets.</p>"
+    "</article></main><footer><p>Copyright 2026 SHOULD-DROP</p></footer></body></html>"
+)
+
+
+def test_html_is_extracted_to_readable_text_stripping_boilerplate():
+    def handler(request):
+        return httpx.Response(200, text=_ARTICLE_HTML, headers={"content-type": "text/html"})
+
+    result = _run(handler, "https://doc.example/bs",
+                  mapping={"doc.example": ["104.20.23.154"]}, robots_enabled=False)
+    assert result.ok
+    assert "Binary search is a fundamental algorithm" in result.content  # prose kept
+    assert "O(log n)" in result.content
+    assert "SHOULD-DROP" not in result.content    # nav + footer boilerplate stripped
+    assert "<p>" not in result.content and "<article>" not in result.content  # markup gone
+
+
+def test_extraction_failure_degrades_to_a_note_and_never_leaks_raw_html():
+    # A JS-only SPA shell has no server-rendered prose -> trafilatura returns None.
+    # The contract: a short Arabic note, and the raw HTML/JS is NEVER the content
+    # (remove the None-guard and fall back to raw HTML and this test goes RED).
+    shell = ('<html><body><div id="root"></div>'
+             '<script>window.SECRET_STATE={token:"LEAK-CANARY"};render();</script></body></html>')
+
+    def handler(request):
+        return httpx.Response(200, text=shell, headers={"content-type": "text/html"})
+
+    result = _run(handler, "https://spa.example/app",
+                  mapping={"spa.example": ["104.20.23.154"]}, robots_enabled=False)
+    assert result.ok is False and result.text_ar == EXTRACT_FAILED_AR
+    assert result.domain == "spa.example"
+    assert result.content == ""                 # nothing leaked
+    assert "LEAK-CANARY" not in result.content  # the raw JS/markup never becomes content
+    assert "<script" not in result.content
+
+
+def test_over_cap_content_is_truncated_with_the_arabic_note():
+    # text/plain passes through un-extracted, so it drives cap_extract deterministically.
+    big = "word " * 5000  # 25000 chars, well over MAX_EXTRACT_CHARS, under the 2 MB raw cap
+
+    def handler(request):
+        return httpx.Response(200, text=big, headers={"content-type": "text/plain"})
+
+    result = _run(handler, "https://long.example/",
+                  mapping={"long.example": ["104.20.23.154"]}, robots_enabled=False)
+    assert result.ok
+    assert result.content.endswith(EXTRACT_TRUNCATED_AR)         # the "request more" hint
+    assert len(result.content) <= MAX_EXTRACT_CHARS + len(EXTRACT_TRUNCATED_AR)
+    assert len(result.content) < len(big)                        # actually shorter
+    assert result.size_bytes == len(big)                         # size_bytes is the RAW size

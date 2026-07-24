@@ -866,3 +866,33 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   (the pin technique P0/DEC-21-D proved once live on `example.com`). The unit contract (T2) and the live handshake
   (T7) together are the full proof; neither alone suffices.
 - **Implementation timing:** T7 (the live SOP), recorded now so it survives to milestone close.
+
+---
+
+## DEFERRED OBSERVATION (2026-07-25) — trafilatura sometimes duplicates a page body: token cost only, DEFERRED to a T7 real-page measurement
+
+- **Status:** DEFERRED — a token-efficiency OBSERVATION, not a defect. Handled by a T7 real-page measurement (the
+  v6 Phase-A / DEC-17 "revisit by measurement, never by guess" pattern); no code change now beyond the honest-limit
+  note already in `extract.py`. Recorded during T3a (COMMIT 1 — trafilatura extraction wired into `fetch_readable`).
+- **Item:** While wiring readable extraction (DEC-18), `trafilatura 2.1.0` was observed to emit a page's extracted
+  body **TWICE** on some documents (reproduced on short/synthetic articles; a longer realistic doc did NOT exhibit
+  it). Verified live that **no** `extract()` option suppresses it — `fast=True` / the deprecated `no_fallback=True`
+  / `include_tables=False` / `deduplicate=True` all still duplicate (`deduplicate` is a cross-CALL LRU, not
+  intra-document). It is an intrinsic library behavior on this version, not a wiring defect.
+- **Why it is NOT a defect (and why it is bounded):** it is neither a correctness nor a security issue — readable,
+  boilerplate-stripped text is still returned, markup is gone, a miss still degrades to the Arabic note, and content
+  is never logged. The only cost is TOKENS, and that is **bounded by `cap_extract`** (the ~4k-token / 16k-char cap):
+  a duplicated body is truncated at the same cap as any long page. So the worst case is "the model sees the first
+  ~4k tokens, possibly with a repeat," never an unbounded blow-up.
+- **Why NOT fixed now (per the standing rules):** a post-extraction de-duplicator would be a clever heuristic that
+  could **collapse legitimately-repeated prose** (a page that genuinely repeats a phrase), and "add nothing beyond
+  what was asked" plus "design for graceful approximation, never over-engineer" both counsel against it. The task
+  was to WIRE extraction, not to patch a third-party extractor. Guessing a fix on synthetic HTML is exactly the
+  anti-pattern DEC-17's "revisit by measurement" guards against — the real web_research target is documentation
+  pages (long, well-structured), where probing showed clean extraction.
+- **Resolution / nature:** at **T7** (the live SOP over REAL pages), MEASURE the real incidence of the duplication
+  across several genuine pages (docs / articles / mixed). IF it is material on real content, evaluate — **by
+  measurement, not doctrine** — a bounded remedy (a conservative full-body-repeat collapse, a different extractor
+  setting, or an alternative extractor), and present it to Sultan. If real pages are clean (as probing suggested),
+  close this as a no-op. Either way the cap already bounds the blast radius.
+- **Implementation timing:** T7 real-page measurement; bundle any proposed remedy into that gate. No change now.

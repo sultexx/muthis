@@ -6,11 +6,12 @@ receive `ctx.net.fetch_readable(url)` backed by this object, and web_research
 (first party) eats the same dogfood with NO privileged path.
 
 This module is the READABLE ORCHESTRATION layer: cache → robots → rate-limit →
-(wire) → content-type → decode → FetchResult. The wire layer (SSRF re-validation
-per hop, manual redirects, the 2 MB cap) lives in `transport.py` (PinnedTransport,
-split out under the ≤300-line law — DEC-23); its names are re-exported here so
-importers are unaffected. Address validation is `address_guard`; robots and the
-rate-limit/LRU are `robots` / `session_policy`.
+(wire) → content-type → decode → EXTRACT → cap → FetchResult. The wire layer
+(SSRF re-validation per hop, manual redirects, the 2 MB cap) lives in
+`transport.py` (PinnedTransport); the HTML→text extraction + the ~4k-token cap
+live in `extract.py` — both split out under the ≤300-line law (DEC-23) and
+re-exported here so importers are unaffected. Address validation is
+`address_guard`; robots and the rate-limit/LRU are `robots` / `session_policy`.
 
 Defenses, each a DEC-17 clause: content-type allowlist (html/plain/json), honest
 MuthisBot agent, per-domain rate limit, RAM-only session LRU (never launders
@@ -19,6 +20,12 @@ a SEPARATE long-lived httpx client, trust_env=False, zero cookies/auth (the
 Clicky lesson); NEVER raises (Law 11); content is NEVER logged. The whole
 operation runs under one TOTAL wall-clock budget (DEC-22) so a tainted slow
 redirect chain can never starve the turn.
+
+READABLE EXTRACTION (DEC-18, in extract.py): an HTML body is reduced to readable
+prose (markup stripped, NOT injection — the DEC-14 router wrapper is the injection
+guard), capped at ~4k tokens; text/plain and JSON pass through as-is. A miss
+degrades to a short Arabic note — it NEVER falls back to raw HTML (token-costly +
+injection-dense).
 """
 
 from __future__ import annotations
@@ -32,6 +39,13 @@ from urllib.parse import urlsplit
 import httpx
 
 from .address_guard import Resolver, system_resolver
+from .extract import (  # re-exported below so importers keep working
+    EXTRACT_FAILED_AR,
+    EXTRACT_TRUNCATED_AR,
+    MAX_EXTRACT_CHARS,
+    cap_extract,
+    extract_html,
+)
 from .robots import RobotsCache
 from .session_policy import RateLimiter, SessionCache
 from .transport import (  # re-exported below so importers keep working
@@ -64,8 +78,9 @@ CONTENT_TYPE_AR = "نوع محتوى هذا الرابط غير مدعوم — �
 @dataclass(frozen=True)
 class FetchResult:
     """What net.fetch hands back. On failure `ok` is False and `text_ar` is the
-    short Arabic note; on success `content` is the decoded readable text and
-    `domain` is the real (post-redirect) domain the DEC-20 badge draws from."""
+    short Arabic note; on success `content` is the EXTRACTED, budget-capped
+    readable text (markup stripped — DEC-18) and `domain` is the real
+    (post-redirect) domain the DEC-20 badge draws from."""
 
     ok: bool
     text_ar: str
@@ -165,14 +180,32 @@ class HardenedFetcher:
                 ok=False, text_ar=note, domain=raw.domain,
                 status=raw.status, content_type=raw.content_type,
             )
-        text = raw.body.decode("utf-8", errors="replace")
+        # Readable extraction (DEC-18, see extract.py): HTML → trafilatura (markup
+        # stripped, NOT injection — the DEC-14 router wrapper is the injection
+        # guard). text/plain + JSON are already readable. Runs OFF-loop, so it stays
+        # INSIDE the DEC-22 total budget. A miss degrades to a note — NEVER raw HTML.
+        decoded = raw.body.decode("utf-8", errors="replace")
+        if raw.content_type == "text/html":
+            readable = await asyncio.to_thread(extract_html, decoded)
+            if not readable:
+                logger.info("[fetch] %s status=%s extraction-empty", raw.domain, raw.status)
+                return FetchResult(
+                    ok=False, text_ar=EXTRACT_FAILED_AR, domain=raw.domain,
+                    status=raw.status, content_type=raw.content_type,
+                )
+        else:
+            readable = decoded
+        content, truncated = cap_extract(readable)
         result = FetchResult(
-            ok=True, text_ar="", content=text, final_url=raw.final_url,
+            ok=True, text_ar="", content=content, final_url=raw.final_url,
             domain=raw.domain, status=raw.status, content_type=raw.content_type,
             size_bytes=len(raw.body),
         )
         self._cache.put(key, result)
-        logger.info("[fetch] %s status=%s bytes=%s", raw.domain, raw.status, len(raw.body))
+        logger.info(
+            "[fetch] %s status=%s bytes=%s chars=%s%s", raw.domain, raw.status,
+            len(raw.body), len(content), " (truncated)" if truncated else "",
+        )
         return result
 
     async def _fetch_robots_text(self, robots_url: str) -> Optional[str]:
@@ -212,7 +245,8 @@ __all__ = [
     "HardenedFetcher", "FetchResult",
     # policy notes
     "ROBOTS_BLOCKED_AR", "PDF_UNSUPPORTED_AR", "CONTENT_TYPE_AR",
-    "ALLOWED_CONTENT_TYPES",
+    "EXTRACT_FAILED_AR", "EXTRACT_TRUNCATED_AR",
+    "ALLOWED_CONTENT_TYPES", "MAX_EXTRACT_CHARS",
     # re-exported transport surface (importers keep working)
     "USER_AGENT", "USER_AGENT_TOKEN", "MAX_BYTES", "TIMEOUT_S", "MAX_REDIRECTS",
     "TIMEOUT_AR", "NETWORK_ERROR_AR", "TOO_LARGE_AR", "TOO_MANY_REDIRECTS_AR",

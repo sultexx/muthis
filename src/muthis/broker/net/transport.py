@@ -38,7 +38,7 @@ MAX_REDIRECTS = 5          # §3.3 hop cap (5 redirects followed, the 6th refuse
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 # ─── Transport-layer Arabic notes (policy notes live in fetcher.py) ───────────
-TIMEOUT_AR = "انتهت مهلة الاتصال بالموقع. جرّب مرة ثانية أو افتحه على شاشتك."
+TIMEOUT_AR = "الموقع بطيء وانتهت المهلة — افتحه على شاشتك وأنا أقرأ لك منه."
 NETWORK_ERROR_AR = "ما قدرت أوصل للموقع. تأكد من الرابط والاتصال، أو افتحه على شاشتك."
 TOO_LARGE_AR = "محتوى الرابط أكبر من الحد المسموح (٢ ميغابايت). جرّب صفحة أصغر أو افتحه على شاشتك."
 TOO_MANY_REDIRECTS_AR = "الرابط فيه إعادة توجيه كثيرة. جرّب الرابط النهائي مباشرة."
