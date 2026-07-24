@@ -62,6 +62,7 @@ from muthis.broker.search import (
     TavilyProvider,
     build_search_provider,
 )
+from muthis.logging_policy import THIRD_PARTY_HTTP_LOGGERS, configure_logging
 
 # A canary shaped like a real key. It must never appear in a log or a note.
 SENTINEL_KEY = "tvly-CANARY-must-never-be-logged"
@@ -110,6 +111,20 @@ def configured_all(monkeypatch):
     monkeypatch.setenv("TAVILY_API_KEY", SENTINEL_KEY)
     monkeypatch.setenv("BRAVE_API_KEY", SENTINEL_KEY)
     monkeypatch.setenv("SEARXNG_BASE_URL", SEARXNG_BASE)
+
+
+@pytest.fixture
+def logging_policy():
+    """Apply the composition root's logging policy exactly as `main.main()` does
+    (DEC-28), then restore — a test must not leave global levels changed."""
+    saved = [
+        (logging.getLogger(name), logging.getLogger(name).level)
+        for name in THIRD_PARTY_HTTP_LOGGERS
+    ]
+    configure_logging()
+    yield
+    for logger, level in saved:
+        logger.setLevel(level)
 
 
 def _vendor_id(vendor) -> str:
@@ -471,24 +486,26 @@ def test_the_key_never_appears_in_logs_or_in_any_returned_note(
 
 
 @pytest.mark.parametrize("vendor", VENDOR_CLASSES, ids=_vendor_id)
-def test_the_seam_never_logs_the_query(configured_all, caplog, vendor):
+def test_the_query_is_never_logged(configured_all, caplog, logging_policy, vendor):
     """A query can carry what the user is looking at (DEC-20's never-log-content
-    discipline), so OUR lines carry the provider, the status and the result count
-    — nothing else.
+    discipline), so the log gets the provider, the status and the result count —
+    nothing else.
 
-    SCOPED to `muthis.*` records ON PURPOSE, and the scoping is itself a finding:
-    `httpx`'s own global logger prints the FULL request URL at INFO, which for a
-    GET vendor embeds the query, and `main.py` runs at INFO. That leak is real
-    but is neither caused nor fixable here — the logger is global to httpx and
-    shared with the already-committed hardened fetcher — so it is recorded as the
-    2026-07-25 LOGGING FINDING in DECISIONS.md and awaits Sultan's ruling. This
-    test pins what this seam OWNS; it would be dishonest to claim more."""
+    The guarantee now holds END-TO-END, over EVERY emitted record rather than
+    only our own: this asserts across ALL loggers, at DEBUG (more permissive than
+    production's INFO). It was previously scoped to `muthis.*`, because `httpx`
+    logs the FULL request URL at INFO — which for a GET vendor embeds the query —
+    and the composition root ran everything at INFO. That leak is CLOSED by the
+    DEC-28 logging policy, which this test applies exactly as `main.main()` does;
+    removing that policy turns this RED as well as its own regression test."""
     provider = vendor(client=_client(_ok_handler(_body_for(vendor))))
     with caplog.at_level(logging.DEBUG):
         _search(provider, query="my-private-screen-content")
-    ours = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("muthis"))
-    assert "my-private-screen-content" not in ours
-    assert vendor.name in ours and "results=2" in ours
+    emitted = "\n".join(f"{r.name}: {r.getMessage()}" for r in caplog.records)
+    assert "my-private-screen-content" not in emitted
+    # POSITIVE CONTROL: our own line is present, so the absence above is the
+    # policy working and not an empty log.
+    assert vendor.name in emitted and "results=2" in emitted
 
 
 # ── the destination is configuration, never an argument ─────────────────────

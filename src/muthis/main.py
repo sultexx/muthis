@@ -61,6 +61,7 @@ from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
 from muthis_plugins.sandbox_exec import SandboxExecPlugin  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
+from .logging_policy import configure_logging  # noqa: E402
 from .mic import Mic  # noqa: E402
 from .persona import resolve_system_prompt  # noqa: E402
 from .overlay import SidekickOverlay  # noqa: E402
@@ -159,7 +160,13 @@ def main() -> None:
         pass
     # English pipeline logs only. Transcript logging stays gated behind
     # MUTHIS_DEBUG inside the components — never enabled here.
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    # This ALSO applies the privacy policy that holds the third-party HTTP
+    # loggers at WARNING: httpx logs the FULL request URL at INFO on every
+    # request, which would put a fetched page's query string — and a GET search
+    # provider's QUERY, i.e. what the user asked while looking at their screen —
+    # into this app's log, defeating DEC-17, DEC-20 and the first privacy law.
+    # See logging_policy.py; it is a deliberate control, not boilerplate.
+    configure_logging()
     try:
         asyncio.run(run())
     except KeyboardInterrupt:

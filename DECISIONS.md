@@ -978,7 +978,7 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 
 ---
 
-## LOGGING FINDING (2026-07-25) — `httpx`'s OWN logger prints the full request URL at INFO, defeating the DEC-20 never-log-content discipline — OPEN, awaiting Sultan's ruling
+## LOGGING FINDING (2026-07-25) — `httpx`'s OWN logger prints the full request URL at INFO, defeating the DEC-20 never-log-content discipline — **→ CLOSED by DEC-28** (2026-07-25)
 
 - **Item:** Every module of this milestone logs with discipline — the fetcher emits `domain + status + size`,
   English only, zero content (DEC-20); the search seam emits `provider + status + result count` and never the
@@ -1014,3 +1014,56 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Implementation timing:** Sultan's ruling; the fix is one commit at the composition root and should land
   BEFORE the T7 live SOP, since T7 runs the real app with real URLs and real queries and will write them to a
   real log.
+- **→ RESOLVED by DEC-28** (2026-07-25): ruling = **SILENCE**, applied at the composition root, and executed
+  IMMEDIATELY — before T4 and **before the first real search key is used**, not at T7. See DEC-28.
+
+---
+
+## DEC-28 (2026-07-25) — silence third-party HTTP logging at the composition root — APPROVED (closes the LOGGING FINDING)
+
+- **Item:** The fix for the LOGGING FINDING above: WHERE the third-party URL leak is closed, by WHICH of the two
+  candidate mechanisms, and WHEN.
+- **Reason / urgency:** The finding nullified three signed rules at once — DEC-17 ("content is NEVER logged:
+  domain + status + size, English only"), DEC-20 (the badge is restricted to the DOMAIN *precisely because* a URL
+  can carry `?q=<the user's private query>`), and the constitution's first privacy law. Sultan has now
+  provisioned a real Tavily key, so **the moment a real search runs, every spoken query is written to the log** —
+  "before T7" was not soon enough. Fixed BEFORE T4 and before the first real key is used.
+- **Resolution — SILENCE, not redaction (deliberate, and the rationale is the record):** a redaction filter would
+  put security-sensitive parsing INSIDE the logging path, where a single defect leaks silently — **the exact
+  failure mode being eliminated**. Silencing **PREVENTS the write by construction** instead of sanitizing it
+  afterwards. **The diagnostic loss is nil:** the third-party line offers method + URL + status, while our own
+  line already carries domain + status + size — cleaner and more useful — so only the part that must never be
+  written is lost. This covers the API path too: a `POST /v1/messages` line has no diagnostic value worth a
+  privacy risk.
+  - **Applied at the composition root:** `main.main()` calls `configure_logging()` as its ONE logging call.
+  - **Defined in `src/muthis/logging_policy.py`** (stdlib, ~92 lines) — one definition, applied once; nothing is
+    scattered. It is deliberately NOT inline in `main.py` so a test can assert the policy WITHOUT importing the
+    composition root, which runs `load_dotenv()` at module level and would pull the developer's real keys — now
+    including a live Tavily key — into the test process.
+  - **Silenced (verified against the installed packages, not assumed):** **`httpx`** — the real leak,
+    `logger.info('HTTP Request: %s %s ...', method, url)` on EVERY request from ONE shared logger, so it covers
+    the fetcher, the search providers AND the Anthropic client; **`httpcore`** — NOT today's leak (it emits at
+    DEBUG only, everything routed through `_trace.py`'s `logger.debug`) but silenced anyway because it carries
+    the SAME content (its URL repr includes `target` = path + query), so one `basicConfig(level=DEBUG)` would
+    reopen the hole — closed by construction rather than by luck.
+  - **Deliberately NOT silenced, having been checked:** `anthropic` (request logging is `log.debug`; its only
+    INFO lines are token-compaction messages on a path Mut'his does not use), `websockets` (INFO carries server
+    lifecycle and a reconnect-retry exception summary, never a URI), `urllib3` (no INFO call sites at all — and
+    `src/` may not import it, DEC-21-E).
+  - **Our own `muthis.*` lines are UNCHANGED** — they were already correct.
+- **Guards (DEC-12, all mutation-verified):** `tests/test_logging_privacy.py` — (a) the policy NAMES the
+  libraries it requires *independently of the module's own tuple* (iterating that tuple made the guard
+  self-referential: deleting an entry deleted its expectation — caught by mutation); (b) after the root's setup
+  no covered logger emits at INFO while WARNING still surfaces; (c) an AST scan asserts `main.py` CALLS the
+  policy and never configures logging itself, so the silent revert the finding warns about fails; (d) an
+  end-to-end fetch captured over EVERY logger at DEBUG logs the domain and never the path, query, pinned IP or
+  the `HTTP Request` line, with a positive control so it cannot pass on an empty log. The search seam's
+  query-privacy test was WIDENED from `muthis.*` records to ALL emitted records. Mutations: removing the policy
+  call, dropping either library from the list, weakening WARNING to INFO, and reverting `main.py` to a bare
+  `basicConfig` each turn tests RED.
+- **Confirmed BY OBSERVATION** (the measurement that proved the leak re-run against the fix): a real fetch plus a
+  GET search provider now emit ONLY
+  `INFO muthis.broker.net: [fetch] docs.example.com status=200 bytes=38 chars=5` and
+  `INFO muthis.broker.search: [search] searxng status=200 / results=1` — with `HTTP Request`, `?q=`, the query
+  text, the path and the pinned IP all absent.
+- **Implementation timing:** NOW — one focused commit, before T4 and before any real search key is used.

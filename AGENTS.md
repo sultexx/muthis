@@ -499,6 +499,13 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
   lifecycles (Law 11). One `run()` call == one provider turn.
 - Do not log transcripts, audio, or screenshots by default. `MUTHIS_DEBUG=1` is the only gate for transcript
   logging, and it must never default to on.
+- Do not remove, weaken, or "tidy up" the third-party HTTP logging policy (`src/muthis/logging_policy.py`,
+  applied by `main.main()` as its ONE logging call) — and never re-add a bare `logging.basicConfig` there.
+  `httpx` logs the FULL request URL at INFO on every request, which writes a fetched page's query string and a
+  GET search provider's QUERY — what the user asked while looking at their screen — straight into the app log,
+  defeating DEC-17, DEC-20 and the privacy rule above (measured live 2026-07-25; ruled and closed by DEC-28,
+  SILENCE over redaction because a redaction filter puts security-sensitive parsing inside the logging path).
+  Our own `muthis.*` lines already carry domain + status + size, so nothing diagnostic is lost.
 - Do not parse coordinates out of response prose. Tool calls only.
 - Do not add features, refactor, or "improve" beyond what was asked.
 - Do not expose a non-read-only MCP tool to the model, bypass the broker for an external
