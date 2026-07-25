@@ -1067,3 +1067,51 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   `INFO muthis.broker.search: [search] searxng status=200 / results=1` — with `HTTP Request`, `?q=`, the query
   text, the path and the pinned IP all absent.
 - **Implementation timing:** NOW — one focused commit, before T4 and before any real search key is used.
+
+---
+
+## DEC-29 (2026-07-25) — Phase 1 ALREADY wrapped MCP results, so DEC-14 relocates that wrap instead of adding a second one — EXECUTED, flagged for Sultan's review
+
+- **Item:** T4 COMMIT 1 (DEC-14) wraps every tainted result at the `ToolRouter.service()` boundary. But
+  `broker/mcp/policy.py::wrap_result` has wrapped MCP results **since Phase 1** (called at `host.py:194` with
+  `source = "<server>.<tool>"`), so the MCP proxy — the ONE live taint=True route — would have been wrapped
+  TWICE. WHERE the wrap lives had to be settled before the wrap could be written.
+- **Why it was not a free choice (and so not a guess):** DEC-14 states the wrap lives **centrally** at the router
+  as a **universal constant** with **ZERO lines in any plugin**, and the T4 acceptance criteria require BOTH "the
+  MCP proxy path wrapped" AND "no double-wrap". Only one arrangement satisfies all three. The alternatives were
+  each rejected on a signed rule:
+  - **Keep both** → nests a **STATIC** delimiter inside the nonce-bearing one. The static form is exactly what
+    the DEC-14 nonce exists to close: content that prints `[نهاية المحتوى الخارجي]` closes the inner region. A
+    forgeable wrapper on the only live tainted path, while claiming central nonce-bearing wrapping, is the
+    CIRCUMSTANTIAL protection DEC-13 rejects.
+  - **Detect an existing wrap and skip** → a security decision taken by pattern-matching the payload, i.e.
+    closed by luck. Rejected for the same reason DEC-28 chose SILENCE over a redaction filter: never put
+    security-sensitive parsing inside the path being protected.
+- **Resolution (EXECUTED in T4 COMMIT 1):** the delimiters and the source naming move OUT of `policy.py` into
+  the kernel's `untrusted_content.py`, applied at the router. `policy.wrap_result` becomes
+  **`sanitize_result`** — hygiene only (text-only, image/audio dropped with the Arabic note, 16k cap), emitting
+  no delimiter; `host.py` calls it and no longer computes a source. The MCP path is now framed exactly ONCE,
+  **with** a nonce, by the kernel — a strict improvement on Phase 1, and DEC-14's "first real use of the taint
+  flag" is honored on a real existing consumer rather than a hypothetical one. Two allow-list AST guards keep it
+  single-sourced (one home for the form, one caller for the wrap), so double-wrapping is now impossible by
+  construction rather than by discipline.
+- **The two BEHAVIOUR changes on Phase-1 surfaces, stated plainly (Sultan's to accept or revert):**
+  1. **The source label changed** from `"<server>.<tool>"` (e.g. `demo.echo_ro`) to the **model-visible tool
+     name** (`demo__echo_ro`). The router derives the source from what IT knows — never from a plugin's
+     self-declaration (DEC-15) — and the model-visible name is what the model can actually cite.
+  2. **The host's OWN Arabic refusal notes are now framed too** (`SERVER_DISABLED_NOTE_AR`,
+     `SERVER_QUARANTINED_NOTE_AR`, `SERVER_FAILED_NOTE_AR`, `PLUGIN_FAILED_NOTE_AR`), because `is_error`
+     **deliberately does not gate the wrap**: that flag is set by the PLUGIN, so letting it skip the framing
+     would hand a plugin author a switch that smuggles external text in unwrapped. Over-framing one of our own
+     notes is harmless (a note read as data is still a note); under-framing external content is a hole. Two
+     Phase-1 host tests moved from `==` to `in` + an explicit framing assertion, and the reason is recorded in
+     the tests themselves.
+- **Not in scope of this ruling:** `broker/mcp/host.py`'s `mount(..., taint=True)` STAYS — that is the
+  kernel-side classification DEC-15 mandates (derived by us from the MCP hint, never self-declared), which is
+  also why `broker/mcp/**` is a documented EXCLUSION from the T4 AST guard while `broker/net/**`,
+  `broker/search/**` and `src/muthis_plugins/**` are scanned.
+- **Implementation timing:** T4 COMMIT 1 (executed). Verified: 789 app + 27 sdk green; 10 mutations all RED,
+  including "restore the Phase-1 static wrap in policy.py" (the double-wrap regression) and "pin the nonce to a
+  constant" (which the forgery test catches independently of the freshness test).
+
+---

@@ -20,6 +20,12 @@ raises into the turn — unknown tools, kernel-serviced tools, an absent
 capability seam, and even a contract-breaching plugin that raises all come
 back as a short Arabic tool_result note + an English log line.
 
+UNTRUSTED-CONTENT WRAPPING (DEC-14): this boundary is the app's ONE wrap site.
+Every result from a route mounted with taint=True leaves here framed in the
+§3.2 nonce-bearing delimiters (untrusted_content.py) — a universal constant
+every external tool inherits with ZERO lines in any plugin, because security a
+plugin author can weaken is not security (DEC-4).
+
 Mount-time errors DO raise (English ValueError): composition happens at app
 start / in tests, where failing loudly is correct.
 """
@@ -40,6 +46,7 @@ from muthis_sdk import (
 )
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL, ReadFileFn
+from .untrusted_content import wrap_untrusted
 
 logger = logging.getLogger("muthis.kernel.tool_router")
 
@@ -98,6 +105,35 @@ class ToolRouter:
             self._plugin_ledger(provenance, cost_usd)
         except Exception:  # noqa: BLE001 — accounting must never kill a turn
             logger.exception("[tool_router] plugin ledger seam raised — ignored")
+
+    def _outcome_for(self, route: _Mounted, tool: str, result: ToolResult) -> ServiceOutcome:
+        """The single exit for every call that reached a REAL route — and the
+        app's ONE untrusted-content wrap site (DEC-14).
+
+        The wrap is keyed off the OUTCOME's own taint flag, so the flag the
+        caller sees and the framing the model reads can never disagree.
+
+        `is_error` deliberately does NOT gate the wrap: it is set by the plugin,
+        so letting it skip the framing would hand a plugin author a switch that
+        smuggles external text in unwrapped — exactly what DEC-4 forbids.
+        Over-framing one of our own Arabic notes is harmless; under-framing
+        external content is a hole, so this fails in the safe direction.
+
+        The source is KERNEL-derived — the model-visible tool name, never a
+        plugin's self-declaration (DEC-15). A content-bearing tool's real source
+        URL rides in through this same parameter when T6 wires the web plugin.
+        """
+        outcome = ServiceOutcome(result=result, provenance=route.provenance,
+                                 taint=route.taint)
+        if not outcome.taint:
+            return outcome
+        return dataclasses.replace(
+            outcome,
+            result=ToolResult(
+                text_ar=wrap_untrusted(result.text_ar, source=tool),
+                is_error=result.is_error,
+            ),
+        )
 
     def mount(
         self,
@@ -170,21 +206,18 @@ class ToolRouter:
             # Arabic note stays single-sourced (file_reader.py). The Phase-1
             # broker generalizes this from manifest capability requirements.
             self._record(route.provenance, None)
-            return ServiceOutcome(
-                result=ToolResult(text_ar=FILE_READ_UNAVAILABLE_AR, is_error=True),
-                provenance=route.provenance, taint=route.taint,
-            )
+            return self._outcome_for(
+                route, tool,
+                ToolResult(text_ar=FILE_READ_UNAVAILABLE_AR, is_error=True))
         try:
             result = await route.plugin.execute(route.bare_name, args, route.ctx)
         except Exception:  # noqa: BLE001 — the never-raise wall (contract breach)
             logger.exception("[tool_router] plugin %r raised — contract breach", tool)
             self._record(route.provenance, None)
-            return ServiceOutcome(
-                result=ToolResult(text_ar=PLUGIN_FAILED_NOTE_AR, is_error=True),
-                provenance=route.provenance, taint=route.taint,
-            )
-        outcome = ServiceOutcome(result=result, provenance=route.provenance,
-                                 taint=route.taint)
+            return self._outcome_for(
+                route, tool,
+                ToolResult(text_ar=PLUGIN_FAILED_NOTE_AR, is_error=True))
+        outcome = self._outcome_for(route, tool, result)
         self._record(route.provenance, outcome.cost_usd)
         return outcome
 

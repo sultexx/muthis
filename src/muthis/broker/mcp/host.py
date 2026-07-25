@@ -34,7 +34,7 @@ from muthis_sdk.manifest import parse_manifest
 
 from ..broker import Broker
 from .client import McpSession, McpSessionError
-from .policy import ExposedTool, filter_tools, wrap_result
+from .policy import ExposedTool, filter_tools, sanitize_result
 from .proxy_plugin import McpProxyPlugin
 
 logger = logging.getLogger("muthis.broker.mcp.host")
@@ -190,8 +190,10 @@ class McpHost:
         except McpSessionError as exc:
             return self._strike(state, exc)
         state.strikes = 0
-        source = f"{state.manifest.name}.{tool}"
-        return ToolResult(text_ar=wrap_result(source, result))
+        # Hygiene only. The §3.2 framing + the source naming happen at the
+        # ToolRouter boundary (DEC-14), which sees this route's taint=True
+        # mount above — so the model reads this text nonce-wrapped, once.
+        return ToolResult(text_ar=sanitize_result(result))
 
     def _strike(self, state: _ServerState, exc: McpSessionError) -> ToolResult:
         state.strikes += 1
