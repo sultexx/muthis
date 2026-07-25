@@ -48,7 +48,8 @@ runs composition → registry, so re-exporting would be a cycle. Import it from
 `muthis.kernel.core_router`. The MODEL-FACING surfaces (the DEC-11 name form, the
 catalog cap, the Arabic refusal notes) live in router_surfaces.py — extracted the
 same way but RE-EXPORTED below, because that dependency runs dispatch → surfaces
-and cycles nothing, so no importer changed.
+and cycles nothing, so no importer changed. The `MountedRoute` record moved
+to router_registry.py the same way, and for the same reason.
 """
 
 from __future__ import annotations
@@ -67,6 +68,7 @@ from muthis_sdk import (
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
 from ..trust.high_impact import RouteImpact
+from .router_registry import MountedRoute
 from .router_surfaces import (
     KERNEL_SERVICED_NOTE_AR, MAX_TOOLS, NAMESPACE_SEP, PLUGIN_FAILED_NOTE_AR,
     UNROUTED_TOOL_NOTE_AR, namespaced_name,
@@ -75,19 +77,6 @@ from .session_taint import SessionTaint
 from .untrusted_content import wrap_untrusted
 
 logger = logging.getLogger("muthis.kernel.tool_router")
-
-
-@dataclasses.dataclass(frozen=True)
-class _Mounted:
-    """One mounted route: the exposed descriptor + how to reach its plugin."""
-
-    descriptor: ToolDescriptor  # as offered to the model (already namespaced)
-    bare_name: str              # the plugin's own view of the tool name
-    plugin: ToolPlugin
-    ctx: PluginContext
-    provenance: str
-    taint: bool = False         # external route (MCP): outcomes untrusted by definition
-    impact: RouteImpact = RouteImpact()  # DEC-15 facts, mounter-assigned (inert)
 
 
 class ToolRouter:
@@ -105,7 +94,7 @@ class ToolRouter:
         plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
         session_taint: Optional[SessionTaint] = None,
     ) -> None:
-        self._routes: dict[str, _Mounted] = {}
+        self._routes: dict[str, MountedRoute] = {}
         self._plugin_ledger = plugin_ledger
         # DEC-15: session-sticky taint, built at the composition root so its
         # LIFETIME is visibly the process's. The default is a REAL instance, not
@@ -128,7 +117,7 @@ class ToolRouter:
         except Exception:  # noqa: BLE001 — accounting must never kill a turn
             logger.exception("[tool_router] plugin ledger seam raised — ignored")
 
-    def _outcome_for(self, route: _Mounted, tool: str, result: ToolResult) -> ServiceOutcome:
+    def _outcome_for(self, route: MountedRoute, tool: str, result: ToolResult) -> ServiceOutcome:
         """The single exit for every call that reached a REAL route — the app's
         ONE untrusted-content wrap site (DEC-14) and its ONE taint-raise site
         (DEC-15).
@@ -199,7 +188,7 @@ class ToolRouter:
                 )
             if exposed.name in self._routes:
                 raise ValueError(f"tool name collision at mount: {exposed.name!r}")
-            self._routes[exposed.name] = _Mounted(
+            self._routes[exposed.name] = MountedRoute(
                 descriptor=exposed,
                 bare_name=descriptor.name,
                 plugin=plugin,
