@@ -45,7 +45,10 @@ start / in tests, where failing loudly is correct.
 `build_core_router` — the four-V1-plugin COMPOSITION — lives in core_router.py
 (extracted under the ≤300-line law). It is NOT re-exported here: the dependency
 runs composition → registry, so re-exporting would be a cycle. Import it from
-`muthis.kernel.core_router`.
+`muthis.kernel.core_router`. The MODEL-FACING surfaces (the DEC-11 name form, the
+catalog cap, the Arabic refusal notes) live in router_surfaces.py — extracted the
+same way but RE-EXPORTED below, because that dependency runs dispatch → surfaces
+and cycles nothing, so no importer changed.
 """
 
 from __future__ import annotations
@@ -64,31 +67,14 @@ from muthis_sdk import (
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
 from ..trust.high_impact import RouteImpact
+from .router_surfaces import (
+    KERNEL_SERVICED_NOTE_AR, MAX_TOOLS, NAMESPACE_SEP, PLUGIN_FAILED_NOTE_AR,
+    UNROUTED_TOOL_NOTE_AR, namespaced_name,
+)
 from .session_taint import SessionTaint
 from .untrusted_content import wrap_untrusted
 
 logger = logging.getLogger("muthis.kernel.tool_router")
-
-# Context-bloat brake (roadmap §3.2): every schema costs ~100-300 tokens, so
-# the merged list is hard-capped; semantic filtering arrives when catalogs grow.
-MAX_TOOLS = 24
-
-# DEC-11: the namespace↔tool separator for NON-core plugin tools. A DOUBLE
-# underscore — NOT a dot (the Anthropic tool-name pattern ^[a-zA-Z0-9_-]{1,128}$
-# forbids dots; a live 400 surfaced it), and NOT a single _ (ambiguous with an
-# underscore inside a tool name, which would break namespace parsing). THE
-# single source of the separator — every namespaced name derives from here.
-NAMESPACE_SEP = "__"
-
-
-def namespaced_name(namespace: str, tool: str) -> str:
-    """The model-visible name for a namespaced plugin tool (DEC-11)."""
-    return f"{namespace}{NAMESPACE_SEP}{tool}"
-
-# Arabic tool_result notes — the model-facing refusal surfaces (never spoken).
-UNROUTED_TOOL_NOTE_AR = "هذه الأداة غير متاحة في هذه الجلسة."
-KERNEL_SERVICED_NOTE_AR = "هذه الأداة تخدمها النواة مباشرة، لا هذا المسار."
-PLUGIN_FAILED_NOTE_AR = "تعذّر تنفيذ الأداة لعطل داخلي في الإضافة."
 
 
 @dataclasses.dataclass(frozen=True)

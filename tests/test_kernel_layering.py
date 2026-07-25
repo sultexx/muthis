@@ -28,6 +28,7 @@ KERNEL_MODULES = (
     "muthis.kernel.history_hygiene",
     "muthis.kernel.interrupt_hooks",
     "muthis.kernel.orchestrator",
+    "muthis.kernel.router_surfaces",
     "muthis.kernel.tool_router",
     "muthis.kernel.turn",
     "muthis.kernel.turn_pass",
