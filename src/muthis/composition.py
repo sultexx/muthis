@@ -22,6 +22,7 @@ import subprocess
 from .broker.broker import Broker
 from .broker.grants import GrantsStore
 from .broker.mcp.host import McpHost
+from .broker.net import HardenedFetcher
 from .cloud.claude_agent import ClaudeAgent
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
@@ -88,8 +89,9 @@ class _BridgeAutoHide:
         pass
 
 
-def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
-                        reader: FileReader) -> tuple[ToolRouter, McpHost]:
+def _build_broker_graph(
+    budget: Budget, overlay: SidekickOverlay, reader: FileReader,
+) -> tuple[ToolRouter, McpHost, HardenedFetcher]:
     """V2 Phase 1 (M1-7): the router + broker + MCP host composed at the
     root (roadmap part 2 §1). The bridge's screenshot rides the SAME
     hide→settle→capture chokepoint as every turn frame (§3.3); FileReader's
@@ -103,7 +105,15 @@ def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
 
     V2 Phase 2 (T5, DEC-16): the ConfirmGate is built the SAME way and for the
     same reason — a pending approval must outlive the turn that asked for it,
-    since it is answered in the NEXT one."""
+    since it is answered in the NEXT one.
+
+    V2 Phase 2 (T6, DEC-24): the HardenedFetcher — the EMBODIMENT of net.fetch
+    (DEC-17) — is built here too, and injected into the Broker so a granted
+    plugin's context carries the seam. ONE per process, deliberately: the
+    per-domain rate limit and the RAM-only session LRU only mean anything when
+    the whole session shares a single instance, and it owns a long-lived httpx
+    client whose shutdown the root owns (the `agent.aclose()` precedent), which
+    is why it is RETURNED rather than hidden inside the broker."""
     router = build_core_router(read_file=reader.read,
                                plugin_ledger=budget.record_plugin_call,
                                session_taint=SessionTaint(),
@@ -115,14 +125,15 @@ def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
     async def bridge_capture():
         return await bridge_frames.capture(TurnResult())
 
+    fetcher = HardenedFetcher()
     broker = Broker(grants=GrantsStore(), read_file=reader.read,
-                    capture=bridge_capture)
+                    capture=bridge_capture, net_fetch=fetcher.fetch_readable)
     # Three-strikes announcements log for now; the SPOKEN delivery joins the
     # voice line with Phase 2's first high-impact plugin (audio path sacred).
     host = McpHost(broker=broker,
                    announce=lambda note_ar: logger.warning(
                        "[main] mcp server disabled: %s", note_ar))
-    return router, host
+    return router, host, fetcher
 
 
 def _build_sandbox() -> SandboxService:

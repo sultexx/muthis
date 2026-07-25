@@ -86,7 +86,9 @@ async def run() -> None:
     mic = Mic()                  # REAL streaming mic (hold to talk, release to send)
     earcons = EarconPlayer()     # pleasant lifecycle cues (MUTHIS_EARCONS, default on)
     reader = FileReader()
-    router, mcp_host = _build_broker_graph(budget, overlay, reader)
+    # `fetcher` is the ONE net.fetch embodiment (DEC-17/DEC-24) — the root owns
+    # its shutdown because it owns a long-lived httpx client (see the finally).
+    router, mcp_host, fetcher = _build_broker_graph(budget, overlay, reader)
     # V2 Phase 2 (T5): mount run_code (namespaced) into the catalog + build its
     # servicer. The v2 model catalog is the router's descriptors — the FIRST
     # model-visible change since Phase 1 (byte-pinned to look_tools_v2.json).
@@ -148,6 +150,7 @@ async def run() -> None:
         listener.stop()       # stop the keyboard thread first (no new turns)
         await mcp_host.shutdown()  # terminate MCP children before the UI goes
         overlay.close()       # stop the overlay's Tk thread
+        await fetcher.aclose()  # release the net.fetch client (DEC-17: a SEPARATE pool)
         await agent.aclose()  # release the shared httpx client (root owns shutdown)
         logger.info("[main] shutdown complete")
 

@@ -26,6 +26,7 @@ from typing import Optional
 
 from muthis_sdk import (
     FilesCapability,
+    NetCapability,
     PluginContext,
     PluginManifest,
     ScreenCapability,
@@ -51,10 +52,12 @@ class Broker:
         grants: GrantsStore,
         read_file: Optional[ReadFileFn] = None,
         capture=None,  # async () -> Optional[bytes]; the kernel capture line
+        net_fetch=None,  # async (url: str) -> FetchResult; HardenedFetcher's ONE verb
     ) -> None:
         self._grants = grants
         self._read_file = read_file
         self._capture = capture
+        self._net_fetch = net_fetch
 
     def has_grant(self, manifest: PluginManifest, plugin_dir: str | Path) -> bool:
         """True iff a HASH-CURRENT consent record exists — distinct from
@@ -84,18 +87,35 @@ class Broker:
         screen = None
         if "perceive.screen" in granted and self._capture is not None:
             screen = ScreenCapability(capture=self._capture)
+        net = None
+        if "net.fetch" in granted and self._net_fetch is not None:
+            # The seam IS HardenedFetcher.fetch_readable — every DEC-17 defense
+            # (resolve-once IP pinning, per-hop re-validation, robots, the
+            # size/type caps, the DEC-22 total budget) fires inside the broker;
+            # the plugin gets readable content, never a socket, and nothing here
+            # is re-implemented (the FilesCapability discipline, applied to net).
+            net = NetCapability(fetch_readable=self._net_fetch)
         denied = granted - {
             c for c, wired in (
                 ("perceive.files.read", files is not None),
                 ("perceive.screen", screen is not None),
+                ("net.fetch", net is not None),
             ) if wired
-        } - {"annotate.overlay", "speak.caption", "net.fetch",
-             "sandbox.execute", "cache.session"}
+        } - {"annotate.overlay", "speak.caption", "sandbox.execute",
+             "cache.session"}
         if denied:
             logger.info("[broker] %s granted-but-unwired capabilities: %s "
                         "(their seams arrive in later phases)",
                         manifest.name, sorted(denied))
-        return PluginContext(files=files, screen=screen)
+        # DEC-24(b): `net.fetch` LEFT the granted-but-unwired subtraction set
+        # with this commit. While it sat there, a plugin GRANTED net.fetch and
+        # one DENIED it saw the same absent seam and the same silence — the
+        # undefined THIRD state M1-4 forbids ("denial = an ABSENT seam, never a
+        # different API" presumes the grant, when wired, PRODUCES the seam). The
+        # contract is now binary: granted+wired → present, denied → absent; and
+        # a root that forgot to build the fetcher is no longer swallowed — it
+        # surfaces on the granted-but-unwired line above.
+        return PluginContext(files=files, screen=screen, net=net)
 
 
 __all__ = ["Broker", "CAPABILITY_NOT_GRANTED_AR"]

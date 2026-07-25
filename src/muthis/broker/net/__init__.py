@@ -6,9 +6,13 @@ lives HERE, in the broker, and hands back readable content, never a socket.
 
 `address_guard` is the SSRF validator (built + tested first); `fetcher` is the
 IP-pinned fetch loop; `session_policy` holds the per-domain rate limiter and the
-RAM-only LRU. Nothing here is wired into a PluginContext yet — that seam
-(`ctx.net.fetch_readable`) arrives with the first consumer (web_research), per
-stub-first (Law §3.5): this milestone builds the machine, not its consumer.
+RAM-only LRU.
+
+WIRED SINCE T6 (DEC-24): the composition root builds ONE `HardenedFetcher` and
+injects `fetch_readable` into the Broker, which hands a granted plugin
+`ctx.net.fetch_readable` — and hands a denied plugin NOTHING. The contract is
+binary (M1-4): granted → the seam is PRESENT, denied → ABSENT, no third state
+and no refusing stub. A plugin never sees this package.
 """
 
 from __future__ import annotations

@@ -43,17 +43,50 @@ class ScreenCapability:
         self.capture = capture
 
 
+# net.fetch: a URL STRING in, the broker's readable-fetch result out. Typed
+# loosely on purpose — the RESULT type (muthis.broker.net.FetchResult) belongs
+# to the app, and the SDK stays dependency-free and importable in isolation, so
+# it must not import it. A plugin reads the fields it needs (`ok` / `text_ar` /
+# `content` / `domain`) and degrades politely on a failure.
+FetchReadableFn = Callable[[str], Awaitable[Any]]
+
+
+class NetCapability:
+    """The net.fetch seam (V2 Phase 2, sdk 2.0.0a3 — DEC-17 / DEC-24).
+
+    ONE verb: `fetch_readable(url)`. What is ABSENT is the design — no socket,
+    no HTTP client, no base URL, no header/method/redirect surface, nothing a
+    plugin could use to CONSTRUCT a request. A plugin hands over a URL string
+    and receives readable content, so every DEC-17 defense (resolve-once IP
+    pinning, per-hop re-validation, robots, the size/type caps, the total
+    wall-clock budget) lives in the broker where a plugin author cannot weaken
+    it (§3.3 — external plugin code holds no OS handle; DEC-4 — security a
+    plugin author can weaken is not security).
+
+    The contract is BINARY (M1-4, restated by DEC-24): granted AND wired → this
+    object rides the context; denied → `ctx.net` is None. There is deliberately
+    no third state and, in particular, no stub that refuses: a refusing stub is
+    a DIFFERENT API for a denied plugin, which is precisely what M1-4 forbids.
+    """
+
+    def __init__(self, fetch_readable: FetchReadableFn) -> None:
+        self.fetch_readable = fetch_readable
+
+
 @dataclass
 class PluginContext:
     """What the kernel hands a plugin for one execute() call.
 
     `files` is None unless the capability is wired — a plugin must degrade
     to a polite Arabic note when a capability it wants is absent, never
-    crash (the conformance kit exercises exactly that path).
+    crash (the conformance kit exercises exactly that path). The same rule
+    governs `screen` and `net`: absence IS the denial, and a plugin reads it
+    with a plain `is None` check, never a try/except around a refusing call.
     """
 
     files: Optional[FilesCapability] = None
     screen: Optional[ScreenCapability] = None
+    net: Optional[NetCapability] = None
     locale: str = "ar"
     logger: logging.Logger = field(
         default_factory=lambda: logging.getLogger("muthis.plugins")

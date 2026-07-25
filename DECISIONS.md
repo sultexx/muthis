@@ -1308,3 +1308,35 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   the version that was tested at 301 (only the extraction artefacts differ). 847 app + 27 sdk green.
 
 ---
+
+## DEC-33 (2026-07-25) — `ctx.net` has no muthis-profile bridge, so it is an IN-PROCESS capability today — DEFERRED QUESTION for community plugins
+
+- **Item:** T6a COMMIT 1 wired the `ctx.net.fetch_readable` seam (DEC-24). CONFIRMED while wiring it: the
+  `muthis-profile/1` bridge defines exactly THREE methods — `muthis/annotate` (itself deferred, Q-1.2),
+  `muthis/capture`, `muthis/read_file` (roadmap §8.4) — and **there is no `muthis/fetch`**. Verified in code, not
+  assumed: `broker/mcp/client.py` pins `BRIDGE_METHODS = frozenset({"muthis/read_file", "muthis/capture"})` (the
+  server→client door is limited to exactly that set), and `mcp_runtime._context()` returns
+  `PluginContext(files=…, screen=…)` with no `net`. So an OUT-OF-PROCESS (`kind=mcp`) plugin cannot reach
+  `ctx.net` even holding a hash-current `net.fetch` grant.
+- **Why it does NOT block this milestone:** `web_research` is a FIRST-PARTY NATIVE plugin (the `sandbox_exec`
+  precedent) mounted in-process at the composition root, so it receives the real capability object directly. The
+  gap has no consumer today, and stub-first (Law §3.5) forbids building a bridge for one that does not exist.
+- **Why it is NOT a contract violation either — it fails in the SAFE direction:** an out-of-process plugin sees an
+  ABSENT `ctx.net`, which is precisely the shape M1-4 mandates for denial, so it degrades politely with its Arabic
+  note exactly as the conformance kit's starved-context path exercises. DEC-24's binary contract (granted → seam
+  PRESENT, denied → ABSENT) is satisfied for every plugin the broker can actually wire. What is missing is
+  REACH, not correctness: the honest statement is that `net.fetch` is currently an in-process-only capability.
+- **The deferred QUESTION (not a design, deliberately):** should `muthis-profile/1` gain a `muthis/fetch` bridge so
+  community MCP plugins can hold `net.fetch`? It is a real decision with real weight — the bridge would carry a
+  URL chosen by an EXTERNAL plugin into the hardened fetcher, so the DEC-17 defenses would be doing exactly the
+  job they were designed for, but the trust surface widens (an external actor, not just externally-influenced
+  first-party code) and DEC-32's coupling means such a route's `taint`/`impact` classification must be settled at
+  the same time. **No bridge is designed or built here.**
+- **Resolution:** RECORDED as a deferred question, INTENTIONALLY UNASSIGNED to a phase — the deferral-ledger
+  posture item (b) took for `muthis/annotate`: assigning a landing phase is a roadmap decision, never an
+  implementation guess. It joins `muthis/annotate` as the second profile-bridge gap, and the two should be ruled
+  TOGETHER, since both widen the same §8.4 door.
+- **Implementation timing:** none. Re-read at the community-plugins phase (Phase 4) or whenever `V2_ROADMAP.md`
+  next revisits §8.4.
+
+---
