@@ -26,6 +26,13 @@ Every result from a route mounted with taint=True leaves here framed in the
 every external tool inherits with ZERO lines in any plugin, because security a
 plugin author can weaken is not security (DEC-4).
 
+SESSION TAINT (DEC-15): the same boundary raises the session-sticky taint, in
+the SAME branch as the wrap. Wrapping and raising are two consequences of ONE
+decision — "this result is untrusted" — and must never become two independent
+checks: a result that is WRAPPED but does not RAISE would leave the session
+looking clean, so T5's confirmation would never fire on a session that has
+already ingested adversarial content. `_outcome_for` is that single branch.
+
 Mount-time errors DO raise (English ValueError): composition happens at app
 start / in tests, where failing loudly is correct.
 
@@ -50,6 +57,7 @@ from muthis_sdk import (
 )
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
+from .session_taint import SessionTaint
 from .untrusted_content import wrap_untrusted
 
 logger = logging.getLogger("muthis.kernel.tool_router")
@@ -98,9 +106,25 @@ class ToolRouter:
     both consumed a service attempt); unrouted/misrouted refusals are not
     attributed to anyone. The seam never raises into a turn."""
 
-    def __init__(self, *, plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None) -> None:
+    def __init__(
+        self, *,
+        plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
+        session_taint: Optional[SessionTaint] = None,
+    ) -> None:
         self._routes: dict[str, _Mounted] = {}
         self._plugin_ledger = plugin_ledger
+        # DEC-15: session-sticky taint, built at the composition root so its
+        # LIFETIME is visibly the process's. The default is a REAL instance, not
+        # None: a composition that forgot to inject one must still RECORD taint
+        # (fail-closed) — an optional-and-silently-absent security seam is how a
+        # session stays "clean" while untrusted content flows through it.
+        self._session_taint = session_taint if session_taint is not None else SessionTaint()
+
+    @property
+    def session_taint(self) -> SessionTaint:
+        """Read-only access for the kernel (T5's confirm gate reads this state).
+        There is no setter and no clearing path — see session_taint.py."""
+        return self._session_taint
 
     def _record(self, provenance: str, cost_usd: Optional[float]) -> None:
         if self._plugin_ledger is None:
@@ -111,8 +135,17 @@ class ToolRouter:
             logger.exception("[tool_router] plugin ledger seam raised — ignored")
 
     def _outcome_for(self, route: _Mounted, tool: str, result: ToolResult) -> ServiceOutcome:
-        """The single exit for every call that reached a REAL route — and the
-        app's ONE untrusted-content wrap site (DEC-14).
+        """The single exit for every call that reached a REAL route — the app's
+        ONE untrusted-content wrap site (DEC-14) and its ONE taint-raise site
+        (DEC-15).
+
+        BOTH consequences live under the SAME single condition, on purpose. They
+        are one decision — "this result is untrusted" — and splitting them into
+        two checks opens this milestone's worst hole: content that gets WRAPPED
+        without RAISING leaves the session looking clean, so T5's confirmation
+        never fires on a session that already ingested adversarial content. Keep
+        this function at exactly ONE `if`; a second condition here is how the two
+        drift apart (`test_session_taint.py` asserts that structurally).
 
         The wrap is keyed off the OUTCOME's own taint flag, so the flag the
         caller sees and the framing the model reads can never disagree.
@@ -131,6 +164,7 @@ class ToolRouter:
                                  taint=route.taint)
         if not outcome.taint:
             return outcome
+        self._session_taint.raise_taint(route.provenance)
         return dataclasses.replace(
             outcome,
             result=ToolResult(
@@ -229,6 +263,7 @@ class ToolRouter:
 __all__ = [
     "MAX_TOOLS",
     "NAMESPACE_SEP",
+    "SessionTaint",
     "namespaced_name",
     "KERNEL_SERVICED_NOTE_AR",
     "PLUGIN_FAILED_NOTE_AR",

@@ -93,9 +93,28 @@ def test_mount_filters_and_namespaces_and_taints(tmp_path):
         nonces = re.findall(r"الرقم: ([0-9a-f]+)\]", text)
         assert len(nonces) == 2 and nonces[0] == nonces[1]
         assert outcome.provenance == "mcp:demo"
+        # DEC-15 on the REAL path: an MCP result raises the session-sticky taint
+        # in the SAME router branch that framed it — a real live consumer of the
+        # taint=True mount above, not a synthetic route.
+        assert router.session_taint.tainted is True
         await host.shutdown()
     asyncio.run(go())
     assert budget.plugin_spend_today()["mcp:demo"]["calls"] == 1
+
+
+def test_the_session_starts_clean_before_any_mcp_call(tmp_path):
+    """The other side of the same fact: mounting an external server does NOT
+    taint the session — INGESTING its content does. Without this, the raise
+    test above would pass on a router that was born tainted."""
+    host, router = _world(tmp_path)
+
+    async def go():
+        await host.mount_all(router)
+        assert router.session_taint.tainted is False   # mounted, not yet used
+        await router.service(namespaced_name("demo", "echo_ro"), {"text": "hi"})
+        assert router.session_taint.tainted is True
+        await host.shutdown()
+    asyncio.run(go())
 
 
 def test_ungranted_server_is_never_mounted(tmp_path):

@@ -26,8 +26,9 @@ from .cloud.claude_agent import ClaudeAgent
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
 from .kernel.frame_capture import FrameCapture
-from .kernel.orchestrator import Orchestrator
 from .kernel.core_router import build_core_router
+from .kernel.orchestrator import Orchestrator
+from .kernel.session_taint import SessionTaint
 from .kernel.tool_router import ToolRouter
 from .kernel.turn import TurnResult
 from .overlay import DEFAULT_POINTER_ANIM_MS, SidekickOverlay
@@ -91,9 +92,16 @@ def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
     """V2 Phase 1 (M1-7): the router + broker + MCP host composed at the
     root (roadmap part 2 §1). The bridge's screenshot rides the SAME
     hide→settle→capture chokepoint as every turn frame (§3.3); FileReader's
-    gates guard the read seam for core plugin and bridge alike."""
+    gates guard the read seam for core plugin and bridge alike.
+
+    V2 Phase 2 (T4, DEC-15): the session-sticky SessionTaint is built HERE — at
+    the root, once per process — and injected into the router, the single
+    chokepoint every tool result crosses. Built here rather than inside the
+    router so its LIFETIME reads as what it is: the process's, not a per-turn
+    object (contrast SandboxGate, rebuilt every turn). No orchestrator touch."""
     router = build_core_router(read_file=reader.read,
-                               plugin_ledger=budget.record_plugin_call)
+                               plugin_ledger=budget.record_plugin_call,
+                               session_taint=SessionTaint())
     bridge_frames = FrameCapture(
         overlay=overlay, screen_capture=ScreenCapture().capture,
         downscale=downscale_to_max_width, auto_hide=_BridgeAutoHide())

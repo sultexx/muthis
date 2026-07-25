@@ -1113,5 +1113,55 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Implementation timing:** T4 COMMIT 1 (executed). Verified: 789 app + 27 sdk green; 10 mutations all RED,
   including "restore the Phase-1 static wrap in policy.py" (the double-wrap regression) and "pin the nonce to a
   constant" (which the forgery test catches independently of the freshness test).
+- **RULINGS on the two behaviour changes — BOTH APPROVED (Sultan, 2026-07-25), with the rationale as the record:**
+  1. **Source label = the model-visible name is a CORRECTION, not a regression.** The label exists so the model
+     can CITE the source (DEC-20); a label that differed from the model's own catalog name would produce a
+     citation naming a tool **that does not exist in its tool list**. It is also consistent with DEC-11, which
+     amended ruling C-3's separator to `__` for every namespaced tool. Phase-1 impact is **nil in practice**:
+     mounted MCP tools lived in the ROUTER only and were never offered to the model (the Phase-1 scope law).
+  2. **Framing the host's own refusal notes is correct and stays.** Over-framing one of our notes is harmless —
+     the note is informational, and classifying it as DATA is the RIGHT classification. Under-framing external
+     content is a HOLE. Since `is_error` is **plugin-set**, honoring it would hand a plugin author a **one-flag
+     bypass** for smuggling unwrapped external text. It fails in the safe direction.
+
+---
+
+## DEC-30 (2026-07-25) — tool_router.py breached the ceiling at T4 COMMIT 2, so the approved extraction executed THEN, not at T5 — EXECUTED (refines DEC-23's posture with a measurement correction)
+
+- **Item:** `tool_router.py` measured **302/300** once the DEC-15 taint wiring was written — a genuine breach of
+  the §17.4 law, inside the commit that caused it. WHEN the pre-approved `build_core_router` extraction runs, and
+  WHY it could not be re-exported.
+- **The measurement correction (the reason this is logged, not just done):** the extraction candidate
+  (`build_core_router` → `kernel/core_router.py`) and its mechanism were **already approved**, with timing set to
+  "**the START of T5**, in its own mechanical commit" — explicitly on the agent's estimate that COMMIT 2 would
+  land at **~280**, which is legal. Measured, it was **302**. The premise failed, so the timing ruling's own
+  governing principle applies instead: **extract immediately before the addition that would breach**, never
+  extract early — which now points at COMMIT 2, not T5. Recorded because the agent moved a ruled timing on its
+  own measurement; the DECISION (what to extract, how) was Sultan's and is unchanged.
+- **Why not the two alternatives:** trimming the just-written rationale to fit a line count is the **COMPRESSION**
+  §17.4 exists to forbid (and it would delete the WHY of a security funnel); committing at 302 breaks the law
+  outright. There was no third option that preserved both.
+- **Resolution (EXECUTED, commit `9b5d5a0`, before the taint commit):** `build_core_router` moved VERBATIM to
+  `kernel/core_router.py` — proven byte-for-byte identical by diff against HEAD — leaving `tool_router.py` at
+  **237**, then **272** after the taint wiring (28 lines of headroom for T5). Composition (which four plugins
+  exist) is a different responsibility from dispatch, so the registry loses nothing; and the file that is now the
+  ONE wrap site (DEC-14) and the ONE raise site (DEC-15) stays short enough to read whole.
+- **SUB-DECISION worth its own record — NO re-export, unlike DEC-23's `transport.py` split.** DEC-23 could keep
+  `fetcher.py` re-exporting its moved names because the dependency ran **fetcher → transport**. Here it runs the
+  other way: **composition → registry**, so `tool_router.py` re-exporting `build_core_router` would be an import
+  CYCLE, breakable only by a lazy function-level import or a bottom-of-file import — cleverness inside the
+  kernel, and the bottom-import variant **fails outright** if `core_router` is imported first. So importers name
+  the module directly (7 sites, incl. `scripts/diag_sandbox.py` — the live-SOP script, updated deliberately so
+  the next live run cannot fail on a stale import), and `core_router` joined the import-in-isolation guard. The
+  DEC-23 precedent does **not** transfer; check the dependency direction before assuming a re-export is available.
+- **Standing constraint (unchanged in force, refreshed in numbers):** `tool_router.py` is at **272/300**. T5 adds
+  the confirm-gate call site and **MUST measure before writing**; if it approaches 300, extract first, in its own
+  mechanical commit. Never compress.
+- **Follow-up owed:** DEC-19 requires a LIVE test after every mechanical extraction (unit tests have historically
+  missed exactly what extraction breaks). This extraction is unit-verified only — 789 + 27 green, including the
+  byte-pinned V1 catalog snapshot that proves the four-plugin mount order survived. It touches the router
+  composition every turn crosses, so it must be covered by the next live run on Sultan's hardware (the DEC-21
+  Task-4a/4b pattern: a boot + one pointing turn + one `read_local_file` turn + one `sandbox__run_code` turn).
+- **Implementation timing:** executed 2026-07-25 between T4 COMMIT 1 and COMMIT 2.
 
 ---
