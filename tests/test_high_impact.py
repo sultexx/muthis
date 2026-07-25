@@ -208,17 +208,20 @@ def test_the_mcp_host_states_the_hint_it_read():
     assert len(stated) == 1, "the MCP mount must state the readOnlyHint it read"
 
 
-# ─── Inert this commit ───────────────────────────────────────────────────────
+# ─── What the classification is FOR ──────────────────────────────────────────
 
-def test_the_classification_changes_no_behaviour_yet():
-    """Stub-first: the facts are mounted, nothing consumes them. A high-impact
-    route under ACTIVE taint still executes — the refusal is the next commit's
-    to add, and this test is its acceptance mirror."""
+def test_the_classification_is_now_consumed_by_the_gate():
+    """The inertness mirror, inverted at the commit boundary it was written for:
+    the very route that executed while no gate existed is now REFUSED under
+    active taint. Classification alone changes nothing; joined to the session
+    state at the router it is the whole enforcement. The two-turn flow itself is
+    the subject of tests/test_confirm_gate.py."""
     router = ToolRouter()
     router.mount(_Plugin("act"), namespace="ext", provenance="mcp:ext",
                  taint=True, impact=RouteImpact(capabilities=NETWORK))
     router.session_taint.raise_taint("web:test")
 
     outcome = asyncio.run(router.service(namespaced_name("ext", "act"), {}))
-    assert outcome.result.is_error is False
-    assert "نتيجة" in outcome.result.text_ar
+    assert outcome.result.is_error is True
+    assert outcome.provenance == "kernel:confirm"
+    assert "نتيجة" not in outcome.result.text_ar   # the plugin never ran

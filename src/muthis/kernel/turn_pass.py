@@ -104,6 +104,10 @@ class TurnPass:
         Also the per-turn setup hook: resets the sandbox run gate (T5)."""
         if self._sandbox is not None:
             self._sandbox.new_turn()  # fresh ≤3-runs/turn budget, like HighlightGate
+        # DEC-16: arm the confirm gate's ONE look at this turn's transcript. It
+        # rides the SAME turn-boundary hook as the sandbox gate on purpose —
+        # DEC-19 forbids inventing a second one, and this hook is proven live.
+        self._router.confirm_gate.new_turn()
         if self._stream_tts and self._session_factory is None:
             from ..tts import TTS  # lazy real default: only the flag-ON path pays
             self._session_factory = TTS().open_speech_session
@@ -126,6 +130,14 @@ class TurnPass:
         for a new screenshot; read_result is (call, content) for the FIRST
         read_local_file of the pass, already serviced (v7 Phase 4) — the
         pipeline rides both into build_tool_result_message."""
+        # DEC-16: the deterministic approval detector reads the RAW transcript
+        # HERE, before the provider runs, because this is where the kernel
+        # already hands it over — which is what keeps orchestrator.py
+        # byte-identical (DEC-19 zero touch). The gate itself is one-shot per
+        # turn, so the agentic loop's continuation passes (empty text, or the
+        # refresh follow-up constant) cannot expire a pending approval inside
+        # the very turn that asked for it. The model is never consulted.
+        self._router.confirm_gate.observe(user_input.text)
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
         read_call: Optional[ToolCall] = None

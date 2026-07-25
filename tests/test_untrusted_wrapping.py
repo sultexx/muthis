@@ -30,6 +30,7 @@ from muthis.broker.mcp.policy import ExposedTool
 from muthis.broker.mcp.proxy_plugin import McpProxyPlugin
 from muthis.kernel.core_router import build_core_router
 from muthis.kernel.tool_router import ToolRouter, namespaced_name
+from muthis.trust.high_impact import RouteImpact
 from muthis.kernel.untrusted_content import (
     NONCE_HEX_CHARS,
     WRAP_CLOSE_AR,
@@ -65,9 +66,14 @@ class _ExternalPlugin(ToolPlugin):
 
 
 def _external_router(plugin: ToolPlugin, namespace: str = "web") -> tuple[ToolRouter, str]:
+    """An external (tainted) route mounted as the MCP host mounts one: with the
+    readOnlyHint the kernel read (T5, DEC-15), so it is NOT high-impact and the
+    DEC-16 confirm gate stays out of the wrap's way. The wrap keys off `taint`
+    alone, so coverage is unchanged; the gate's own interaction with a tainted
+    session is the subject of tests/test_confirm_gate.py."""
     router = ToolRouter()
     router.mount(plugin, namespace=namespace, provenance=f"{namespace}:test",
-                 taint=True)
+                 taint=True, impact=RouteImpact(read_only_hint=True))
     return router, namespaced_name(namespace, plugin.descriptors()[0].name)
 
 

@@ -768,6 +768,24 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   (DEC-20) and caption pacing are measured on the real primary path.
 - **Action:** NONE by the agent. Sultan sets a valid `ELEVENLABS_VOICE_ID` in the git-ignored `.env` (Law 5.1)
   before T7. No code change; no `.env` value was read.
+- **UPDATE (2026-07-25) — the degradation was worse than latency, and the prerequisite is now HARD.** A later
+  live run showed the failure CASCADING past the fallback: with the invalid voice id one turn fell to Gemini as
+  designed, and then **Gemini itself TIMED OUT twice** on a 422-char reply, ending at **`provider="none"` — NO
+  AUDIO AT ALL for that turn**. The cascade behaved exactly as specified (`speak()` never raised, the turn did
+  not crash, `MUTHIS_GEMINI_TIMEOUT_S` allows exactly one fast retry, and a double timeout is documented to
+  degrade to `provider="none"`), so this remains an ENVIRONMENT finding and not a code defect — but the
+  consequence is categorically different from "first audio is late": a **silent turn**. Two things follow.
+  (a) Resolving `ELEVENLABS_VOICE_ID` is now a **HARD prerequisite for T7**, not a measurement-quality one: with
+  total audio failure the live SOP cannot verify the voice path AT ALL — not the DEC-20 citation audio-sync, not
+  caption pacing, not the domain badge's per-turn lifecycle, and not the spoken robots-refusal of DEC-17. A
+  milestone cannot be closed on a run where the primary output surface never spoke. (b) The single-provider
+  fallback chain has a measured floor: when the PRIMARY is misconfigured, the FALLBACK's own timeout is all that
+  stands between the user and silence — worth remembering when the multi-provider protocol is revisited, though
+  no code action is taken here.
+- **STATUS (2026-07-25):** Sultan has REPLACED `ELEVENLABS_VOICE_ID`. The new id is **PENDING LIVE
+  VERIFICATION** at the next live run (which the DEC-30 follow-up already owes for the `core_router` extraction —
+  the same run can discharge both). Until that run reports ElevenLabs streaming progressively, the T7 voice-path
+  checks stay blocked.
 
 ---
 
@@ -1163,5 +1181,130 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   composition every turn crosses, so it must be covered by the next live run on Sultan's hardware (the DEC-21
   Task-4a/4b pattern: a boot + one pointing turn + one `read_local_file` turn + one `sandbox__run_code` turn).
 - **Implementation timing:** executed 2026-07-25 between T4 COMMIT 1 and COMMIT 2.
+
+---
+
+## DEC-31 (2026-07-25) — the approval detector's input: strip MARKED directive lines, then whole-utterance isolation — APPROVED
+
+- **Item:** WHAT text the DEC-16 deterministic detector actually receives, and which isolation rule applies to it.
+- **The measurement that forced the question:** DEC-16 and DEC-19 both say the detector reads "the RAW STT
+  transcript", because `turn_pass.consume()` already receives `user_input` — which is what keeps
+  `orchestrator.py` byte-identical. Measured against the real code, what arrives is the transcript **plus
+  kernel-authored directive lines**: `run_turn` calls `verbosity.begin_turn()` (which PREPENDS the internal
+  directive whenever a sticky SHORT/DETAILED mode is on) and, after a barge-in, prepends `INTERRUPTED_NOTE_AR`.
+  Whole-utterance isolation applied to THAT string would refuse every approval spoken while a verbosity mode is
+  active or in the turn after an interruption — a systematic false negative in the most ordinary states.
+- **Why not the obvious fix (line-scoped isolation):** approving when ANY LINE equals the word is weaker than
+  necessary. If STT ever emits a multi-line transcript, an incidental line equal to the approval word would
+  authorize a high-impact call the user never intended to authorize.
+- **Resolution (Sultan's ruling):** **STRIP the kernel-authored directive lines, THEN apply WHOLE-UTTERANCE
+  isolation to the remainder** — which is exactly the bare transcript. This keeps the strongest property (the
+  user's ENTIRE speech must be the approval word) while removing the false negative completely. The strip keys on
+  `DIRECTIVE_MARKER_AR` = «توجيه داخلي», the **shared core** of the family: verified, not assumed —
+  `verbosity.DIRECTIVE_OPEN_AR` and `highlight_gate.INTERRUPTED_NOTE_AR` word their openings differently
+  (`DIRECTIVE_OPEN_AR` is NOT a substring of `INTERRUPTED_NOTE_AR`), so matching either one exactly would leave
+  the other in place; neither constant contains a newline, so a line-wise filter removes exactly them. A test
+  pins that both real constants carry the marker.
+- **THE FAILURE IS ASYMMETRIC BY CONSTRUCTION, and that is the point:** an unrecognised prefix line SURVIVES the
+  strip, so the remainder no longer EQUALS the approval word and the call is refused. Every unknown lands on the
+  refusing side — a **FALSE NEGATIVE (friction)**, never a **FALSE POSITIVE (an authorization bypass)**. Asserted
+  directly (`test_an_unmarked_prefix_line_fails_SAFE`) rather than argued.
+- **Word sets, ruled and NOT to be widened:** approval «أوافق / موافق / وافق»; refusal «ألغِ / لا توافق / لا».
+  Narrowness IS the security property — colloquial affirmatives («تمام», «أيه», «زين», «نعم») occur constantly in
+  unrelated speech and each one added is an accidental authorization waiting for a coincidence. A test pins that
+  those four do NOT approve. Refusal may be broader because a false refusal is only friction. Because the set is
+  narrow, the turn-N directive **NAMES the exact word aloud**, so the user is never left guessing: low
+  false-positives and low friction together, rather than trading one for the other.
+- **Implementation timing:** T5 COMMIT 2 (`trust/confirm_gate.py`).
+
+---
+
+## DEC-32 (2026-07-25) — impact classification reads `taint` as the externality signal: a DELIBERATE coupling — APPROVED (records a dependency introduced in T5 COMMIT 1)
+
+- **Item:** `RouteImpact.high_impact(external=...)` has no `external` field of its own; the router passes
+  `external=route.taint` at the single call site. Recording that this is a chosen dependency, not an accident.
+- **Reason it was done this way:** the router already carries the externality fact as the mount's `taint` flag
+  ("external = untrusted by definition", §8.5). A second copy of one fact is precisely how two classifications
+  drift apart — the failure DEC-15 warns about for the wrap/raise pair, applied to itself. One fact, one home.
+- **The consequence, stated plainly so a future change cannot be made in ignorance:** `taint` now drives THREE
+  things at the router — the DEC-14 untrusted-content wrap, the DEC-15 session-sticky raise, and (via this
+  parameter) the DEC-16 high-impact classification of an external route. **Any change to what `taint=True` MEANS
+  therefore also moves impact classification.** The concrete case already on the roadmap is **DEC-4**: `doc_rag`
+  raises taint for every retrieved passage. If a `doc_rag` route were mounted `taint=True` without stating a
+  `read_only_hint`, the fail-closed default would classify it high-impact and put spoken confirmation in front of
+  every document retrieval. That may well be right — but it must be a DECISION taken with this coupling in view,
+  not a surprise discovered live.
+- **What would break the coupling if it is ever wrong:** give `RouteImpact` its own `external` field and have
+  every mounter state it. That is the cheap escape hatch; it costs one field and one argument per mount site, and
+  it should be taken the moment a route needs "untrusted results, but not an external actor" (or the reverse).
+- **Implementation timing:** recorded now; no code change. Re-read this entry at the `doc_rag` milestone gate.
+
+---
+
+## T5 CEILING FINDING (2026-07-25) — `tool_router.py` measures 301/300 with the confirm-gate call site — **RESOLVED by candidate (1); candidate (2) PRE-APPROVED for the next need**
+
+- **Item:** COMMIT 2 (the DEC-16 gate) is written, wired and green — 847 app + 27 sdk, 11 mutations RED — but
+  `tool_router.py` measures **301/300**. It CANNOT be committed: 301 breaks §17.4 outright.
+- **The arithmetic, measured:** the file was 272/300 after the approved `router_surfaces.py` extraction. The gate
+  wiring adds **+30/-1**: the `ConfirmGate` import (1), the constructor parameter and its fail-closed default with
+  the reason (4), the `confirm_gate` read-only property for `TurnPass` (7, including why the property exists at
+  all — it is what keeps `orchestrator.py` byte-identical), and the `service()` call site (18, including the
+  seven-line comment recording the DEC-32 coupling and why a refused call is neither wrapped nor charged).
+- **Why not the two obvious escapes:** trimming that just-written rationale is the **COMPRESSION** §17.4 exists to
+  forbid, and DEC-30 already ruled on this exact temptation — "it would delete the WHY of a security funnel";
+  committing at 301 breaks the law outright. The estimate that said the addition would fit in ~21 lines was
+  MINE and it was wrong by 9 — the third time in this milestone that an estimate beat a measurement, and the
+  reason this is a finding rather than a decision taken alone.
+- **NOT SELF-SELECTED (the governing rule):** DEC-23 requires the extraction candidate to be identified at
+  PLANNING time, not mid-fix, and DEC-19 forbids self-selecting one. The approved candidate
+  (`router_surfaces.py`) is spent. So the work STOPS here with the candidates measured and presented.
+- **Candidates, from measured spans:**
+  - **(1) `_Mounted` → `kernel/router_registry.py`.** 13 lines out, 2 in (the import) → **290/300**. A pure MOVE;
+    the only non-verbatim part is the name, since a cross-module `_Mounted` should lose its underscore. Minimal,
+    and enough — but it leaves 10 lines for the rest of the milestone.
+  - **(2) `_Mounted` + `mount()` → `kernel/router_registry.py`.** 55 lines out, 2 in (the import) + 6 in (a
+    delegating `mount()` that forwards to `mount_plugin(self._routes, …)`) → **254/300**. The seam is real —
+    REGISTRATION (what exists, under what name) versus DISPATCH (what happens when a call arrives) — but it is
+    behaviour-identical rather than byte-identical, because a method that mutates `self._routes` becomes a
+    function taking the registry.
+  - **(3) `_outcome_for` → its own module. REJECTED, and recorded as rejected:** DEC-14/DEC-15 make that function
+    the ONE branch where wrap and raise happen, `test_session_taint.py` asserts its shape structurally, and
+    DEC-30 split `core_router` out precisely SO THAT this funnel could be read whole in the dispatch file.
+    Moving it would undo the reason the previous extraction was made.
+- **T6 PROJECTION (measured, the question Sultan asked before this arose):** T6 needs **ZERO new lines in
+  `tool_router.py`**. Verified by grep, not assumed — every `router.mount(...)` call site lives OUTSIDE the module
+  (`main.py:94` for the sandbox, `core_router.py` for the V1 four, `broker/mcp/host.py:117` for MCP), so the web
+  mount lands in `main.py`/`composition.py`; provider injection is into the PLUGIN (DEC-27, not a capability and
+  not a router concern); `ctx.net` is `broker/broker.py` + `sdk/muthis_sdk/context.py` (DEC-24); the per-turn
+  fetch cap is plugin-side (DEC-22 says the fetcher must NOT own it) and its reset rides the same
+  `new_turn_voice` hook the sandbox gate uses; and cost recording already flows through the EXISTING
+  `_record(route.provenance, outcome.cost_usd)` line with `ServiceOutcome.cost_usd` already in the SDK. The
+  classification parameter T6 needs (`impact=`) landed in COMMIT 1. So the ceiling pressure on this file is
+  THIS commit's, not a recurring T6 tax — which is what makes candidate (1) defensible despite its small margin.
+- **RESOLUTION (Sultan's ruling, 2026-07-25) — take candidate (1); candidate (2) is PRE-APPROVED as its
+  successor.** Executed as `88f097a`: `MountedRoute` moved to `kernel/router_registry.py`, diff-proven
+  byte-identical except the class NAME (the leading underscore went with the module boundary — a name another
+  module imports is not private), leaving 261/300 before the gate and **290/300 with it**.
+  - **Why (1) and not (2) — ATTRIBUTION, and it is the general rule, not a one-off:** COMMIT B is this
+    milestone's most security-sensitive commit, and (2) is a REFACTOR, not a move (a method mutating
+    `self._routes` becomes a function taking the registry). Landing a refactor immediately before an
+    authorization gate muddies attribution if anything later breaks — *was it the gate or the restructure?* A
+    pure move cannot be the cause of a behaviour change, which is exactly what one wants adjacent to a security
+    commit.
+  - **Why the 10-line margin is defensible:** BY MEASUREMENT, not hope. T6 was measured (grep over every
+    `router.mount(...)` call site, not estimated) to need **ZERO** new lines in this file, so 290 holds through
+    T6 unchanged.
+  - **Candidate (3) REJECTED, upheld:** `_outcome_for` is the ONE wrap+raise branch (DEC-14/DEC-15) whose shape a
+    test asserts structurally, and DEC-30 extracted `core_router` precisely SO THAT this branch could be read
+    whole in the dispatch file. Splitting it would undo an earlier extraction's purpose.
+- **STANDING PRE-APPROVAL — candidate (2), executable WITHOUT a fresh ruling.** The next time `tool_router.py`
+  needs headroom — most likely a fix arising from the T7 live SOP, the DEC-23 pattern — move **`mount()` into
+  `kernel/router_registry.py` beside `MountedRoute`** (registration versus dispatch), leaving a delegating
+  `mount()` that forwards to `mount_plugin(self._routes, …)`: measured **~254/300**. It is BEHAVIOUR-identical,
+  not byte-identical, so it runs in its OWN mechanical commit with the full suite after — never bundled with the
+  fix that needed the room. This satisfies DEC-23's "identify the candidate at PLANNING time" in advance, so a
+  T7 fix never blocks on a round-trip.
+- **Status:** RESOLVED. Extraction `88f097a`; the gate landed on top with the wiring diff-verified identical to
+  the version that was tested at 301 (only the extraction artefacts differ). 847 app + 27 sdk green.
 
 ---

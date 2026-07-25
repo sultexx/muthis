@@ -27,6 +27,7 @@ from typing import Callable, Optional
 from muthis_sdk import FilesCapability, PluginContext
 
 from ..file_reader import ReadFileFn
+from ..trust.confirm_gate import ConfirmGate
 from .session_taint import SessionTaint
 from .tool_router import ToolRouter
 
@@ -36,6 +37,7 @@ def build_core_router(
     read_file: Optional[ReadFileFn] = None,
     plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
     session_taint: Optional[SessionTaint] = None,
+    confirm_gate: Optional[ConfirmGate] = None,
 ) -> ToolRouter:
     """The default kernel router: the four V1 tools mounted as core plugins
     (M4 dogfood) in the EXACT V1 catalog order — pointer, shapes, refresh,
@@ -43,10 +45,11 @@ def build_core_router(
     (snapshot-pinned). Only file_read is router-serviced; the other three are
     kernel_serviced declarations (conflict ruling C-1).
 
-    `session_taint` (DEC-15) is passed straight through to the router: this
-    helper composes, it never decides policy. NONE of the four core tools is a
-    taint raiser — `read_local_file` mounts untainted, on purpose (a user-chosen
-    file on the user's own machine is not external content)."""
+    `session_taint` (DEC-15) and `confirm_gate` (DEC-16) are passed straight
+    through to the router: this helper composes, it never decides policy. NONE of
+    the four core tools is a taint raiser — `read_local_file` mounts untainted,
+    on purpose (a user-chosen file on the user's own machine is not external
+    content) — and none is high-impact, so none can ever reach the gate."""
     # Composition-point import (lazy, the ONE documented kernel→plugins
     # direction): the ToolRouter class itself stays plugin-agnostic, and
     # kernel modules keep importing in isolation without the plugins tree.
@@ -55,7 +58,8 @@ def build_core_router(
     from muthis_plugins.look_shapes import LookShapesPlugin
     from muthis_plugins.screen_refresh import ScreenRefreshPlugin
 
-    router = ToolRouter(plugin_ledger=plugin_ledger, session_taint=session_taint)
+    router = ToolRouter(plugin_ledger=plugin_ledger, session_taint=session_taint,
+                        confirm_gate=confirm_gate)
     router.mount(LookPointerPlugin(), provenance="core:look_pointer")
     router.mount(LookShapesPlugin(), provenance="core:look_shapes")
     router.mount(ScreenRefreshPlugin(), provenance="core:screen_refresh")

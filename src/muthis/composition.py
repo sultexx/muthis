@@ -30,6 +30,7 @@ from .kernel.core_router import build_core_router
 from .kernel.orchestrator import Orchestrator
 from .kernel.session_taint import SessionTaint
 from .kernel.tool_router import ToolRouter
+from .trust.confirm_gate import ConfirmGate
 from .kernel.turn import TurnResult
 from .overlay import DEFAULT_POINTER_ANIM_MS, SidekickOverlay
 from .stt import STT
@@ -98,10 +99,15 @@ def _build_broker_graph(budget: Budget, overlay: SidekickOverlay,
     the root, once per process — and injected into the router, the single
     chokepoint every tool result crosses. Built here rather than inside the
     router so its LIFETIME reads as what it is: the process's, not a per-turn
-    object (contrast SandboxGate, rebuilt every turn). No orchestrator touch."""
+    object (contrast SandboxGate, rebuilt every turn). No orchestrator touch.
+
+    V2 Phase 2 (T5, DEC-16): the ConfirmGate is built the SAME way and for the
+    same reason — a pending approval must outlive the turn that asked for it,
+    since it is answered in the NEXT one."""
     router = build_core_router(read_file=reader.read,
                                plugin_ledger=budget.record_plugin_call,
-                               session_taint=SessionTaint())
+                               session_taint=SessionTaint(),
+                               confirm_gate=ConfirmGate())
     bridge_frames = FrameCapture(
         overlay=overlay, screen_capture=ScreenCapture().capture,
         downscale=downscale_to_max_width, auto_hide=_BridgeAutoHide())

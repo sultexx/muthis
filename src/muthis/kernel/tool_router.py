@@ -67,6 +67,7 @@ from muthis_sdk import (
 )
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
+from ..trust.confirm_gate import ConfirmGate
 from ..trust.high_impact import RouteImpact
 from .router_registry import MountedRoute
 from .router_surfaces import (
@@ -93,6 +94,7 @@ class ToolRouter:
         self, *,
         plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
         session_taint: Optional[SessionTaint] = None,
+        confirm_gate: Optional[ConfirmGate] = None,
     ) -> None:
         self._routes: dict[str, MountedRoute] = {}
         self._plugin_ledger = plugin_ledger
@@ -102,12 +104,22 @@ class ToolRouter:
         # (fail-closed) — an optional-and-silently-absent security seam is how a
         # session stays "clean" while untrusted content flows through it.
         self._session_taint = session_taint if session_taint is not None else SessionTaint()
+        # DEC-16: same injection discipline, same reason — a None gate would be
+        # an open door, so an absent one is a REAL gate, not no gate.
+        self._confirm_gate = confirm_gate if confirm_gate is not None else ConfirmGate()
 
     @property
     def session_taint(self) -> SessionTaint:
-        """Read-only access for the kernel (T5's confirm gate reads this state).
+        """Read-only access for the kernel (the confirm gate reads this state).
         There is no setter and no clearing path — see session_taint.py."""
         return self._session_taint
+
+    @property
+    def confirm_gate(self) -> ConfirmGate:
+        """Read-only access for `TurnPass`, which owns neither seam but holds the
+        router and the raw transcript — that is what keeps the orchestrator
+        byte-identical (DEC-19 zero touch)."""
+        return self._confirm_gate
 
     def _record(self, provenance: str, cost_usd: Optional[float]) -> None:
         if self._plugin_ledger is None:
@@ -228,6 +240,23 @@ class ToolRouter:
                 result=ToolResult(text_ar=KERNEL_SERVICED_NOTE_AR, is_error=True),
                 provenance="kernel:misroute",
             )
+        # DEC-16: the confirmation chokepoint — placed BEFORE every path that
+        # could execute or degrade, so a refused call simply never happens. The
+        # classification is the route's (DEC-15, kernel-assigned at mount) and
+        # the decision is the gate's; the router only joins them to the session
+        # state it already holds. `external=route.taint` is the deliberate
+        # coupling recorded in DECISIONS.md: the mount's taint flag IS this
+        # router's externality signal, and one fact keeps one home.
+        refusal_ar = self._confirm_gate.refusal_for(
+            tool, args, tainted=self._session_taint.tainted,
+            high_impact=route.impact.high_impact(external=route.taint))
+        if refusal_ar is not None:
+            # Kernel-authored text about a call that never ran: no plugin was
+            # reached, so it is neither wrapped (nothing external came back) nor
+            # attributed to anyone's budget.
+            return ServiceOutcome(
+                result=ToolResult(text_ar=refusal_ar, is_error=True),
+                provenance="kernel:confirm")
         if route.bare_name == READ_FILE_TOOL and route.ctx.files is None:
             # Phase-0 capability degradation, ruled in the KERNEL so the V1
             # Arabic note stays single-sourced (file_reader.py). The Phase-1
