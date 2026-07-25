@@ -56,7 +56,7 @@ from muthis.file_reader import (                                         # noqa:
     FILE_NAME_NOT_BARE_AR, FileReader, stage_file_gate,
 )
 from muthis.kernel.orchestrator import Orchestrator                      # noqa: E402
-from muthis.kernel.tool_router import build_core_router                  # noqa: E402
+from muthis.kernel.core_router import build_core_router                  # noqa: E402
 from muthis.kernel.turn import RUN_CODE_TOOL                             # noqa: E402
 from muthis.overlay import SidekickOverlay                               # noqa: E402
 from muthis.persona import resolve_system_prompt                         # noqa: E402

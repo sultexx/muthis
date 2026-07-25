@@ -22,6 +22,7 @@ import muthis_sdk
 
 KERNEL_MODULES = (
     "muthis.kernel.budget",
+    "muthis.kernel.core_router",
     "muthis.kernel.draw_dispatch",
     "muthis.kernel.highlight_gate",
     "muthis.kernel.history_hygiene",

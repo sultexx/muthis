@@ -27,7 +27,8 @@ from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
 from .kernel.frame_capture import FrameCapture
 from .kernel.orchestrator import Orchestrator
-from .kernel.tool_router import ToolRouter, build_core_router
+from .kernel.core_router import build_core_router
+from .kernel.tool_router import ToolRouter
 from .kernel.turn import TurnResult
 from .overlay import DEFAULT_POINTER_ANIM_MS, SidekickOverlay
 from .stt import STT

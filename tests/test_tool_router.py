@@ -16,13 +16,13 @@ import asyncio
 import pytest
 
 from muthis.file_reader import FILE_READ_UNAVAILABLE_AR
+from muthis.kernel.core_router import build_core_router
 from muthis.kernel.tool_router import (
     KERNEL_SERVICED_NOTE_AR,
     MAX_TOOLS,
     PLUGIN_FAILED_NOTE_AR,
     UNROUTED_TOOL_NOTE_AR,
     ToolRouter,
-    build_core_router,
     namespaced_name,
 )
 from muthis_sdk import PluginContext, ToolDescriptor, ToolPlugin, ToolResult

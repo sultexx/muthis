@@ -18,7 +18,7 @@ from pathlib import Path
 
 import muthis_plugins
 from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
-from muthis.kernel.tool_router import build_core_router
+from muthis.kernel.core_router import build_core_router
 from muthis.kernel.turn import RUN_CODE_TOOL
 from muthis_plugins.common import FILES_CAPABILITY_ABSENT_AR, KERNEL_SERVICED_AR
 from muthis_plugins.file_read import FileReadPlugin

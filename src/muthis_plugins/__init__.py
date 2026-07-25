@@ -11,7 +11,7 @@ manifest + a ToolPlugin subclass + the V1 tool schema moved here VERBATIM
 LAYERING LAW (enforced by tests/test_core_plugins.py): this package imports
 muthis_sdk and the stdlib ONLY — never muthis.*. The kernel reaches DOWN to
 mount these plugins at its documented composition point
-(kernel.tool_router.build_core_router); nothing here reaches up.
+(kernel.core_router.build_core_router); nothing here reaches up.
 
 Execution split (conflict ruling C-1): file_read executes through the router
 via ctx.files; look_pointer / look_shapes / screen_refresh are DECLARATION

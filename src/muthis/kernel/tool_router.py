@@ -28,6 +28,11 @@ plugin author can weaken is not security (DEC-4).
 
 Mount-time errors DO raise (English ValueError): composition happens at app
 start / in tests, where failing loudly is correct.
+
+`build_core_router` — the four-V1-plugin COMPOSITION — lives in core_router.py
+(extracted under the ≤300-line law). It is NOT re-exported here: the dependency
+runs composition → registry, so re-exporting would be a cycle. Import it from
+`muthis.kernel.core_router`.
 """
 
 from __future__ import annotations
@@ -37,7 +42,6 @@ import logging
 from typing import Any, Callable, Optional
 
 from muthis_sdk import (
-    FilesCapability,
     PluginContext,
     ServiceOutcome,
     ToolDescriptor,
@@ -45,7 +49,7 @@ from muthis_sdk import (
     ToolResult,
 )
 
-from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL, ReadFileFn
+from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
 from .untrusted_content import wrap_untrusted
 
 logger = logging.getLogger("muthis.kernel.tool_router")
@@ -222,38 +226,6 @@ class ToolRouter:
         return outcome
 
 
-def build_core_router(
-    *,
-    read_file: Optional[ReadFileFn] = None,
-    plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
-) -> ToolRouter:
-    """The default kernel router: the four V1 tools mounted as core plugins
-    (M4 dogfood) in the EXACT V1 catalog order — pointer, shapes, refresh,
-    read — so descriptors() mirrors cloud.tool_schemas.LOOK_ONLY_TOOLS
-    (snapshot-pinned). Only file_read is router-serviced; the other three are
-    kernel_serviced declarations (conflict ruling C-1)."""
-    # Composition-point import (lazy, the ONE documented kernel→plugins
-    # direction): the ToolRouter class itself stays plugin-agnostic, and
-    # kernel modules keep importing in isolation without the plugins tree.
-    from muthis_plugins.file_read import FileReadPlugin
-    from muthis_plugins.look_pointer import LookPointerPlugin
-    from muthis_plugins.look_shapes import LookShapesPlugin
-    from muthis_plugins.screen_refresh import ScreenRefreshPlugin
-
-    router = ToolRouter(plugin_ledger=plugin_ledger)
-    router.mount(LookPointerPlugin(), provenance="core:look_pointer")
-    router.mount(LookShapesPlugin(), provenance="core:look_shapes")
-    router.mount(ScreenRefreshPlugin(), provenance="core:screen_refresh")
-    files = FilesCapability(read=read_file) if read_file is not None else None
-    router.mount(
-        FileReadPlugin(),
-        ctx=PluginContext(files=files),
-        namespace=None,  # core: V1 names verbatim (C-3 exemption)
-        provenance="core:file_read",
-    )
-    return router
-
-
 __all__ = [
     "MAX_TOOLS",
     "NAMESPACE_SEP",
@@ -262,5 +234,4 @@ __all__ = [
     "PLUGIN_FAILED_NOTE_AR",
     "UNROUTED_TOOL_NOTE_AR",
     "ToolRouter",
-    "build_core_router",
 ]

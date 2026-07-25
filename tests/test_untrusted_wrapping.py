@@ -28,7 +28,8 @@ import re
 
 from muthis.broker.mcp.policy import ExposedTool
 from muthis.broker.mcp.proxy_plugin import McpProxyPlugin
-from muthis.kernel.tool_router import ToolRouter, build_core_router, namespaced_name
+from muthis.kernel.core_router import build_core_router
+from muthis.kernel.tool_router import ToolRouter, namespaced_name
 from muthis.kernel.untrusted_content import (
     NONCE_HEX_CHARS,
     WRAP_CLOSE_AR,
