@@ -1480,8 +1480,40 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   the vendor dashboard's credit consumption.** Verifying the constant while the bridge is broken proves nothing
   (the number never moves), and verifying arrival with a wrong constant corrupts the ceiling SILENTLY — the exact
   asymmetry DEC-26 flagged, now doubled. Both halves, one run, or the gate is not met.
-- **Implementation timing:** T6b, before `record_plugin_call` is wired. Sultan picks the bridge. **STATUS: AWAITING
-  RULING** — no bridge implemented, no kernel touched.
+- **RULING (Sultan, 2026-07-25) — CANDIDATE (1), APPROVED. Recorded in full, because it sets the precedent for
+  every future paid plugin:**
+  - **The deciding difference is not surface size — it is WHO OWNS THE NUMBER.** Under (1) the ROUTER obtains the
+    cost and records it, so the figure never leaves kernel scope. Under (2) the PLUGIN declares it and the kernel
+    trusts it. **This milestone has rejected that exact pattern three times:** `is_error` may not gate wrapping
+    (DEC-29), a plugin's declared `read_only` may not drive impact classification (T5 COMMIT 1), and a plugin may
+    not wrap its own output (DEC-14). (2) would open it a FOURTH time, **in the BUDGET** — the one place where a
+    plugin-set number could exhaust the user's sovereign daily ceiling, which is precisely what Rule 10 exists to
+    prevent.
+  - **The economic argument holds and is part of the record:** today there is exactly ONE paid path and it is
+    FIRST-PARTY, so (1)'s weakness has no current victim, while (2) pays a permanent contract cost immediately for
+    a need that does not yet exist. (1) is REVERSIBLE and does not foreclose (2) — promoting the method into the
+    ABC, or adding the field then, is ADDITIVE and can be decided with a real consumer in view. That is the
+    stub-first ordering this milestone has followed throughout.
+  - **(3) is REJECTED on criterion 2 and the double-count, but its genuine merit is recorded fairly:** the figure
+    never crosses plugin code, which makes it the most TRUSTWORTHY source. **Pointer for a future reader:** if
+    third-party paid plugins ever arrive and (1)'s silent-zero weakness gets a victim, **(3)'s trust property is
+    the one to revisit** — not (2)'s convenience.
+- **KNOWN LIMIT of the approved design (the DEC-16 / DEC-22 honest-limit pattern), stated so nobody discovers it
+  live:** a plugin that does **not** implement `execute_with_cost` records **ZERO cost, silently and without
+  warning**, while its call is still counted. The contract is optional and undiscoverable — it is not on the SDK's
+  `ToolPlugin` ABC and the conformance kit does not check for it — so a third-party PAID plugin would under-report
+  forever with no symptom. This is the SAFE direction (a zero is visible in the ledger and provably wrong; a
+  skipped call would be invisible and look free) and it is asserted as a TEST rather than left as prose
+  (`test_a_plugin_without_a_carrier_records_zero_and_still_counts_the_call`, driven through the REAL `Budget`).
+  **TRIGGER FOR REVISITING: the first third-party PAID plugin.**
+- **EXECUTED (T6b COMMIT B).** `ToolRouter._execute_route` duck-types the carrier and falls back to `execute()`;
+  `_outcome_for` gained a `cost_usd` parameter so the EXISTING `_record(route.provenance, outcome.cost_usd)` line
+  is unchanged and simply now carries a real figure — the outcome the caller sees and the amount charged are read
+  from ONE place and cannot disagree. `ServiceOutcome`, `ToolResult`, `can_afford` and `record_turn` are all
+  UNTOUCHED (their field sets and signatures are pinned by test). `tool_router.py` measures **298/300** — legal,
+  but only 2 lines of headroom, and the pre-approved extraction is now SPENT (see the ceiling note below).
+- **Implementation timing:** DONE. `record_plugin_call` now receives real costs; the T7 whole-chain verification
+  below is what closes it.
 
 ---
 
@@ -1508,5 +1540,41 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   PDF and route the user to the vision path, the DEC-17 robots-refusal pattern — so the first refusal is also the
   last. DEC-4 owns PDF handling, so the wording lands with it.
 - **Implementation timing:** the `doc_rag` milestone. No change to `file_reader.py` now.
+
+---
+
+## T6b CEILING FINDING (2026-07-25) — `tool_router.py` is at 298/300 and the pre-approved extraction is SPENT — FLAGGED BEFORE it bites, no candidate self-selected
+
+- **Item:** after COMMIT A (the pre-approved `mount()` extraction, 290 to 265) and COMMIT B (the DEC-34 cost
+  bridge, 265 to **298**), `tool_router.py` has **2 lines of headroom** and **no pre-approved extraction left**.
+  Raised now, at planning time, because DEC-23's whole posture is that an extraction candidate is identified
+  BEFORE a fix needs it — never mid-fix, under pressure, where compression becomes tempting.
+- **Why the room went, honestly:** the bridge cost 33 lines, of which the `_execute_route` docstring is 18. That
+  docstring is the WHY of the ruling — who owns the number, the three prior rejections of a plugin-set field, and
+  the KNOWN LIMIT — and DEC-30 already ruled on this exact temptation ("it would delete the WHY of a security
+  funnel"). It is not compressible. The alternative reading is that the bridge belonged elsewhere; it does not —
+  the ruling's entire point is that the ROUTER obtains the cost.
+- **THE RISK T6b MUST CHECK BEFORE WRITING, not after:** of the remaining T6b work — the one-line `new_turn()`
+  call (`turn_pass.py`), catalog v3 (`main.py` / `composition.py`), the persona laws (`persona_rules.py`) — none
+  touches this file. **The DOMAIN BADGE (DEC-20) is the open question.** DEC-20 says the badge is "drawn by the
+  KERNEL from real provenance (what was actually fetched)", and the fetched DOMAIN is currently known only inside
+  the plugin, which renders it into the tool_result text. If the badge needs the domain to travel structurally,
+  the natural carrier is `ServiceOutcome.extras` (which already exists and is unused) — and populating it would
+  add lines HERE. **MEASURE before writing the badge**; if it breaches, extract first.
+- **Candidates, NOT self-selected (DEC-19 forbids that) — presented for a ruling if the badge needs the room:**
+  1. **`service()`'s pre-dispatch refusal arm** (unrouted + kernel-serviced misroute, ~14 lines) into
+     `router_surfaces.py` or a small `router_refusals.py`. They are pure, route-less refusals that construct their
+     own `ServiceOutcome` and touch no session state — genuinely a different concern from dispatching a real call.
+  2. **`_record` + the ledger seam** (~10 lines) into the registry module beside the mount, on the argument that
+     attribution is bookkeeping rather than dispatch. Weaker: it separates the recording call from the branch that
+     decides whether to record, which is exactly the coupling this commit's tests exist to protect.
+  3. **`_execute_route`** into its own module. Cheapest by line count (~30) and the WEAKEST by principle: it is
+     half of the dispatch decision, and DEC-30 split `core_router` out precisely so the dispatch funnel could be
+     read whole. Recorded so it is visibly considered and visibly not recommended.
+- **REJECTED, upheld from the T5 CEILING FINDING:** `_outcome_for` stays. It is the ONE wrap + raise branch
+  (DEC-14/DEC-15) whose shape `test_session_taint.py` asserts structurally, and moving it would undo the reason
+  the earlier extraction was made.
+- **Status:** FLAGGED, no action taken. 298/300 is legal and this commit is complete. If the domain badge needs
+  lines in this file, STOP and get a ruling on the candidates above before writing it.
 
 ---

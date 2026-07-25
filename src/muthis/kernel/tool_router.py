@@ -129,7 +129,37 @@ class ToolRouter:
         except Exception:  # noqa: BLE001 — accounting must never kill a turn
             logger.exception("[tool_router] plugin ledger seam raised — ignored")
 
-    def _outcome_for(self, route: MountedRoute, tool: str, result: ToolResult) -> ServiceOutcome:
+    async def _execute_route(
+        self, route: MountedRoute, args: dict[str, Any]
+    ) -> tuple[ToolResult, Optional[float]]:
+        """Run the route and come back with its RESULT and what it COST.
+
+        DEC-34, candidate (1): the ROUTER obtains the cost, so the figure never
+        leaves kernel scope. The rejected alternative — a `cost_usd` on the
+        plugin-facing `ToolResult` — would have let a PLUGIN declare a number
+        that `record_plugin_call` adds to the SOVEREIGN daily total gating
+        `can_afford`. This milestone has refused that shape three times already
+        (`is_error` may not gate the wrap, DEC-29; a declared `read_only` may not
+        drive impact, T5; a plugin may not wrap its own output, DEC-14), and the
+        budget is the one place where it could exhaust the ceiling Rule 10 exists
+        to defend.
+
+        `execute_with_cost` is DUCK-TYPED and OPTIONAL: a plugin that does not
+        offer it is run through the ordinary `execute()` and reports no cost,
+        which the ledger records as ZERO while still counting the call. KNOWN
+        LIMIT (DEC-34): that silence is invisible — a future THIRD-PARTY PAID
+        plugin would record zero forever without warning. It has no victim today
+        (the one paid path is first-party), and the fix is additive when it does."""
+        carrier = getattr(route.plugin, "execute_with_cost", None)
+        if carrier is None:
+            return await route.plugin.execute(route.bare_name, args, route.ctx), None
+        carried = await carrier(route.bare_name, args, route.ctx)
+        # getattr, not attribute access: a carrier is an informal contract, and a
+        # malformed one must degrade to "no cost" rather than raise into a turn.
+        return carried.result, getattr(carried, "cost_usd", None)
+
+    def _outcome_for(self, route: MountedRoute, tool: str, result: ToolResult,
+                     cost_usd: Optional[float] = None) -> ServiceOutcome:
         """The single exit for every call that reached a REAL route — the app's
         ONE untrusted-content wrap site (DEC-14) and its ONE taint-raise site
         (DEC-15).
@@ -156,7 +186,7 @@ class ToolRouter:
         URL rides in through this same parameter when T6 wires the web plugin.
         """
         outcome = ServiceOutcome(result=result, provenance=route.provenance,
-                                 taint=route.taint)
+                                 taint=route.taint, cost_usd=cost_usd)
         if not outcome.taint:
             return outcome
         self._session_taint.raise_taint(route.provenance)
@@ -241,14 +271,17 @@ class ToolRouter:
                 route, tool,
                 ToolResult(text_ar=FILE_READ_UNAVAILABLE_AR, is_error=True))
         try:
-            result = await route.plugin.execute(route.bare_name, args, route.ctx)
+            result, cost_usd = await self._execute_route(route, args)
         except Exception:  # noqa: BLE001 — the never-raise wall (contract breach)
             logger.exception("[tool_router] plugin %r raised — contract breach", tool)
             self._record(route.provenance, None)
             return self._outcome_for(
                 route, tool,
                 ToolResult(text_ar=PLUGIN_FAILED_NOTE_AR, is_error=True))
-        outcome = self._outcome_for(route, tool, result)
+        outcome = self._outcome_for(route, tool, result, cost_usd)
+        # UNCHANGED line, now carrying a real figure: the outcome the caller sees
+        # and the amount charged are read from ONE place, so they cannot disagree
+        # (the same rule `_outcome_for` applies to the wrap and its taint flag).
         self._record(route.provenance, outcome.cost_usd)
         return outcome
 
