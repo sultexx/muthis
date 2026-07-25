@@ -1340,3 +1340,96 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   next revisits §8.4.
 
 ---
+
+## T6a SCOPE RECORD (2026-07-25) — what COMMIT 2 deliberately did NOT do, and why
+
+- **(a) The per-turn fetch cap is BUILT but INERT — Sultan's ruling, recorded.** The T6a brief required the cap to
+  reset "via the existing hook" while reserving kernel wiring for T6b — and `TurnPass.new_turn_voice` is kernel.
+  Sultan ruled the contradiction in favour of separating MECHANISM from WIRING: `FetchGate` lands plugin-side now
+  with its own `new_turn()`, fully test-driven (cap enforced, refusal stable, `new_turn()` restores the budget, a
+  refused fetch performs NO fetch), and the SINGLE line that calls it from `new_turn_voice` lands in T6b with the
+  rest of the kernel wiring. This is the `sandbox_gate` precedent exactly — T3 built the gate, T5 wired it — and it
+  keeps T6a entirely off the kernel, which keeps attribution clean around a security-adjacent commit.
+  **STATED PLAINLY SO NOBODY MISREADS IT: until T6b wires that call, the cap bounds fetches within the PROCESS,
+  not per turn.** An unwired cap is not an enforced cap. The module docstring says so too.
+- **(b) `recency` is NOT in the search schema, and that is deliberate.** `broker/search/protocol.py` records that
+  §3.1's optional `recency` argument "lands with the tool schema at T6". Measured against the built seam:
+  `SearchProvider.search()` takes `(query, *, max_results)` and **no vendor implements a recency mapping**. Adding
+  the argument to the model-visible schema now would advertise a filter the seam silently drops — the model would
+  believe it constrained the search when it did not. That is the class of quiet lie this codebase rejects
+  everywhere else (DEC-28 chose silence over redaction for the same reason: never let a surface claim a property it
+  does not have). Extending the protocol + all three vendors is feature work on T3b's APPROVED code and was not
+  asked for. **Nothing is locked in:** the catalog is not registered until T6b's byte-pinned v3 snapshot, so T6b
+  may add `recency` together with the seam extension if Sultan wants it. Recorded rather than guessed.
+- **(c) No `muthis/fetch` MCP bridge** — DEC-33 stands unassigned; no consumer, and assigning a landing phase is a
+  roadmap decision.
+
+---
+
+## DEC-34 (2026-07-25) — a plugin's per-call COST cannot reach `ServiceOutcome.cost_usd` today: the T5 projection's premise measured FALSE — OPEN, T6b must choose the bridge
+
+- **Item:** T6a COMMIT 2 was to leave cost "EXPOSED, not recorded", passed through in the `ServiceOutcome`.
+  Measured against the real code, **a plugin has no path to that field at all**, so the exposure had to take a
+  different shape and the gap must be settled before T6b wires `record_plugin_call`.
+- **The measurement (why this is a finding, not a preference):** the T5 CEILING FINDING's T6 PROJECTION states that
+  "cost recording already flows through the EXISTING `_record(route.provenance, outcome.cost_usd)` line with
+  `ServiceOutcome.cost_usd` already in the SDK", and concluded **T6 needs ZERO new lines in `tool_router.py`**. Both
+  halves of that premise are individually true and the conclusion still does not follow. Verified by reading the
+  code, not by assuming: `ToolRouter._outcome_for` constructs
+  `ServiceOutcome(result=..., provenance=..., taint=...)` and **never sets `cost_usd`**, so the field is always
+  `None` and `tool_router.py:277` always records `None`. The SDK's `ToolPlugin.execute()` returns a `ToolResult`,
+  which has exactly `text_ar` and `is_error` — **no cost field**. So nothing connects a plugin's real cost to the
+  ledger; the wire exists at both ends and is not joined in the middle. This is the FOURTH time in this milestone
+  that an estimate lost to a measurement (after DEC-30, the T5 ceiling arithmetic, and the T2 per-request timeout),
+  which is why it is logged rather than quietly patched.
+- **What T6a did instead (no kernel touch, nothing invented):** the plugin READS the provider's `cost_usd` and
+  returns it from `execute_with_cost()` — a cost-carrying twin of `execute()` that performs the SAME servicing and
+  returns one extra value. `execute()` delegates to it and drops the figure, so the SDK contract is untouched and
+  the value is not silently lost inside the plugin. An empty-but-served query still carries its cost, because a
+  dead end that was paid for must not under-charge the ledger. Nothing in the package touches a budget symbol (a
+  test asserts it by AST scan).
+- **The open question for T6b — three candidate bridges, NOT self-selected:**
+  1. **The router calls `execute_with_cost` for routes that offer it** (duck-typed) and passes the figure into the
+     `ServiceOutcome`. Smallest change; costs a few lines in `tool_router.py`, which sits at **290/300**.
+  2. **`ToolResult` gains an optional `cost_usd`** — an SDK contract change (additive, the `2.0.0a3` precedent),
+     after which `_outcome_for` copies it across. Cleanest conceptually; widens the public plugin contract.
+  3. **The composition root wraps the provider** so cost is recorded where the KEY is owned, never crossing the
+     plugin at all. Arguably the most faithful to DEC-27 (the broker owns the paid service), and it needs zero
+     kernel lines — but it records cost for a call the router may still refuse (a DEC-16 confirmation refusal), so
+     double-counting and refunds would have to be reasoned about.
+- **CEILING NOTE, so T6b does not discover it mid-fix:** `tool_router.py` is at **290/300**. Candidates 1 and 2
+  both add lines there. Candidate (2) of the T5 CEILING FINDING (`mount()` into `router_registry.py`, measured
+  ~254/300) is **already PRE-APPROVED** and executable without a fresh ruling, in its own mechanical commit.
+- **Why it matters more than a rounding error (DEC-26):** the cost feeds `record_plugin_call`, which adds to the
+  plugin bucket **AND the sovereign daily total**. A cost that never arrives makes every web query look FREE to
+  Rule 10's ceiling — the silent-failure direction DEC-26 called out for the price CONSTANT, now present in the
+  transport of the figure as well.
+- **Implementation timing:** T6b, before `record_plugin_call` is wired. Sultan picks the bridge.
+
+---
+
+## DEC-35 (2026-07-25) — a type-INACCURATE refusal makes the model retry: FileReader answers "not found" for a PDF — OBSERVATION for the doc_rag milestone, NO code change now
+
+- **Status:** OBSERVATION, recorded for the `doc_rag` milestone (DEC-4 owns PDF). `file_reader.py` is NOT changed
+  here: it is outside this milestone, and the note's wording is doc_rag's concern. Logged so the live evidence is
+  not lost between milestones.
+- **Observed live (Sultan's run, 2026-07-25):** the user asked Mut'his to explain a PDF. `FileReader` refused it
+  correctly — the binary NUL sniff fired, exactly as designed, and no content leaked. But the refusal the model
+  read was the **NOT-FOUND** note. The file existed; it was refused for being BINARY. So the model did the rational
+  thing with the information it was given and retried **four different paths**, until the agentic cap
+  (`MAX_AGENTIC_ITERATIONS`) stopped the turn cleanly. Cost: four provider calls, roughly $0.10, and no useful
+  answer for the user.
+- **Every guard behaved exactly as specified** — the binary gate refused, nothing was leaked, the cap terminated the
+  loop, the turn ended cleanly, nothing raised. This is not a safety defect and nothing failed closed.
+- **The defect is in the SIGNAL, and it is a general lesson worth stating once:** a refusal that misreports its
+  REASON turns a terminal condition into a retryable one. "Not found" invites a different path; "this is a PDF and I
+  cannot read it yet" ends the attempt at the FIRST call. The cost of an inaccurate refusal is paid in provider
+  calls and user time, and it compounds with the agentic loop, which exists precisely to retry. The same principle
+  already shaped `web_research`: the plugin passes the fetcher's OWN Arabic refusal through rather than re-wording
+  it as a generic failure, and a mutation that re-words it goes RED.
+- **Resolution (for doc_rag to execute, not now):** give the binary refusal a TYPE-ACCURATE Arabic note — name the
+  PDF and route the user to the vision path, the DEC-17 robots-refusal pattern — so the first refusal is also the
+  last. DEC-4 owns PDF handling, so the wording lands with it.
+- **Implementation timing:** the `doc_rag` milestone. No change to `file_reader.py` now.
+
+---
