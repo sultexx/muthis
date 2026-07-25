@@ -69,7 +69,7 @@ from muthis_sdk import (
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
 from ..trust.confirm_gate import ConfirmGate
 from ..trust.high_impact import RouteImpact
-from .router_registry import MountedRoute
+from .router_registry import MountedRoute, mount_plugin
 from .router_surfaces import (
     KERNEL_SERVICED_NOTE_AR, MAX_TOOLS, NAMESPACE_SEP, PLUGIN_FAILED_NOTE_AR,
     UNROUTED_TOOL_NOTE_AR, namespaced_name,
@@ -178,37 +178,12 @@ class ToolRouter:
         taint: bool = False,
         impact: RouteImpact = RouteImpact(),
     ) -> None:
-        """Register every descriptor a plugin offers.
-
-        `namespace` gates the roadmap §3.2 name fencing: community/MCP tools
-        are exposed as "<ns>.<tool>" (schema name rewritten to match); CORE
-        native plugins mount with namespace=None and keep their V1 names
-        verbatim — the zero-behavior exemption (conflict ruling C-3).
-
-        `impact` is the DEC-15 high-impact classification for this route, stated
-        by the KERNEL-side mounter from what it granted / read (never by the
-        plugin). Its default is fail-closed for an external route."""
-        ctx = ctx if ctx is not None else PluginContext()
-        for descriptor in plugin.descriptors():
-            exposed = descriptor
-            if namespace:
-                exposed_name = namespaced_name(namespace, descriptor.name)
-                exposed = dataclasses.replace(
-                    descriptor,
-                    name=exposed_name,
-                    schema={**descriptor.schema, "name": exposed_name},
-                )
-            if exposed.name in self._routes:
-                raise ValueError(f"tool name collision at mount: {exposed.name!r}")
-            self._routes[exposed.name] = MountedRoute(
-                descriptor=exposed,
-                bare_name=descriptor.name,
-                plugin=plugin,
-                ctx=ctx,
-                provenance=provenance,
-                taint=taint,
-                impact=impact,
-            )
+        """Register every descriptor a plugin offers — see `mount_plugin`, which
+        holds the real body (registration versus dispatch, router_registry.py).
+        Kept as a delegating method because every caller mounts through a router
+        instance and none of them should have to know where the body lives."""
+        mount_plugin(self._routes, plugin, ctx=ctx, namespace=namespace,
+                     provenance=provenance, taint=taint, impact=impact)
 
     def descriptors(self) -> list[ToolDescriptor]:
         """The merged, capped descriptor list in mount order — the model-visible

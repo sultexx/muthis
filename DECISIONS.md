@@ -1304,6 +1304,22 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   not byte-identical, so it runs in its OWN mechanical commit with the full suite after — never bundled with the
   fix that needed the room. This satisfies DEC-23's "identify the candidate at PLANNING time" in advance, so a
   T7 fix never blocks on a round-trip.
+- **EXECUTED 2026-07-25 (T6b COMMIT A), and the trigger was NOT the one predicted.** The pre-approval expected a
+  T7 fix to need the room; what needed it was the DEC-34 cost bridge. The candidate was taken exactly as written —
+  `mount_plugin` moved to `router_registry.py`, `ToolRouter.mount` left delegating — leaving **265/300**, not the
+  predicted ~254. The 11-line gap is the delegating wrapper: the estimate budgeted 6 lines for it, and keeping the
+  full keyword signature (so no caller changes and the contract stays readable at the call site) plus its
+  docstring cost 16. Recorded because this is the FIFTH estimate-versus-measurement gap this milestone; the
+  direction was harmless here (still 35 lines of headroom), but the pattern is now established enough that any
+  future ceiling claim in this file should be treated as an estimate until `wc -l` says otherwise.
+- **EQUIVALENCE PROVEN BY SHAPE, not by a green suite** (Sultan's instruction): `mount()` is behaviour-identical,
+  so a passing suite would only show that nothing tested broke. Instead every field of every `MountedRoute` —
+  plus registry ORDER and ctx identity SHARING — was dumped across SIX real compositions (the V1 four; + the
+  namespaced sandbox; + the web mount as DEC-24/27 will make it; a multi-tool tainted external mount; a bare mount
+  with an explicit ctx; and the collision path) and required to be **byte-identical JSON before and after the
+  move**. It was. The dump also pinned the derived catalog, the collision `ValueError`'s exact message, and that a
+  FAILED mount leaves the registry untouched. Separately, the moved body was diffed against `HEAD` and is
+  **verbatim** after normalising indentation and the single mechanical delta `self._routes` → `routes`.
 - **Status:** RESOLVED. Extraction `88f097a`; the gate landed on top with the wiring diff-verified identical to
   the version that was tested at 301 (only the extraction artefacts differ). 847 app + 27 sdk green.
 
@@ -1395,8 +1411,13 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
      after which `_outcome_for` copies it across. Cleanest conceptually; widens the public plugin contract.
   3. **The composition root wraps the provider** so cost is recorded where the KEY is owned, never crossing the
      plugin at all. Arguably the most faithful to DEC-27 (the broker owns the paid service), and it needs zero
-     kernel lines — but it records cost for a call the router may still refuse (a DEC-16 confirmation refusal), so
-     double-counting and refunds would have to be reasoned about.
+     kernel lines.
+     **CORRECTION (2026-07-25, measured):** this entry first said candidate 3 "records cost for a call the router
+     may still refuse (a DEC-16 confirmation refusal), so double-counting and refunds would have to be reasoned
+     about." That is WRONG and the demerit is withdrawn. Read in the code: `refusal_for` is called at
+     `tool_router.py:250` and `route.plugin.execute(...)` at `:269`, so a refused call never reaches the plugin and
+     therefore never reaches the provider. Candidate 3 cannot over-charge a refusal. Its real defects are the two
+     found below, not this one.
 - **CEILING NOTE, so T6b does not discover it mid-fix:** `tool_router.py` is at **290/300**. Candidates 1 and 2
   both add lines there. Candidate (2) of the T5 CEILING FINDING (`mount()` into `router_registry.py`, measured
   ~254/300) is **already PRE-APPROVED** and executable without a fresh ruling, in its own mechanical commit.
@@ -1404,7 +1425,63 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   plugin bucket **AND the sovereign daily total**. A cost that never arrives makes every web query look FREE to
   Rule 10's ceiling — the silent-failure direction DEC-26 called out for the price CONSTANT, now present in the
   transport of the figure as well.
-- **Implementation timing:** T6b, before `record_plugin_call` is wired. Sultan picks the bridge.
+- **SULTAN'S FOUR CRITERIA (2026-07-25) — the ruling framework, recorded before the ruling:** (1) breaks no signed
+  contract — Phase 0/1 stated `can_afford` / `record_turn` are untouched and M1-3 added a ledger COLUMN without
+  changing a contract, so a candidate that alters either is DISQUALIFIED; (2) the ROUTER remains the recording
+  point — it owns provenance and is the chokepoint every result crosses, the same argument that put wrapping,
+  taint and confirmation there; (3) smallest surface — cost is not a security property and does not justify
+  widening a general contract, and `ToolResult` is the PLUGIN-FACING type, so widening it touches every plugin
+  author forever; (4) fails SAFE — a missing cost must record ZERO, never SKIP, because a zero is visible in the
+  ledger and provably wrong while a skipped call is invisible and looks free.
+- **MEASURED against the code before comparing (both facts decide criteria 2 and 4):**
+  * `Budget.record_plugin_call` already does `cost = 0.0 if cost_usd is None else float(cost_usd)` and always
+    increments `calls` and `spent_usd`. So **criterion 4 is already satisfied AT THE LEDGER** for every candidate:
+    a missing cost records zero and counts the call. The live question is therefore not "does the ledger skip?"
+    but "can this candidate cause the `_record` CALL to be skipped, or to fire twice?"
+  * `service()` already records on every path where a plugin actually ran (degraded read, plugin raised, normal),
+    and deliberately does NOT record when the confirm gate refuses — nothing ran, nothing is attributed.
+- **COMPARISON (presented, NOT ruled — the T5 CEILING FINDING posture):**
+  * **(1) duck-typed `execute_with_cost` at the router.** C1 ✅ no contract touched. C2 ✅ the router both obtains
+    and records — it strengthens the chokepoint. C3 ✅ smallest: the widened surface is an OPTIONAL, undiscoverable
+    method, not the mandatory ABC. C4 ✅ a plugin without it falls back to `execute()` → `None` → zero, counted.
+    **Cost:** a second execution path in the security-critical dispatch file, and an UNDISCOVERABLE contract — a
+    community paid plugin would silently record zero forever. **Ceiling:** `tool_router.py` is 290/300 and this
+    branch plus its rationale is realistically 12-20 lines (ESTIMATED, not measured — and estimates have lost to
+    measurement four times this milestone), so it almost certainly needs the PRE-APPROVED `mount()` extraction
+    first, in its own mechanical commit.
+  * **(2) `ToolResult.cost_usd`.** C1 ✅ `can_afford` / `record_turn` untouched. C2 ✅ router still records. C3 ✗ —
+    this is exactly the general, plugin-facing contract criterion 3 protects. C4 ✅ a default records zero.
+    **Ceiling:** cheapest — the field is copied at the existing `ServiceOutcome(...)` construction, adding no new
+    `if` (so `test_session_taint`'s ONE-condition assertion on `_outcome_for` still holds) and probably fitting
+    inside the 10 remaining lines. **The real risk, named:** it ADVERTISES to every plugin author that a
+    plugin-set number flows into `record_plugin_call`, which adds to the SOVEREIGN DAILY TOTAL gating
+    `can_afford` — i.e. a documented path by which any plugin can exhaust the user's budget. That is the
+    `is_error` hole of DEC-29 in a new place: a plugin-set field driving a kernel decision.
+  * **(3) wrap the provider at the composition root.** C1 ✅. C2 ✗✗ — recording LEAVES the router, which owns
+    provenance; the wrapper would have to re-declare a provenance tag, and one fact would have two homes. C4 ✗ —
+    and this is the concrete defect: the router still calls `_record(provenance, None)` on the normal path, which
+    increments `calls` unconditionally, so a wrapped provider that also records would **DOUBLE-COUNT every search
+    in the `calls` column**. Suppressing that needs a kernel line, which destroys the candidate's only real
+    advantage. **Genuine merit, stated fairly:** the figure never crosses plugin code, so it is the most
+    TRUSTWORTHY source — the only candidate immune to the plugin-set-number risk above.
+- **RECOMMENDATION (mine, for Sultan to rule): candidate (1).** It is the only one that satisfies all four, and
+  criterion 3 is decisive between (1) and (2): today there is exactly ONE paid path and it is FIRST-PARTY, so (1)'s
+  undiscoverable-contract weakness has no current victim, while (2) pays the permanent contract cost immediately
+  for a need that does not exist yet. (1) is also REVERSIBLE and does not foreclose (2): if third-party paid
+  plugins ever arrive, promoting the method into the ABC — or adding the `ToolResult` field then — is an additive
+  move made with a real consumer in view. That is the stub-first order this milestone has followed throughout.
+  (3) is rejected on criterion 2 and the double-count, despite having the most trustworthy figure.
+- **T7 MUST VERIFY THE WHOLE CHAIN IN ONE CHECK (Sultan's instruction, 2026-07-25) — there are TWO defects on the
+  SAME chain, and either alone is unfalsifiable.** DEC-26 records that `TAVILY_COST_PER_QUERY_USD = 0.008` is
+  DOC-DERIVED and has never touched the real service; this entry records that the PATH never delivers the figure.
+  So T7's acceptance gate is a single end-to-end check on a REAL search with a REAL key: **(a) the cost ARRIVES —
+  `budget.json` shows the web provenance bucket incremented with a NON-ZERO `spent_usd`, and the day's sovereign
+  total rose by the same amount; and (b) the VALUE is RIGHT — it matches what Tavily actually billed, read from
+  the vendor dashboard's credit consumption.** Verifying the constant while the bridge is broken proves nothing
+  (the number never moves), and verifying arrival with a wrong constant corrupts the ceiling SILENTLY — the exact
+  asymmetry DEC-26 flagged, now doubled. Both halves, one run, or the gate is not met.
+- **Implementation timing:** T6b, before `record_plugin_call` is wired. Sultan picks the bridge. **STATUS: AWAITING
+  RULING** — no bridge implemented, no kernel touched.
 
 ---
 
