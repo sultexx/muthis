@@ -32,6 +32,7 @@ from typing import Any, Callable, Optional
 from muthis_sdk import ManifestError, PluginManifest, ToolResult
 from muthis_sdk.manifest import parse_manifest
 
+from ...trust.high_impact import RouteImpact
 from ..broker import Broker
 from .client import McpSession, McpSessionError
 from .policy import ExposedTool, filter_tools, sanitize_result
@@ -118,6 +119,13 @@ class McpHost:
                 namespace=manifest.name,
                 provenance=f"mcp:{manifest.name}",
                 taint=True,
+                # DEC-15: the kernel READ this hint — `filter_tools` exposes a
+                # tool only when its own catalog carried readOnlyHint=true — so
+                # the host may state it. Stating it is not optional politeness:
+                # the classification defaults to fail-closed, so an external
+                # mount that stays silent is high-impact, which is exactly how
+                # "MCP tools lacking readOnlyHint" is expressed.
+                impact=RouteImpact(read_only_hint=True),
             )
             mounted.append(manifest.name)
         return mounted

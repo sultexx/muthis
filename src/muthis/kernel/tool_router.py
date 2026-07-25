@@ -33,6 +33,12 @@ checks: a result that is WRAPPED but does not RAISE would leave the session
 looking clean, so T5's confirmation would never fire on a session that has
 already ingested adversarial content. `_outcome_for` is that single branch.
 
+HIGH-IMPACT CLASSIFICATION (DEC-15): every route also carries the kernel's own
+`RouteImpact` facts (trust/high_impact.py) — granted capabilities, the MCP
+readOnlyHint — assigned by whoever MOUNTS the route (kernel code) and never by
+the plugin. They are INERT here: the confirm gate that reads them is the next
+commit, and mounting a fact nothing consumes yet is the stub-first order.
+
 Mount-time errors DO raise (English ValueError): composition happens at app
 start / in tests, where failing loudly is correct.
 
@@ -57,6 +63,7 @@ from muthis_sdk import (
 )
 
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
+from ..trust.high_impact import RouteImpact
 from .session_taint import SessionTaint
 from .untrusted_content import wrap_untrusted
 
@@ -94,6 +101,7 @@ class _Mounted:
     ctx: PluginContext
     provenance: str
     taint: bool = False         # external route (MCP): outcomes untrusted by definition
+    impact: RouteImpact = RouteImpact()  # DEC-15 facts, mounter-assigned (inert)
 
 
 class ToolRouter:
@@ -181,13 +189,18 @@ class ToolRouter:
         namespace: Optional[str] = None,
         provenance: str = "plugin",
         taint: bool = False,
+        impact: RouteImpact = RouteImpact(),
     ) -> None:
         """Register every descriptor a plugin offers.
 
         `namespace` gates the roadmap §3.2 name fencing: community/MCP tools
         are exposed as "<ns>.<tool>" (schema name rewritten to match); CORE
         native plugins mount with namespace=None and keep their V1 names
-        verbatim — the zero-behavior exemption (conflict ruling C-3)."""
+        verbatim — the zero-behavior exemption (conflict ruling C-3).
+
+        `impact` is the DEC-15 high-impact classification for this route, stated
+        by the KERNEL-side mounter from what it granted / read (never by the
+        plugin). Its default is fail-closed for an external route."""
         ctx = ctx if ctx is not None else PluginContext()
         for descriptor in plugin.descriptors():
             exposed = descriptor
@@ -207,6 +220,7 @@ class ToolRouter:
                 ctx=ctx,
                 provenance=provenance,
                 taint=taint,
+                impact=impact,
             )
 
     def descriptors(self) -> list[ToolDescriptor]:
