@@ -1875,3 +1875,72 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Scope:** applies to every ceiling number, headroom claim and "costs zero lines" statement in this file.
 
 ---
+
+## T6b EXTRACTIONS EXECUTED (2026-07-28) — `merged_descriptors` + `pre_dispatch_refusal` out of `tool_router.py`: 298 → 291 → **286/300**, both equivalence-proven
+
+- **COMMIT 1 — `descriptors()` → `router_registry.py::merged_descriptors`** (`db57ffd`). 298 → **291/300** (frees 7,
+  not the predicted 9: the delegator kept a 3-line docstring rather than 1). The registry already owns WHAT
+  EXISTS; WHAT IS OFFERED is read from the same dict by the same rule. The truncation WARNING keeps the
+  `muthis.kernel.tool_router` logger name — a mechanical extraction must never move a log surface.
+- **COMMIT 2 — the two pre-dispatch refusals → `router_surfaces.py::pre_dispatch_refusal`.** 291 → **286/300**.
+  The note and the outcome carrying it are ONE concern and both notes already lived there. The refusals are
+  route-LESS — no session state, no taint raise, no wrap, no budget attribution — which is exactly why moving
+  them costs the dispatch funnel no reasoning. `MountedRoute` is imported under `TYPE_CHECKING` only, because
+  `router_registry` imports `router_surfaces` and a real import would cycle.
+- **EQUIVALENCE PROVEN BY THE INVARIANT'S SHAPE for both** (COMMIT 2 is behaviour-identical, not byte-identical —
+  two early returns became a returned-or-None helper). One harness, run before and after each commit: the merged
+  catalog across SIX real compositions, every descriptor field, the **>24 cap-truncation branch**, **every
+  pre-dispatch refusal surface** (unrouted, unrouted-namespaced, three kernel-serviced variants) with its
+  `text_ar` / `is_error` / `provenance` / `taint` / `cost_usd`, a real-route positive control, and **every
+  `muthis` log record** — dumped as canonical JSON and required byte-identical. It was, both times. The harness
+  was proven DETERMINISTIC across two runs first, so an identical dump means equivalence, not a stable accident.
+- **The import-in-isolation guard is now DERIVED from the package.** The typed-out list had silently fallen FOUR
+  modules behind (`frame_capture`, `session_taint`, `tool_result_pairing`, `untrusted_content`) while its
+  docstring claimed "every kernel module". Now 17 modules, and the next extraction is covered BY CONSTRUCTION.
+
+---
+
+## EIGHTH MEASUREMENT GAP (2026-07-28) — the DEC-37 carrier re-measures at +15, not +13, so the wiring commit does NOT fit at 286/300 — caught BY the STANDING RULE, hours after writing it
+
+- **Item:** the STANDING RULE above says a recorded measurement is sized against the context it was taken in and
+  must be RE-MEASURED before being relied on in another. Applied immediately to the carrier: **+13 was measured
+  against the 298 baseline, before DEC-37 existed.** The ruling added a WHY the carrier must now carry — the
+  router is a BLIND CARRIER and not an owner, the `InterruptHooks` lineage, and who registers each reset — so the
+  rationale comment is 6 lines rather than 4.
+- **RE-MEASURED against the post-extraction file:** 286 + 15 = **301/300, a breach of 1.** The two authorised
+  extractions are **NOT enough** for the wiring commit as DEC-37 should be written.
+- **THE RATIONALE IS NOT THE PLACE TO FIND THE LINE.** DEC-30 has ruled on this exact temptation three times; the
+  T6b brief restates it ("under ceiling pressure reach for an EXTRACTION, never for the rationale"). Compressing
+  the property docstring 3 → 1 would land 299/300 and is therefore NOT proposed.
+- **MEASURED ALTERNATIVE, presented not selected: drop the read-only PROPERTY and expose `turn_hooks` as a public
+  immutable tuple field set in `__init__` → 286 + 8 = 294/300**, legal with 6 lines of margin, **and the DEC-37
+  rationale is kept IN FULL (6 lines, unchanged).** The trade-off is a DESIGN choice, not compression:
+  `session_taint` and `confirm_gate` are read-only properties because their no-setter guarantee is load-bearing
+  (a clearing path would be a security hole). An opaque hook list has no equivalent invariant — but a third seam
+  on this class that reads differently from its two siblings is a consistency cost, and consistency on the
+  security-critical dispatch class is not nothing.
+- **Status:** MEASURED and PRESENTED. Extractions COMMITTED; the wiring commit NOT written. **AWAITING RULING**
+  on the carrier's shape (public field at 294/300, or a ruling that opens the dispatch funnel).
+
+---
+
+## STANDING CONSTRAINT (2026-07-28) — `tool_router.py` is at its IRREDUCIBLE CORE at 286/300: no mechanical extraction remains, and the next addition needs a DESIGN RULING
+
+- **Item:** identified at PLANNING time, which is what DEC-23 means — so Milestone 3 (`doc_rag`) or a T7 live fix
+  never discovers it mid-task.
+- **THE ANATOMY, measured by AST** (286 total): module docstring 55 · imports 12 · class docstring 10 ·
+  `__init__` 17 · `session_taint` 5 · `confirm_gate` 6 · `_record` 7 · `_execute_route` 28 · `_outcome_for` 39 ·
+  `mount` 16 (already a delegator) · `descriptors` 5 (already a delegator) · `service` 48.
+- **WHAT IS LEFT IS THE DISPATCH FUNNEL AND NOTHING ELSE.** `service` + `_outcome_for` + `_execute_route` = **115
+  lines**, and they are the DEC-14 wrap site, the DEC-15 raise site and the DEC-16 confirmation site. `mount` and
+  `descriptors` are already delegators with only the wrapper left. The two properties are the seams `TurnPass`
+  reads. `_record` (7) was enumerated and judged WEAKER because it separates the recording call from the branch
+  that decides whether to record.
+- **THE CONSTRAINT:** **any future addition to this file can no longer be absorbed by a mechanical extraction.**
+  Freeing more than a handful of lines now requires SPLITTING THE DISPATCH FUNNEL — a **DESIGN DECISION requiring
+  a ruling, not a mechanical move** — and it runs directly against DEC-30's reason for extracting `core_router`
+  (so the funnel could be read WHOLE) and the twice-upheld rejection of moving `_outcome_for`.
+- **Applies to:** the DEC-37 wiring commit (see the EIGHTH GAP above), any T7-driven fix, and `doc_rag` mounting
+  tools in Milestone 3.
+
+---

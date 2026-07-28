@@ -75,7 +75,7 @@ from ..trust.high_impact import RouteImpact
 from .router_registry import MountedRoute, merged_descriptors, mount_plugin
 from .router_surfaces import (
     KERNEL_SERVICED_NOTE_AR, MAX_TOOLS, NAMESPACE_SEP, PLUGIN_FAILED_NOTE_AR,
-    UNROUTED_TOOL_NOTE_AR, namespaced_name,
+    UNROUTED_TOOL_NOTE_AR, namespaced_name, pre_dispatch_refusal,
 )
 from .session_taint import SessionTaint
 from .untrusted_content import wrap_untrusted
@@ -227,20 +227,12 @@ class ToolRouter:
     async def service(self, tool: str, args: dict[str, Any]) -> ServiceOutcome:
         """Dispatch ONE call. Never raises — every failure is an Arabic note."""
         route = self._routes.get(tool)
-        if route is None:
-            logger.error("[tool_router] unrouted tool %r refused", tool)
-            return ServiceOutcome(
-                result=ToolResult(text_ar=UNROUTED_TOOL_NOTE_AR, is_error=True),
-                provenance="kernel:unrouted",
-            )
-        if route.descriptor.kernel_serviced:
-            # Defensive: draw/refresh calls are intercepted upstream and must
-            # never arrive here — answering politely keeps the turn alive.
-            logger.error("[tool_router] kernel-serviced tool %r reached service()", tool)
-            return ServiceOutcome(
-                result=ToolResult(text_ar=KERNEL_SERVICED_NOTE_AR, is_error=True),
-                provenance="kernel:misroute",
-            )
+        # The two route-LESS refusals (unrouted / kernel-serviced misroute) live
+        # in router_surfaces.py beside their notes — see `pre_dispatch_refusal`.
+        # Everything below this line is genuinely DISPATCH.
+        refusal = pre_dispatch_refusal(route, tool)
+        if refusal is not None:
+            return refusal
         # DEC-16: the confirmation chokepoint — placed BEFORE every path that
         # could execute or degrade, so a refused call simply never happens. The
         # classification is the route's (DEC-15, kernel-assigned at mount) and

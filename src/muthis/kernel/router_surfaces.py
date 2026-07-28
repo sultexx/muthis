@@ -27,6 +27,18 @@ Pure stdlib, importable in isolation.
 
 from __future__ import annotations
 
+import logging
+from typing import TYPE_CHECKING, Optional
+
+from muthis_sdk import ServiceOutcome, ToolResult
+
+if TYPE_CHECKING:  # runtime-free: router_registry imports THIS module, so a real
+    from .router_registry import MountedRoute  # import here would be a cycle
+
+# Kept on the router's logger: a mechanical extraction must not move a log name
+# (the turn_pass.py / composition.py precedent).
+logger = logging.getLogger("muthis.kernel.tool_router")
+
 # Context-bloat brake (roadmap §3.2): every schema costs ~100-300 tokens, so
 # the merged list is hard-capped; semantic filtering arrives when catalogs grow.
 MAX_TOOLS = 24
@@ -49,6 +61,39 @@ KERNEL_SERVICED_NOTE_AR = "هذه الأداة تخدمها النواة مبا�
 PLUGIN_FAILED_NOTE_AR = "تعذّر تنفيذ الأداة لعطل داخلي في الإضافة."
 
 
+def pre_dispatch_refusal(
+    route: "Optional[MountedRoute]", tool: str
+) -> Optional[ServiceOutcome]:
+    """The two refusals that happen BEFORE any dispatch decision — or None when
+    the call may proceed.
+
+    Extracted here (T6b, 2026-07-28) because the NOTE and the outcome that
+    carries it are ONE concern, and both notes already live in this module. What
+    stays behind in `service()` is the part that is genuinely dispatch: the
+    confirmation gate, the capability degradation, the plugin call, and the
+    single wrap+raise exit. These two are route-LESS: they touch no session
+    state, raise no taint, wrap nothing, and are attributed to nobody's budget —
+    which is exactly why moving them costs the dispatch funnel no reasoning.
+
+    Returned rather than raised, so the caller keeps its early-return shape and
+    the never-raise wall (Law 11) is untouched."""
+    if route is None:
+        logger.error("[tool_router] unrouted tool %r refused", tool)
+        return ServiceOutcome(
+            result=ToolResult(text_ar=UNROUTED_TOOL_NOTE_AR, is_error=True),
+            provenance="kernel:unrouted",
+        )
+    if route.descriptor.kernel_serviced:
+        # Defensive: draw/refresh calls are intercepted upstream and must
+        # never arrive here — answering politely keeps the turn alive.
+        logger.error("[tool_router] kernel-serviced tool %r reached service()", tool)
+        return ServiceOutcome(
+            result=ToolResult(text_ar=KERNEL_SERVICED_NOTE_AR, is_error=True),
+            provenance="kernel:misroute",
+        )
+    return None
+
+
 __all__ = [
     "KERNEL_SERVICED_NOTE_AR",
     "MAX_TOOLS",
@@ -56,4 +101,5 @@ __all__ = [
     "PLUGIN_FAILED_NOTE_AR",
     "UNROUTED_TOOL_NOTE_AR",
     "namespaced_name",
+    "pre_dispatch_refusal",
 ]
