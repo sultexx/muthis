@@ -55,6 +55,22 @@ RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not s
 RUN_CODE_ALREADY_AR = "شغّلتَ الكود قبل قليل في هذه الجولة — استخدم نتيجته وأكمل."
 RUN_CODE_UNAVAILABLE_AR = "التنفيذ المعزول غير متاح في هذه الجلسة."
 
+# T6b: the web tools, derived from the ONE separator like run_code above. They are
+# answered BY NAME for the reason `read_local_file` is — so a web call can NEVER
+# fall through to the draw branch, where it would receive the pointer ack and flip
+# the per-turn draw gate, silently terminating the agentic loop.
+WEB_SEARCH_TOOL = namespaced_name("web", "search")
+WEB_FETCH_TOOL = namespaced_name("web", "fetch")
+WEB_TOOLS = frozenset({WEB_SEARCH_TOOL, WEB_FETCH_TOOL})
+
+# ONE note covers both "a second web call this pass" and "a read was serviced
+# instead": the model's next move is identical either way, so two wordings would
+# be a distinction without a difference.
+WEB_ONE_PER_PASS_AR = (
+    "توجيه داخلي (لا يراه المستخدم): أخدم طلب ويب واحدًا في كل خطوة تفكير. "
+    "اطلبه مرة أخرى في الخطوة التالية."
+)
+
 
 def build_tool_result_message(
     assistant_content: list[dict[str, Any]],
@@ -88,7 +104,11 @@ def build_tool_result_message(
     Lives here (not in claude_agent.py) so the orchestrator stays importable
     without the SDK stack."""
     refresh_id = refresh_call.tool_use_id if refresh_call else None
+    # `read_result` is the ROUTER-serviced call of the pass — a local read OR a
+    # web call (T6b). Which one it was decides what the OTHER ids are told, so a
+    # read id is never handed "already read" for a read that never happened.
     read_id = read_result[0].tool_use_id if read_result else None
+    routed_name = read_result[0].name if read_result else None
     run_id = run_result[0].tool_use_id if run_result else None
     results: list[dict[str, Any]] = []
     for block in assistant_content:
@@ -101,7 +121,19 @@ def build_tool_result_message(
             if tool_use_id is not None and tool_use_id == read_id:
                 content = read_result[1]
             else:
-                content = FILE_ALREADY_READ_AR if read_result else FILE_READ_ERROR_AR
+                content = (FILE_ALREADY_READ_AR if routed_name == READ_FILE_TOOL
+                           else FILE_READ_ERROR_AR)
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+            })
+        elif block.get("name") in WEB_TOOLS:
+            # BY NAME, exactly like the read above — never the draw branch.
+            if tool_use_id is not None and tool_use_id == read_id:
+                content = read_result[1]
+            else:
+                content = WEB_ONE_PER_PASS_AR
             results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -134,5 +166,6 @@ def build_tool_result_message(
 __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR",
     "RUN_CODE_TOOL", "RUN_CODE_ALREADY_AR", "RUN_CODE_UNAVAILABLE_AR",
+    "WEB_SEARCH_TOOL", "WEB_FETCH_TOOL", "WEB_TOOLS", "WEB_ONE_PER_PASS_AR",
     "build_tool_result_message",
 ]

@@ -42,7 +42,7 @@ from ..file_reader import READ_FILE_TOOL, ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .core_router import build_core_router
 from .tool_router import ToolRouter
-from .turn import RUN_CODE_TOOL, TurnResult
+from .turn import RUN_CODE_TOOL, WEB_TOOLS, TurnResult
 from ..turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
@@ -178,10 +178,16 @@ class TurnPass:
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
-                elif event.name == READ_FILE_TOOL:
-                    # Phase 4: a perception tool like refresh — never gates the
-                    # draw. First read of the pass wins; a repeat is answered by
-                    # the pairing's already-read directive (turn.py, by name).
+                elif event.name == READ_FILE_TOOL or event.name in WEB_TOOLS:
+                    # Phase 4 / T6b: PERCEPTION tools serviced through the ROUTER
+                    # after the sync point — neither ever gates the draw. Without
+                    # this branch a web call would fall to the LOOK-only `else`
+                    # below: never serviced (so the DEC-14 wrap, the DEC-15 taint
+                    # raise, the DEC-16 confirm gate, the DEC-22 cap and the
+                    # DEC-36 collector are all bypassed) and then paired with the
+                    # POINTER ack, flipping the draw gate and killing the turn.
+                    # First router-serviced call of the pass wins; every other id
+                    # is answered BY NAME in tool_result_pairing.py.
                     result.tool_calls.append(event)
                     if read_call is None:
                         read_call = event

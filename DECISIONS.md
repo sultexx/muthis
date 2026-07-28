@@ -2080,3 +2080,50 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   rejection of moving `_outcome_for`. Budget a ruling round for it at PLANNING time (DEC-23).
 
 ---
+
+## DEC-39 (2026-07-28) — a servicing branch is a REQUIREMENT of mounting any routed tool, never an optional follow-up — APPROVED, EXECUTED (found before the mount, not after)
+
+- **THE DEFECT, found by tracing the path before writing the mount.** T6b's brief scoped COMMIT 2 as "mount
+  `web_research`, byte-pin v3". Neither the brief nor any prior record traced what would happen when the model
+  actually CALLED the tool. `turn_pass.consume()` dispatches by NAME — draw tools, refresh, `read_local_file`,
+  `sandbox__run_code`, **else → "LOOK-only violation: refusing tool"** — and `build_tool_result_message` mirrors
+  it, with a final `else` that answers the id from `draw_result_text`. So mounting alone would have shipped a tool
+  that:
+  1. **NEVER reaches `router.service()`** — bypassing the DEC-14 wrap, the DEC-15 taint raise, the DEC-16 confirm
+     gate, the DEC-22 per-turn cap and the DEC-36 collector. **Five signed decisions, all off the path.**
+  2. Is answered with `HIGHLIGHT_ACK_TEXT_AR` — telling the model, in Arabic, that **a pointer is on screen** in
+     reply to a request to read a web page. A false internal directive.
+  3. **Flips `gate.drawn`**, so `loop_tool_choice` returns `"none"` and the agentic loop HARD-TERMINATES. A turn
+     in which the model tried to search would end immediately.
+- **THE DISTINCTION THAT MATTERS, and the reason this was a STOP rather than a note** (Sultan's framing, adopted):
+  the window already ACCEPTED for this milestone is about missing **REASONING laws** — the model working without
+  the DATA-not-COMMANDS law, the query-privacy rule and the citation law. **This was different in KIND, not
+  degree: an unrouted, unserviced tool that bypasses every boundary and breaks the turn.** A missing law degrades
+  judgement; a missing servicing branch removes the machinery the laws are supposed to sit on top of.
+- **THE RULE, recorded so Milestone 3 does not rediscover it: MOUNTING A ROUTED TOOL REQUIRES ITS SERVICING
+  BRANCH IN THE SAME BREATH — a dispatch branch in `turn_pass.consume()` AND a pairing branch answering it BY
+  NAME.** Mounting is what makes a tool MODEL-VISIBLE, so mounting first always opens a callable-but-unserviced
+  window. **`doc_rag` will mount tools in Milestone 3 and must budget both branches.** The T5 `run_code` wiring is
+  the worked precedent; `read_local_file` is the older one.
+- **Resolution — the T5 precedent applied.** Web calls join the ROUTER-serviced branch beside `read_local_file`
+  (both are perception serviced after the sync point that never gate the draw), and the pairing answers them BY
+  NAME so they can never fall to the draw branch. **`orchestrator.py` is BYTE-IDENTICAL: it unpacks four values
+  and forwards slots 3 and 5 POSITIONALLY, so it is a pure conduit — slot 3 was widened from "the pass's read" to
+  "the pass's ROUTER-serviced call" without the orchestrator observing the change.**
+- **KNOWN LIMIT, stated rather than discovered later:** slot 3 carries ONE serviced call, so a pass mixing a local
+  read and a web call services the FIRST and answers the other with a short internal directive. That is the
+  existing "first read of the pass wins" rule generalized, not a new restriction. The pairing now checks WHICH
+  tool was serviced, so a read id is never told "already read" for a read that never happened.
+- **A REAL INTERACTION FOUND BY THIS COMMIT'S OWN TEST, and pinned:** the FIRST fetch raises session taint
+  (DEC-15), so the SECOND high-impact web call in that session is refused by the confirm gate (DEC-16) until the
+  user approves aloud. **The DEC-22 per-turn cap is therefore rarely the binding limit — confirmation is.** A
+  refused call correctly spends NO cap, because it never fetched. Recorded because the cap test initially assumed
+  otherwise and failed honestly; T7 should watch how the approval cadence feels on a real research turn.
+- **COUNTS:** `turn_pass.py` 263 → 269 · `tool_result_pairing.py` 138 → 171 · `turn.py` 182 → 183 ·
+  **`tool_router.py` ZERO lines (stays 300/300)** · **`orchestrator.py` BYTE-IDENTICAL**.
+- **13 new tests (942 → 955); SIX MUTATIONS ALL RED** (`PYTHONDONTWRITEBYTECODE=1`) — the first two ARE today's
+  bug: removing the dispatch branch, and removing the pairing branch. Also: never routing through the router, not
+  propagating taint, answering a second web call from the draw branch, and the "already read" regression.
+- **Status:** DONE. The catalog mount follows; the persona laws land immediately after.
+
+---

@@ -25,7 +25,8 @@ from .history_hygiene import STALE_SCREENSHOT_NOTE_AR, strip_images_from_history
 # Pairing + run_code surfaces extracted to tool_result_pairing.py (≤300-line
 # split, DEC-21 #3); re-exported so existing importers keep working.
 from .tool_result_pairing import (
-    NO_SCREENSHOT_TOOL_RESULT_AR, RUN_CODE_TOOL, build_tool_result_message,
+    NO_SCREENSHOT_TOOL_RESULT_AR, RUN_CODE_TOOL, WEB_TOOLS,
+    build_tool_result_message,
 )
 from ..tts import TTSResult
 
@@ -177,6 +178,6 @@ __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR", "MIC_FAILED_AR", "STT_EMPTY_AR",
     "AGENTIC_CAP_NOTE_AR", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
     "next_highlight",
-    "TurnResult", "build_tool_result_message", "RUN_CODE_TOOL",
+    "TurnResult", "build_tool_result_message", "RUN_CODE_TOOL", "WEB_TOOLS",
     "STALE_SCREENSHOT_NOTE_AR", "strip_images_from_history",
 ]
