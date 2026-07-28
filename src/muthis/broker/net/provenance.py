@@ -37,11 +37,13 @@ SNIPPETS alone therefore shows an EMPTY badge. That is the honest signal — the
 model read nothing in depth — but it does mean an empty badge is not by itself
 evidence of a fabricated source. T7 observes how it reads live.
 
-INERT UNTIL THE NEXT COMMIT: nothing calls `new_turn()` yet. The single line that
-will, from `TurnPass.new_turn_voice`, is kernel wiring, and it serves BOTH this
-collector and `FetchGate` — ONE hook with two consumers is not a second
-MECHANISM, so DEC-19 is satisfied. Until that line lands, this accumulates for
-the whole PROCESS, not per turn. Do not read this guard and believe it.
+LIVE since T6b's wiring commit (DEC-37): `TurnPass.new_turn_voice` fires the
+router's opaque `turn_hooks`, and the composition root registered `Broker.new_turn`
+there — so the reset arrives through this record's OWNER, the broker, and no
+kernel module knows a broker-side record exists. `FetchGate` rides the SAME hook;
+one hook with two consumers is not a second MECHANISM, so DEC-19 is satisfied.
+STILL NOT DRAWN: no kernel code calls `overlay.show_domain_badge` yet — the
+record is turn-scoped and correct, but nothing renders it.
 
 LOGS NOTHING, structurally: this module imports nothing at all, so it has no
 logger to leak from (DEC-20/DEC-28 — the badge is DOMAIN-only precisely because

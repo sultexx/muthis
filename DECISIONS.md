@@ -1944,3 +1944,43 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   tools in Milestone 3.
 
 ---
+
+## DEC-37 WIRING EXECUTED (2026-07-28) — the turn boundary is LIVE for both consumers; `tool_router.py` landed at exactly the measured 294/300
+
+- **Shipped exactly as ruled.** `ToolRouter.turn_hooks` is an **immutable public FIELD**, not a read-only
+  property. Sultan made the reasoning a CRITERION rather than an exception: a read-only property on this class
+  guards a SPECIFIC security invariant — `session_taint` and `confirm_gate` must not be swappable after
+  construction, because replacing the confirmation gate from outside is a hole. An opaque hook list registered by
+  the composition root is neither a secret nor an authority, so a property there would be **form without
+  substance**, and it would obscure why the two siblings ARE guarded. The tuple still prevents what actually
+  matters (contents not mutable). **The asymmetry is documented IN the class** as a binding condition, so the next
+  reviewer cannot "fix" it by weakening the two or ceremonially hardening the third — the `logging_policy.py`
+  "do not tidy this up" precedent.
+- **MEASURED BEFORE WRITING, landed on the number:** `tool_router.py` **286 → 294/300** exactly. `turn_pass.py`
+  237 → 249. `broker.py` 121 → 135. `composition.py` 187 → 208. `core_router.py` 76 → 79. **`orchestrator.py`
+  BYTE-IDENTICAL** (git-verified empty diff).
+- **FIRING IS GUARDED BUT SYNCHRONOUS — the one deliberate divergence from `InterruptHooks`.** A raising hook
+  must not kill a turn (Law 11), so it is caught and LOGGED — never silently swallowed, because a reset that
+  failed must be visible. It is NOT run on threads like the F9 hooks: those must never block the sacred silence
+  path, whereas these resets must be COMPLETE before the turn runs, or a cap could reset mid-turn.
+- **BOTH GUARDS ARE NOW LIVE, and both docstrings + both AGENTS.md rows say so in the same commit** — a guard
+  documented as inert while actually enforcing is the inverse of the error avoided earlier in this milestone.
+  The provenance record's remaining half is stated rather than hidden: **turn-scoping LIVE, still NOT DRAWN.**
+- **ORDERING, deliberately:** the web plugin is BUILT at the root one commit before it is MOUNTED, so its
+  per-turn cap is live BEFORE the tool it bounds is reachable by the model — never the reverse.
+- **10 new tests (925 → 935), and the two load-bearing ones are both about the SECOND turn**, because cross-turn
+  leakage is invisible to every single-turn test: a fetch in turn 1 does not count against turn 2's cap, and turn
+  2's badge does not carry turn 1's domains. Negative controls prove the two consumers are independent (register
+  one owner, the other's state survives), so the root's two-entry tuple is not untested ceremony.
+- **TEN MUTATIONS, ALL RED** (`PYTHONDONTWRITEBYTECODE=1`): hooks never fired · the carrier dropping them · the
+  tuple made mutable · a raising hook left unguarded · the broker not resetting the collector · the plugin not
+  resetting its cap · only the plugin registered · only the broker registered · nothing registered · the broker
+  handed no collector.
+- **A HOLE IN MY OWN GUARD, found by mutation 10 and recorded** (the DEC-18 key-leak precedent, where the same
+  thing happened): the composition scan asserted the `fetched_domains` KEYWORD was present, so
+  `fetched_domains=None` passed GREEN while production would have accumulated the badge for the whole process
+  forever. Fixed to assert the VALUE is a Name, not a constant. **A guard that checks a parameter's NAME checks
+  nothing about what production wires.**
+- **Status:** DONE. Catalog NOT mounted (still blocked by ordering); persona laws NOT added. 935 + 27 green.
+
+---

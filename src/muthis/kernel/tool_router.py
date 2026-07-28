@@ -59,7 +59,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 
 from muthis_sdk import (
     PluginContext,
@@ -98,6 +98,7 @@ class ToolRouter:
         plugin_ledger: Optional[Callable[[str, Optional[float]], None]] = None,
         session_taint: Optional[SessionTaint] = None,
         confirm_gate: Optional[ConfirmGate] = None,
+        turn_hooks: Sequence[Callable[[], None]] = (),
     ) -> None:
         self._routes: dict[str, MountedRoute] = {}
         self._plugin_ledger = plugin_ledger
@@ -110,6 +111,13 @@ class ToolRouter:
         # DEC-16: same injection discipline, same reason — a None gate would be
         # an open door, so an absent one is a REAL gate, not no gate.
         self._confirm_gate = confirm_gate if confirm_gate is not None else ConfirmGate()
+        # DEC-37: the router is a BLIND CARRIER of turn-boundary hooks, never an
+        # owner — it holds opaque callables and never learns what they reset (the
+        # InterruptHooks lineage, DEC-3-C); the composition root registers each
+        # owner's own. A public FIELD, not a property like the two above: those
+        # guard a real invariant (not swappable after construction — replacing the
+        # confirm gate from outside is a hole), which an opaque list has not.
+        self.turn_hooks: tuple[Callable[[], None], ...] = tuple(turn_hooks)
 
     @property
     def session_taint(self) -> SessionTaint:

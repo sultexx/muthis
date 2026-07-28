@@ -15,12 +15,13 @@ pattern (DEC-3-B) followed to the letter: a SEPARATE object that shares no
 instance and no module with HighlightGate or SandboxGate, owning no loop and no
 lifecycle (Law 11). It only counts.
 
-INERT UNTIL T6b. State resets BY CONSTRUCTION — a fresh gate each turn, or
-`new_turn()` — but nothing calls `new_turn()` yet: the single line that reaches
-it from `TurnPass.new_turn_voice` (the SAME turn-boundary hook the sandbox gate
-uses, DEC-19 forbids inventing a second) is kernel wiring, and lands with the
-rest of it in T6b. Until then this bounds fetches WITHIN one process, not per
-turn. Do not mistake an unwired cap for an enforced one.
+LIVE since T6b's wiring commit (DEC-37): the composition root registers
+`WebResearchPlugin.new_turn` — which resets this gate — as one of the router's
+opaque `turn_hooks`, and `TurnPass.new_turn_voice` fires them at the SAME
+turn boundary the sandbox gate already used (DEC-19 forbids inventing a second).
+The cap is therefore per USER TURN, as DEC-22 requires. The gate was deliberately
+made live BEFORE the tool it bounds became model-visible, never the other way
+round. State also resets BY CONSTRUCTION — a fresh gate is a clean budget.
 
 Pure stdlib; importable in isolation.
 """

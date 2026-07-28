@@ -42,6 +42,7 @@ from .vision.downscale import (
 from .vision.screen_capture import ScreenCapture, primary_monitor_size
 from muthis_plugins.sandbox_exec.runner import SandboxRunner
 from muthis_plugins.sandbox_exec.service import SandboxService
+from muthis_plugins.web_research.plugin import WebResearchPlugin
 
 # Kept on main's logger: the log surface is unchanged by the split (the
 # turn_pass.py precedent — a mechanical extraction must not move log names).
@@ -113,11 +114,14 @@ def _build_broker_graph(
     per-domain rate limit and the RAM-only session LRU only mean anything when
     the whole session shares a single instance, and it owns a long-lived httpx
     client whose shutdown the root owns (the `agent.aclose()` precedent), which
-    is why it is RETURNED rather than hidden inside the broker."""
-    router = build_core_router(read_file=reader.read,
-                               plugin_ledger=budget.record_plugin_call,
-                               session_taint=SessionTaint(),
-                               confirm_gate=ConfirmGate())
+    is why it is RETURNED rather than hidden inside the broker.
+
+    V2 Phase 2 (T6b, DEC-37): the TURN-BOUNDARY hooks are registered here. The
+    router carries them blindly; this root is the only place that knows both the
+    plugin side (`FetchGate`, DEC-22) and the broker side (`FetchedDomains`,
+    DEC-36), so each consumer resets through its own owner. The build order below
+    is load-bearing for that reason alone — the collector, the fetcher, the broker
+    and the web plugin all exist before the router that carries their resets."""
     bridge_frames = FrameCapture(
         overlay=overlay, screen_capture=ScreenCapture().capture,
         downscale=downscale_to_max_width, auto_hide=_BridgeAutoHide())
@@ -132,7 +136,24 @@ def _build_broker_graph(
     fetched_domains = FetchedDomains()
     fetcher = HardenedFetcher(domains=fetched_domains)
     broker = Broker(grants=GrantsStore(), read_file=reader.read,
-                    capture=bridge_capture, net_fetch=fetcher.fetch_readable)
+                    capture=bridge_capture, net_fetch=fetcher.fetch_readable,
+                    fetched_domains=fetched_domains)
+    # DEC-37: the web plugin is built HERE, one commit BEFORE it is mounted, and
+    # the ordering is the point — its per-turn fetch cap must be LIVE before the
+    # tool it bounds is reachable by the model, never the other way round.
+    web_plugin = WebResearchPlugin()
+    # THE TURN-BOUNDARY REGISTRATION (DEC-37). This is the ONE place that
+    # legitimately knows both sides of the plugin boundary, so each consumer
+    # resets through its OWN owner: the plugin owns its cap (DEC-22), the broker
+    # owns the provenance collector's lifetime (DEC-36). The router only CARRIES
+    # these callables and never learns what they do — so no kernel module names
+    # a plugin or a broker record, and adding a third consumer later touches
+    # this line alone.
+    router = build_core_router(read_file=reader.read,
+                               plugin_ledger=budget.record_plugin_call,
+                               session_taint=SessionTaint(),
+                               confirm_gate=ConfirmGate(),
+                               turn_hooks=(web_plugin.new_turn, broker.new_turn))
     # Three-strikes announcements log for now; the SPOKEN delivery joins the
     # voice line with Phase 2's first high-impact plugin (audio path sacred).
     host = McpHost(broker=broker,

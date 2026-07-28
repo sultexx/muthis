@@ -108,6 +108,18 @@ class TurnPass:
         # rides the SAME turn-boundary hook as the sandbox gate on purpose —
         # DEC-19 forbids inventing a second one, and this hook is proven live.
         self._router.confirm_gate.new_turn()
+        # DEC-37: the SAME hook, now serving two more consumers — the plugin-side
+        # fetch cap (DEC-22) and the broker-side provenance collector (DEC-36).
+        # The kernel fires OPAQUE callables and never learns what they reset; the
+        # composition root registered each owner's own. Guarded like InterruptHooks
+        # (a hook may not kill a turn, Law 11) but SYNCHRONOUS, not threaded: these
+        # resets must be complete before the turn runs, whereas an F9 hook must
+        # never block the silence. A raise is logged, never silently swallowed.
+        for hook in self._router.turn_hooks:
+            try:
+                hook()
+            except Exception:  # noqa: BLE001 — bookkeeping must never kill a turn
+                logger.warning("[orchestrator] a turn-boundary hook raised — ignored")
         if self._stream_tts and self._session_factory is None:
             from ..tts import TTS  # lazy real default: only the flag-ON path pays
             self._session_factory = TTS().open_speech_session

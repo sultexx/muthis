@@ -53,11 +53,25 @@ class Broker:
         read_file: Optional[ReadFileFn] = None,
         capture=None,  # async () -> Optional[bytes]; the kernel capture line
         net_fetch=None,  # async (url: str) -> FetchResult; HardenedFetcher's ONE verb
+        fetched_domains=None,  # DEC-36: the turn-scoped provenance collector
     ) -> None:
         self._grants = grants
         self._read_file = read_file
         self._capture = capture
         self._net_fetch = net_fetch
+        # DEC-37: the collector is BROKER-owned state, so its TURN lifetime is
+        # managed HERE rather than by the kernel — which has no need to know a
+        # broker-side record exists at all. WHO OWNS THE FACT, applied to a
+        # lifetime rather than to a value.
+        self._fetched_domains = fetched_domains
+
+    def new_turn(self) -> None:
+        """Start a fresh turn for every broker-owned turn-scoped record — today
+        exactly the DEC-36 provenance collector. Registered as an opaque
+        turn-boundary hook by the composition root (DEC-37), because the badge
+        must show what THIS turn read, never what the process has read."""
+        if self._fetched_domains is not None:
+            self._fetched_domains.new_turn()
 
     def has_grant(self, manifest: PluginManifest, plugin_dir: str | Path) -> bool:
         """True iff a HASH-CURRENT consent record exists — distinct from
