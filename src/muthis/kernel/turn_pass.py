@@ -243,6 +243,20 @@ class TurnPass:
         run_result: Optional[tuple[ToolCall, str]] = None
         if run_call is not None and self._sandbox is not None:
             run_result = (run_call, await self._sandbox.run(run_call.args))
+        # DEC-20/36: the badge, drawn by the KERNEL from the broker's own record.
+        # HERE, at the very end of the pass: after the Option-A sync point and
+        # after servicing, so it can neither reorder draw→speak nor delay the
+        # audio. It is METADATA, not speech — its own bottom-left anchor, so the
+        # caption's 2×60 budget is untouched, and it inherits the caption
+        # lifecycle (clear_caption / the ghosting hide both wipe it), so no second
+        # lifecycle exists. Redrawing each pass is idempotent, and an EMPTY record
+        # draws NOTHING: "nothing fetched" must look like nothing, not a source.
+        # DUCK-TYPED like every other optional overlay surface (the voice_out
+        # caption seam, draw_dispatch's dim/shapes): a StubOverlay or an older
+        # fake simply has no badge, and metadata must never crash a turn.
+        badge = getattr(self._overlay, "show_domain_badge", None)
+        if badge is not None:
+            badge(self._router.fetched_domains())
         return turn_complete, refresh_call, read_result, run_result
 
 

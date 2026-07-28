@@ -99,6 +99,7 @@ class ToolRouter:
         session_taint: Optional[SessionTaint] = None,
         confirm_gate: Optional[ConfirmGate] = None,
         turn_hooks: Sequence[Callable[[], None]] = (),
+        fetched_domains: Callable[[], Sequence[str]] = tuple,
     ) -> None:
         self._routes: dict[str, MountedRoute] = {}
         self._plugin_ledger = plugin_ledger
@@ -118,6 +119,11 @@ class ToolRouter:
         # guard a real invariant (not swappable after construction — replacing the
         # confirm gate from outside is a hole), which an opaque list has not.
         self.turn_hooks: tuple[Callable[[], None], ...] = tuple(turn_hooks)
+        # DEC-20/36: the badge's SOURCE, carried the same blind way — the router
+        # never calls it. The kernel DRAWS (only TurnPass holds the overlay), the
+        # BROKER owns the fact; this carries the reader across the one seam
+        # TurnPass already holds. Default `tuple` answers () — unwired draws none.
+        self.fetched_domains: Callable[[], Sequence[str]] = fetched_domains
 
     @property
     def session_taint(self) -> SessionTaint:

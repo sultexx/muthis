@@ -39,6 +39,7 @@ def build_core_router(
     session_taint: Optional[SessionTaint] = None,
     confirm_gate: Optional[ConfirmGate] = None,
     turn_hooks: Sequence[Callable[[], None]] = (),
+    fetched_domains: Callable[[], Sequence[str]] = tuple,
 ) -> ToolRouter:
     """The default kernel router: the four V1 tools mounted as core plugins
     (M4 dogfood) in the EXACT V1 catalog order — pointer, shapes, refresh,
@@ -62,7 +63,8 @@ def build_core_router(
     from muthis_plugins.screen_refresh import ScreenRefreshPlugin
 
     router = ToolRouter(plugin_ledger=plugin_ledger, session_taint=session_taint,
-                        confirm_gate=confirm_gate, turn_hooks=turn_hooks)
+                        confirm_gate=confirm_gate, turn_hooks=turn_hooks,
+                        fetched_domains=fetched_domains)
     router.mount(LookPointerPlugin(), provenance="core:look_pointer")
     router.mount(LookShapesPlugin(), provenance="core:look_shapes")
     router.mount(ScreenRefreshPlugin(), provenance="core:screen_refresh")

@@ -153,7 +153,11 @@ def _build_broker_graph(
                                plugin_ledger=budget.record_plugin_call,
                                session_taint=SessionTaint(),
                                confirm_gate=ConfirmGate(),
-                               turn_hooks=(web_plugin.new_turn, broker.new_turn))
+                               turn_hooks=(web_plugin.new_turn, broker.new_turn),
+                               # DEC-20: the badge's READER — the kernel draws
+                               # from the collector the FETCHER writes, so the
+                               # fact never passes through plugin code.
+                               fetched_domains=fetched_domains.domains)
     # Three-strikes announcements log for now; the SPOKEN delivery joins the
     # voice line with Phase 2's first high-impact plugin (audio path sacred).
     host = McpHost(broker=broker,

@@ -42,8 +42,12 @@ router's opaque `turn_hooks`, and the composition root registered `Broker.new_tu
 there — so the reset arrives through this record's OWNER, the broker, and no
 kernel module knows a broker-side record exists. `FetchGate` rides the SAME hook;
 one hook with two consumers is not a second MECHANISM, so DEC-19 is satisfied.
-STILL NOT DRAWN: no kernel code calls `overlay.show_domain_badge` yet — the
-record is turn-scoped and correct, but nothing renders it.
+DRAWN since T6b's badge commit: `TurnPass` reads this record through the router's
+blind `fetched_domains` seam and calls `overlay.show_domain_badge` at the END of
+each pass — after the Option-A sync point, so the badge can never reorder
+draw→speak. The KERNEL owns the moment and the BROKER owns the fact, which is
+what DEC-20's "drawn by the kernel from real provenance" requires of BOTH halves.
+An empty record draws nothing at all.
 
 LOGS NOTHING, structurally: this module imports nothing at all, so it has no
 logger to leak from (DEC-20/DEC-28 — the badge is DOMAIN-only precisely because

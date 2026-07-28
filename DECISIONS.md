@@ -1984,3 +1984,99 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Status:** DONE. Catalog NOT mounted (still blocked by ordering); persona laws NOT added. 935 + 27 green.
 
 ---
+
+## T6b BADGE-DRAW CEILING FINDING (2026-07-28) — drawing the badge FROM THE KERNEL needs a domains-provider seam, and the only carrier is `tool_router.py`, frozen by ruling at 294/300 — MEASURED, no code written
+
+- **Item:** COMMIT 1 of T6b's final pair asks for `overlay.show_domain_badge` to be wired **from the kernel**, drawn
+  from the collector's real provenance. `TurnPass` holds `_overlay` — the DRAW seam — exactly as the DEC-36
+  measurement verified. **What that measurement did not check, again, is the READ.**
+- **THE STRUCTURAL FACT:** `overlay.show_domain_badge(domains)` takes the domains as an ARGUMENT, so the caller
+  must supply them. `TurnPass`'s constructor carries `reasoner, budget, overlay, voice, stream_tts,
+  session_factory, read_file, router, sandbox` — and `FetchedDomains` is BROKER-side, reachable only from the
+  composition root. So the kernel can DRAW but cannot READ. This is the SIXTH gap's exact shape, one layer along:
+  the overlay reach was verified and recorded; the collector reach was neither.
+- **MEASURED against real copies, both options written in full:**
+  - **OPTION A — the router carries the badge's SOURCE**, mirroring `turn_hooks` (a blind `Callable[[], Sequence[str]]`
+    the router never reads): **`tool_router.py` 294 → 300/300**, `turn_pass.py` 249 → 255. It FITS the ≤300 law
+    with zero headroom — but the file is **frozen BY RULING**, not by the ceiling ("any addition now needs a
+    ruling, not a mechanical move"), and the STANDING CONSTRAINT says no mechanical extraction remains: freeing
+    more requires splitting the dispatch funnel. **So this is a STOP, not a judgement call.**
+  - **OPTION B — collector-triggered draw**: the root injects an `on_change` callback into `FetchedDomains`, which
+    fires on `record()` and `new_turn()`. **`provenance.py` 99 → 111; `tool_router.py` and `turn_pass.py`
+    UNTOUCHED — zero frozen-file lines.** The fact still never touches plugin code, the rendering is still the
+    kernel's `DomainBadge` through the kernel's overlay queue, and the collector still imports nothing (the
+    no-logger property survives; the callback receives DOMAINS, never a URL, so DEC-20's privacy holds by TYPE).
+    **BUT the kernel no longer owns the MOMENT** — the badge would appear the instant a page is read, triggered by
+    a broker-side data object, which is not "wired from the kernel" as instructed and arguably not DEC-20's
+    "drawn by the KERNEL". It also puts a UI trigger behind broker state, a layer crossing this milestone has
+    otherwise refused.
+- **REJECTED WITHOUT MEASURING, because both are shapes already refused:** hanging the provider off the overlay as
+  an undeclared attribute (option (c), the workaround refused twice); and routing the domain through the plugin's
+  outcome (the ORIGINAL DEC-36 design, refused because it puts the guard downstream of what it checks).
+- **RECOMMENDATION (mine, for Sultan to rule — not self-selected, nothing written): OPTION A, which means ruling
+  on the 6 lines.** It is the only one that keeps the kernel owning the moment, and 300/300 is legal under the
+  ≤300 law. The alternative that costs nothing costs the property the badge exists for. If those 6 lines are
+  refused, OPTION B is viable and I would want its "the kernel does not own the moment" limit recorded in the
+  module rather than discovered later.
+- **COMMIT 2 IS NOT BLOCKED BY THIS — measured and ready:** the v3 catalog is **7 descriptors against the cap of
+  24 (holds)**; `web__search` / `web__fetch` both satisfy the DEC-11 pattern `^[a-zA-Z0-9_-]{1,128}$`; the mount
+  lands in `composition.py` (208/300) and the snapshot in `tests/test_core_plugins.py` (160). It needs **zero**
+  `tool_router.py` lines. The ordering rule that mattered is already satisfied — the per-turn fetch cap went LIVE
+  in `ca90c1b`, before the tool it bounds becomes reachable. **NOT executed: Sultan specified COMMIT 1 first, and
+  taking COMMIT 2 out of order is his call, not mine** — the badge is DEC-20's attribution backstop, so whether
+  the model may reach the web before the backstop draws is a judgement about an accepted-window boundary.
+- **Status:** MEASURED and PRESENTED. No code written. Both guards remain LIVE and correctly documented; the
+  collector's "still NOT DRAWN" half remains true and still says so. **AWAITING RULING.**
+
+---
+
+## DEC-38 (2026-07-28) — the badge is DRAWN by the kernel; the ruling-freeze on `tool_router.py` YIELDED to the ≤300 law, which is why the file now sits at exactly 300/300 — APPROVED, EXECUTED (completes DEC-20's third layer)
+
+- **THE RULING TO RECORD FIRST, so 300/300 is never mistaken for an oversight:** `tool_router.py` was frozen by a
+  RULING, not by the ≤300 law. Option A lands at exactly **300/300 and is LEGAL**. Sultan corrected his own
+  position: the freeze was a **PRECAUTION to protect margin, not a rule**, and **when a precaution collides with a
+  core architectural property, the precaution yields — not the property.** Six lines were granted, EXACTLY, for
+  this commit only.
+- **WHY THE PROPERTY OUTRANKED THE MARGIN.** DEC-20 makes the badge the DETERMINISTIC BACKSTOP — the one layer the
+  model does not author, whose job is exposing a HALLUCINATED attribution. Under the free alternative (a
+  collector-triggered draw) **broker-side state would decide WHEN the UI appears**: the kernel would no longer own
+  the moment, and the badge would degrade from a kernel STATEMENT about what was read this turn into a SIDE EFFECT
+  of a fetch. **"Drawn by the kernel from real provenance" covers WHEN, not only WHAT.** Consistency decided it:
+  `extras` was rejected because the plugin populates it, plugin-rendered text was rejected as the badge's source,
+  and both workarounds were rejected — all on one principle. Accepting the free option would have been the FIRST
+  concession of that principle, traded for six lines.
+- **THE GRANT WAS EXACT AND I OVERSPENT IT ONCE, recorded because it is the discipline working:** the first draft
+  wrote SEVEN lines (301/300) — a fifth comment line the measurement never contained. Caught by measuring
+  immediately after writing, and fixed by restoring the measured four-line comment with all content intact, never
+  by trimming rationale. `git diff --numstat` confirms **+6 / -0**.
+- **WHERE IT DRAWS, and why there:** the LAST statement of `TurnPass.consume()` — after the Option-A sync point
+  and after servicing. It cannot reorder draw→speak or delay audio; it has its own bottom-left anchor so the
+  caption's 2×60 budget is untouched; it inherits the caption lifecycle, so `clear_caption` and the
+  hide-before-capture ghosting path already wipe it with NO new code. Redraw per pass is idempotent.
+- **DUCK-TYPED, and this was found by the suite, not by review:** the first version called
+  `overlay.show_domain_badge` directly and turned **90 tests RED** — every older overlay fake lacks the surface.
+  Fixed with `getattr`, the idiom this codebase already uses for the `voice_out` caption seam and
+  `draw_dispatch`'s dim/shapes. Metadata must never crash a turn, in production or in a StubOverlay.
+- **FINAL COUNTS:** `tool_router.py` **300/300 (AT the absolute ceiling)** · `turn_pass.py` 249 → 263 ·
+  `core_router.py` 79 → 81 · `composition.py` 208 → 212 · **`orchestrator.py` BYTE-IDENTICAL**.
+- **7 new tests (935 → 942); SIX MUTATIONS ALL RED** (`PYTHONDONTWRITEBYTECODE=1`), deliberately biased toward what
+  production WIRES after this milestone's fourth guard hole: the kernel never drawing · the badge moved BEFORE the
+  sync point · the router carrying a constant instead of the live reader · the root wiring a constant · **the root
+  wiring a DIFFERENT collector than the fetcher records into** (invisible to any signature check) · an empty record
+  rendering a chip.
+- **Status:** DONE. DEC-20's three layers are now all present in code; only the persona citation LAW remains.
+
+---
+
+## STANDING CONSTRAINT — UPDATED (2026-07-28): `tool_router.py` is AT the ceiling, 300/300, not near it
+
+- **Supersedes the 286/300 wording.** The file is now at the **absolute ceiling**. The constraint is no longer a
+  warning about the future — it is **IMMEDIATELY OPERATIVE**: there is not one line left, and no mechanical
+  extraction remains (the anatomy is the dispatch funnel itself — `service` + `_outcome_for` + `_execute_route`,
+  plus two delegators, three seam surfaces and the docstring).
+- **Therefore ANY future addition to this file** — a T7 live fix, or `doc_rag` mounting tools in Milestone 3 —
+  **requires SPLITTING THE DISPATCH FUNNEL, a DESIGN DECISION needing a ruling, not a mechanical move.** It runs
+  against DEC-30's reason for extracting `core_router` (so the funnel could be read WHOLE) and the twice-upheld
+  rejection of moving `_outcome_for`. Budget a ruling round for it at PLANNING time (DEC-23).
+
+---
