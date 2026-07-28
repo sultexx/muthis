@@ -48,8 +48,11 @@ runs composition → registry, so re-exporting would be a cycle. Import it from
 `muthis.kernel.core_router`. The MODEL-FACING surfaces (the DEC-11 name form, the
 catalog cap, the Arabic refusal notes) live in router_surfaces.py — extracted the
 same way but RE-EXPORTED below, because that dependency runs dispatch → surfaces
-and cycles nothing, so no importer changed. The `MountedRoute` record moved
-to router_registry.py the same way, and for the same reason.
+and cycles nothing, so no importer changed. The `MountedRoute` record,
+`mount_plugin`, and `merged_descriptors` (the catalog body behind `descriptors()`)
+moved to router_registry.py the same way and for the same reason: the registry owns
+WHAT EXISTS and WHAT IS OFFERED — both read from the one routes dict — while this
+file keeps DISPATCH, where the security consequences live.
 """
 
 from __future__ import annotations
@@ -69,7 +72,7 @@ from muthis_sdk import (
 from ..file_reader import FILE_READ_UNAVAILABLE_AR, READ_FILE_TOOL
 from ..trust.confirm_gate import ConfirmGate
 from ..trust.high_impact import RouteImpact
-from .router_registry import MountedRoute, mount_plugin
+from .router_registry import MountedRoute, merged_descriptors, mount_plugin
 from .router_surfaces import (
     KERNEL_SERVICED_NOTE_AR, MAX_TOOLS, NAMESPACE_SEP, PLUGIN_FAILED_NOTE_AR,
     UNROUTED_TOOL_NOTE_AR, namespaced_name,
@@ -216,17 +219,10 @@ class ToolRouter:
                      provenance=provenance, taint=taint, impact=impact)
 
     def descriptors(self) -> list[ToolDescriptor]:
-        """The merged, capped descriptor list in mount order — the model-visible
-        catalog. Core descriptors pass through BYTE-IDENTICAL (no namespace,
-        no schema rewrite), which the M4 snapshot test pins."""
-        merged = [route.descriptor for route in self._routes.values()]
-        if len(merged) > MAX_TOOLS:
-            logger.warning(
-                "[tool_router] %d tools exceed the cap (%d) — truncating",
-                len(merged), MAX_TOOLS,
-            )
-            merged = merged[:MAX_TOOLS]
-        return merged
+        """The merged, capped model-visible catalog — body in router_registry.py
+        (the ≤300-line law). Kept as a delegating method because every caller
+        reads the catalog off a router instance, exactly like `mount`."""
+        return merged_descriptors(self._routes)
 
     async def service(self, tool: str, args: dict[str, Any]) -> ServiceOutcome:
         """Dispatch ONE call. Never raises — every failure is an Arabic note."""

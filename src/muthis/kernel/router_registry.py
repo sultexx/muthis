@@ -1,19 +1,23 @@
 # src/muthis/kernel/router_registry.py
 """
-The router's REGISTRATION half: `MountedRoute` (the record of ONE mounted route)
-and `mount_plugin` (what puts one there), both extracted from tool_router.py
-under the ≤300-line law.
+The router's REGISTRATION half: `MountedRoute` (the record of ONE mounted route),
+`mount_plugin` (what puts one there) and `merged_descriptors` (what the registry
+offers the model), all extracted from tool_router.py under the ≤300-line law.
 
-TWO EXTRACTIONS, ONE SEAM. `MountedRoute` moved first (T5, 2026-07-25) as a pure
+THREE EXTRACTIONS, ONE SEAM. `MountedRoute` moved first (T5, 2026-07-25) as a pure
 byte-identical move — only the class NAME changed, because the name now crosses a
 module boundary and a leading underscore would be a promise of privacy the import
 already breaks. `mount_plugin` followed (T6b, 2026-07-25) as the pre-approved
-successor, when the DEC-34 cost bridge needed headroom in the dispatch file. The
-seam they share is real: REGISTRATION (what exists, under what name, with which
-kernel-assigned facts) is a different question from DISPATCH (what happens when a
-call arrives) — and dispatch is where the three security consequences live (the
-DEC-14 wrap, the DEC-15 raise, the DEC-16 confirmation), so keeping it short
-enough to read whole is the point of both moves.
+successor, when the DEC-34 cost bridge needed headroom in the dispatch file.
+`merged_descriptors` is the third (T6b, 2026-07-28), taken to make room for the
+turn-boundary carrier: the registry already owns WHAT EXISTS, and WHAT IS OFFERED
+is read from the same dict by the same rule, so the catalog belongs beside the
+mount rather than in the dispatch file. The seam they share is real: REGISTRATION
+(what exists, under what name, with which kernel-assigned facts) is a different
+question from DISPATCH (what happens when a call arrives) — and dispatch is where
+the three security consequences live (the DEC-14 wrap, the DEC-15 raise, the
+DEC-16 confirmation), so keeping it short enough to read whole is the point of
+all three moves.
 
 `mount_plugin` is BEHAVIOUR-identical, not byte-identical: a method that mutated
 `self._routes` becomes a function that takes the registry. That is the whole
@@ -35,12 +39,18 @@ Pure stdlib + the SDK's value types; importable in isolation.
 from __future__ import annotations
 
 import dataclasses
+import logging
 from typing import Optional
 
 from muthis_sdk import PluginContext, ToolDescriptor, ToolPlugin
 
 from ..trust.high_impact import RouteImpact
-from .router_surfaces import namespaced_name
+from .router_surfaces import MAX_TOOLS, namespaced_name
+
+# Kept on the router's logger: a mechanical extraction must not move a log name
+# (the turn_pass.py / composition.py precedent), so the truncation warning
+# reaches operators on exactly the channel it always has.
+logger = logging.getLogger("muthis.kernel.tool_router")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -102,4 +112,21 @@ def mount_plugin(
         )
 
 
-__all__ = ["MountedRoute", "mount_plugin"]
+def merged_descriptors(routes: dict[str, MountedRoute]) -> list[ToolDescriptor]:
+    """The merged, capped descriptor list in mount order — the model-visible
+    catalog. Core descriptors pass through BYTE-IDENTICAL (no namespace,
+    no schema rewrite), which the M4 snapshot test pins.
+
+    `routes` is the registry to read — the ONLY difference from the method this
+    was carved out of, which reached the same dict through `self`."""
+    merged = [route.descriptor for route in routes.values()]
+    if len(merged) > MAX_TOOLS:
+        logger.warning(
+            "[tool_router] %d tools exceed the cap (%d) — truncating",
+            len(merged), MAX_TOOLS,
+        )
+        merged = merged[:MAX_TOOLS]
+    return merged
+
+
+__all__ = ["MountedRoute", "merged_descriptors", "mount_plugin"]

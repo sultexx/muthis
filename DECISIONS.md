@@ -1703,3 +1703,175 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   the next commits.
 
 ---
+
+## T6b WIRING CEILING FINDING (2026-07-28) — the "one line from `new_turn_voice`" has NO legal CARRIER: every injection path breaches a frozen file — MEASURED, candidates presented, none self-selected
+
+- **Item:** DEC-36 and the T6a SCOPE RECORD both close with the same sentence — *"the SINGLE line that calls
+  `new_turn()` from `TurnPass.new_turn_voice` lands in T6b"* — and the T6b CEILING FINDING lists that call among
+  the work that **"none touches this file"** (`tool_router.py`). The CALL is indeed one line and costs
+  `tool_router.py` nothing. **What was never measured is how the two objects REACH `TurnPass` in order to be
+  called.** They cannot. This is the SIXTH estimate-versus-measurement gap this milestone, and the first where the
+  gap is in a governing document rather than in a line count.
+- **THE STRUCTURAL FACT:** `TurnPass` is constructed in exactly ONE place — `orchestrator.py:116` — so every seam
+  it holds arrives through that constructor call. `add_interrupt_hook` is the Orchestrator's ONLY post-construction
+  registration surface, and it is the F9 interrupt lifecycle, not the turn boundary. Therefore a NEW injected
+  object requires **either** a line in `orchestrator.py` **or** a carrier on an object already injected.
+- **MEASURED, not estimated** (the standing correction), by writing the change in full against scratchpad COPIES of
+  the real files — a generic `turn_hooks: Sequence[Callable[[], None]]` fired in `new_turn_voice`, the
+  `InterruptHooks` shape applied to the turn boundary:
+  - **`turn_pass.py` 237 → 250/300.** LEGAL, 50 lines of headroom. **This file is not the blocker.**
+  - **CARRIER A — thread it through `orchestrator.py`** (signature line + pass-through): **299 → 301/300, a breach
+    of 1**, and independently forbidden by the standing byte-identical requirement (DEC-19 zero touch).
+  - **CARRIER B — carry it on the `ToolRouter`**, the `confirm_gate` precedent and the ONLY composed seam
+    `TurnPass` already holds whose ownership of a turn-boundary hook is not a category error (constructor param +
+    assignment + rationale + read-only property): **298 → 311/300, a breach of 11.** Needs an extraction FIRST,
+    and DEC-19 forbids self-selecting one.
+- **WHY NO EXISTING SEAM REACHES BOTH CONSUMERS — the load-bearing part.** The two objects sit on OPPOSITE sides of
+  the plugin boundary: `FetchGate` lives inside `WebResearchPlugin` (plugin domain, mounted in the router at
+  COMMIT 2), while `FetchedDomains` is broker-side and reaches nothing but the fetcher. A router-side
+  `new_turn()` that iterated `_routes` calling `plugin.new_turn()` would reach the gate **and never the
+  collector** — so even that variant needs a second path, which is precisely why the generic hook LIST is the
+  right shape and why no single existing seam can carry it.
+- **CARRIERS CONSIDERED AND REJECTED AS CATEGORY ERRORS** (recorded so they are visibly considered, the DEC-32
+  discipline): `SessionTaint` — documented to have "no setter and no clearing path", so hanging a per-turn reset
+  registry on it inverts the invariant that makes it trustworthy; `ConfirmGate` — a trust gate becoming a generic
+  hook registry; `Budget` — the sovereign ledger holding web state; the `sandbox` seam — the `run_code` servicer
+  owning another plugin's cap; `overlay` — a UI object owning broker provenance lifetime.
+- **TWO MECHANICALLY-LEGAL WORKAROUNDS, REJECTED BY PRINCIPLE, presented so the ruling is informed:**
+  1. **Set `router.turn_hooks = (...)` at the composition root** and read it with `getattr` in `TurnPass`. Costs
+     both frozen files ZERO lines. **An undeclared attribute is not a seam:** nothing in `tool_router.py` would
+     record that turn hooks exist, which is the "documented as X while actually Y" failure this milestone has
+     twice refused to ship.
+  2. **Subclass `ToolRouter` in a new module** carrying the hooks; the root injects the subclass. Also zero lines
+     in both frozen files. It hides a seam from the class that defines the contract and splits the identity of
+     the security-critical dispatch class — the file DEC-30 extracted `core_router` specifically to keep readable
+     whole.
+- **CANDIDATES FOR THE RULING, NOT SELF-SELECTED (DEC-19):** (a) grant `orchestrator.py` its 2 lines and retire
+  the byte-identical requirement for this one commit — the smallest true diff, but it spends the orchestrator's
+  last line and breaches 300, so it needs the DEC-19 "select BY MEASUREMENT and PRESENT" extraction round first;
+  (b) take CARRIER B and pay for it with one of the three extractions already enumerated in the T6b BADGE CEILING
+  FINDING (`descriptors()` → `router_registry.py`, frees 9; the two pre-dispatch refusals → `router_surfaces.py`;
+  `_execute_route` → its own module, cheapest and weakest by principle), in its OWN mechanical commit first;
+  (c) rule that a workaround above is acceptable.
+- **WHAT IS TRUE MEANWHILE, stated plainly because the failure mode is someone reading a guard and believing it:**
+  `FetchGate` still bounds fetches per PROCESS, not per turn, and `FetchedDomains` still accumulates for the
+  PROCESS. Both docstrings still say so and are therefore still ACCURATE. Nothing was written to the repository
+  beyond this entry.
+- **Status:** MEASURED and PRESENTED. No code written, nothing extracted, no carrier chosen. **AWAITING RULING.**
+  COMMIT 2 (catalog v3) is BLOCKED behind it by ordering, not by its own ceiling: mounting `web__search` /
+  `web__fetch` makes the tools model-visible, and the per-turn fetch cap must be LIVE before the tool that it
+  bounds is reachable.
+
+---
+
+## T6b WIRING — OPTION D MEASURED (2026-07-28) — "each consumer resets through its own owner": both premises measured FALSE, the option costs MORE than (a) or (b), but its OWNERSHIP half is free and correct — MEASURED, nothing implemented
+
+- **Item:** Sultan declined to rule among (a)/(b)/(c) and named a fourth option: question the broadcast premise —
+  reset `FetchGate` through "the existing router-side path that already reaches `SandboxGate`", and reset
+  `FetchedDomains` through "the broker, which is itself injected into the router". Measured as instructed.
+- **PREMISE 1 — "the router-side path reaches SandboxGate" — MEASURED FALSE.** The `SandboxExecPlugin` mounted in
+  the router is a **stateless DECLARATION** (`kernel_serviced=True`, `plugin.py:20-41`) that holds no gate at all.
+  The gate lives in `SandboxService._gate`, and the real reset path is
+  `TurnPass.new_turn_voice() → self._sandbox.new_turn() → self._gate.reset()`, where `self._sandbox` arrives
+  through a **DEDICATED `sandbox=` constructor kwarg added to `orchestrator.py` at T5** (`aee3608`). **The router
+  is not on that path anywhere.** SandboxGate is not a router precedent — it is a precedent for spending an
+  orchestrator line, which is exactly what is no longer available.
+  - **Nor is it per-turn RECONSTRUCTION** (Sultan's alternative reading, checked because it would have been
+    simpler): `SandboxService` is built ONCE (`composition._build_sandbox`) and `new_turn()` calls `reset()` on
+    the same long-lived gate.
+- **PREMISE 2 — "the broker is injected into the router" — MEASURED FALSE.** `Broker` is built at
+  `composition.py:134` and injected into `McpHost` only. The dependency runs host → router
+  (`mcp_host.mount_all(router)`); the router holds no reference to the broker (grep: zero). **The broker has no
+  existing path to a turn boundary of any kind.**
+- **MEASURED against real copies** (never estimated — the standing correction):
+  | variant | file | before → after |
+  |---|---|---|
+  | **D1** router-side route iteration, plugin-identity de-dup | `tool_router.py` | 298 → **317/300 (+19)** |
+  | **D1-lean** same, no de-dup | `tool_router.py` | 298 → **310/300 (+12)** |
+  | **D2** broker owns the collector's reset | `broker.py` / `composition.py` | 121 → **133** / 187 → **188** |
+  | **D combined** (D1-lean + the broker callback the router must carry) | `tool_router.py` | 298 → **316/300 (+18)** |
+  `turn_pass.py` grows by **0** under D — a `ToolRouter.new_turn()` subsumes the existing `confirm_gate` line.
+  For comparison: **(a) orchestrator carrier = 301/300 (+2); (b) router carrier = 311/300 (+13).**
+- **WHY D COSTS MORE, in one sentence:** the principle is not what costs lines — **the CARRIER is.** `TurnPass` is
+  constructed in exactly one place, so every option pays the same toll to reach it once; **D pays it twice** —
+  route iteration for the gate, plus a carried callback for the collector, because **D1 reaches `FetchGate` and
+  can never reach `FetchedDomains`** (it is not a route) and **D2 is INERT — nothing can call `broker.new_turn()`.**
+- **TWO HONEST DEFECTS BEYOND THE LINE COUNT:**
+  1. **D1 invents an UNDECLARED PLUGIN CONTRACT.** `muthis_sdk.ToolPlugin` declares `descriptors()` and
+     `execute()` only. A duck-typed `getattr(route.plugin, "new_turn", None)` makes the kernel call a method the
+     SDK never promised, on any plugin that happens to own one — the same shape as the undeclared-attribute
+     workaround already rejected in the WIRING CEILING FINDING.
+  2. **D1-lean fires twice per turn for `web_research`,** which mounts TWO descriptors (search + fetch) → two
+     routes → one plugin instance. Harmless for an idempotent counter reset, latent for anything else. The
+     de-dup that closes it is the +19 variant.
+- **SEVENTH MEASUREMENT GAP, found while pricing (b):** the T6b BADGE CEILING FINDING's candidate `descriptors()
+  → router_registry.py` frees **exactly 9**, as it said — but it was sized against a **+10 badge**, not a **+13
+  carrier**. Measured: extraction #1 + carrier B = **302/300, STILL A BREACH**. Adding the second enumerated
+  candidate (the two pre-dispatch refusals → `router_surfaces.py`) lands at **291/300 — legal**. **Option (b)
+  therefore costs TWO mechanical extraction commits before the wiring commit, not one.**
+- **WHAT SURVIVES THE MEASUREMENT — and it is the ruling's real content:** **D2 is free, correct, and independent
+  of the carrier choice.** `broker.py` at 133/300 and `composition.py` at 188/300 cost the frozen files NOTHING,
+  and the broker IS the collector's rightful owner: the kernel should hold ONE opaque callable and know nothing
+  about a broker-side record. **WHO OWNS THE FACT is upheld; only the router-iteration MECHANISM is refuted.**
+- **RECOMMENDATION (mine, for Sultan to rule — not self-selected, nothing implemented): (b) + D2's ownership.**
+  Two mechanical extractions land `tool_router.py` at **291/300**; the carrier is one generic list; the
+  composition root — the only place that legitimately knows both sides of the plugin boundary — supplies
+  `web_plugin.new_turn` and `broker.new_turn`, so each consumer still resets through its owner. It is the only
+  path that ends with **every file legal** AND **DEC-19's zero-orchestrator-touch goal intact**. (a) is a smaller
+  diff but breaches `orchestrator.py` to 301/300, spends its last line, and forces a DEC-19 extraction round on
+  the most timing-coupled file in the project. **(d) is dominated on every axis and I do not recommend it.**
+- **Status:** MEASURED and PRESENTED. **No code written to `src/` or `tests/`** (`git diff -- src/ tests/` empty),
+  nothing extracted, no carrier chosen, INERT language untouched, catalog not mounted. 925 + 27 green.
+  **AWAITING RULING.**
+
+---
+
+## DEC-37 (2026-07-28) — the turn-boundary carrier: the ROUTER carries a GENERIC opaque list, the COMPOSITION ROOT registers each owner's reset — APPROVED (closes the T6b WIRING CEILING FINDING; option D refuted by measurement)
+
+- **Item:** how `FetchGate` (plugin-side) and `FetchedDomains` (broker-side) reach `TurnPass.new_turn_voice`,
+  after the WIRING CEILING FINDING measured that no legal injection path existed and option D measured worse.
+- **Resolution — carrier (b) + option D's OWNERSHIP half.** The `ToolRouter` carries a generic
+  `turn_hooks` list; `TurnPass` fires it at the turn boundary it already owns; the **composition root** registers
+  `web_plugin.new_turn` and `broker.new_turn`. The broker owns the collector's reset (`broker.py` 121 → 133,
+  `composition.py` 187 → 188 — **zero frozen-file cost**), so each consumer still resets through its OWNER.
+- **IT IS THE `InterruptHooks` SHAPE (DEC-3-C), not a compromise — the precedent neither of us named at first.**
+  There, the kernel gained a GENERIC list of opaque callables fired at a boundary, stayed BLIND to their content,
+  and the sandbox registered its `docker kill` from outside. Here the router is likewise a **BLIND CARRIER, not
+  an owner**: it fires an opaque list and knows nothing of what the callbacks do. **WHO OWNS THE FACT is upheld;
+  only option D's router-ITERATION mechanism was refuted.**
+- **THE DISTINCTION FROM D1, recorded because the two designs look alike and are not** (Sultan's instruction):
+  **D1 had the KERNEL call a method an ABSTRACT contract never declared** — `getattr(route.plugin, "new_turn")`
+  on a `ToolPlugin` that declares only `descriptors()` and `execute()`. **(b) has the COMPOSITION ROOT register a
+  method on a CONCRETE object it built itself.** The first INVENTS a contract; the second USES a known type
+  legitimately. **That difference is the whole line between a seam and a workaround** — and D1 was option (c),
+  the rejected undeclared-attribute workaround, wearing a different shape.
+- **Option D's measured defects, upheld:** it reaches `FetchGate` and can NEVER reach `FetchedDomains` (not a
+  route); `broker.new_turn()` has no caller, so D2 alone is inert; the combined form costs `tool_router.py`
+  **316/300** against carrier (b)'s **311/300**; and D1-lean fires twice per turn for `web_research`, which mounts
+  TWO descriptors onto ONE plugin instance — harmless for an idempotent counter, latent for anything else.
+- **BOTH PREMISES OF THE ORIGINAL RULING MEASURED FALSE, and the correction is the reusable part:** the mounted
+  `SandboxExecPlugin` is a STATELESS DECLARATION holding no gate — `SandboxGate` is reset through a DEDICATED
+  `sandbox=` constructor param added to `orchestrator.py` at T5 (`aee3608`), so it is a precedent for SPENDING AN
+  ORCHESTRATOR LINE, not a router precedent; and the `Broker` is injected into `McpHost` only (the router holds
+  zero references to it, grep-verified).
+- **Implementation timing:** two mechanical extractions FIRST (own commits, this ruling), then the wiring commit.
+
+---
+
+## STANDING RULE (2026-07-28) — a recorded measurement is sized against the CONTEXT it was taken in, and MUST be re-measured before being relied on in another
+
+- **Item:** the sixth and seventh measurement gaps of this milestone are the SAME KIND, and neither is a
+  line-count error. They are governance errors.
+  - **SIXTH:** DEC-36 and the T6a SCOPE RECORD both state the `new_turn()` call costs `tool_router.py` nothing.
+    **True of the CALL, and silent about how the OBJECTS ARRIVE** — which is where the entire cost turned out to
+    be (301/300 or 311/300, depending on the carrier).
+  - **SEVENTH:** the T6b BADGE CEILING FINDING measured `descriptors() → router_registry.py` at "frees 9". **That
+    was accurate — against a +10 badge.** Relied on for a +13 carrier it lands at **302/300, still a breach**, so
+    the option needed TWO extractions, not one.
+- **THE RULE:** a measurement in this file records what was true **for the change it was taken against**. Before
+  citing any recorded number to justify a DIFFERENT change, **RE-MEASURE**. A governing document can be **locally
+  correct and globally incomplete**, and that is not a defect in the document — it is a property of measurements,
+  so the discipline belongs to the reader, not the writer.
+- **Scope:** applies to every ceiling number, headroom claim and "costs zero lines" statement in this file.
+
+---
