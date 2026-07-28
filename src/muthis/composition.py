@@ -22,7 +22,7 @@ import subprocess
 from .broker.broker import Broker
 from .broker.grants import GrantsStore
 from .broker.mcp.host import McpHost
-from .broker.net import HardenedFetcher
+from .broker.net import FetchedDomains, HardenedFetcher
 from .cloud.claude_agent import ClaudeAgent
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
@@ -91,7 +91,7 @@ class _BridgeAutoHide:
 
 def _build_broker_graph(
     budget: Budget, overlay: SidekickOverlay, reader: FileReader,
-) -> tuple[ToolRouter, McpHost, HardenedFetcher]:
+) -> tuple[ToolRouter, McpHost, HardenedFetcher, FetchedDomains]:
     """V2 Phase 1 (M1-7): the router + broker + MCP host composed at the
     root (roadmap part 2 §1). The bridge's screenshot rides the SAME
     hide→settle→capture chokepoint as every turn frame (§3.3); FileReader's
@@ -125,7 +125,12 @@ def _build_broker_graph(
     async def bridge_capture():
         return await bridge_frames.capture(TurnResult())
 
-    fetcher = HardenedFetcher()
+    # DEC-20: the badge's provenance collector — built HERE and injected, the
+    # SessionTaint shape, so its TURN lifetime is explicit rather than buried in
+    # the fetcher beside process-scoped state (the LRU, the rate limiter). The
+    # FETCHER records into it first-hand; no plugin ever touches the fact.
+    fetched_domains = FetchedDomains()
+    fetcher = HardenedFetcher(domains=fetched_domains)
     broker = Broker(grants=GrantsStore(), read_file=reader.read,
                     capture=bridge_capture, net_fetch=fetcher.fetch_readable)
     # Three-strikes announcements log for now; the SPOKEN delivery joins the
@@ -133,7 +138,7 @@ def _build_broker_graph(
     host = McpHost(broker=broker,
                    announce=lambda note_ar: logger.warning(
                        "[main] mcp server disabled: %s", note_ar))
-    return router, host, fetcher
+    return router, host, fetcher, fetched_domains
 
 
 def _build_sandbox() -> SandboxService:

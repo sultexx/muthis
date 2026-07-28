@@ -46,6 +46,7 @@ from .extract import (  # re-exported below so importers keep working
     cap_extract,
     extract_html,
 )
+from .provenance import FetchedDomains
 from .robots import RobotsCache
 from .session_policy import RateLimiter, SessionCache
 from .transport import (  # re-exported below so importers keep working
@@ -106,6 +107,7 @@ class HardenedFetcher:
         cache: Optional["SessionCache[FetchResult]"] = None,
         robots_enabled: bool = True,
         total_budget_s: float = TIMEOUT_S,
+        domains: Optional[FetchedDomains] = None,
     ) -> None:
         # ONE long-lived client, SEPARATE from the key-bearing API client. Zero
         # creds: trust_env=False kills proxy / NETRC / host env; no cookies are
@@ -125,6 +127,12 @@ class HardenedFetcher:
             enabled=robots_enabled,
         )
         self._total_budget_s = total_budget_s
+        # DEC-20: the badge's provenance is recorded HERE, first-hand, because
+        # this is the only place that knows what was actually read. Injected, not
+        # owned: its lifetime is the TURN while everything else above is the
+        # PROCESS. Defaults to a real instance so an un-injected fetcher records
+        # into a harmless sink rather than needing a None check on every write.
+        self._domains = domains if domains is not None else FetchedDomains()
 
     async def aclose(self) -> None:
         """Close the long-lived client (lifecycle owned by the composition
@@ -141,7 +149,18 @@ class HardenedFetcher:
         domain = urlsplit(url).hostname or ""
         try:
             async with asyncio.timeout(self._total_budget_s):
-                return await self._fetch_readable(url)
+                result = await self._fetch_readable(url)
+                if result.ok:
+                    # ONE recording site, on the PUBLIC entry, so it covers the
+                    # fresh read AND the cache hit without either path having to
+                    # remember. `result.domain` is the FINAL post-redirect host —
+                    # where the content actually came from, which is the whole
+                    # point of DEC-20 (a redirect is exactly the case where the
+                    # requested host and the read host differ). robots.txt goes
+                    # through `_fetch_robots_text`, never here, so it can never
+                    # be mistaken for content the user was shown.
+                    self._domains.record(result.domain)
+                return result
         except TimeoutError:
             # The whole operation (incl. an uninterruptible getaddrinfo) is cut
             # here; a detached resolver thread may finish in the background, but

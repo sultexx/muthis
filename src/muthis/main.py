@@ -88,7 +88,11 @@ async def run() -> None:
     reader = FileReader()
     # `fetcher` is the ONE net.fetch embodiment (DEC-17/DEC-24) — the root owns
     # its shutdown because it owns a long-lived httpx client (see the finally).
-    router, mcp_host, fetcher = _build_broker_graph(budget, overlay, reader)
+    # `fetched_domains` is the DEC-20 provenance collector: the fetcher records
+    # into it, and the NEXT commit's kernel wiring resets it per turn and draws
+    # the badge from it. Held here now so the root owns it, not the fetcher.
+    router, mcp_host, fetcher, fetched_domains = _build_broker_graph(
+        budget, overlay, reader)
     # V2 Phase 2 (T5): mount run_code (namespaced) into the catalog + build its
     # servicer. The v2 model catalog is the router's descriptors — the FIRST
     # model-visible change since Phase 1 (byte-pinned to look_tools_v2.json).

@@ -131,6 +131,12 @@ class SidekickOverlay:
         generation speed. A clear_caption()/hide() cancels pending shows."""
         self._enqueue(("show_caption_later", text, delay_ms))
 
+    def show_domain_badge(self, domains) -> None:
+        """DEC-20: show which domains were actually FETCHED this turn (SYNC
+        fire-and-forget enqueue, the set_state pattern). Domains only — never a
+        URL — and cleared by clear_caption()/hide(), the inherited lifecycle."""
+        self._enqueue(("show_domain_badge", tuple(domains)))
+
     def clear_caption(self) -> None:
         """Drop the caption bar (audio finished). The hide() path also clears
         it (ghosting), so a capture can never see Mut'his reading itself."""
@@ -169,6 +175,7 @@ class SidekickOverlay:
             import tkinter as tk
 
             from .caption_bar import CaptionBar
+            from .domain_badge import DomainBadge
             from .focus_dimmer import (build_focus_dimmer, focus_dim_enabled,
                                        whiteboard_enabled)
             from .pointer_animator import PointerAnimator
@@ -205,6 +212,9 @@ class SidekickOverlay:
             # root.after powers the audio-paced later-shows (v7 Phase 2).
             caption = CaptionBar(rect.canvas, screen_size, style=style,
                                  schedule=root.after)
+            # DEC-20 attribution backstop: the SAME shared canvas, its own tag,
+            # bottom-LEFT so it can never eat a line of the caption's budget.
+            badge = DomainBadge(rect.canvas, screen_size, style=style)
             apply_click_through(root)
             # Cinematic spotlight (v6 D) + WHITEBOARD (v7 Phase 2): its OWN
             # dim Toplevel (alpha on the neon window would dim the neon
@@ -230,7 +240,7 @@ class SidekickOverlay:
                     if not dispatch_command(
                         command, rect=rect, pointer=pointer, animator=animator,
                         shapes=shapes_widget, status=status, caption=caption,
-                        dimmer=dimmer, spotlight_on=spotlight,
+                        dimmer=dimmer, badge=badge, spotlight_on=spotlight,
                     ):
                         root.destroy()
                         return

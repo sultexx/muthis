@@ -1578,3 +1578,128 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   lines in this file, STOP and get a ruling on the candidates above before writing it.
 
 ---
+
+## PROTECTED RATIONALE (2026-07-25) — `_execute_route`'s docstring is 18 of the bridge's 33 lines and is NOT compressible
+
+- **Item:** the DEC-34 bridge added a net **33** lines to `tool_router.py` (`git show --stat a9b654a`: +37/-4), of
+  which the `_execute_route` docstring is **18** (measured, lines 135-152 of a 29-line method). A future
+  contributor under ceiling pressure will see an 18-line docstring inside a 298/300 file and reach for it first.
+  This entry exists to stop that.
+- **What those 18 lines carry:** the WHY of the DEC-34 ruling — that the ROUTER obtains the cost so the figure
+  never leaves kernel scope; that the rejected alternative would have let a PLUGIN declare a number reaching the
+  sovereign daily total gating `can_afford`; the three prior refusals of that same shape (DEC-29 `is_error`, T5
+  `read_only`, DEC-14 self-wrapping); and the KNOWN LIMIT with its revisit trigger.
+- **It is PROTECTED FROM COMPRESSION by DEC-30**, which ruled on this exact temptation when `tool_router.py` hit
+  302/300: trimming just-written rationale to fit a line count is the COMPRESSION §17.4 exists to forbid, and
+  "it would delete the WHY of a security funnel". The T5 CEILING FINDING upheld it a second time at 301/300. This
+  is the third instance and the rule is unchanged: **under ceiling pressure, reach for an EXTRACTION, never for
+  the rationale.**
+- **Why it matters beyond this file:** the ruling's reasoning is what makes it survivable. Code shows that the
+  router obtains the cost; only the rationale explains that a plugin must never declare it, which is the part a
+  future contributor needs in order not to "simplify" the design back into the rejected candidate. **It is the
+  reason the decision survives its author.**
+
+---
+
+## T6b BADGE CEILING FINDING (2026-07-25) — the domain badge MEASURES at +10 lines (308/300) and NO extraction candidate meets the headroom requirement — candidates presented, none self-selected
+
+- **Item:** Sultan ruled the DEC-20 domain badge MUST travel STRUCTURALLY (deriving it from the plugin's rendered
+  text would put the deterministic backstop downstream of the very model output it exists to check — a badge that
+  would faithfully corroborate a hallucinated attribution). The router is at 298/300 with the pre-approved
+  extraction spent, so an extraction must come first. This records the MEASUREMENT and the candidates.
+- **MEASURED, not estimated** (the standing correction after five estimate-versus-measurement gaps): the badge was
+  written in full against a scratchpad COPY of `tool_router.py` — `extras` threaded through `_execute_route` →
+  `_outcome_for` → `service()`, using the `ServiceOutcome.extras` field that ALREADY exists in the SDK and is
+  currently unused anywhere in `src/` (verified by grep, so no contract change is needed for it):
+  - **badge alone → 308/300, a breach of 8.** ~6 of the 10 lines are the DEC-20 rationale for why the facts must
+    travel structurally — the same protected category as the entry above, so the 10 is not shrinkable.
+- **THE THREE CANDIDATES, each CUT FOR REAL on a copy and counted:**
+  1. **`descriptors()` → `router_registry.py`** (beside `mount_plugin`; the registry owns both "what exists" and
+     "what is offered"). Genuine seam, near-byte-identical, a 3-line delegator stays. **→ 299/300, frees 9.**
+  2. **The two pre-dispatch refusals** (unrouted + kernel-serviced misroute) **→ `router_surfaces.py`**, where
+     `UNROUTED_TOOL_NOTE_AR` and `KERNEL_SERVICED_NOTE_AR` ALREADY live — the note and the outcome that carries it
+     are one concern. Route-less, session-state-free, so a clean move. **→ 298/300, frees 10.**
+  3. **(1) + (2) together.** **→ 289/300, frees 19.**
+- **THE FINDING: none of the three meets criterion (d).** 299 / 298 / 289 leave 1 / 2 / 11 lines. Sultan made the
+  margin "a stated requirement, not a hope", and 11 lines is a hope. The arithmetic is structural, not a failure of
+  imagination: with `_outcome_for` correctly excluded (criterion c), the file's irreducible core — docstring 53,
+  imports 28, class docstring 9, `__init__` 18, properties 13, `_record` 8, `_execute_route` 38 (post-badge),
+  `_outcome_for` 43 (post-badge), `service` ~60, plus the 17-line delegating `mount` — already sits near 280.
+  **There is no 40-line seam left in this file that is not the dispatch funnel itself.**
+- **THEREFORE, a FOURTH option, which Sultan's ruling explicitly invites ("or whatever carrier your measurement
+  shows is smallest"): FETCHER-SIDE PROVENANCE — 0 router lines.** The `HardenedFetcher` already knows the real
+  post-redirect domain first-hand (it logs `[fetch] <domain> status=… bytes=…`); the plugin's `extras` would be a
+  SECOND-HAND copy of that same fact. Recording it at the fetcher and reading it kernel-side costs `tool_router.py`
+  **nothing**, needs no extraction, and is strictly MORE faithful to DEC-20's "drawn by the KERNEL from real
+  provenance": it never passes through plugin code at all. **It is DEC-34's winning principle applied again —
+  who owns the fact — and the same argument that put wrapping, taint, confirmation and cost at kernel-owned
+  boundaries rather than in plugin-supplied fields.** `fetcher.py` has 47 lines of headroom (253/300).
+  **The honest complication, stated rather than buried:** the badge is PER-TURN while the fetcher is per-PROCESS,
+  so this needs a turn-scoped accumulator with a reset — the same shape (and the same `new_turn_voice` hook) as
+  `FetchGate`, which is already built and awaiting exactly that wiring. A second consumer of that hook is not a
+  second MECHANISM, so DEC-19 is satisfied. Also verified while measuring: `TurnPass` already holds `_overlay`
+  (`turn_pass.py:77`), so the badge can reach the overlay with **zero orchestrator touch** either way.
+- **RECOMMENDATION (mine, for Sultan to rule): take the FOURTH option and extract NOTHING.** It removes the
+  ceiling problem instead of paying for it, gives the badge a more trustworthy source, and leaves the pre-approved
+  extraction budget unspent for a genuine T7 fix. If Sultan prefers the `extras` carrier on principle (one
+  boundary, one contract), then candidate (3) is the only viable pairing — and the honest disclosure is that it
+  lands at 289/300 with 11 lines, so the NEXT router touch of any size needs a fresh candidate and there is no
+  obvious one left short of splitting the dispatch funnel.
+- **Status:** MEASURED and PRESENTED. Nothing extracted, no badge built, no carrier chosen. **AWAITING RULING.**
+
+---
+
+## DEC-36 (2026-07-28) — the domain badge is drawn from FETCHER-side provenance, never from a plugin-supplied field — APPROVED (closes the T6b BADGE CEILING FINDING; delivers DEC-20's third layer)
+
+- **Item:** WHERE the DEC-20 domain badge's fact comes from, after measurement showed the `ServiceOutcome.extras`
+  carrier would breach `tool_router.py` (308/300) and no extraction met the headroom requirement.
+- **THE DECIDING RATIONALE IS NOT COST — it is WHO OWNS THE FACT (Sultan's ruling, recorded because it is the
+  precedent).** Under the `extras` carrier the PLUGIN populates the field, so the badge's fact would pass through
+  plugin code. That is the pattern this milestone has now rejected FIVE times: `is_error` may not gate wrapping
+  (DEC-29); a plugin's declared `read_only` may not drive impact classification (T5 COMMIT 1); a plugin may not
+  wrap its own output (DEC-14); a plugin-set number may not feed the sovereign ledger (DEC-34 candidate ②); and
+  now, a plugin may not supply the badge's provenance. **The badge is the MOST sensitive of the five**, because
+  DEC-20 makes it the DETERMINISTIC BACKSTOP — the one layer the model does not author, whose whole job is to
+  expose a HALLUCINATED attribution. A fact routed through plugin code puts the guard DOWNSTREAM of what it
+  checks: a fabricated source would draw its own corroborating badge. **"Kernel-drawn from real provenance"
+  (DEC-20) means NOT PLUGIN-AUTHORED, and a broker-owned fetcher satisfies it exactly.**
+- **Resolution — `broker/net/provenance.py::FetchedDomains`,** recorded by the fetcher at ONE site on its public
+  entry (so a fresh read and a cache hit are both covered without either path having to remember), and costing
+  `tool_router.py` **ZERO lines** — the ceiling problem is removed rather than paid for, and the extraction budget
+  stays unspent for a genuine T7 fix.
+- **FOUR BINDING REFINEMENTS (Sultan's), each implemented as stated:**
+  1. **A STANDALONE INJECTED object, not state inside the fetcher** — the `SessionTaint` shape, built at the
+     composition root. The fetcher's other state (the LRU, the rate limiter) is PROCESS-scoped while this is
+     TURN-scoped, and burying a turn lifetime inside a process-scoped component is how the two get confused.
+  2. **Caption-path carve-out, used exactly as scoped:** a NEW tag-scoped element (`DOMAIN_BADGE_TAG`) through the
+     existing overlay queue, never `delete("all")`. **UNTOUCHED and git-verified empty-diff:** caption PACING
+     (`show_caption_later`, `ARABIC_TTS_CHARS_PER_SEC`), the `VoiceOut` speech-privacy chokepoint, the Option-A
+     sync point, `turn_voice.py`, `caption_bar.py` and the whole `kernel/` tree. The badge does NOT consume the
+     caption's 2×60 budget (its own anchor, bottom-LEFT — collision-free BY CONSTRUCTION rather than by an
+     arithmetic offset that would drift when the caption font changes) and it INHERITS the caption's lifecycle:
+     `clear_caption` and the ghosting `hide` both clear it, so no second lifecycle exists to fall out of step.
+  3. **The FINAL post-redirect domain** — what was actually read, not what was requested. A redirect is precisely
+     the case where they differ, and reporting the request would report an intention rather than a fact. A
+     mutation that records the requested host goes RED. **T7 OBSERVATION:** watch whether the two diverge
+     materially on real pages; do NOT build a dual display.
+  4. **FETCHES ONLY — search-result domains EXCLUDED.** A CORRECTNESS rule, not a scope cut: a search returns up
+     to five candidate links the model did NOT read, and recording them would let a hallucinated citation look
+     verified whenever its domain happened to sit in the result list — inverting the badge's entire purpose.
+- **KNOWN LIMIT (the DEC-16/DEC-22 honest-limit pattern):** a turn answered from search SNIPPETS alone shows an
+  **EMPTY badge**. That is the honest signal — nothing was read in depth — but it does mean an empty badge is not
+  by itself evidence of a fabricated source, only of nothing having been fetched. Asserted as behaviour, not
+  prose. **T7 OBSERVATION: see how an empty badge reads live before anyone revisits this.**
+- **INERT UNTIL THE NEXT COMMIT, stated in the module docstring AND here** (the discipline applied to `FetchGate`,
+  for the same reason: the failure mode is someone reading a guard and believing it). Nothing calls `new_turn()`
+  yet, so the record currently accumulates for the PROCESS, not the turn. The single line that fixes it comes from
+  `TurnPass.new_turn_voice` in the next commit and serves **BOTH** `FetchGate` and this collector — **ONE hook,
+  TWO consumers is not a second MECHANISM, so DEC-19 is satisfied.** The badge is likewise built but never drawn:
+  no kernel code calls `overlay.show_domain_badge` yet.
+- **Verified:** 925 app + 27 sdk green. `tool_router.py` UNCHANGED at 298/300 (the point of the ruling). Eleven
+  mutations RED, including the one Sultan named — routing the domain through plugin-supplied text — plus a failed
+  fetch being recorded, the requested host replacing the final one, `new_turn` not clearing, the collector gaining
+  a logger, either clearing path dropping the badge, `delete("all")`, and an empty record rendering a chip.
+- **Implementation timing:** DONE. The kernel wiring (one line, two consumers) and the persona citation law are
+  the next commits.
+
+---

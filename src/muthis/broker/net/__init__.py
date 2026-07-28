@@ -48,6 +48,7 @@ from .fetcher import (
     FetchResult,
     HardenedFetcher,
 )
+from .provenance import MAX_TRACKED_DOMAINS, FetchedDomains
 from .session_policy import RateLimiter, SessionCache
 
 __all__ = [
@@ -80,6 +81,9 @@ __all__ = [
     "TIMEOUT_AR",
     "NETWORK_ERROR_AR",
     "TOO_MANY_REDIRECTS_AR",
+    # provenance (DEC-20: the badge is drawn from THIS, never from plugin text)
+    "FetchedDomains",
+    "MAX_TRACKED_DOMAINS",
     # session policy
     "RateLimiter",
     "SessionCache",
