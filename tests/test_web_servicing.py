@@ -283,6 +283,95 @@ def test_search_is_serviced_too_and_charges_its_cost():
     assert gate.drawn is False
 
 
+# ═══ THE PRODUCTION MOUNT states the facts, not just some test router ═══════
+# Mutation found these missing: every test above builds its OWN router, so the
+# security facts the REAL composition helper states were entirely unpinned.
+
+
+class _RealisticFetcher:
+    def __init__(self, collector: FetchedDomains) -> None:
+        self._collector = collector
+
+    async def fetch_readable(self, url: str):
+        domain = url.split("//", 1)[-1].split("/", 1)[0]
+        self._collector.record(domain)
+        return _Page(domain)
+
+
+def _production_router():
+    """Mounted through `mount_web_research` — the helper `main.py` calls."""
+    from muthis.composition import mount_web_research
+    from muthis.kernel.core_router import build_core_router
+
+    collector = FetchedDomains()
+    plugin = WebResearchPlugin(provider=_Provider())
+    router = build_core_router(read_file=None, turn_hooks=(plugin.new_turn,),
+                               fetched_domains=collector.domains)
+    mount_web_research(router, plugin, _RealisticFetcher(collector))
+    return router, plugin, collector
+
+
+def test_the_production_mount_wires_ctx_net_so_a_page_is_actually_read():
+    """Mutation: `ctx=PluginContext()` would leave the tool permanently
+    unavailable in production while every hand-built test router still passed."""
+    router, _plugin, collector = _production_router()
+
+    _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
+
+    assert "نص الصفحة" in routed[1], "production mounted the tool WITHOUT ctx.net"
+    assert collector.domains() == ("docs.python.org",)
+
+
+def test_the_production_mount_states_taint_so_external_content_is_wrapped():
+    """Mutation: `taint=False` would ship unwrapped external content into the
+    model's context and leave the session looking clean (DEC-14 + DEC-15)."""
+    router, _plugin, _collector = _production_router()
+    assert router.session_taint.tainted is False
+
+    _complete, routed, _run, _gate, result, _overlay = _consume(router, [_fetch_call()])
+
+    assert routed[1] != "نص الصفحة", "external content was not wrapped"
+    assert router.session_taint.tainted is True, "the production mount states no taint"
+    assert result.taint is True
+
+
+def test_the_production_mount_states_the_network_grant_so_the_gate_binds():
+    """Mutation: `impact=RouteImpact()` would drop the kernel's own statement
+    that it granted `net.fetch`, so a high-impact call in a tainted session
+    would run without the DEC-16 spoken approval."""
+    router, _plugin, _collector = _production_router()
+    router.session_taint.raise_taint("web_research")
+
+    _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
+
+    assert "نص الصفحة" not in routed[1], (
+        "a high-impact web call ran unconfirmed in a tainted session")
+
+
+def test_the_production_mount_records_the_network_capability_it_granted():
+    """STRUCTURAL on purpose, and the reason is worth stating: this fact is
+    currently BEHAVIOURALLY REDUNDANT. `RouteImpact()` is fail-closed, so an
+    external (`taint=True`) route is high-impact either way — a mutation that
+    drops `capabilities` changes nothing observable today, which is exactly why
+    no behavioural test can pin it.
+
+    It is still load-bearing as DEFENCE IN DEPTH: DEC-15 says classification
+    derives from the capability the KERNEL granted, so if the taint flag were
+    ever wrongly flipped to False, this statement alone would keep the route
+    high-impact. Reaching one private field is the honest way to assert a fact
+    whose whole value is that it does not depend on another fact."""
+    from muthis.trust.high_impact import NETWORK_CAPABILITY
+
+    router, _plugin, _collector = _production_router()
+    route = router._routes[WEB_FETCH_TOOL]
+
+    assert NETWORK_CAPABILITY in route.impact.capabilities, (
+        "the kernel no longer states the net.fetch grant it made (DEC-15)")
+    assert route.taint is True
+    assert route.impact.high_impact(external=False) is True, (
+        "the capability statement must stand on its own, without the taint flag")
+
+
 # ═══ One per pass, answered BY NAME ═════════════════════════════════════════
 
 

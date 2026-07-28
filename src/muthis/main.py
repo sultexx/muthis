@@ -56,6 +56,7 @@ from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
     _build_broker_graph, _build_orchestrator, _build_sandbox,
     _log_docker_fallback_decision, _pointer_anim_ms, _size_sent_image,
+    mount_web_research,
 )
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
@@ -88,16 +89,24 @@ async def run() -> None:
     reader = FileReader()
     # `fetcher` is the ONE net.fetch embodiment (DEC-17/DEC-24) — the root owns
     # its shutdown because it owns a long-lived httpx client (see the finally).
-    # `fetched_domains` is the DEC-20 provenance collector: the fetcher records
-    # into it, and the NEXT commit's kernel wiring resets it per turn and draws
-    # the badge from it. Held here now so the root owns it, not the fetcher.
-    router, mcp_host, fetcher, fetched_domains = _build_broker_graph(
+    # `search` is the DEC-18 provider: the root owns its shutdown too, because it
+    # holds the THIRD long-lived httpx client (key-bearing, separate by law from
+    # the zero-credential fetcher). `web_plugin` is built there so its per-turn
+    # cap is already LIVE; it is MOUNTED below, after the sandbox.
+    router, mcp_host, fetcher, web_plugin, search = _build_broker_graph(
         budget, overlay, reader)
     # V2 Phase 2 (T5): mount run_code (namespaced) into the catalog + build its
     # servicer. The v2 model catalog is the router's descriptors — the FIRST
     # model-visible change since Phase 1 (byte-pinned to look_tools_v2.json).
     sandbox = _build_sandbox()
     router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    # V2 Phase 2 (T6b): web__search + web__fetch join the catalog — the THIRD
+    # model-visible change in the project's history (byte-pinned to
+    # look_tools_v3.json). Mounted AFTER the sandbox so v3 is v2 with two tools
+    # APPENDED, and every boundary is already on their path: the servicing branch
+    # (DEC-39), the wrap and taint raise, the confirm gate, the per-turn cap and
+    # the provenance badge all landed BEFORE the model could call them.
+    mount_web_research(router, web_plugin, fetcher)
     model_tools = [descriptor.schema for descriptor in router.descriptors()]
     _log_docker_fallback_decision()
 
@@ -155,6 +164,7 @@ async def run() -> None:
         await mcp_host.shutdown()  # terminate MCP children before the UI goes
         overlay.close()       # stop the overlay's Tk thread
         await fetcher.aclose()  # release the net.fetch client (DEC-17: a SEPARATE pool)
+        await search.aclose()   # release the key-bearing search client (DEC-18)
         await agent.aclose()  # release the shared httpx client (root owns shutdown)
         logger.info("[main] shutdown complete")
 

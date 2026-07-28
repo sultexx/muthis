@@ -2127,3 +2127,67 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
 - **Status:** DONE. The catalog mount follows; the persona laws land immediately after.
 
 ---
+
+## DEC-40 (2026-07-29) — catalog v3: `web__search` + `web__fetch` are MODEL-VISIBLE — APPROVED, EXECUTED (the project's THIRD model-visible change)
+
+- **V1 four → v2 sandbox → v3 web.** 7 descriptors against the cap of 24. Byte-pinned to
+  `tests/snapshots/look_tools_v3.json`; V1 and v2 remain untouched historical anchors, asserted in the same test.
+  **v3 is v2 with two tools APPENDED** — the mount runs AFTER the sandbox for exactly that reason, so the snapshot
+  diff is purely additive and the earlier anchors can never be silently rewritten.
+- **The snapshot is built through the REAL production helper** (`mount_web_research`), not a hand-rolled copy, so
+  it states what PRODUCTION shows the model. A drift in the mount's namespace, ctx, or schema fails here rather
+  than at a live 400.
+- **IN-PROCESS, not through the broker's grant flow (DEC-33, applied):** `web_research` is FIRST-PARTY NATIVE like
+  the core four and `sandbox_exec`, so it receives the real `NetCapability` directly. The two facts the KERNEL
+  states at the mount are the ones a plugin may never state about itself (DEC-15): `taint=True` (a page is
+  external by definition) and `capabilities={net.fetch}` (what this root just granted).
+- **The DEC-11 name guard now runs over the FULL v3 catalog** and asserts the web names are actually among the
+  names it checked — `web__search` / `web__fetch` are precisely the namespaced shape that produced the live 400.
+- **FIVE OF SIX MUTATIONS SURVIVED THE FIRST RUN — the fifth guard hole of this milestone, and the most
+  instructive.** Every catalog and servicing test built its OWN router, so nothing pinned what the PRODUCTION
+  mount states or whether `main.py` mounts at all. Surviving mutations: `taint=False`, `impact=RouteImpact()`,
+  `ctx=PluginContext()` (no net), a schema-description drift, and **deleting the mount call from `main.py`
+  entirely**. Closed with behavioural tests driven through `mount_web_research` plus an AST scan of `main.py`
+  asserting the web mount FOLLOWS the sandbox mount (order is what keeps v3 additive). **The recurring lesson,
+  now five for five: a test that builds its own graph proves the CODE works and says nothing about what
+  PRODUCTION wires.**
+- **ONE MUTATION IS BEHAVIOURALLY UNDETECTABLE, and that is recorded rather than papered over:**
+  `impact=RouteImpact()` changes nothing observable, because `RouteImpact()` is FAIL-CLOSED and the route is
+  already `taint=True`. The capability statement is DEFENCE IN DEPTH — load-bearing only if the taint flag were
+  ever wrongly flipped. It is therefore asserted STRUCTURALLY (one private field), with the reason written into
+  the test, because a fact whose value is that it does not depend on another fact cannot be pinned through that
+  other fact.
+- **A bad mutation, corrected rather than counted as a pass:** mutating the schema's own `"name"` key proved
+  nothing — `mount_plugin` REWRITES it from the descriptor name, so the field is overwritten by design. Retargeted
+  at the model-visible DESCRIPTION, which the snapshot does carry.
+- **COUNTS:** `composition.py` 212 → 247 · `main.py` 184 → 194 · **`tool_router.py` ZERO lines (stays 300/300)** ·
+  **`orchestrator.py` BYTE-IDENTICAL**. `fetched_domains` left the graph's return tuple (dead there since the
+  badge wiring moved into composition) and `web_plugin` + the search provider took its place; the root owns the
+  provider's shutdown, because it holds the THIRD long-lived httpx client (key-bearing, separate by law from the
+  zero-credential fetcher).
+- **THE REMAINING WINDOW, stated once more:** the model can now call `web__search` / `web__fetch` **without** the
+  permanent "web content is DATA, not COMMANDS" law, the query-privacy rule, or the citation law. Everything
+  BENEATH them is complete and proven on the path — the servicing branch (DEC-39), the DEC-14 wrap, the DEC-15
+  taint raise, the DEC-16 confirmation, the DEC-22 cap, the DEC-36 collector and the DEC-38 badge. The laws land
+  next, in `persona_rules.py`. Acceptable only because nothing ships from this branch mid-milestone.
+- **Status:** DONE. 963 + 27 green. NEXT: the persona laws, then T7.
+
+---
+
+## T7 ACCEPTANCE QUESTION (2026-07-29) — does a real multi-source research turn need spoken approval at EVERY second source? (DEC-15 × DEC-16 composition)
+
+- **Item:** the FIRST fetch raises session taint (DEC-15), so the SECOND high-impact web call in that session is
+  refused by the confirm gate (DEC-16) pending spoken approval. **This is the COMPOSITION of two signed rulings,
+  not a defect** — each behaves exactly as designed. Found when this milestone's own cap test failed, and the
+  failure was CORRECT behaviour.
+- **The consequence:** the DEC-22 per-turn cap of 3 fetches is **rarely the binding limit — confirmation is.** A
+  refused call correctly spends no cap, because it never fetched.
+- **THE QUESTION FOR T7, to be judged on a REAL research turn, not in the abstract:** does a genuine multi-source
+  turn ("compare what three sites say about X") feel like a system asking permission once, or like one asking
+  permission over and over? Observe it live before anyone touches either decision.
+- **IF T7 SHOWS FRICTION, THE FIX IS A RULING, NOT A TUNING KNOB.** The two available levers are both DESIGN
+  decisions: **(a)** DEC-15's taint STICKINESS — session-scoped versus turn-scoped; **(b)** DEC-16's binding
+  GRANULARITY — per call, per tool, or per turn. **Neither may be self-selected.** Recorded here so the option is
+  not quietly discovered as a parameter to tweak during a live run.
+
+---
