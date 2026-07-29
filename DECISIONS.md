@@ -2,12 +2,12 @@
 
 ---
 
-## DEC-1 (2026-07-19) — Key Files rows mix description with history — batches 1-3 DONE (2026-07-22); batches 4-8 DEFERRED (bundled with DEC-7)
+## DEC-1 (2026-07-19) — Key Files rows mix description with history — CLOSED (batches 1-3 2026-07-22; batches 4-8 2026-07-29)
 
-- **Status:** PARTIALLY EXECUTED. Batches 1-3 (the two named drifts + all kernel and
-  draw-circuit rows) are DONE, 2026-07-22, after the Phase-2 M1 merge (Sultan's ruling).
-  Batches 4-8 (the rest of the table) are DEFERRED — see the Execution & resolution
-  block below. (Original directive, kept for the record: DEFERRED — do NOT act on it
+- **Status:** **FULLY EXECUTED / CLOSED.** Batches 1-3 (the two named drifts + all kernel and
+  draw-circuit rows) DONE 2026-07-22 after the Phase-2 M1 merge; **batches 4-8 DONE 2026-07-29**
+  after the Phase-2 M2 merge, in the consolidated pass with DEC-7 — see the Closure block at the
+  end of this entry. (Original directive, kept for the record: DEFERRED — do NOT act on it
   before the Phase 1 merge.)
 - **Observation (root cause):** AGENTS.md Key Files rows mix file description with file history, which is the root cause of the repeated documentation drift (D1–D12).
 - **Named examples (still-open drift, to be fixed BY this cleanup — NOT before the merge):**
@@ -23,6 +23,40 @@
   - **Pattern (approved by Sultan):** keep each row's current purpose + accurate line count + LIVE constraints; migrate only the version-by-version narrative to `docs/reports/key_files_history.md`. Drifted line counts were corrected in passing.
   - **Batches 4-8 DEFERRED (Sultan's ruling): execute them in ONE consolidated docs pass together with DEC-7 (the Trust-Modes documentary sweep), AFTER the `web_research` milestone.** These are the rows a `web_research` agent will never read against — voice/TTS, overlay, the plugin/SDK/broker/MCP layer beyond the kernel, the `tests/*` rows, and the post-table status narratives. **Reason:** batches 1-3 already cover the kernel and the universal draw-circuit invariants that an agent building `web_research` actually reasons against, where accuracy prevents real errors; batches 4-8 are **low-impact** organisational tidiness that **prevents no defect** and opens no capability, so executing them now would put six documentation batches between the project and its highest-security milestone — **momentum is preserved for the security-critical milestone**. Documentation serves the architecture; it does not become the project. Bundling the remainder with DEC-7 (also a post-milestone docs pass) closes the DEC-1 loop as one tracked deferral instead of leaving it half-open.
   - **Merge:** the `docs/dec1-key-files-cleanup` branch merge into main is Sultan's, as is any push.
+- **CLOSURE — batches 4-8 EXECUTED 2026-07-29** on branch `docs/dec7-dec1-consolidated` (cut from `main` at
+  `1c59d60`, the Phase-2 M2 merge), batch by batch with the full suite (988 + 27) green after EACH — the DEC-1
+  constraint, honoured because a wide edit to the source of truth must not itself introduce drift. Docs only;
+  zero source or test change.
+  - **Batch 4 — voice/TTS rows.** `turn_voice.py` was the worst row in the table at 3174 characters, with five
+    release tags interleaved through the invariants. Every LIVE guarantee kept (one generation per turn, ONE open
+    attempt settled on every path, `finish()` outside the 90 s scope, `interrupt()` closing FIRST and guarded by
+    its own `_interrupted` flag, the pass-echo strip, audio-paced captions, the inline-await concurrency
+    posture); the release history migrated. Same for `speech_stream`, `voice_out` and the six TTS modules.
+  - **Batch 5 — overlay rows.** `sidekick_window.py` read as an archaeology of splits; it now states its
+    guarantees (own Tk thread + command queue, per-monitor-v2 DPI, click-through ex-styles, hide clearing
+    drawings AND caption AND dim, and the teardown thread-affinity that fixes a real `Tcl_AsyncDelete` abort).
+  - **Batch 6 — plugin/SDK/broker/MCP rows. TWO FALSE STATEMENTS FOUND AND FIXED:** the `web_research` row still
+    said "NOT in the model catalog yet" (model-visible since DEC-40) and "cost recorded nowhere … T6b picks the
+    bridge" (DEC-34 picked it); and **the tool name `sandbox.run_code` — with the DOT that caused the live
+    Anthropic 400 under DEC-11 — survived in two rows** while the same table spelled it `sandbox__run_code`
+    elsewhere. A source of truth that contradicts itself about a tool's NAME is worse than one that says nothing.
+  - **Batch 7 — the `tests/*` rows.** 44 of 51 carried an unverifiable "~" figure; all measured mechanically from
+    the files they name (so the refresh cannot introduce a typo). Drift ran one way — the suite grew, the table
+    did not: `test_orchestrator` ~796 → 1024, `test_barge_in` ~330 → 448, `test_focus_dimmer` ~195 → 336. **A
+    WRONG PATH found by measuring:** the table pointed at `tests/cloud/test_claude_agent.py`; there is no
+    `tests/cloud/` directory (it is `tests/test_claude_agent.py`, 267 lines).
+  - **Batch 8 — the post-table status narratives. A THIRD STALE STATEMENT:** the status-indicator block still
+    advertised the pointer HALO that was removed for cluttering content over code — twelve lines from the row
+    that recorded its removal. And the streaming paragraph described v5 Phase C as "an authorized migration"
+    long after it SHIPPED as `turn_voice.py` + `tts_session.py`; rewritten around what survives — the two
+    PERMANENT constraints the failed Batch-3 attempt bought (no per-sentence connections, no background consumer
+    that can wedge `is_processing`) and the fact that the shipped design satisfies both by CONSTRUCTION.
+  - **THE FIVE BATCHES FOUND THREE FALSE STATEMENTS AND ONE BROKEN PATH** — in the file every agent is told is
+    the single source of truth. That is the answer to "batches 4-8 are low-impact tidiness": they were, right up
+    until they were not, and the failure mode of a stale source of truth is an agent confidently doing the wrong
+    thing. The deferral was still correct — momentum belonged to the security milestone — but the loop had to
+    close, and this is why it could not stay open indefinitely.
+  - **Merge:** the `docs/dec7-dec1-consolidated` branch merge into `main` is Sultan's, as is any push.
 
 ---
 
@@ -130,9 +164,12 @@
 
 ---
 
-## DEC-7 (2026-07-20) — Trust Modes documentary sweep — DEFERRED
+## DEC-7 (2026-07-20) — Trust Modes documentary sweep — EXECUTED 2026-07-29, except TWO items blocked by a missing-artifact finding
 
-- **Status:** DEFERRED — do NOT execute before the first Phase-2 milestone (`sandbox_exec`) ships.
+- **Status:** **EXECUTED** in the consolidated post-`web_research` pass — see the Closure block at the end of
+  this entry. Two of the four resolution items are **BLOCKED, not skipped**: they name files that do not exist
+  in this repository (see the BLOCKING FINDING at the end of `DECISIONS.md`). (Original directive, kept for the
+  record: DEFERRED — do NOT execute before the first Phase-2 milestone (`sandbox_exec`) ships.)
 - **Item:** The full documentary cleanup that follows the DEC-6 cancellation: the stale "designed in
   ARCHITECTURE_v4_1.md §12 but **not in scope yet**" (AGENTS.md ~line 18-19), "LOOK-only is a hard boundary
   **until the Trust Modes phase is explicitly opened**" (AGENTS.md first "Do NOT" bullet, ~line 463), and the
@@ -149,6 +186,36 @@
   permanent (per DEC-6), retire or "cancelled — see DEC-6"-mark the §12 section, reconcile the sibling mentions,
   and settle the frozen `cursor_control.py`'s disposition. Re-run the full suite (532 + 27) after the sweep.
 - **Implementation timing:** Post-first-Phase-2-milestone — a dedicated cleanup commit.
+- **CLOSURE — EXECUTED 2026-07-29** on branch `docs/dec7-dec1-consolidated`, full suite green after each commit.
+  - **DONE — the AGENTS.md wordings, restated as PERMANENT.** "Trust Modes are designed … but not in scope YET"
+    and "LOOK-only is a hard boundary UNTIL the Trust Modes phase is explicitly opened" both described a feature
+    awaiting its turn. **The tense WAS the control:** an agent reading "not in scope yet" treats a request for
+    `real_click` as early work on an approved feature; an agent reading "cancelled, permanent" treats the same
+    request as a constitutional change. The section heading changed too — "CURRENT PHASE: LOOK-only" implied a
+    phase that ends, and is now "LOOK-ONLY OVER THE USER'S MACHINE — PERMANENT, NOT A PHASE", which is also
+    more precise: the product DOES have phases and one shipped in-container execution (DEC-3); what never moves
+    is the boundary around the user's mouse, keyboard, clipboard and session. The "Do NOT" bullet now names the
+    ESCALATION PATH instead of an opening date — a permanent ban with no stated exception process invites
+    someone to invent one. Self-Update rule #4 now cites DEC-6/DEC-7 canonically beside `plan_v6.md`.
+  - **DONE — the sibling mentions** in `LESSONS.md` and `MIGRATION_PLAN.md`, edited in ARABIC to match their
+    surrounding text (the language split is by AUDIENCE, and these files address Sultan). LESSONS.md's extracted
+    rule was EXTENDED rather than replaced, because the lesson sharpened: a deferred gate invites building
+    toward it while a permanent decision ends the question — and the one boundary that did move never touched
+    the user's machine.
+  - **DONE — the folded roadmap item** (DEFERRED DOC ITEM, 2026-07-23): `V2_ROADMAP.md` §3.2/§3.4 described the
+    taint as "one status line in the turn context". Both halves were false after DEC-15 (session-sticky, and
+    structurally enforced at the router where the model never sees it). Corrected as a dated implementation note
+    UNDER the original text rather than a rewrite — the roadmap is a planning record, and the delta between what
+    was planned and what shipped is the interesting part.
+  - **BLOCKED — the `ARCHITECTURE_v4_1.md` §12 section** and **the frozen `reference/cursor_control.py`
+    disposition.** Neither file exists: absent from the working tree, from `git ls-files`, and from the ENTIRE
+    git history. See the BLOCKING FINDING (2026-07-29) at the end of this file for the three-way verification,
+    the 27-reference inventory and the three options. **Nothing was guessed:** no pointer deleted, no precedence
+    rule softened, no Key Files row retired. What WAS settled without a ruling is separable and DEC-6-authorized
+    — `cursor_control.py`'s stated PURPOSE ("the basis for future AUTOPILOT") is void wherever the file is,
+    because DEC-6 deleted the mode it was kept for; its never-copy-into-`src/` rule is kept and STRENGTHENED
+    (it now holds for any input-control engine, permanently, not merely "while the phase is LOOK").
+  - **Merge:** the `docs/dec7-dec1-consolidated` branch merge into `main` is Sultan's, as is any push.
 
 ---
 
@@ -628,6 +695,12 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   to do; momentum is preserved for the security-critical milestone.
 - **Implementation timing:** With the consolidated post-`web_research` docs pass (DEC-1 batches 4-8 + DEC-7):
   restate §3.2/§3.4 to match DEC-15's structural enforcement. Re-run the full suite after the sweep.
+- **DONE 2026-07-29** in that consolidated pass. Both passages corrected as a dated implementation note placed
+  UNDER the original planning text, not as a rewrite: the roadmap records what was PLANNED, and the delta
+  against what shipped is worth keeping. This mattered more than one sentence looks — the roadmap is what the
+  NEXT milestone reads while designing, and `doc_rag` inherits exactly this defense; an architect reading
+  "status line in the turn context" would have designed against a model-visible flag with a per-turn scope, and
+  reached for a status line of their own. **This deferral is now CLOSED.**
 
 ---
 
@@ -2316,5 +2389,58 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   captured inside the async block.
 - **Status:** DONE. 988 + 27 green (975 + 13 new). T7's checks are unchanged and unweakened; B8 keeps the live
   handshake leg with a fresh client per attempt. **Nothing further is built before Sultan's live SOP.**
+
+---
+
+## BLOCKING FINDING (2026-07-29) — the DEC-7 sweep names TWO artifacts that DO NOT EXIST in this repository, and AGENTS.md defers LAW authority to one of them — NEEDS A RULING
+
+- **Status:** BLOCKING for two of DEC-7's four items. Raised at the start of the consolidated post-`web_research`
+  docs pass, before any edit was made to the affected wordings. **Nothing was guessed and nothing was silently
+  rewritten** — the DEC-7 items that do not depend on these artifacts were executed; these two were not.
+- **Item:** DEC-7's resolution names (i) "the §12 Trust Modes section itself in `ARCHITECTURE_v4_1.md`" and
+  (ii) "the frozen `reference/cursor_control.py`'s disposition". **Neither file exists.** Verified three ways:
+  absent from the working tree, absent from `git ls-files`, and absent from the ENTIRE git history
+  (`git log --all -- <path>` returns nothing for both). They were never committed to this repository.
+  `reference/` holds only `asr.py`, `verify_vram.py` and two lock files; `_archive/` is empty.
+- **WHY THIS IS A GOVERNANCE GAP AND NOT A TYPO.** `AGENTS.md` is the declared single source of truth for every
+  agent on this project, and its header says: *"Full design rationale lives in ARCHITECTURE_v4_1.md. When this
+  file and the architecture doc disagree on CURRENT scope, this file wins; **when they disagree on LAWS, the
+  architecture doc wins**."* A source of truth that yields LAW authority to a document no agent can open is not a
+  precedence rule — it is an unresolvable one. Every "Law §N" citation in the codebase (§3.3, §3.7, §5.1-3, §11,
+  §11.5, §17.4, §19, §20 …) points into that document, so the laws are currently enforced from MEMORY and from
+  their restatements in `AGENTS.md`, not from a readable source. That is a real risk: a future disagreement about
+  a law has no arbiter, and a new agent will follow the pointer, find nothing, and either invent the law or
+  ignore it.
+- **THE FULL REFERENCE INVENTORY — 19 architecture-doc references across 6 files, PLUS 8 `cursor_control.py`
+  references in `MIGRATION_PLAN.md` (27 in total), so a ruling can be executed in one pass:**
+  - `AGENTS.md` — **9**: the header precedence rule (lines 6-7) · the Trust-Modes §12 pointer (line 19) ·
+    the §3.3 divergence note (line 66) · **a Key Files ROW for `ARCHITECTURE_v4_1.md` itself** (the table lists a
+    file that is not in the repo) · the §4.2 model-fallback table pointer · the §11.5 threading rule · the §19
+    copy-don't-import rule · the Self-Update rule #3 "flag any conflict with ARCHITECTURE_v4_1.md".
+  - `MIGRATION_PLAN.md` — **3** architecture-doc references (incl. a directory tree listing the file and a
+    "when this plan and ARCHITECTURE_v4_1.md disagree" clause) + **8** `reference/cursor_control.py` references
+    (described as present-and-frozen: a directory-tree entry, a "do not delete, do not move" instruction, a
+    read-only rule, and two verification `grep`s guarding against it leaking into `src/`).
+  - `DECISIONS.md` — **3** (DEC-7's own text among them) · `plan_v6.md` — **2** · `LESSONS.md` — **1** ·
+    `src/muthis/kernel/budget.py` — **1** (a "Rule 10" citation in a docstring; **source, not swept here**).
+- **WHAT I DID NOT DO, and why:** I did not delete the pointers, did not soften the precedence rule, did not
+  retire the Key Files row, and did not rewrite `MIGRATION_PLAN.md`'s cursor_control framing. Each is a
+  DIFFERENT decision with a different consequence, and choosing among them is a governance act, not a cleanup:
+  deleting the precedence rule REMOVES the laws' stated authority; keeping it preserves a dangling one.
+- **OPTIONS FOR THE RULING (not a recommendation between the first two — that is Sultan's):**
+  1. **RESTORE** the document (it may exist outside the repo) and commit it, keeping every pointer valid. This is
+     the only option that preserves the "laws win" rule as written.
+  2. **RETIRE** it: promote the laws Mut'his actually enforces into `AGENTS.md` (or a new `LAWS.md`) as the
+     authority, rewrite the header precedence rule so the source of truth defers to nothing missing, retire the
+     Key Files row, and convert each "§N" citation to the new home.
+  3. **RECORD IT AS EXTERNAL**: state in the header that the document is deliberately kept outside version
+     control, name where it lives, and accept that agents cannot read it. Cheapest, and honest, but it leaves
+     every "Law §N" citation unverifiable by any agent — which is the present situation, merely written down.
+- **The `cursor_control.py` half is smaller and separable:** per DEC-6 there is no future AUTOPILOT, so the file's
+  described purpose ("the basis for future AUTOPILOT, frozen") is void REGARDLESS of where the file is. The
+  ruling needed is only whether `MIGRATION_PLAN.md` should describe it as **absent** (it is) or whether it, too,
+  exists outside the repo. Both DEC-7 wordings hang on that one fact.
+- **Implementation timing:** NONE until ruled. The rest of the consolidated pass proceeded around it; this entry
+  is the record that the gap was found, measured, and left for a decision rather than papered over.
 
 ---
