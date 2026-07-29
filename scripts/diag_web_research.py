@@ -97,7 +97,7 @@ load_dotenv()  # Law 5.1: .env before any muthis import that reads keys
 from muthis.broker.net.address_guard import (                              # noqa: E402
     BLOCKED_ADDRESS_AR, system_resolver,
 )
-from muthis.broker.net.client_pool import ClientFactory                    # noqa: E402
+from muthis.broker.net.client_pool import ClientFactory, ClientRegistry    # noqa: E402
 from muthis.broker.net.fetcher import HardenedFetcher                      # noqa: E402
 from muthis.broker.net.provenance import FetchedDomains                    # noqa: E402
 from muthis.broker.net.transport import USER_AGENT, TIMEOUT_S              # noqa: E402
@@ -607,23 +607,34 @@ async def check_sni_negative(checks: Checks, evidence: "dict[str, str]") -> None
     evidence[name] = (f"correct SNI → {good_note}; wrong SNI → {bad_note}; "
                       f"no extension at all → {none_note}")
 
-    # OBSERVATION, never a check (Sultan rules on it): the SAME two attempts on
-    # ONE client. The fetcher owns one long-lived client and every pinned URL has
-    # origin (https, <ip>, 443), so two DIFFERENT hostnames resolving to one IP —
-    # ordinary on a CDN — share a TLS session verified for whichever was fetched
-    # FIRST. The address guard still validated the IP for both; what is not
-    # guaranteed on the reused connection is that the certificate was verified for
-    # the host actually being read. Surfaced by building the negative above.
-    pooled = httpx.AsyncClient(trust_env=False, follow_redirects=False,
-                               timeout=httpx.Timeout(TIMEOUT_S))
+    # OBSERVATION, never a check (Sultan rules on it): the SAME two hostnames,
+    # now through the REAL registry DEC-42 put in front of the transport. Building
+    # the negative above surfaced the gap it closes — every pinned URL has origin
+    # (https, <ip>, 443), so on ONE client two DIFFERENT hostnames resolving to one
+    # IP (ordinary on a CDN) shared a TLS session verified for whichever was
+    # fetched FIRST. The address guard validated the IP for both; what the reused
+    # connection did not carry was the certificate verified for the host being READ.
+    # The fetcher now holds one client PER HOSTNAME, so the second host has no
+    # connection to inherit: the reuse is not switched off, it is unrepresentable.
+    # Shown WITH its same-host reuse control — a registry handing back a fresh
+    # client every time would satisfy the separation half vacuously while quietly
+    # paying a handshake per request (the trap B8 itself fell into).
+    registry = ClientRegistry()
     try:
-        await attempt(host, client=pooled)
-        reused_note, reused_ok = await attempt("wrong.invalid.example", client=pooled)
+        first = await registry.acquire(host)
+        again = await registry.acquire(host)
+        other = await registry.acquire("wrong.invalid.example")
+        separated, reused = other is not first, again is first
+        await attempt(host, client=first)          # warm THIS host's pool …
+        crossed_note, crossed_ok = await attempt(  # … then the other host's client
+            "wrong.invalid.example", client=other)
     finally:
-        await pooled.aclose()
-    evidence["OBSERVATION — pooled connection reuse across SNI values"] = (
-        f"same client, wrong SNI after a good one → {reused_note} "
-        f"({'REUSED, no handshake' if reused_ok else 'fresh handshake, refused'})")
+        await registry.aclose()
+    evidence["OBSERVATION — DEC-42, one client per hostname (the gap, closed)"] = (
+        f"two hostnames on {ip} → separate clients ({separated}); the same hostname "
+        f"twice → the same client ({reused}); wrong SNI on its OWN client after a "
+        f"good fetch → {crossed_note} "
+        f"({'no connection to inherit, refused' if not crossed_ok else 'ANSWERED — cross-host reuse is BACK'})")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
