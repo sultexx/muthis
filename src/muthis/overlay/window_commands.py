@@ -1,7 +1,7 @@
 # src/muthis/overlay/window_commands.py
 """
 The overlay command dispatcher, extracted WHOLE from sidekick_window.py
-(v6 Phase C0, Law §17.4: split, don't compress — sidekick_window sat at 299
+(v6 Phase C0, the ≤300-line law: split, don't compress — sidekick_window sat at 299
 lines, one under the ceiling, and Phase C/D need queue commands there).
 
 Pure with respect to Tk: `dispatch_command` only calls the injected view

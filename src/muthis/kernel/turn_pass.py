@@ -4,7 +4,7 @@ TurnPass — drains ONE provider pass (extracted under the ≤300-line law).
 
 orchestrator.py sat at 288 lines and Phase C (v5) needed room for the
 buffer/stream branching, so the whole `_consume_stream` body moved here
-UNCHANGED (Law §17.4: split, don't compress — the same reason voice_out.py
+UNCHANGED (the ≤300-line law: split, don't compress — the same reason voice_out.py
 and highlight_gate.py exist): stream the reasoner's events, buffer the text,
 gate the draws (first draw wins, unified over BOTH draw tools), then the
 **Option-A SYNC POINT** — apply the ONE buffered draw → THEN speak — which

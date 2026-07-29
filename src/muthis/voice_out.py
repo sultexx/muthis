@@ -3,8 +3,8 @@
 VoiceOut — the orchestrator's mouth (extracted under the ≤300-line law).
 
 orchestrator.py sat at 299 lines and Phase B (v5) needed room there, so its two
-SPOKEN surfaces moved here whole (Law §17.4: split, don't compress — the same
-reason highlight_gate.py and draw_dispatch.py exist):
+SPOKEN surfaces moved here whole (the ≤300-line law: split, don't compress — the
+same reason highlight_gate.py and draw_dispatch.py exist):
 
   * `speak()` — the PRIVACY BOUNDARY: only assistant-authored Arabic may pass
     here — never the user transcript, never tool JSON. It also choreographs the
