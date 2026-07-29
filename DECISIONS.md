@@ -2318,3 +2318,56 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   handshake leg with a fresh client per attempt. **Nothing further is built before Sultan's live SOP.**
 
 ---
+
+## BLOCKING FINDING (2026-07-29) — the DEC-7 sweep names TWO artifacts that DO NOT EXIST in this repository, and AGENTS.md defers LAW authority to one of them — NEEDS A RULING
+
+- **Status:** BLOCKING for two of DEC-7's four items. Raised at the start of the consolidated post-`web_research`
+  docs pass, before any edit was made to the affected wordings. **Nothing was guessed and nothing was silently
+  rewritten** — the DEC-7 items that do not depend on these artifacts were executed; these two were not.
+- **Item:** DEC-7's resolution names (i) "the §12 Trust Modes section itself in `ARCHITECTURE_v4_1.md`" and
+  (ii) "the frozen `reference/cursor_control.py`'s disposition". **Neither file exists.** Verified three ways:
+  absent from the working tree, absent from `git ls-files`, and absent from the ENTIRE git history
+  (`git log --all -- <path>` returns nothing for both). They were never committed to this repository.
+  `reference/` holds only `asr.py`, `verify_vram.py` and two lock files; `_archive/` is empty.
+- **WHY THIS IS A GOVERNANCE GAP AND NOT A TYPO.** `AGENTS.md` is the declared single source of truth for every
+  agent on this project, and its header says: *"Full design rationale lives in ARCHITECTURE_v4_1.md. When this
+  file and the architecture doc disagree on CURRENT scope, this file wins; **when they disagree on LAWS, the
+  architecture doc wins**."* A source of truth that yields LAW authority to a document no agent can open is not a
+  precedence rule — it is an unresolvable one. Every "Law §N" citation in the codebase (§3.3, §3.7, §5.1-3, §11,
+  §11.5, §17.4, §19, §20 …) points into that document, so the laws are currently enforced from MEMORY and from
+  their restatements in `AGENTS.md`, not from a readable source. That is a real risk: a future disagreement about
+  a law has no arbiter, and a new agent will follow the pointer, find nothing, and either invent the law or
+  ignore it.
+- **THE FULL REFERENCE INVENTORY — 19 architecture-doc references across 6 files, PLUS 8 `cursor_control.py`
+  references in `MIGRATION_PLAN.md` (27 in total), so a ruling can be executed in one pass:**
+  - `AGENTS.md` — **9**: the header precedence rule (lines 6-7) · the Trust-Modes §12 pointer (line 19) ·
+    the §3.3 divergence note (line 66) · **a Key Files ROW for `ARCHITECTURE_v4_1.md` itself** (the table lists a
+    file that is not in the repo) · the §4.2 model-fallback table pointer · the §11.5 threading rule · the §19
+    copy-don't-import rule · the Self-Update rule #3 "flag any conflict with ARCHITECTURE_v4_1.md".
+  - `MIGRATION_PLAN.md` — **3** architecture-doc references (incl. a directory tree listing the file and a
+    "when this plan and ARCHITECTURE_v4_1.md disagree" clause) + **8** `reference/cursor_control.py` references
+    (described as present-and-frozen: a directory-tree entry, a "do not delete, do not move" instruction, a
+    read-only rule, and two verification `grep`s guarding against it leaking into `src/`).
+  - `DECISIONS.md` — **3** (DEC-7's own text among them) · `plan_v6.md` — **2** · `LESSONS.md` — **1** ·
+    `src/muthis/kernel/budget.py` — **1** (a "Rule 10" citation in a docstring; **source, not swept here**).
+- **WHAT I DID NOT DO, and why:** I did not delete the pointers, did not soften the precedence rule, did not
+  retire the Key Files row, and did not rewrite `MIGRATION_PLAN.md`'s cursor_control framing. Each is a
+  DIFFERENT decision with a different consequence, and choosing among them is a governance act, not a cleanup:
+  deleting the precedence rule REMOVES the laws' stated authority; keeping it preserves a dangling one.
+- **OPTIONS FOR THE RULING (not a recommendation between the first two — that is Sultan's):**
+  1. **RESTORE** the document (it may exist outside the repo) and commit it, keeping every pointer valid. This is
+     the only option that preserves the "laws win" rule as written.
+  2. **RETIRE** it: promote the laws Mut'his actually enforces into `AGENTS.md` (or a new `LAWS.md`) as the
+     authority, rewrite the header precedence rule so the source of truth defers to nothing missing, retire the
+     Key Files row, and convert each "§N" citation to the new home.
+  3. **RECORD IT AS EXTERNAL**: state in the header that the document is deliberately kept outside version
+     control, name where it lives, and accept that agents cannot read it. Cheapest, and honest, but it leaves
+     every "Law §N" citation unverifiable by any agent — which is the present situation, merely written down.
+- **The `cursor_control.py` half is smaller and separable:** per DEC-6 there is no future AUTOPILOT, so the file's
+  described purpose ("the basis for future AUTOPILOT, frozen") is void REGARDLESS of where the file is. The
+  ruling needed is only whether `MIGRATION_PLAN.md` should describe it as **absent** (it is) or whether it, too,
+  exists outside the repo. Both DEC-7 wordings hang on that one fact.
+- **Implementation timing:** NONE until ruled. The rest of the consolidated pass proceeded around it; this entry
+  is the record that the gap was found, measured, and left for a decision rather than papered over.
+
+---
