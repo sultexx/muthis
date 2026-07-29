@@ -3192,3 +3192,143 @@ above is a property of this corpus (3 documents, 17 positive + 3 negative questi
 this hardware, and the sample's sufficiency is itself one of the open rulings.**
 
 ---
+
+## DEC-49 (2026-07-29) — the `doc_rag` P0 gate: FIVE RULINGS — APPROVED (Sultan)
+
+- **Status:** **RULED.** Sultan's rulings on the DEC-48 measurements. The fusion question is
+  **DEFERRED** to the end of this entry, with the deciding measurement now taken.
+- **Evidence:** `docs/reports/phase2_m3_p0_rag_bench.md`; harness `scripts/diag_rag_bench.py`.
+
+### RULING 1 — the PDF library is `pypdf`
+
+- **SPEED IS NOT THE BINDING CONSTRAINT.** Extraction happens **ONCE at ingestion, not per
+  query**, and DEC-47's ingestion budget already bounds it. **A 10× slower extraction is
+  ABSORBED by the budget; wrong text is absorbed by nothing** — it poisons everything
+  downstream, permanently, and silently. The two costs are not the same kind of cost, so
+  the faster-but-wrong option does not trade against the slower-but-correct one.
+- **REJECTED — repairing PyMuPDF with an Arabic reshaping layer.** A repair layer that
+  mis-repairs **poisons the index with the same silence** the raw defect had, while adding
+  a component that must itself be correct for every font and every document. It is the
+  fragile-cleverness pattern this project has rejected repeatedly (DEC-13 enforce rather
+  than normalize; DEC-21-E allow-list rather than deny-list; DEC-28 silence rather than a
+  redaction filter). **The correct extractor is not improved by wrapping the wrong one.**
+- **BINDING CONDITION — SATISFIED.** The human eye disqualified PyMuPDF, so `pypdf` had to
+  face the same test rather than inherit a pass from the machine metric. Real extracted
+  Arabic was printed from **both** PDFs and reads correctly — `الجامعة`, `التعليم`,
+  `الملك`, `المملكة` all intact, no transposition, no mirroring, only kashida
+  justification. (Harness note: a fixed block-length floor silently printed NOTHING for the
+  glossary PDF, whose blocks average 52 characters. **A binding condition that skips a
+  document is not a condition**, so the floor was made adaptive and both files are now
+  judgeable.)
+- **RECORDED IMPLEMENTATION COST, to be budgeted in the milestone plan:** `pypdf` yields
+  position only through its **visitor API**, as raw text runs plus a text matrix. Lines
+  must be assembled by *y*, ordered right-to-left by *x*, and grouped into paragraphs by a
+  *y*-gap. **DEC-45's position requirement is therefore not free** — it is a component with
+  its own correctness burden, and the milestone plan must carry it rather than assume the
+  library hands it over.
+
+### RULING 2 — the encoder is `multilingual-e5-small`, int8
+
+- **`bge-m3` is DISQUALIFIED BY STATED CONDITIONS, NOT PREFERENCE.** It fails **three**:
+  1. **No publisher int8 artifact exists** — fp32 only. This violates DEC-44's int8
+     requirement outright, and **DEC-44's fingerprint-pinning clause cannot reach it**: any
+     int8 bge-m3 would pin our own build or a stranger's re-upload, never the publisher's.
+  2. **2,268 MB** — the torch-scale dependency weight DEC-44 rejected, arriving by a
+     different route.
+  3. **558 ms/chunk**, which **refuses a realistic 228-page document at 149 s**.
+- **Six points at @5 do not buy 19× size and 18× latency in a VOICE product under the
+  zero-VRAM law.** The quality gap is real and it is smaller than the cost.
+- **BINDING — the input format, read from the model card and not from memory:** every
+  passage is prefixed **`passage: `**, every query **`query: `**, pooling is **MEAN** over
+  the attention mask, followed by **L2 normalisation**. **Benching or indexing without this
+  produces wrong numbers and wrong vectors**, and would have wrongly disqualified the model.
+  This is the DEC-43 discipline applied to a model card instead of a law.
+
+### RULING 3 — DEC-46's dense entry floor is RETIRED
+
+- **Measurement proved it underivable**, under both candidates: the positive and negative
+  cosine distributions overlap (−0.11 e5, −0.20 bge-m3), because **a topically-adjacent
+  absence scores like a true answer** (a PID question against a motor-control document,
+  above most true positives).
+- **A floor cannot separate them, and would HIDE content from the model — worse than having
+  none.** Retiring it is not a concession; the mechanism does not exist to be tuned.
+- **REPLACED BY THE DEC-20 PATTERN.** DEC-20 already settled the shape for a property that
+  is not structurally enforceable: **layered pressure plus a deterministic backstop**, on
+  the grounds that the failure mode is a trust/quality defect rather than a security breach,
+  so DEC-12's drive-the-guard-directly standard does not apply. Here that is **a persona law
+  requiring Mut'his to say plainly «ما لقيت هذا في المستند» rather than infer**, with the
+  **Phase-3 VISUAL CITATION as the eventual deterministic backstop** — already enabled by
+  DEC-45's position data, which is exactly why that data is captured at ingestion.
+- **KNOWN LIMIT until Phase 3**, recorded rather than closed: between now and the visual
+  citation, nothing deterministic prevents a confident answer drawn from a
+  topically-adjacent passage that does not contain the answer.
+
+### RULING 4 — DEC-47's zone coupling is an INVARIANT, and is GUARDED at startup
+
+- **THE INVARIANT, stated explicitly for the first time:**
+
+  > `ingestion_budget ÷ per_chunk_encode_time × tokens_per_chunk` **MUST EXCEED**
+  > `MUTHIS_DOC_INJECT_LIMIT`.
+
+  Otherwise **zone 2 is empty** — every document large enough to need an index is already
+  too large to build one — and the three-zone design of DEC-47 is incoherent.
+- **The derived maximum and `MUTHIS_DOC_INJECT_LIMIT` are NOT independent knobs.** With
+  e5-small the invariant holds comfortably (≈745,000 vs 50,000); with bge-m3 at a 60 s
+  budget it **inverts** (≈40,830 vs 50,000). The relation was **written down nowhere**,
+  which is exactly how it would have broken silently after an innocuous config change.
+- **A STARTUP ASSERTION FAILS LOUDLY** if a future configuration breaks it. Not a warning:
+  a configuration that makes a whole zone unreachable is not a degraded mode, it is an
+  incoherent one, and the DEC-45 precedent is that a guard on a silent-corruption path
+  fails the operation rather than logging.
+
+### RULING 5 — DEC-45's rationale is CORRECTED; the RULE is UNCHANGED
+
+- **The correction:** the measured Arabic-to-English ratio is **×1.11** (0.269–0.326 vs
+  0.295), so DEC-45's *"Arabic overflows dramatically"* justification was **overstated**.
+  Recorded rather than left standing — **an overstated reason inside a signed decision is
+  the same defect DEC-43 retired a document for.**
+- **The RULE stands on its own ground, and is not weakened by the correction:**
+  **overflowing the encoder window is forbidden regardless of ratio**, and tokens remain
+  the only correct unit. A 2,000-character chunk overflows a 512-token model in *either*
+  language; the ratio was never what made the rule necessary.
+- **THE INVERTED FINDING, recorded because it redirects where the risk actually lives:**
+  **the MIXED technical document tokenizes WORSE than the pure-Arabic one** (0.358 vs
+  0.317). **The expensive case is mixed content, not Arabic** — markup, identifiers and
+  punctuation drive token density harder than script does. Anyone reasoning about chunk
+  budgets should test against a mixed technical document, not an Arabic prose one.
+
+### DEFERRED — the fusion ruling, with the deciding measurement NOW TAKEN
+
+**DEC-46's premise is refuted** (RRF never beats dense, at any k, under either encoder,
+with the dedupe confound ruled out) **but the conclusion needed one more number**: whether
+BM25 is excellent at the one thing DEC-18 valued and DEC-44's no-stemming ruling protected.
+
+**Measured — the identifier axis, classified MECHANICALLY** (a question is
+identifier-bearing iff it carries a Latin-script token BM25 can match exactly; this axis
+CROSS-CUTS the per-document split, which conflated *technical document* with
+*identifier-bearing question*):
+
+| | BM25 @5 | Dense @5 | RRF @5 |
+|---|---|---|---|
+| IDENTIFIER-bearing (n=7) | 71 % | **86 %** | 86 % |
+| PROSE-only (n=10) | 60 % | **70 %** | 70 % |
+
+**Dense beats BM25 on BOTH axes, including identifiers**, and the decisive number is the
+marginal one: **BM25's unique contribution over dense is ZERO — 0 of 17 at @5, 0 of 17 at
+the effective k, and 0 identifier-bearing questions where BM25 wins alone.** The union
+(dense ranks, BM25 appends only its exact matches that dense missed) scores **82 %**, which
+is **exactly dense alone**. On this corpus the recall supplement supplies no recall.
+
+**Delivery-cap correction to the whole comparison:** @5 is a benchmark convention, not this
+system's shape. Under DEC-45's cap (the `MAX_EXTRACT_CHARS` precedent, 16,000 chars) with
+small-to-big returning PARENT blocks, the cap admits **8–13 parents** on the glossary and
+**12–17** on the booklet (cap-limited), and **5** on the Markdown (limited by how few
+parents exist, not by the cap). **The real delivery shape is MORE generous than @5, so
+effective recall is higher than reported: dense 82 %, not 76 %.**
+
+**STILL SULTAN'S TO RULE.** The measurement says the lexical half currently buys nothing,
+but it is 17 questions on three documents, BM25's 71 % on identifiers is not zero, and
+DEC-18's argument was about a capability rather than an average. Retiring a retriever on
+this sample is a bigger step than the sample supports, and this entry does not take it.
+
+---

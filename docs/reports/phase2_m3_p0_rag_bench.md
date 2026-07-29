@@ -535,3 +535,92 @@ but do not make.
 9. **Whether the corpus is representative enough** to carry rulings 1–8. Three documents
    and 17 questions is a small sample, the residual misses cluster on numeric/tabular
    answers, and every number above is a property of *this* corpus on *this* hardware.
+
+---
+
+# ADDENDUM — the DEC-49 delta run (2026-07-29)
+
+Sultan ruled on five of the items above (**DEC-49**) and deferred the fusion question
+pending one measurement. This addendum records that measurement plus ruling 1's binding
+condition. Same bench, same corpus, **no new dependency** — a delta run, not a rebuild.
+
+## D1. `pypdf` human-eyeball sample — ruling 1's BINDING CONDITION
+
+The machine metric scores `pypdf` 0 transposed / 0 reversed on both files. **That metric
+passed PyMuPDF once and was wrong**, so it does not get the last word. Real extracted
+Arabic was printed from **both** PDFs at runtime for Sultan to judge; per the privacy rule
+it is not reproduced in this committed file. Measured alongside each sample: probe
+`transposed=0`, `reversed=0`, Arabic share 100 % on every printed block, with the words
+that break under PyMuPDF (`الجامعة`, `التعليم`, `الملك`, `المملكة`) intact and only
+kashida justification present.
+
+**A harness defect was found and fixed in the process.** The first version used a fixed
+150-character block-length floor, which printed **nothing at all** for the glossary PDF —
+its blocks average **52 characters**. A binding condition that silently skips a document is
+not a condition, so the floor is now adaptive (150 → 90 → 50 → 25) and reports which floor
+it used. This is the second time in this gate that a plausible-looking automated check
+quietly excluded the case it was supposed to examine.
+
+## D2. Identifier-bearing vs prose — the number the fusion ruling turns on
+
+**Classification is mechanical, not judgment:** a question is identifier-bearing iff its
+text carries a Latin-script token that BM25 can match exactly. **This axis cross-cuts the
+per-document split**, which conflated *technical document* with *identifier-bearing
+question* — two of the seven identifier questions live in the Arabic glossary, and two of
+the five Markdown questions carry no identifier at all.
+
+| Bucket | n | BM25 @5 | Dense @5 | RRF @5 |
+|---|---|---|---|---|
+| **IDENTIFIER-bearing** | 7 | 71 % (5/7) | **86 % (6/7)** | 86 % |
+| **PROSE-only** | 10 | 60 % (6/10) | **70 % (7/10)** | 70 % |
+
+**Dense beats BM25 on both axes — including the axis BM25 was supposed to own.**
+
+### The decisive number is the marginal one
+
+| Scope | BM25-only wins | Dense-only wins |
+|---|---|---|
+| @5 | **0 / 17** | 2 / 17 |
+| @ effective k | **0 / 17** | 1 / 17 |
+| identifier-bearing questions where BM25 wins alone | **0** | — |
+
+**There is no question in this corpus that BM25 finds and dense misses.** The recall-
+supplement union (dense ranks; BM25 appends only its exact matches that dense missed)
+scores **82 %** — *exactly* dense alone. On this corpus the supplement supplies no recall.
+
+The per-document 100 % figure from the main report was therefore **not** evidence that
+BM25 is uniquely strong on identifiers; it was evidence that the Markdown document is easy,
+and **dense scores 100 % on it too**.
+
+## D3. The delivery cap — effective k, not @5
+
+@5 is a benchmark convention. DEC-45 caps total retrieved text and small-to-big returns the
+**PARENT** block, so the real question is **how many parents the cap admits** — which is a
+property of the documents, not a constant. Cap = **16,000 chars**, the `MAX_EXTRACT_CHARS`
+precedent DEC-45 names.
+
+| Document | Median parent | Parents available | Effective k | Limited by |
+|---|---|---|---|---|
+| A — glossary (228 pp) | 1,965 ch | 223 | **8–13** | the CAP |
+| B — booklet (66 pp) | 314 ch | 60 | **12–17** | the CAP |
+| C — Markdown | 304 ch | 5 | **5** | **parents available**, not the cap |
+
+| Config | @5 | **@ effective k** |
+|---|---|---|
+| BM25 | 65 % | 76 % |
+| **Dense** | 76 % | **82 %** |
+| RRF | 76 % | 82 % |
+| Dense + BM25 union | — | 82 % |
+
+**The delivery shape is MORE generous than the @5 convention, so the system's real
+effective recall is 82 %, not 76 %.** Every earlier @5 figure understated it. Note document
+C's effective k is limited by having only five parent sections — reporting "effective
+k = 5" without that distinction would invite the wrong conclusion entirely.
+
+## What this addendum does NOT do
+
+It does not choose a fusion strategy. The measurement says the lexical half currently buys
+nothing, but it is 17 questions over three documents, BM25's 71 % on identifiers is not
+zero, and DEC-18's argument was about a capability rather than an average. **Retiring a
+retriever on this sample is a bigger step than the sample supports**, and that ruling
+remains Sultan's.

@@ -1099,6 +1099,216 @@ def phase_retrieval(docs: dict[str, dict[str, Any]], encoders: dict[str, OnnxEnc
         print()
 
 
+# ---------------------------------------------------------------------------
+# DELTA RUN (DEC-49) — the three measurements the fusion ruling waits on
+# ---------------------------------------------------------------------------
+
+# An IDENTIFIER-BEARING question, defined MECHANICALLY rather than by judgment:
+# its text carries a Latin-script token, i.e. an exact string that survives
+# normalization unchanged and that BM25 can match literally. That is precisely
+# the property DEC-18 valued and DEC-44's no-stemming ruling protected, so it is
+# the right axis — and it CROSS-CUTS the per-document split, which conflated
+# "technical document" with "identifier-bearing question".
+_LATIN_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
+
+
+def is_identifier_question(q: dict[str, Any]) -> bool:
+    return bool(_LATIN_TOKEN.search(q.get("q", "")))
+
+
+def parent_texts(blocks: list[Block]) -> dict[str, str]:
+    """The PARENT block per key — what small-to-big actually DELIVERS (DEC-45)."""
+    out: dict[str, list[str]] = defaultdict(list)
+    for b in blocks:
+        out[f"p{b.page}" if b.page else f"s{b.section}"].append(b.text)
+    return {k: "\n".join(v) for k, v in out.items()}
+
+
+def effective_k(order: list[int], chunks: list[Chunk], parents: dict[str, str],
+                cap_chars: int) -> int:
+    """How many PARENT blocks the delivery cap actually admits.
+
+    @5 is a benchmark convention. DEC-45 caps total retrieved text, and
+    small-to-big returns the PARENT, so the real question is how many parents
+    fit under the cap — which is a property of the documents, not a constant.
+    """
+    used = 0
+    seen: set[str] = set()
+    admitted = 0
+    for i in order:
+        p = chunks[i].parent
+        if p in seen:
+            continue
+        seen.add(p)
+        size = len(parents.get(p, chunks[i].text))
+        if used + size > cap_chars and admitted:
+            break
+        used += size
+        admitted += 1
+    return admitted
+
+
+def phase_eyeball(pdf_paths: list[pathlib.Path]) -> None:
+    """DEC-49 ruling 1's BINDING CONDITION: the human eye disqualified PyMuPDF,
+    so pypdf must face the SAME test before anything is built on it."""
+    print_header("D1. pypdf EXTRACTION SAMPLE — HUMAN-JUDGED (DEC-49 ruling 1's condition)")
+    print("  The machine metric already scores pypdf 0 transposed / 0 reversed on both")
+    print("  files. That metric PASSED PyMuPDF once and was wrong, so it does not get")
+    print("  the last word. Sultan reads the Arabic below and rules.")
+    print("  Correct Arabic reads normally: الجامعة not اجلامعة, في not يف, no mirroring.\n")
+    for path in pdf_paths:
+        blocks, _ = extract_pypdf(path)
+        print(f"  ##### {path.name}")
+        # Rank by Arabic density rather than filtering on a fixed threshold: one
+        # corpus PDF is a BILINGUAL glossary at 44% Arabic overall, so a fixed
+        # cut printed nothing for it at all -- and a binding condition that
+        # silently skips a document is not a condition.
+        # ADAPTIVE length floor. One corpus PDF is a glossary whose blocks
+        # average ~53 characters, so a fixed 150-char floor printed nothing for
+        # it -- and a binding condition that silently skips a document is not a
+        # condition. Step down until the document can actually be judged.
+        candidates: list[Block] = []
+        for floor in (150, 90, 50, 25):
+            candidates = sorted(
+                (b for b in blocks if b.page and b.page > 5 and len(b.text) >= floor),
+                key=lambda b: (-arabic_ratio(b.text), -len(b.text)))
+            if len(candidates) >= 2:
+                print(f"    (block length floor used: {floor} chars — this document's "
+                      f"blocks average {sum(len(b.text) for b in blocks) // max(len(blocks), 1)})")
+                break
+        if not candidates:
+            print("    NO block long enough to judge — REPORTED, not skipped.")
+            continue
+        for b in candidates[:2]:
+            g, t = transposition_score(b.text)
+            r = reversal_score(b.text)
+            print(f"    --- page {b.page}, paragraph {b.para}  "
+                  f"(arabic {arabic_ratio(b.text):.0%}; probe correct={g} "
+                  f"transposed={t} reversed={r}) ---")
+            print("      " + " ".join(b.text.split())[:260])
+        print()
+
+
+def phase_delta(docs: dict[str, dict[str, Any]], encoders: dict[str, OnnxEncoder],
+                questions: list[dict[str, Any]], window: int, cap_chars: int) -> None:
+    """The two numbers DEC-49 deferred the fusion ruling on."""
+    import numpy as np
+
+    positives = [q for q in questions if q.get("doc")]
+    name_by_slug = {slug(n): n for n in docs}
+
+    for mname, enc in encoders.items():
+        chunker = Chunker(enc.count_tokens, window)
+        index: dict[str, dict[str, Any]] = {}
+        for name, d in docs.items():
+            chunks = chunker.chunk(d["blocks"])
+            index[name] = {"chunks": chunks,
+                           "bm25": BM25([tokenize_lexical(c.norm) for c in chunks]),
+                           "vecs": enc.encode_passages([c.text for c in chunks], batch=8),
+                           "parents": parent_texts(d["blocks"])}
+
+        rows: list[dict[str, Any]] = []
+        for q in positives:
+            doc_name = name_by_slug.get(slug(q["doc"]))
+            if doc_name is None:
+                continue
+            ix = index[doc_name]
+            chunks: list[Chunk] = ix["chunks"]
+            bm_scores = ix["bm25"].scores(tokenize_lexical(normalize_document(q["q"])))
+            cos = ix["vecs"] @ enc.encode_queries([q["q"]])[0]
+            bm_order = [int(i) for i in np.argsort(bm_scores)[::-1] if bm_scores[int(i)] > 0]
+            dn_order = [int(i) for i in np.argsort(cos)[::-1]]
+            fused = rrf([bm_order[:50], dn_order[:50]])
+            rr_order = [i for i, _ in sorted(fused.items(), key=lambda kv: -kv[1])]
+
+            ek = effective_k(dn_order, chunks, ix["parents"], cap_chars)
+            row: dict[str, Any] = {
+                "q": q, "doc": doc_name, "ident": is_identifier_question(q),
+                "eff_k": ek,
+                "parent_chars": statistics.median(
+                    [len(v) for v in ix["parents"].values()] or [0]),
+            }
+            for cfg, order in (("bm25", bm_order), ("dense", dn_order), ("rrf", rr_order)):
+                kept = dedupe_by_parent(order, chunks, max(TOP_K))
+                row[f"{cfg}@5"] = any(matches(chunks[i], q) for i in kept[:5])
+                row[f"{cfg}@eff"] = any(matches(chunks[i], q)
+                                        for i in dedupe_by_parent(order, chunks, max(ek, 1))[:ek])
+                # RECALL SUPPLEMENT, measured not proposed: dense ranks, and BM25
+                # contributes ONLY its exact matches that dense missed, appended
+                # after. Union with precedence — no weight, no knob.
+                if cfg == "bm25":
+                    union = dedupe_by_parent(dn_order, chunks, max(ek, 1))[:ek]
+                    extra = [i for i in bm_order[:5]
+                             if chunks[i].parent not in {chunks[j].parent for j in union}]
+                    row["union@eff"] = any(matches(chunks[i], q) for i in union + extra[:2])
+            rows.append(row)
+
+        print_header(f"D2. IDENTIFIER-BEARING vs PROSE  —  encoder: {mname}")
+        print("  Classification is MECHANICAL: a question is identifier-bearing iff its")
+        print("  text carries a Latin-script token BM25 can match exactly. This axis")
+        print("  CROSS-CUTS the document split, which conflated 'technical document'")
+        print("  with 'identifier-bearing question'.\n")
+        for label, want in (("IDENTIFIER-bearing", True), ("PROSE-only", False)):
+            sub = [r for r in rows if r["ident"] == want]
+            if not sub:
+                continue
+            print(f"    {label}  (n={len(sub)})")
+            for cfg in ("bm25", "dense", "rrf"):
+                hits = sum(1 for r in sub if r[f"{cfg}@5"])
+                print(f"      {cfg:6s} @5 = {hits / len(sub):5.0%}  ({hits}/{len(sub)})")
+            print()
+        print("    The questions, so the classification can be checked by eye:")
+        for r in sorted(rows, key=lambda r: not r["ident"]):
+            tag = "IDENT" if r["ident"] else "prose"
+            marks = "".join("Y" if r[f"{c}@5"] else "." for c in ("bm25", "dense", "rrf"))
+            print(f"      {tag:5s} {marks:4s} {r['doc'][:24]:26s} {r['q']['q'][:46]}")
+
+        print_header(f"D3. THE DELIVERY CAP — effective k  —  encoder: {mname}")
+        print(f"  Cap = {cap_chars:,} chars (the MAX_EXTRACT_CHARS precedent DEC-45 names).")
+        print("  small-to-big returns the PARENT block, so the cap admits PARENTS, not")
+        print("  chunks — and how many depends on how big a parent is in each document.\n")
+        by_doc: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for r in rows:
+            by_doc[r["doc"]].append(r)
+        print(f"    {'document':30s} {'median parent':>14s} {'parents':>8s} "
+              f"{'effective k':>12s}  limited by")
+        for d, rs in by_doc.items():
+            eks = [r["eff_k"] for r in rs]
+            n_parents = len(index[d]["parents"])
+            # Is the cap actually binding, or has the document simply run out of
+            # parent blocks? Reporting "effective k = 5" without saying which
+            # would invite the wrong conclusion.
+            limit = "the CAP" if max(eks) < n_parents else "parents available"
+            print(f"    {d[:30]:30s} {rs[0]['parent_chars']:11,.0f} ch {n_parents:8d} "
+                  f"{min(eks):5d}-{max(eks):<5d}  {limit}")
+        print()
+        n = max(len(rows), 1)
+        print(f"    HIT RATE AT THE EFFECTIVE k (n={n}), against the @5 convention:")
+        print(f"      {'config':22s} {'@5':>8s} {'@effective k':>14s}")
+        for cfg in ("bm25", "dense", "rrf"):
+            a = sum(1 for r in rows if r[f"{cfg}@5"]) / n
+            b = sum(1 for r in rows if r[f"{cfg}@eff"]) / n
+            print(f"      {cfg:22s} {a:7.0%} {b:13.0%}")
+        u = sum(1 for r in rows if r.get("union@eff")) / n
+        print(f"      {'dense + bm25 union':22s} {'':7s} {u:13.0%}   "
+              "(dense ranks; bm25 adds only exact matches dense missed)")
+
+        # THE NUMBER THE FUSION RULING TURNS ON, stated directly instead of left
+        # to be inferred from two percentages that happen to be equal.
+        print("\n    BM25's MARGINAL CONTRIBUTION OVER DENSE — questions BM25 hits")
+        print("    that dense MISSES. This is what a recall supplement would buy:")
+        for scope, key in (("@5", "@5"), ("@effective k", "@eff")):
+            only_bm = [r for r in rows if r[f"bm25{key}"] and not r[f"dense{key}"]]
+            only_dn = [r for r in rows if r[f"dense{key}"] and not r[f"bm25{key}"]]
+            print(f"      {scope:14s} bm25-only: {len(only_bm):2d}/{n}    "
+                  f"dense-only: {len(only_dn):2d}/{n}")
+            for r in only_bm:
+                print(f"         bm25 uniquely finds: {r['q']['q'][:56]}")
+        ident_bm = [r for r in rows if r["ident"] and r["bm25@5"] and not r["dense@5"]]
+        print(f"      identifier-bearing questions where bm25 wins alone: {len(ident_bm)}")
+        print()
+
+
 def matches(chunk: Chunk, q: dict[str, Any]) -> bool:
     """Ground truth: 'صفحة N' (1-based page) or '§X.Y' (heading number).
     Section matching is EXACT -- a chunk in 2.1 does not satisfy a label of 2."""
@@ -1171,6 +1381,8 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=5)
     ap.add_argument("--extractor", default="pypdf", choices=sorted(PDF_EXTRACTORS),
                     help="PDF loader for the phases after the acceptance table")
+    ap.add_argument("--cap-chars", type=int, default=16_000,
+                    help="delivery cap: the MAX_EXTRACT_CHARS precedent (DEC-45)")
     ap.add_argument("--fetch", action="store_true")
     ap.add_argument("--phases", default="deps,pdf,sample,tokens,encode,zones,retrieval")
     args = ap.parse_args()
@@ -1252,6 +1464,10 @@ def main() -> int:
         phase_zones(docs, encoders, medians, chunks_by_model)
     if "retrieval" in phases:
         phase_retrieval(docs, encoders, questions, args.window, args.top_k)
+    if "eyeball" in phases:
+        phase_eyeball(pdf_paths)
+    if "delta" in phases:
+        phase_delta(docs, encoders, questions, args.window, args.cap_chars)
 
     print_header("PRIVACY — the network guard's verdict")
     print(f"  After the fetch phase, the bench made: {GUARD.verdict()}")
