@@ -517,3 +517,43 @@ Evolution:
   the granted-but-unwired set -- while it sat there, a granted and a denied plugin saw
   the same absent seam and the same silence, which is the undefined THIRD state M1-4
   forbids.
+
+---
+
+## The post-table status narratives (migrated from AGENTS.md)
+
+The AGENTS.md sections after the Key Files table had accumulated completion logs for
+work that finished long ago. The LIVE constraints they carried were rewritten in place
+as constraints; the narrative is here.
+
+- **Status indicator, batch 2:** shipped in two halves -- 2-A the visual widget, 2-B the
+  wiring to the four transition points plus the ghosting clear at the capture chokepoint.
+  2-A's description mentioned a POINTER HALO hugging the gliding tip; that halo was
+  REMOVED afterwards for cluttering content over code, along with its only support
+  (`pointer.last_pos`), so by the time the sweep reached it the AGENTS.md sentence had
+  been describing a widget that no longer existed. (The halo still named inside
+  status_indicator.py is the corner DOT's own glow, which is a different thing.)
+- **Sentence-level TTS streaming, Batch 3 (trialed and REVERTED):** the attempt ran
+  collect-then-play per sentence over a NEW connection each time, producing audible
+  inter-sentence gaps, and used a background consumer/queue/sentinel whose await could
+  wedge `is_processing`. src/muthis/tts_stream.py was deleted. The two failure modes were
+  promoted to permanent design constraints and remain stated in AGENTS.md, because they
+  are the reason the eventual design looks the way it does.
+- **v5 Phase C (the authorized migration):** Sultan authorized a second attempt on
+  2026-07-14, gated on a C0 pre-flight proving ONE persistent ElevenLabs WS generation
+  fed sentence-by-sentence -- never connect-per-sentence -- and flag-gated behind
+  MUTHIS_STREAM_TTS with buffer-then-speak as the one-env rollback. It SHIPPED in v7 as
+  turn_voice.py + tts_session.py, satisfying both Batch-3 constraints structurally: one
+  connection per TURN, and feeds that are inline awaits rather than a background
+  consumer. AGENTS.md described it as "an authorized migration" for several releases
+  after it had landed.
+- **Where files landed (V1 layout archaeology):** `stt/elevenlabs_scribe.py` landed flat
+  as src/muthis/stt.py, mirroring the flat tts.py precedent; the planned
+  `activation/hotkey_listener.py` landed flat as src/muthis/hotkey.py with
+  src/muthis/main.py as its composition root; `vision/screen_capture.py` and the overlay
+  modules landed as packages under src/muthis/. None of this constrains anything today --
+  the tree is the tree.
+- **Geometric drawing, Phases A / B-1 / B-2:** completed; the "is COMPLETE" banner and
+  the "Planned next: Phase B -- do not create until their build step" block (removed in
+  DEC-1 batch 1) had coexisted in the same file, contradicting each other. That pair is
+  the original worked example in DEC-1's observation.

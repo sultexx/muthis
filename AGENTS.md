@@ -256,35 +256,27 @@ orchestrator's (Law 11: wrappers own no lifecycles, locks, or events).
 | `tests/conftest.py` | 58 | Autouse hermeticity fixture: clears the cloud-TTS keys (ELEVENLABS_API_KEY / GEMINI_API_KEY / MUTHIS_TRY_ELEVENLABS), the ElevenLabs voice-config vars (ELEVENLABS_VOICE_ID / *_MODEL_ID / *_STABILITY / *_SIMILARITY_BOOST / *_STYLE) AND the overlay neon-styling vars (MUTHIS_COLOR_* / MUTHIS_GLOW* / MUTHIS_CORE_WIDTH / MUTHIS_LABEL_* / MUTHIS_STATUS_* + corner) AND the v5 streaming flag (MUTHIS_STREAM_TTS — its OFF default must hold in every test) AND the v6 captions flag (MUTHIS_CAPTIONS — cleared so its documented default-ON holds deterministically) AND the v6 spotlight knobs (MUTHIS_FOCUS_DIM / MUTHIS_FOCUS_ALPHA — deterministic OFF / 0.30) so no test picks up the dev's real keys (a leaked key would make a real TTS() attempt a live WebSocket) and the documented voice + neon-style + status defaults stay deterministic. |
 | `ARCHITECTURE_v4_1.md` | — | The design constitution: laws, pending items, verification checklist. Read §3, §5, §20 before significant changes. |
 
-**Status indicator batch 2 is COMPLETE** (2-A the visual: `overlay/status_indicator.py` — a pointer HALO + a
-corner neon DOT, `.env`-styled via `OverlayStyle` (`MUTHIS_STATUS_*`), a pulse via `after()`; 2-B the wiring).
-2-B wired `set_state`/`clear_status_light` to the FOUR real transition points and enforced ghosting: listening
-in `ActivationController.on_press` (after the mic opens), thinking in `on_activate` (pipeline starting) and
-re-armed after each grab, speaking at the start of `_speak` (back to thinking after), idle in `reset_turn_state`
-(the single true turn end, in the `finally` — a raising turn still lands at idle). `set_state`/`clear_status_light`
-are now SYNC fire-and-forget on the overlay (the controller calls `set_state` from the keyboard thread, so they
-must NOT be coroutines; the enqueue is thread-safe) — declared on the `Overlay` protocol, no-op on `StubOverlay`.
-The controller reaches the light via a new injected `set_state` seam (= `overlay.set_state`); the orchestrator
-reaches it via its existing `overlay` seam. Ghosting: the frame-capture chokepoint (`FrameCapture.capture`, M1-2) calls `clear_status_light()` right
-before `hide()` (the ONE chokepoint for the initial AND each in-loop refresh grab), so Claude never sees the dot.
-Wired + tested (`tests/test_status_wiring.py`); exercised visually by `scripts/smoke_status.py`.
-Sentence-level TTS streaming was trialed once (Batch 3) and REVERTED — that attempt ran collect-then-play
-per sentence over a NEW connection each time (audible inter-sentence gaps) and used a background
-consumer/queue/sentinel whose await could wedge `is_processing` (`src/muthis/tts_stream.py` deleted).
-Buffer-then-speak (accumulate the full reply, speak it ONCE at end-of-turn) is the CURRENT DEFAULT
-playback behavior — but it is no longer "final": **v5 Phase C is an authorized migration to
-sentence-level streaming playback** (Sultan, 2026-07-14), gated on the C0 pre-flight (ONE persistent
-ElevenLabs WS generation fed sentence-by-sentence — NEVER connect-per-sentence) and flag-gated behind
-`MUTHIS_STREAM_TTS` (default OFF), so buffer-then-speak stays the instant one-env rollback. Any streaming
-design must still avoid BOTH Batch-3 failure modes by construction: no per-sentence connections, and no
-background consumer task that can wedge `is_processing`. Phase 1's intra-AUDIO progressive playback (ONE
-speak() call; ElevenLabs streams the AUDIO chunks back inside it) is unrelated to this migration and stays.
-(`stt/elevenlabs_scribe.py` landed flat as `src/muthis/stt.py`, mirroring the flat `tts.py` precedent;
-the planned `activation/hotkey_listener.py` landed flat as `src/muthis/hotkey.py` with `src/muthis/main.py`
-as its composition root — completing the LOOK phase;
-`vision/screen_capture.py` and the overlay (`overlay/sidekick_window.py` + `overlay/rectangle_widget.py`
-+ `overlay/pointer_widget.py` + `overlay/pointer_animator.py` — the animated gliding pointer)
-landed as package modules under `src/muthis/`.)
+**THE STATUS LIGHT is wired at FOUR transition points, and the wiring is the contract** — not the widget.
+`set_state` fires: *listening* in `ActivationController.on_press` (AFTER the mic opens), *thinking* in
+`on_activate` (pipeline starting) and re-armed after each grab, *speaking* at the start of `_speak` (back to
+thinking after), *idle* in `reset_turn_state` — the single true turn end, inside the `finally`, **so a raising
+turn still lands at idle**. `set_state` / `clear_status_light` are SYNC fire-and-forget on the overlay and must
+NEVER become coroutines: the controller calls `set_state` from the KEYBOARD thread and only a thread-safe
+enqueue is legal there. Both are declared on the `Overlay` protocol and no-op on `StubOverlay`. GHOSTING: the
+frame-capture chokepoint (`FrameCapture.capture`) calls `clear_status_light()` immediately before `hide()` — the
+ONE chokepoint covering the initial grab AND every in-loop refresh — so Claude never sees the dot. Guarded by
+`tests/test_status_wiring.py`; exercised visually by `scripts/smoke_status.py`.
+
+**TWO PERMANENT CONSTRAINTS ON ANY TTS STREAMING DESIGN**, earned by a failed attempt (Batch 3, reverted;
+`src/muthis/tts_stream.py` deleted): **no per-sentence connections** — that attempt ran collect-then-play per
+sentence over a NEW connection each time, with audible inter-sentence gaps — and **no background consumer task
+that can wedge `is_processing`**, which its queue/sentinel await could. Both must be satisfied BY CONSTRUCTION,
+not by care. The streaming migration authorized after that revert (Sultan, 2026-07-14) has SHIPPED: ONE
+persistent ElevenLabs generation per TURN, fed sentence by sentence (`turn_voice.py` + `tts_session.py`), which
+satisfies both constraints structurally — one connection per turn, and feeds that are inline awaits. It stays
+flag-gated behind `MUTHIS_STREAM_TTS` (default OFF — opt in via `.env`), so buffer-then-speak remains the
+instant one-env rollback. Intra-AUDIO progressive playback (ONE `speak()` call inside which ElevenLabs streams
+the audio chunks back) is a DIFFERENT mechanism, unrelated to this migration, and stays on either path.
 
 ## Build & Run
 
@@ -515,7 +507,7 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
   SELECTION rule: `highlight_target` LOCATES one UI element (button/icon/menu/field — "where-is"), while
   `draw_shapes` ILLUSTRATES geometry / math / diagram (mark a triangle side, circle an equation term, arrow
   between steps, underline a code line); when both could apply, follow the user's intent (locate →
-  highlight_target, explain-with-illustration → draw_shapes). **v7 Phase 2 adds the WHITEBOARD tier** (وضع
+  highlight_target, explain-with-illustration → draw_shapes). **The WHITEBOARD tier** (وضع
   السبورة): a CONCEPT/abstract explanation drawn with shapes → `draw_shapes` + `dim_screen=true` — the whole
   screen fades dark behind the drawing (FocusDimmer.show_full, flag `MUTHIS_WHITEBOARD` default ON) and the
   lights come back at SPEECH END (run_turn's finally → `undim_screen`); annotating the user's OWN content
@@ -524,9 +516,9 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
   (draw-only pass 1, then explain on the next turn starting with the info) and the persona is HONEST that
   shapes are approximate region support, never pixel-perfect. The two ACK surfaces
   (`HIGHLIGHT_ACK_TEXT_AR` / `SHAPES_ACK_TEXT_AR`) were already parallel "explain-now" internal directives, so
-  `highlight_gate.py` was NOT touched. **Geometric drawing (Phase A + B-1 + B-2) is COMPLETE.**
-- **The Pedagogical Analyzer is READ → ISOLATE → TEACH** (v7 Phase 4, `file_reader.py` + persona +
-  turn_pass/turn wiring): an explain-a-file request reads the REAL content first (`read_local_file`,
+  `highlight_gate.py` is NOT involved in the shapes path.
+- **The Pedagogical Analyzer is READ → ISOLATE → TEACH** (`file_reader.py` + persona + the
+  turn_pass/pairing wiring): an explain-a-file request reads the REAL content first (`read_local_file`,
   1-based numbered lines — never guess file content from pixels), then the draw pass isolates the analyzed
   lines with ONE `draw_shapes` carrying `dim_screen=true` + rectangles (the ONE pedagogy exception to the
   Phase 2 "user's own content stays undimmed" rule), then the forced-text pass teaches line-by-line citing
