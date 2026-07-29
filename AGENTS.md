@@ -3,8 +3,21 @@
 <!-- This is the single source of truth for all AI coding agents (Claude Code, Cursor, Copilot, Gemini CLI). -->
 <!-- CLAUDE.md points here. On Windows, symlinks need Developer Mode (`mklink CLAUDE.md AGENTS.md` in an elevated
      cmd); if unavailable, keep CLAUDE.md as a one-line file: "Read AGENTS.md — it is the single source of truth." -->
-<!-- Full design rationale lives in ARCHITECTURE_v4_1.md. When this file and the architecture doc disagree on
-     CURRENT scope, this file wins; when they disagree on LAWS, the architecture doc wins. -->
+<!-- AUTHORITY (DEC-43, 2026-07-29 — supersedes the retired precedence rule). There is no external document that
+     outranks this one. The sources of authority, in their own domains:
+       · AGENTS.md (this file) — THE SOLE AUTHORITY ON LAWS, and on current scope. A law is in force here or
+         it is not in force.
+       · DECISIONS.md — the signed rulings ledger (DEC-N). Append-only: a past entry is superseded by a new
+         entry, never rewritten.
+       · CONTRIBUTING.md — the binding acceptance conditions a change must meet to be merged.
+       · V2_ROADMAP.md — planning and phase order only. It governs WHAT is built next, never what is lawful.
+     WHY THE OLD RULE IS RETIRED: this header used to yield LAW authority to `ARCHITECTURE_v4_1.md`. That
+     document is ARCHIVED and NOT authoritative. It predates the LOOK-only product decision and contains
+     decisions since CANCELLED — Trust Modes among them (DEC-6). Keeping the old rule would have let a cancelled
+     §12 outrank the DEC-6 cancellation stated in this file, which is the failure mode of a stale source of
+     truth with authority attached. Two full milestones and 42 signed decisions were delivered with the document
+     absent and zero law breaches: the laws in force live here, in DECISIONS.md, and in CONTRIBUTING.md.
+     If you have found the archived file: it is history, not law. Do not restore it to authority. -->
 
 ## Overview
 
