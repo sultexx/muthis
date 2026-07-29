@@ -91,7 +91,7 @@ def check_schema_structure(descriptors: list[ToolDescriptor]) -> tuple[str, str]
 
 
 def check_arabic_description(manifest: PluginManifest) -> tuple[str, str]:
-    """Arabic is the reference language (§3.7): real Arabic, real sentence."""
+    """Arabic is the reference language (V2_ROADMAP part 1 §3.7): real Arabic, real sentence."""
     text = manifest.description_ar
     if not _ARABIC_RE.search(text):
         return "FAIL", "descriptions.ar carries no Arabic script"

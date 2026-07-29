@@ -4,9 +4,9 @@ muthis-plugin.toml loader + validator (V2_ROADMAP.md §3.2).
 
 Stdlib-only (tomllib, py>=3.11). Validation errors raise ManifestError with
 English messages — the manifest is a developer surface (logs/tooling), not a
-user surface; the ARABIC-description requirement is itself part of the
-contract (Arabic is the reference language, §3.7) and is checked here as
-presence + non-emptiness (script-level linting is the conformance kit's job).
+user surface; the ARABIC-description requirement is itself part of the contract
+(Arabic is the reference language — V2_ROADMAP part 1 §3.7) and is checked here
+as presence + non-emptiness (script-level linting is the conformance kit's job).
 
 Capability names are validated against the CLOSED enum (types.CAPABILITIES):
 an unknown capability — including any input.* — is rejected at LOAD time,
@@ -110,8 +110,8 @@ def parse_manifest(data: dict[str, Any], *, source: str = MANIFEST_FILENAME) -> 
 
     descriptions = data.get("descriptions")
     if not isinstance(descriptions, dict) or not str(descriptions.get("ar", "")).strip():
-        # Arabic is the reference language (§3.7) — a manifest without an
-        # Arabic description is invalid, full stop.
+        # Arabic is the reference language (V2_ROADMAP part 1 §3.7) — a
+        # manifest without an Arabic description is invalid, full stop.
         raise ManifestError(f"{source}: [descriptions] must carry a non-empty 'ar'")
     description_ar = str(descriptions["ar"]).strip()
     description_en = str(descriptions.get("en", "")).strip()
