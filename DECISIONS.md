@@ -3669,3 +3669,77 @@ is expected to touch this file.
 - **Implementation timing:** NOT NOW. Reserved, with the trigger above.
 
 ---
+
+## DEC-53 (2026-07-30) — an ARABIC sentence can exceed the chunk window: fix the SPLITTER, never the GUARD — APPROVED (Sultan), EXECUTED at T1
+
+- **Status:** **EXECUTED** in the T1 ingestion commit (`3f877d7`). Recorded because a future
+  contributor meeting this failure will be tempted to relax the guard, and this entry is the
+  reason not to.
+- **Item:** DEC-45's window fallback cut on SENTENCE boundaries. What happens when ONE
+  SENTENCE is longer than the whole window?
+
+### THE DEFECT — found by the T1 tests, not in review
+
+A block with no sentence ender inside the window produced ONE piece larger than the window,
+which the STRICT guard then correctly refused — **failing the ingestion of an entirely
+ordinary document.**
+
+**THIS IS THE PROJECT'S FIRST ARABIC-SPECIFIC DEFECT IN A DATA PATH RATHER THAN A DISPLAY
+PATH**, and that is why it earns an entry. Every earlier Arabic finding was about what the
+user SEES — the caption bar, diacritics, the numeral shaping, the PDF transposition of
+DEC-49. This one is about what the INDEX contains. Two measured properties of the corpus
+cause it:
+
+1. **Arabic prose runs long between full stops.** Sentence enders are sparser than in the
+   English text these heuristics are usually tuned on.
+2. **PDF extraction routinely yields a paragraph with NO sentence ender at all** — headings,
+   table cells, list items and captions arrive as ender-free runs.
+
+Either alone is enough. A sentence-only splitter is therefore not a rare-corner-case risk on
+this corpus; it is a normal-input failure.
+
+### THE RULING — fix the SPLITTER, never the GUARD
+
+**Loosening the guard was the easy path and it was REJECTED**, because it reinstates exactly
+the silent failure the guard exists to prevent: an over-window chunk is truncated by the
+encoder at its max sequence length, **the tail vanishes from the index, nothing complains,
+and the document LOOKS fully ingested.** A warning on that path is a warning nobody reads
+before trusting the answer.
+
+**The fallback drops ONE LEVEL to WORD boundaries and still never cuts mid-word** — the
+`speech_stream.py` SOFT VALVE rule, reused deliberately because it solves the same problem
+one layer up (that valve cuts at the last space or `،`, never mid-word, and hard-cuts only
+an unbroken token).
+
+**It terminates BY CONSTRUCTION, which is the part worth keeping:** a single token that
+alone exceeds the window is emitted alone rather than looped on, and **the guard catches
+it**. That is the correct division of labour — no boundary can split one token without
+cutting inside it, so the splitter does everything a boundary can do and the guard remains
+the last line rather than a redundant one. A splitter that tried to guarantee the invariant
+by itself would either loop forever or cut mid-token.
+
+### THE STANDING RULE, THIRD SIGHTING — and it caught its own author
+
+The T1 corpus verification rendered **FAIL** on the Markdown document. The cause was not
+extraction: the probe set is university/AI vocabulary, the document is about robotics, so
+the check **admitted ZERO applicable cases and still produced a verdict.** Corrected to
+report `N/A` alongside the admitted count. **A guard that catches its own author three times
+in one milestone is a guard that works** — and this is the third face of the family AGENTS.md
+already records (DEC-40's self-built graph, M2's sample-before-teardown).
+
+### OBSERVATION — THE GUARD IS UNEXERCISED ON THE PRODUCTION PATH. MEASURED, NOT ASSUMED.
+
+Against the real corpus at a 400-token window, the largest chunks measured **400/400 and
+399/400.** The chunker's bound is EXACT, so the guard never fires on live input.
+
+- **What that means, stated plainly:** the guard is proven only by MUTATION (nine RED at
+  T1), never by traffic. **We are running at the edge of the window, not comfortably inside
+  it.**
+- **The consequence to plan for:** ANY chunking change, ANY window change, and ANY future
+  ENCODER SWAP (a different tokenizer re-sizes every chunk) will fire it **immediately** —
+  which is the guard working, not a regression.
+- **BINDING ON T6:** the live SOP must exercise the **REFUSAL path**, not only the happy
+  path. A guard that has never refused anything in production is a guard whose refusal
+  message, logging and degradation have never been seen.
+
+---
