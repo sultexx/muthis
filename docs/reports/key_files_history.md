@@ -285,3 +285,122 @@ Current shape: the sealed kernel package root -- see AGENTS.md.
   `.history_hygiene`/`.verbosity`/`.budget`) that briefly re-exported the moved kernel
   modules were REMOVED; every consumer now imports `muthis.kernel.*`, and
   `test_the_shims_are_gone` fails any revived old path (the live guard, kept in the row).
+
+---
+
+## src/muthis/turn_voice.py
+
+Current shape (see AGENTS.md for the authoritative row): ONE continuous speech
+generation for the WHOLE turn, built fresh per turn, opened eagerly, fed by every
+pass, and settled in run_turn's finally -- with interrupt() as the barge-in path.
+
+Evolution:
+
+- **v7 (born):** the STOP-AND-GO FIX. Before it, each pass spoke its own buffered text
+  through a separate TTS call, so a multi-pass turn came out as several disconnected
+  utterances with a round-trip of silence between them. TurnVoice makes the TURN, not
+  the pass, the unit of speech: one generation, fed from wherever the text comes from.
+- **v7.1 Fix G (eager open):** `begin_open()` fires the turn's ONE open attempt as a
+  background task at turn start, overlapping the vision pass, instead of paying the WS
+  handshake at first speech; `ensure_open()` joins that same attempt rather than
+  starting a second, and finish()/abandon() settle it even when the turn dies before
+  speaking, so no orphan task or socket survives. Lazy open on first speech remains for
+  callers that never call begin_open.
+- **v7.1 (the ack-held-under-the-schedule-floor fix):** buffered pass text is fed with
+  `flush=True` so ElevenLabs synthesizes the complete utterance NOW. A 4-character ack
+  sat under the 90-char chunk-length floor and played ~2.6 s late, which defeated the
+  whole point of the ack -- it exists to mask the inter-pass round trip.
+- **v7 Phase 2 (caption pacing):** measured live bug -- sentences fed in ~4 s while
+  their audio played over ~26 s flashed the caption bar at GENERATION speed. Each
+  caption now defers to its sentence's estimated audio start (cumulative fed chars /
+  ARABIC_TTS_CHARS_PER_SEC ~= 11.5, measured over three runs, minus the player's
+  starvation-aware `played_seconds()`), and the bar clears once at finish().
+- **v7 Phase 3 (barge-in):** interrupt() closes FIRST so a later finish() no-ops and no
+  decision-15 fallback can re-speak text the user just silenced; it settles an in-flight
+  eager open, aborts the session (duck-typed, so pre-Phase-3 fakes get a quiet close),
+  clears the caption/paced queue, and leaves the status light to the barge-in press's
+  own "listening".
+- **v1.0-RC2 (UAT):** interrupt() got its OWN `_interrupted` flag rather than reusing
+  `_closed`, because a barge-in landing WHILE finish() drains the audio tail must still
+  abort the session -- the idempotent abort is what unblocks that drain. finish() past
+  an interrupt runs NO fallback and never stomps the "listening" light. The same round
+  added the PASS-ECHO guard: speak_or_feed arms speech_stream.EchoGuard with the turn's
+  last SHORT utterance (the ack) and both feed paths strip a verbatim leading repeat of
+  it from the immediately next utterance, once.
+- **Concurrency posture (unchanged since v7):** feeds are inline awaits -- deliberately
+  NOT the Batch-3 wedge. The only concurrency is the existing player worker, the bounded
+  session reader, and the ONE begin_open task, settled on every path.
+
+## src/muthis/speech_stream.py
+
+Current shape: the Arabic SentenceSplitter plus the pass-echo suppressor; it segments
+text only and knows nothing of TTS or the sync point.
+
+Evolution:
+
+- **v5 Phase C1 (born):** emit COMPLETE sentences in order the instant their ender
+  arrives, with the DECIMAL GUARD from the start (a dot between digits never splits).
+- **v7 (measured fixes):** MIN-LENGTH MERGE killed the standalone "1." numeral scrap by
+  merging a too-short completion into the NEXT sentence; ELLIPSIS RUN treats consecutive
+  dots as ONE ender cut after the last dot; the SOFT VALVE made the ~200-char overflow
+  cut at the last space or Arabic comma instead of mid-word.
+- **v7.2 (post-ack starvation fix):** EAGER FIRST EMISSION -- the first emission of a
+  pass may cut at a comma past ~30 chars (digit-guarded so "1,250" never splits), so
+  first audio starts at the first natural pause rather than after a whole opening
+  sentence. Later emissions keep full-sentence boundaries; flush() re-arms the window.
+- **v1.0-RC2 (UAT bug 2):** the PASS-ECHO suppressor arrived here --
+  strip_leading_repeat + EchoGuard -- normalization-tolerant but BOUNDARY-strict, so a
+  two-letter key never bites a longer word that contains it.
+
+## src/muthis/voice_out.py
+
+Current shape: the orchestrator's mouth and the app's speech + caption privacy choke
+points; never reorders the sync point.
+
+Evolution:
+
+- **v5 Phase B prep:** extracted WHOLE from orchestrator.py under the <=300-line law
+  (that file had sat at 299), carrying speak() and refuse_for_budget().
+- **v6 C:** became the CAPTION choke point as well, so the privacy boundary that covered
+  the ears covered the eyes too. MUTHIS_CAPTIONS defaults ON (Sultan's release decision,
+  2026-07-15) with a falsey value as the one-env rollback; the overlay is duck-typed so
+  StubOverlay and old fakes no-op and the turn.Overlay protocol never changed.
+- **v7 Phase 2:** `delay_s > 0` routes to the overlay's show_caption_later paced seam
+  (falling back to immediate when absent) -- the caption/audio sync fix.
+
+## src/muthis/tts.py and the TTS engine files
+
+Current shape: tts.py is the cascade (ElevenLabs WS primary, Gemini REST fallback) and
+the single home for env reading; tts_session.py holds the persistent generation;
+tts_elevenlabs.py and tts_gemini.py are the two providers; tts_ws_player.py is the
+abortable player; tts_diacritics.py is the speech-only vowelizer.
+
+Evolution:
+
+- **SAPI/pyttsx3 removed** early: the cascade is ElevenLabs -> Gemini -> provider="none",
+  and speak() never raises so the orchestrator's seam cannot break.
+- **v5 Phase C:** open_speech_session() added as the streaming factory, returning None
+  when ElevenLabs is disabled or unkeyed so the caller simply stays buffered;
+  SpeechSession born with the key in the BOS message rather than the URI.
+- **v7 Fix A (tts_session):** try_trigger_generation on the FIRST sentence only. Forcing
+  it per feed was the MEASURED cause of baked-in mid-sentence pauses -- audio bursts
+  aligned 1:1 with feeds -- because later chunking belongs to ElevenLabs' lookahead.
+- **v7.1 / v7.2 (tts_session):** flush=True for a complete utterance; then the discovery
+  that a flush ENDS the generation segment, so the next feed must re-trigger -- without
+  the re-arm the explanation's first sentence sat on ElevenLabs' buffer while the player
+  starved post-ack (measured ~5 s).
+- **v7 Phase 2 (tts_ws_player):** played_seconds() added as the caption pacer's clock,
+  excluding starvation gaps.
+- **v7 Phase 3 (tts_ws_player, tts_session):** abort() on both -- Pa_AbortStream as the
+  one sanctioned cross-thread stream call, and an EOS-less session teardown.
+- **v1.0-RC2 (UAT bug 1, tts_elevenlabs):** a cancelled stream_pcm ABORTS its player
+  instead of draining. ElevenLabs delivers ~10x realtime, so the old drain-on-cancel
+  played the whole remaining clip out over the NEXT turn.
+- **v1.0-RC2 (UAT, tts.py):** the cascade ECHO GUARD -- an ElevenLabs failure arriving
+  AFTER audio played returns provider="elevenlabs" without falling back, because
+  replaying the same text was the measured dialogue echo. The Gemini clip moved onto the
+  abortable player at the same time; winsound left the speech path because its
+  synchronous clip could not be stopped after a barge-in.
+- **bug 3 (tts_diacritics):** born speech-only. Vowelizing history would corrupt the
+  model's reasoning, so the map is applied to a COPY at the speak() choke point, with
+  whole-word Arabic-boundary matching so a short key never corrupts a longer word.
