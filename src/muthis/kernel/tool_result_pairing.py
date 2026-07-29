@@ -71,6 +71,17 @@ WEB_ONE_PER_PASS_AR = (
     "اطلبه مرة أخرى في الخطوة التالية."
 )
 
+# EVERY tool the kernel services THROUGH THE ROUTER, as one name for one idea.
+# `TurnPass` used to spell this as an or-chain (`== READ_FILE_TOOL or in
+# WEB_TOOLS`) that each milestone lengthened by hand. The set is not a tidy-up:
+# a routed tool MISSING from it falls through to the LOOK-only `else`, which
+# means never serviced — so the DEC-14 wrap, the DEC-15 taint raise and the
+# DEC-16 confirm gate are all bypassed — and then paired with the POINTER ack,
+# flipping the draw gate and killing the turn (DEC-39). Naming the set puts that
+# whole class of mistake in ONE place a test can pin, and makes the next routed
+# tool cost `turn_pass.py` zero lines.
+ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS
+
 
 def build_tool_result_message(
     assistant_content: list[dict[str, Any]],
@@ -167,5 +178,6 @@ __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR",
     "RUN_CODE_TOOL", "RUN_CODE_ALREADY_AR", "RUN_CODE_UNAVAILABLE_AR",
     "WEB_SEARCH_TOOL", "WEB_FETCH_TOOL", "WEB_TOOLS", "WEB_ONE_PER_PASS_AR",
+    "ROUTER_SERVICED_TOOLS",
     "build_tool_result_message",
 ]

@@ -427,3 +427,66 @@ def test_the_v1_read_pairing_is_unchanged():
 
     assert by_id["r1"] == "محتوى"
     assert by_id["r2"] == FILE_ALREADY_READ_AR
+
+
+# ---------------------------------------------------------------------------
+# ROUTER_SERVICED_TOOLS — the named set that replaced the or-chain
+# ---------------------------------------------------------------------------
+
+def test_router_serviced_tools_holds_exactly_the_routed_tools():
+    """The set IS the servicing contract, so it is pinned by VALUE.
+
+    A routed tool added to `WEB_TOOLS` (or any future family) without reaching
+    this set falls through `consume()`'s LOOK-only `else`: never serviced, so
+    the DEC-14 wrap / DEC-15 raise / DEC-16 gate are bypassed, then answered
+    with the pointer ack that flips the draw gate (DEC-39). Pinning the value
+    means that omission fails HERE instead of live."""
+    from muthis.file_reader import READ_FILE_TOOL
+    from muthis.kernel.tool_result_pairing import ROUTER_SERVICED_TOOLS, WEB_TOOLS
+
+    assert ROUTER_SERVICED_TOOLS == {READ_FILE_TOOL, WEB_SEARCH_TOOL, WEB_FETCH_TOOL}
+    # Stated as a SUPERSET relation too: a family may grow, but every member of
+    # a routed family must be in the serviced set — that is the real invariant.
+    assert WEB_TOOLS <= ROUTER_SERVICED_TOOLS
+    assert READ_FILE_TOOL in ROUTER_SERVICED_TOOLS
+    # The draw tools must NEVER be in it: they are the branch this set exists to
+    # keep routed tools OUT of.
+    from muthis.kernel.draw_dispatch import DRAW_TOOLS
+    assert not (DRAW_TOOLS & ROUTER_SERVICED_TOOLS)
+
+
+def test_every_serviced_tool_is_answered_by_name_never_the_draw_ack():
+    """The DEC-39 property, stated over the SET instead of two hard-coded names.
+
+    Each member gets an UNSERVICED id in the pairing: whatever it receives, it
+    must not be the pointer ack, and it must not flip the draw gate. Driven per
+    member so adding a routed tool extends the guard automatically."""
+    from muthis.kernel.tool_result_pairing import ROUTER_SERVICED_TOOLS
+
+    admitted = 0
+    for name in sorted(ROUTER_SERVICED_TOOLS):
+        gate = HighlightGate()
+        assistant = [{"type": "tool_use", "id": "x1", "name": name, "input": {}}]
+        pairing = build_tool_result_message(assistant, None, None, gate, None, None)
+        content = pairing["content"][0]["content"]
+        assert content != HIGHLIGHT_ACK_TEXT_AR, f"{name} took the pointer ack"
+        assert content != HIGHLIGHT_ALREADY_SHOWN_AR, f"{name} took the draw branch"
+        assert gate.drawn is False, f"{name} flipped the draw gate"
+        admitted += 1
+    # The standing cutoff rule: a check that examined nothing must never look
+    # like a check that passed.
+    assert admitted == len(ROUTER_SERVICED_TOOLS) and admitted > 0
+
+
+def test_turn_pass_dispatches_on_the_set_not_on_hard_coded_names():
+    """AST, not text: `consume` must branch on ROUTER_SERVICED_TOOLS.
+
+    Re-inlining the old or-chain would pass every behavioural test above while
+    silently restoring the per-milestone edit this set removed."""
+    import ast
+    import pathlib
+
+    source = pathlib.Path("src/muthis/kernel/turn_pass.py").read_text(encoding="utf-8")
+    names = {n.id for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Name)}
+    assert "ROUTER_SERVICED_TOOLS" in names
+    assert "WEB_TOOLS" not in names, "turn_pass re-acquired a per-family name"

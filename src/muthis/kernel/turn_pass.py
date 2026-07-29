@@ -38,11 +38,11 @@ from typing import Any, Callable, Optional
 
 from ..cloud.protocol import TextDelta, ToolCall, TurnComplete, UserInput
 from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
-from ..file_reader import READ_FILE_TOOL, ReadFileFn
+from ..file_reader import ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .core_router import build_core_router
 from .tool_router import ToolRouter
-from .turn import RUN_CODE_TOOL, WEB_TOOLS, TurnResult
+from .turn import ROUTER_SERVICED_TOOLS, RUN_CODE_TOOL, TurnResult
 from ..turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
@@ -178,7 +178,7 @@ class TurnPass:
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
-                elif event.name == READ_FILE_TOOL or event.name in WEB_TOOLS:
+                elif event.name in ROUTER_SERVICED_TOOLS:
                     # Phase 4 / T6b: PERCEPTION tools serviced through the ROUTER
                     # after the sync point — neither ever gates the draw. Without
                     # this branch a web call would fall to the LOOK-only `else`
