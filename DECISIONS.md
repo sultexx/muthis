@@ -2444,3 +2444,99 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   is the record that the gap was found, measured, and left for a decision rather than papered over.
 
 ---
+
+## AUDIT (2026-07-29) — the `ARCHITECTURE_v4_1.md` citation audit: 15 RESOLVABLE, 4 ORPHAN — MEASUREMENT ONLY, NO RULING
+
+- **Status:** REPORT ONLY. A read-only measurement requested to inform the ruling on the BLOCKING FINDING above.
+  Nothing was edited: the precedence rule stands, the Key Files row stands, every `§N` citation stands, and no
+  `LAWS.md` was created. **No law text was reconstructed from memory** — a fabricated law is indistinguishable
+  from a real one once committed, so each citation was classified ONLY by whether its substance is *readable
+  today*, never by what the missing section might have said.
+- **Method.** Each citation pointing into the missing document was classified into exactly one bucket:
+  **RESOLVABLE** — the rule it names is also stated, in substance, in a file an agent can open today; or
+  **ORPHAN** — the citation names a rule that exists nowhere readable. Two sub-grades were kept under RESOLVABLE
+  because the difference matters to the ruling: **restated** (an independent readable statement exists elsewhere)
+  and **self-carrying** (the citing line itself is the only readable statement — the rule survives, but its
+  authority and its rationale do not).
+
+### RESULT — by distinct cited section (19 sections: 15 RESOLVABLE, 4 ORPHAN)
+
+**RESOLVABLE — independently restated (13):**
+
+| § | What the citation asserts | Where it is readable today |
+|---|---|---|
+| §3.3 | One asyncio event loop; the orchestrator owns every lifecycle | `AGENTS.md:66`, the divergence note `:69`, the orchestrator Key Files row |
+| §3.5 | Stub-first: a new handler ships as a logging stub before it does anything real | `AGENTS.md:397`; `MIGRATION_PLAN.md:192`; applied as binding precedent at `DECISIONS.md:331, 927, 1412, 1545, 1569`; `stubs.py` and its row |
+| §3.7 | Provider abstraction — three events, and the orchestrator never learns the vendor | `AGENTS.md:70-71`; the contract is written out in `cloud/protocol.py` |
+| §4.3 | Re-pin the price table on every model rev | `DECISIONS.md:1024-1025` (the `_PRICE_TABLE_USD_PER_MTOK` re-pin discipline); `broker/search/tavily.py:54` |
+| §5.1-3 | Keys in `.env` only, loaded once at process entry before any SDK import | `AGENTS.md:80` and `:531`; `MIGRATION_PLAN.md:192` |
+| §9.3 | The CloudReasoner contract and the hard wall-clock turn bound | `AGENTS.md:70-71` plus the orchestrator row's "90 s session bound"; the contract itself at `cloud/protocol.py:84` |
+| §11 ("Law 11") | Wrappers own no lifecycles, locks, or events | `AGENTS.md:124` and the "Do NOT" at `:543-544`; **`CONTRIBUTING.md` law 4, which names "V1 Law 11" as an acceptance condition** |
+| §11.5 | Tk gets its own daemon thread; commands cross via `queue.Queue` | `AGENTS.md:529-530`; the `sidekick_window` row at `:206` |
+| §12 | Trust Modes (ASSIST / AUTOPILOT) | **CANCELLED** — DEC-6; `AGENTS.md:17-22`, `:535-540`, Self-Update rule #4 at `:603-607`; `LESSONS.md:49`; `CONTRIBUTING.md` law 2 |
+| §17.4 | ≤300 lines per module; split, never compress | `AGENTS.md:395`; **`CONTRIBUTING.md` law 1**; the standing ceiling-debt CONSTRAINT and `DECISIONS.md:353, 903, 1223, 1233, 1320, 1326, 1666`; `plan_v5.md:27`; `plan_v6.md:36` |
+| §17.5 | Language split — Arabic user surfaces, English logs, code and commits | `AGENTS.md:408`; **`CONTRIBUTING.md` law 3**; `plan_v6.md:44`; `MIGRATION_PLAN.md:192` |
+| §19 | Copy genuinely reusable patterns; never import across `safeguard`/`muthis` | `AGENTS.md:541-542`; `MIGRATION_PLAN.md:170` plus the verification grep at `:142` |
+| Rule 10 | The sovereign daily spend ceiling | `AGENTS.md:136` (the budget row states the whole mechanism); the `kernel/budget.py` docstring; `DECISIONS.md:1012` states its purpose |
+
+**RESOLVABLE — self-carrying only (2):** `§4.2`'s daily-ceiling default (`budget.py:26-27` states "default 0.75"
+and `DEFAULT_DAILY_LIMIT_USD = 0.75` carries the value) · `§5.3-4` (`cloud/protocol.py:71` states "STT only on
+the quality path; Claude has no native audio" in place).
+
+**ORPHAN (4) — cited as authority, readable nowhere:**
+
+1. **`§4.2` — the model-fallback TABLE.** `AGENTS.md:386`: *"fall back per the table in ARCHITECTURE_v4_1.md §4.2
+   if it 404s."* It asserts a table of substitute models for when the pinned model string 404s. **No fallback
+   table exists in any readable file.** `AGENTS.md:14` pins `claude-sonnet-4-6` and names no alternative;
+   `claude_agent.py:55` holds a two-entry PRICE table, which is a different thing. This is the only ORPHAN with
+   an operational trigger: it fires exactly when the model string breaks, and the instruction cannot be followed.
+   Note that the same `§4.2` also supplies the readable `0.75` default above — one section carrying two unrelated
+   facts, one recoverable and one not.
+2. **`§15` step 8 — the verification checklist.** `AGENTS.md:135` and `tests/test_claude_agent.py:2` both identify
+   that test as "step 8" of a numbered checklist. **No numbered verification checklist exists anywhere readable;**
+   the sole assertion that one exists is `AGENTS.md:257`, the row describing the missing document itself.
+3. **`§16-18.1` — the pending items.** `AGENTS.md:386`: *"Smoke-test the pinned model string against the live API
+   within 24 h of starting real integration (Pending §16-18.1)."* It names a numbered pending-items list that
+   exists nowhere readable. The smoke-test instruction itself is readable; the list it belongs to is not.
+4. **`§20` — mandated pre-change reading.** `AGENTS.md:257`: *"Read §3, §5, §20 before significant changes."*
+   **`§20` is named nowhere else in the repository** — no citation, no restatement, no clue to its subject. The
+   source of truth instructs every agent to read, before significant changes, a section no one can identify.
+   (`§3` and `§5` are partly recoverable through the sibling subsection citations above; `§20` has no sibling.)
+
+### TWO FINDINGS THE AUDIT PRODUCED ON ITS OWN
+
+- **The BLOCKING FINDING's inventory UNDERCOUNTS: 11 further citation sites use a different spelling and were
+  never swept.** That inventory matched `ARCHITECTURE_v4_1` (underscore) and deliberately excluded source. Source
+  cites the same document as **`ARCHITECTURE_v4.1`** and **`v4.1 §N`** (dot), at: `cloud/protocol.py:2, 10, 71,
+  84` · `cloud/claude_agent.py:2, 45, 52, 60, 93` · `tests/test_claude_agent.py:2` · `kernel/orchestrator.py:56`.
+  These carry **three section numbers the inventory never lists — §9.3 (five sites, including the 90 s turn bound
+  inside the byte-identical `orchestrator.py`), §5.3-4, and §4.3.** Consequence for the ruling: option 2
+  ("convert each §N citation to the new home") executed against the 27-item inventory would have silently left 11
+  dangling citations behind. The audited set is therefore larger than 27, and the number itself is soft — the
+  inventory states 9 references for `AGENTS.md` while enumerating 8, and 8 is what the file contains.
+- **Bare `§N` is AMBIGUOUS ACROSS TWO DOCUMENTS.** `sdk/muthis_sdk/manifest.py:8, 113` and
+  `conformance/checks.py:94` cite "§3.7" for *"Arabic is the reference language"* — that is **V2_ROADMAP Part 1
+  §3.7** (اللغات والمنصات). `AGENTS.md:71` cites "Law §3.7" for the provider-abstraction law, in a DIFFERENT
+  document. Same number, two constitutions. Any ruling that renumbers or rehomes citations must disambiguate
+  these first, or it will rewrite roadmap citations into law citations.
+
+### THE `cursor_control.py` HALF (8 references, all in `MIGRATION_PLAN.md`)
+
+These name a FILE, not a law, so the two buckets apply only to the rules they carry. The rule-bearing ones are
+RESOLVABLE: *"never enters `src/`"* (`:38`) is stated at `:170` and enforced by the verification grep at `:142`,
+with the equivalent copy-don't-import rule at `AGENTS.md:541`; the two greps (`:141-142`, `:181`) are
+self-carrying. The remaining three (`:112`, `:134`, `:174`) are EXISTENCE CLAIMS describing the file as
+present-and-frozen, and the consolidated pass has already annotated each as absent-today with its stated purpose
+void per DEC-6. No law depends on them.
+
+### WHAT THIS MEASURES, WITHOUT RECOMMENDING A RULING
+
+15 of 19 cited sections are readable today, and every load-bearing *engineering* law among them — the ≤300
+ceiling, Law 11, the language split, stub-first, the key discipline, the provider abstraction, the threading rule
+— is independently restated, most of them in `CONTRIBUTING.md`, which states them as binding acceptance
+conditions **without citing a single `§N`**. The four ORPHANs are a fallback table, a checklist, a pending list,
+and one unidentifiable section: none of them a law governing how code is written, though the fallback table is
+operational and will be missed the day it is needed. **The choice between restoring, retiring and externalizing
+the document remains Sultan's; this entry supplies the count, not the verdict.**
+
+---
