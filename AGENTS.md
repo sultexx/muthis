@@ -112,7 +112,7 @@ PTT hold → mic streaming capture (record while held, flush on release) →
 - **V2 Phase 2 — the capability milestones.** **M1 `sandbox_exec` (CLOSED 2026-07-22, merged `dcfa25f`, tag
   `v2-phase2-m1-complete`):** `sandbox__run_code` runs model code in a throwaway container; the kernel's ONE
   touch is a generic `on_interrupt` hook and it never learns the word "Docker". **M2 `web_research` (CLOSED
-  2026-07-29, branch `feature/v2-phase2-web-research`, NOT yet merged):** `web__search` + `web__fetch` — catalog
+  2026-07-29, merged to `main` as `1c59d60`, tag `v2-phase2-m2-complete`):** `web__search` + `web__fetch` — catalog
   v3, seven tools, byte-pinned. Its lasting contribution is the UNTRUSTED-CONTENT BOUNDARY every later milestone
   inherits: **ONE wrap site** (`ToolRouter._outcome_for`, a fresh nonce per wrap — DEC-14), **ONE taint-raise
   site** (the SAME branch, because a result wrapped without raising leaves the session looking clean — DEC-15),
