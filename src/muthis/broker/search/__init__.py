@@ -14,7 +14,7 @@ never an exception (Law 11), never a socket, never the key.
 Nothing here is wired into a plugin yet: HOW `web_research` reaches a provider
 (the `ctx.net` analogue, DEC-24), the model-visible tool, the taint + wrapping at
 the router (DEC-14/15), the citation laws (DEC-20) and budget recording all
-arrive with their first consumer — stub-first (Law §3.5): this task builds the
+arrive with their first consumer — stub-first (AGENTS.md): this task builds the
 machine, not its consumer.
 """
 

@@ -1,5 +1,5 @@
 """
-claude_agent.py — Anthropic wrapper for the quality path (ARCHITECTURE_v4.1).
+claude_agent.py — Anthropic wrapper for the quality path.
 
 LOOK-ONLY BUILD: the only tools exposed are highlight_target (point, never
 click), draw_shapes (draw geometric overlay graphics, never act), and
@@ -42,22 +42,22 @@ from .tool_schemas import LOOK_ONLY_TOOLS
 logger = logging.getLogger("muthis.cloud.claude")
 
 # ──────────────────────────────────────────────────────────────────────────
-# Frozen defaults (v4.1 §4.2). Override via .env — never edit here mid-build.
-# ──────────────────────────────────────────────────────────────────────────
+# Frozen defaults. Override via .env — never edit mid-build. NO fallback list:
+# a 404 here leaves behaviour UNDEFINED (DEC-43 OPEN ITEM, Sultan's call).
 
 DEFAULT_MODEL = os.getenv("MUTHIS_CLAUDE_MODEL", "claude-sonnet-4-6")
 DEFAULT_BASE_URL = os.getenv("MUTHIS_ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 DEFAULT_MAX_TOKENS = int(os.getenv("MUTHIS_CLAUDE_MAX_TOKENS", "1024"))
 
-# USD per 1M tokens (input, output). v4.1 §4.2 pricing reality check.
+# USD per 1M tokens (input, output). Pricing reality check.
 # budget.py is the sovereign consumer of these numbers; this table only
-# annotates TurnComplete. Re-pin on every model rev (§4.3).
+# annotates TurnComplete. Re-pin on every model rev (the DEC-26 discipline).
 _PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-opus-4-7": (5.00, 25.00),
 }
 
-# Arabic-first persona (v4.1 §17.5). User-facing Arabic; logs stay English.
+# Arabic-first persona (the language-split law). User-facing Arabic; logs English.
 LOOK_SYSTEM_PROMPT = (
     "أنت «مطحس»، مساعد مكتبي صوتي يعمل على Windows 11 لمستخدم مهندس حاسب.\n"
     "وضعك الحالي هو LOOK فقط: تستطيع أن تتكلم وأن تشير إلى عناصر الشاشة "
@@ -90,7 +90,7 @@ def detect_image_media_type(image_bytes: bytes) -> str:
 
 
 class ClaudeAgent:
-    """CloudReasoner implementation for the quality path (v4.1 §9.3).
+    """CloudReasoner implementation for the quality path (see protocol.py).
 
     base_url is configurable so that pointing مطحس at a Cloudflare Worker
     proxy later (Clicky's key-handling pattern) is a one-line .env change:

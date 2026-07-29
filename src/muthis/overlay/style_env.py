@@ -2,7 +2,7 @@
 """
 `.env` parsing + color validation for the overlay styling config.
 
-Extracted from `style.py` under the ≤300-line law (Law §17.4): that module sat
+Extracted from `style.py` under the ≤300-line law (AGENTS.md): that module sat
 EXACTLY at the ceiling and Phase A (v5) needed room there, so the env→typed-value
 discipline moved here whole. The rule is unchanged: a malformed value logs an
 English WARNING and falls back to the documented default — the Tk thread never

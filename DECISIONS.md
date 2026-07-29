@@ -2611,11 +2611,59 @@ and zero law breaches.** A rule nobody could read, that nobody broke, was not th
   by inventing a substitute list:** choosing a replacement model carries cost and product-vision consequences,
   so it is Sultan's decision, and a guessed fallback would be a fabricated law wearing an engineering costume.
 
-### NOT DONE — 27 SOURCE/TEST CITATIONS ACROSS 19 FILES, BLOCKED BY THE DOCS-ONLY CONSTRAINT
+### THE SOURCE PASS — **COMPLETE** (2026-07-29, authorized after the docs half merged; branch `docs/repoint-source-citations`)
+
+**26 of the 27 repointed; ZERO pointers into the retired document remain in `src/`, `tests/`, `sdk/` or
+`scripts/`** (verified by a full re-scan for all four spellings — the scan returns nothing). Three batches, each
+with the full suite: the ≤300-ceiling group (7 files), the language-split / threading / stub-first group (6),
+and the cloud-plus-kernel group (5). **988 + 27 green throughout.**
+
+**Every file LINE-NEUTRAL, including the protected four** — `orchestrator.py` 299, `tool_router.py` 300,
+`persona.py` 209, `address_guard.py` 214, all unchanged, and the other 17 files identical too. Comments and
+docstrings only; no executable statement was touched. One self-inflicted breach was caught and repaired rather
+than reported: an annotation at the model pin site pushed `claude_agent.py` to 271, and it was rewritten to fit,
+because the growth was an optional note of mine and not a consequence of the repointing.
+
+**METHOD — laws are now NAMED, not numbered.** Each citation was replaced by the law's self-describing name, in
+the words this codebase already used elsewhere: *the ≤300-line law*, *the language-split law*, *the threading
+law*, *stub-first*, *the provider-abstraction law*. A name that describes itself cannot dangle and needs no
+lookup, which is strictly stronger than a pointer. Where the number was **SELF-CARRYING** — `protocol.py`'s
+§5.3-4 and §9.3 contract headers, whose substance is spelled out on the very next lines — the number was deleted
+rather than replaced, because nothing was lost. Where it was an **ORPHAN** — `test_claude_agent.py`'s "§15,
+step 8" — the pointer was deleted, never redirected.
+
+**The §3.7 ambiguity was resolved by reading, not by number.** `protocol.py`'s "§3.7" was confirmed to mean the
+PROVIDER-ABSTRACTION law from the sentence two lines below it ("every cloud provider hides behind this exact
+interface"), which is a different rule in a different document from the SDK's "§3.7" (Arabic is the reference
+language, V2_ROADMAP part 1). `§4.3` was resolved to **DEC-26** by opening the entry, not by trusting the number.
+
+**ONE OF THE 27 DELIBERATELY NOT DONE:** `reference/asr.py:277`. The `reference/` tree is FROZEN and read-only by
+standing rule, and no ruling has overridden that for a comment edit. Left untouched and reported rather than
+silently changed.
+
+### NEW FINDING — 15 LAW-NUMBERED CITATIONS REMAIN, AND 11 OF THEM CITE A SECTION `AGENTS.md` DOES NOT HAVE
+
+Found while verifying the pass. These were invisible to every earlier sweep because they name no retired
+document — they were never in the 27, and they are NOT authorized.
+
+- **THE NEW CLASS (11 sites, 10 files): `AGENTS.md §17.4` / `§17.5` / `§11.5`, or a bare `(§17.4)`. `AGENTS.md`
+  HAS NO NUMBERED SECTIONS AT ALL.** These are arguably worse than the citations just retired: they name a file
+  an agent CAN open, so they look valid, and the reader searches a real document for a section that was never in
+  it. Sites: `logging_policy.py:51` · `overlay_autohide.py:7` · **`persona.py:23` and `:27` (protected file)** ·
+  `broker/search/protocol.py:9` · `kernel/core_router.py:4` · `kernel/draw_dispatch.py:19` ·
+  `kernel/highlight_gate.py:20` · `overlay/sidekick_window.py:8` · `overlay/status_indicator.py:15` ·
+  `tests/test_high_impact.py:147`. All name laws that now have readable homes, so the fix is mechanical — but it
+  is a different defect from the one DEC-43 ruled on, so it waits for its own authorization.
+- **The SDK's three `§3.7`** (`manifest.py:8, 113`, `conformance/checks.py:94`): CORRECT in meaning — V2_ROADMAP
+  part 1 §3.7, Arabic is the reference language — but written bare, so they still collide with the retired
+  "Law §3.7". Not dangling, only ambiguous.
+- `reference/asr.py:277`, above.
+
+### HISTORICAL — WHY THE SOURCE HALF WAS DEFERRED IN THE FIRST PLACE
 
 The ruling asked for all 38 references; the same instruction forbade source and test changes and named
-`orchestrator.py` explicitly. Both cannot hold, so **the docs half is complete and every source/test citation is
-untouched and reported**, on the same reasoning already applied to `orchestrator.py`: this is a separate ruling.
+`orchestrator.py` explicitly. Both could not hold, so the docs half was completed and every source/test citation
+was reported for the separate ruling that followed and authorized this pass.
 
 **MEASURED, NOT ESTIMATED — and the first count in this entry was WRONG.** It said 12, carried over from the
 audit's dot-spelling finding. A full scan of `src/`, `tests/`, `sdk/`, `scripts/` and `reference/` for

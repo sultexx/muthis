@@ -2,7 +2,7 @@
 """
 History hygiene — the Bug-3 stale-frame strip, extracted WHOLE from turn.py
 (v7 Phase 4: that file sat at 298/300 and the read_local_file pairing branch
-needed room; Law §17.4: split, don't compress — the same reason
+needed room; the ≤300-line law: split, don't compress — the same reason
 highlight_gate.py and voice_out.py exist). turn.py re-exports both public
 names, so every existing import keeps working. Pure stdlib; importable in
 isolation.

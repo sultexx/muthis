@@ -2,8 +2,8 @@
 """
 Win32 window glue for the overlay package, extracted WHOLE from
 sidekick_window.py (v7 Phase 2 — that file sat AT the 299/300 ceiling and the
-caption-pacing work needs queue methods there; Law §17.4: split, don't
-compress). Two single-purpose helpers, ctypes only, no tkinter import:
+caption-pacing work needs queue methods there; the ≤300-line law: split,
+don't compress). Two single-purpose helpers, ctypes only, no tkinter import:
 
   * set_dpi_awareness()      — per-monitor-v2 so PHYSICAL coords land 1:1 on
                                scaled Windows 11 displays (idempotent with

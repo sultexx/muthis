@@ -2,7 +2,7 @@
 """
 ActivationController — the single activation gate, extracted WHOLE from
 main.py (v7 Phase 3 — that file sat AT 299/300 and barge-in needs room;
-Law §17.4: split, don't compress). main.py re-exports the name so every
+the ≤300-line law: split, don't compress). main.py re-exports the name so every
 existing import keeps working.
 
 Push-to-talk (unchanged): key-DOWN starts the mic DIRECTLY on the keyboard

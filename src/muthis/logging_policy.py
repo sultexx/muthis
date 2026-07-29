@@ -59,7 +59,7 @@ from __future__ import annotations
 
 import logging
 
-# English pipeline logs (Law §17.5). Unchanged from the historical inline call.
+# English pipeline logs (the language-split law). Unchanged from the historical call.
 LOG_FORMAT = "%(levelname)s %(name)s: %(message)s"
 
 # The third-party HTTP loggers held at WARNING. See the module docstring for why

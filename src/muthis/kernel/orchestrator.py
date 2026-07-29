@@ -53,7 +53,7 @@ logger = logging.getLogger("muthis.orchestrator")
 
 # ─── Session constants ────────────────────────────────────────────────────────
 
-# Hard wall-clock bound for one whole turn, follow-ups included (v4.1 §9.3).
+# Hard wall-clock bound for one whole turn, follow-ups included (AGENTS.md).
 SESSION_TIMEOUT_S = 90.0
 
 # One follow-up un-stales a view; more is a model loop burning the budget.

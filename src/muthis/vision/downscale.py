@@ -23,8 +23,8 @@ Privacy (Law: never log/persist screenshots): pixels live only as in-memory
 bytes for the turn; nothing is written to disk and only dimensions (English) are
 ever logged.
 
-Async (Law §11.5): Pillow decode/resize/encode is CPU-bound, so it runs inside
-asyncio.to_thread — the single event loop is never frozen. Pillow is lazy-
+Async (the threading law): Pillow decode/resize/encode is CPU-bound, so it runs
+inside asyncio.to_thread — the single event loop is never frozen. Pillow is lazy-
 imported (already pinned for screen_capture); this module stays importable in
 isolation.
 """
@@ -81,7 +81,7 @@ async def downscale_to_max_width(
 
     None in → None out (identity scale). A frame already within max_width passes
     through unchanged (identity scale). Blocking Pillow work runs via
-    asyncio.to_thread (Law §11.5). NEVER raises — on any Pillow failure it
+    asyncio.to_thread (the threading law). NEVER raises — on any Pillow failure it
     returns the ORIGINAL bytes with identity scale, degrading exactly like
     capture() does (the turn continues; the model just gets the physical frame).
     """
