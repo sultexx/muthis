@@ -1,6 +1,6 @@
 # src/muthis/stubs.py
 """
-Stubs — canned default dependencies for the stub-first build (Law §3.5).
+Stubs — canned default dependencies for the stub-first build (AGENTS.md).
 
 Each callable here is a placeholder the Orchestrator injects by default.
 They log in English, return canned data, touch NO hardware and NO network.

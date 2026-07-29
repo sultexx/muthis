@@ -47,7 +47,7 @@ ARROW_AT_END = "last"
 # the rectangle/pointer that share the canvas (never delete("all") here).
 SHAPES_TAG = "muthis-shapes"
 
-# User-facing numerals are Arabic-Indic (Law §17.5: user surfaces are Arabic).
+# User-facing numerals are Arabic-Indic (the language-split law: surfaces are Arabic).
 ARABIC_INDIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
 
 

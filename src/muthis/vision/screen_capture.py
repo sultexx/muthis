@@ -19,7 +19,7 @@ later Tk overlay inherits it, so its draw space matches this capture space.
 
 Async (the WHY): mss grabs via blocking GDI BitBlt and Pillow's PNG encode is
 CPU-bound, so both run inside asyncio.to_thread — the single event loop is never
-frozen (Law §11.5). mss is NOT thread-safe (its device context is bound to the
+frozen (the threading law). mss is NOT thread-safe (its device context is bound to the
 creating thread), so a fresh mss.mss() is built inside the worker on EVERY
 capture; asyncio.to_thread may run us on any pool thread.
 
