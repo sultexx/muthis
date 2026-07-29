@@ -40,8 +40,9 @@ from ..cloud.protocol import TextDelta, ToolCall, TurnComplete, UserInput
 from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
 from ..file_reader import READ_FILE_TOOL, ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
-from .tool_router import ToolRouter, build_core_router
-from .turn import RUN_CODE_TOOL, TurnResult
+from .core_router import build_core_router
+from .tool_router import ToolRouter
+from .turn import RUN_CODE_TOOL, WEB_TOOLS, TurnResult
 from ..turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
@@ -103,6 +104,22 @@ class TurnPass:
         Also the per-turn setup hook: resets the sandbox run gate (T5)."""
         if self._sandbox is not None:
             self._sandbox.new_turn()  # fresh ≤3-runs/turn budget, like HighlightGate
+        # DEC-16: arm the confirm gate's ONE look at this turn's transcript. It
+        # rides the SAME turn-boundary hook as the sandbox gate on purpose —
+        # DEC-19 forbids inventing a second one, and this hook is proven live.
+        self._router.confirm_gate.new_turn()
+        # DEC-37: the SAME hook, now serving two more consumers — the plugin-side
+        # fetch cap (DEC-22) and the broker-side provenance collector (DEC-36).
+        # The kernel fires OPAQUE callables and never learns what they reset; the
+        # composition root registered each owner's own. Guarded like InterruptHooks
+        # (a hook may not kill a turn, Law 11) but SYNCHRONOUS, not threaded: these
+        # resets must be complete before the turn runs, whereas an F9 hook must
+        # never block the silence. A raise is logged, never silently swallowed.
+        for hook in self._router.turn_hooks:
+            try:
+                hook()
+            except Exception:  # noqa: BLE001 — bookkeeping must never kill a turn
+                logger.warning("[orchestrator] a turn-boundary hook raised — ignored")
         if self._stream_tts and self._session_factory is None:
             from ..tts import TTS  # lazy real default: only the flag-ON path pays
             self._session_factory = TTS().open_speech_session
@@ -125,6 +142,14 @@ class TurnPass:
         for a new screenshot; read_result is (call, content) for the FIRST
         read_local_file of the pass, already serviced (v7 Phase 4) — the
         pipeline rides both into build_tool_result_message."""
+        # DEC-16: the deterministic approval detector reads the RAW transcript
+        # HERE, before the provider runs, because this is where the kernel
+        # already hands it over — which is what keeps orchestrator.py
+        # byte-identical (DEC-19 zero touch). The gate itself is one-shot per
+        # turn, so the agentic loop's continuation passes (empty text, or the
+        # refresh follow-up constant) cannot expire a pending approval inside
+        # the very turn that asked for it. The model is never consulted.
+        self._router.confirm_gate.observe(user_input.text)
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
         read_call: Optional[ToolCall] = None
@@ -153,10 +178,16 @@ class TurnPass:
                 elif event.name == REFRESH_TOOL:
                     result.tool_calls.append(event)
                     refresh_call = event
-                elif event.name == READ_FILE_TOOL:
-                    # Phase 4: a perception tool like refresh — never gates the
-                    # draw. First read of the pass wins; a repeat is answered by
-                    # the pairing's already-read directive (turn.py, by name).
+                elif event.name == READ_FILE_TOOL or event.name in WEB_TOOLS:
+                    # Phase 4 / T6b: PERCEPTION tools serviced through the ROUTER
+                    # after the sync point — neither ever gates the draw. Without
+                    # this branch a web call would fall to the LOOK-only `else`
+                    # below: never serviced (so the DEC-14 wrap, the DEC-15 taint
+                    # raise, the DEC-16 confirm gate, the DEC-22 cap and the
+                    # DEC-36 collector are all bypassed) and then paired with the
+                    # POINTER ack, flipping the draw gate and killing the turn.
+                    # First router-serviced call of the pass wins; every other id
+                    # is answered BY NAME in tool_result_pairing.py.
                     result.tool_calls.append(event)
                     if read_call is None:
                         read_call = event
@@ -218,6 +249,20 @@ class TurnPass:
         run_result: Optional[tuple[ToolCall, str]] = None
         if run_call is not None and self._sandbox is not None:
             run_result = (run_call, await self._sandbox.run(run_call.args))
+        # DEC-20/36: the badge, drawn by the KERNEL from the broker's own record.
+        # HERE, at the very end of the pass: after the Option-A sync point and
+        # after servicing, so it can neither reorder draw→speak nor delay the
+        # audio. It is METADATA, not speech — its own bottom-left anchor, so the
+        # caption's 2×60 budget is untouched, and it inherits the caption
+        # lifecycle (clear_caption / the ghosting hide both wipe it), so no second
+        # lifecycle exists. Redrawing each pass is idempotent, and an EMPTY record
+        # draws NOTHING: "nothing fetched" must look like nothing, not a source.
+        # DUCK-TYPED like every other optional overlay surface (the voice_out
+        # caption seam, draw_dispatch's dim/shapes): a StubOverlay or an older
+        # fake simply has no badge, and metadata must never crash a turn.
+        badge = getattr(self._overlay, "show_domain_badge", None)
+        if badge is not None:
+            badge(self._router.fetched_domains())
         return turn_complete, refresh_call, read_result, run_result
 
 

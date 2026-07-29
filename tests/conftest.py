@@ -48,5 +48,11 @@ def _clear_cloud_tts_env(monkeypatch):
         "MUTHIS_WHITEBOARD",
         # Barge-in rollback flag (v7 Phase 3) — cleared, documented default ON.
         "MUTHIS_BARGE_IN",
+        # Search-provider selection + keys (V2 Phase-2 M2, DEC-18): cleared for
+        # the same reason as the TTS keys — a developer's real key in the shell
+        # would otherwise pick a LIVE provider (and change which one answers) in
+        # a test that must deterministically see "no provider configured".
+        "MUTHIS_SEARCH_PROVIDER", "TAVILY_API_KEY", "TAVILY_BASE_URL",
+        "BRAVE_API_KEY", "BRAVE_BASE_URL", "SEARXNG_BASE_URL",
     ):
         monkeypatch.delenv(var, raising=False)

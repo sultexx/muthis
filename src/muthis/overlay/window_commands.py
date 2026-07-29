@@ -21,14 +21,15 @@ def _bbox_center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
 
 
 def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
-                     status=None, caption=None, dimmer=None,
+                     status=None, caption=None, dimmer=None, badge=None,
                      spotlight_on=True) -> bool:
     """Apply one overlay command to the view objects. Returns False iff the
     overlay should stop ("close"), True otherwise.
 
     `shapes` (ShapesWidget), `status` (StatusIndicator), `caption`
-    (CaptionBar, v6 C) and `dimmer` (FocusDimmer, v6 D) are OPTIONAL so the
-    pre-existing call sites/tests keep working — absent → their commands no-op.
+    (CaptionBar, v6 C), `dimmer` (FocusDimmer, v6 D) and `badge` (DomainBadge,
+    DEC-20) are OPTIONAL so the pre-existing call sites/tests keep working —
+    absent → their commands no-op.
     `spotlight_on` (v7 Phase 2) decouples the two dim features: the WHITEBOARD
     (default ON) builds the dimmer window, but a highlight dims around its
     bbox only when the SPOTLIGHT flag (MUTHIS_FOCUS_DIM, default OFF) is on —
@@ -90,9 +91,16 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
     elif action == "show_caption_later":  # v7 Phase 2: audio-paced caption
         if caption is not None:
             caption.show_text_later(command[1], command[2])
+    elif action == "show_domain_badge":  # DEC-20: the attribution backstop
+        if badge is not None:
+            badge.show(command[1])
     elif action == "clear_caption":
         if caption is not None:
             caption.clear()
+        # The badge INHERITS the caption's lifecycle (DEC-20): it is cleared by
+        # the same command, so there is no second lifecycle to fall out of step.
+        if badge is not None:
+            badge.clear()
     elif action == "hide":
         # Ghosting path: kill any in-flight glide and clear the pointer, the
         # rectangle, the shapes AND the caption bar, so no frame — and no
@@ -104,6 +112,8 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
             shapes.clear()
         if caption is not None:
             caption.clear()
+        if badge is not None:  # ghosting covers the badge too — Claude must
+            badge.clear()      # never see the sources it was shown last turn
         if dimmer is not None:  # ghosting: a capture never sees a dimmed screen
             dimmer.hide()
     return True

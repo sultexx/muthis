@@ -13,7 +13,7 @@ import asyncio
 import json
 
 from muthis.kernel.budget import PLUGINS_KEY, Budget
-from muthis.kernel.tool_router import build_core_router
+from muthis.kernel.core_router import build_core_router
 
 TODAY = "2026-07-17"
 

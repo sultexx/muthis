@@ -1,0 +1,36 @@
+# web_research — the web surface behind net.fetch (V2 Phase 2, Milestone 2;
+# Roadmap §3.1/§3.3, DEC-17 / DEC-18 / DEC-24 / DEC-27).
+# LOOK-only is untouched: this reads pages and returns text. It never clicks,
+# types, presses a key or touches the clipboard, and it holds no socket — the
+# broker's hardened fetcher is the only thing that reaches the network.
+
+[plugin]
+name    = "web_research"
+version = "0.1.0"
+sdk     = ">=2.0.0a3,<3"
+kind    = "native"
+entry   = "muthis_plugins.web_research.plugin:WebResearchPlugin"
+
+[descriptions]
+ar = "يبحث في الويب ويقرأ صفحةً واحدةً في كل مرة، فيعيد نصًّا مقروءًا من مصدر حقيقي بدل التخمين — ولا يملك مفتاحًا ولا عميلًا ولا منفذًا للشبكة؛ الوسيط وحده هو من يجلب"
+en = "Searches the web and reads one page at a time, returning readable text from a real source instead of guessing — and holds no key, no client and no network handle; the broker alone fetches"
+
+[capabilities]
+# net.fetch is the ONLY grant, and it is the network power itself: the broker
+# hands over `ctx.net.fetch_readable` and never a socket (DEC-24's binary
+# contract — granted means the seam is present, denied means it is absent).
+# There is deliberately no `web.search` capability: the provider is INJECTED, and
+# the closed enum lists powers over the USER'S machine or resources, which a
+# broker-owned cloud service is not (DEC-27 — adding one would be a category
+# error that weakens the enum's meaning as the inventory of REAL authority).
+required = ["net.fetch"]
+
+[tools.search]
+# read_only w.r.t. the user's machine — a query leaves, nothing here changes.
+# NOT a trust claim: the kernel classifies this route's impact from the
+# capability IT granted, never from this line (DEC-15).
+read_only = true
+
+[tools.fetch]
+# read_only likewise: an HTTP GET through the hardened fetcher, nothing written.
+read_only = true

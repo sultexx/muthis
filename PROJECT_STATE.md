@@ -1,24 +1,84 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-22, V2 Phase 2 M1 `sandbox_exec`
+> Token-saving snapshot (updated 2026-07-29, V2 Phase 2 M2 `web_research`
 > CLOSED). **`AGENTS.md` remains the full source of truth**; this is the
-> compressed map. Branch `feature/v2-phase2-sandbox` (main untouched at
-> `637c687`); app suite 604 green (V1 474-oracle preserved) + 27 sdk tests.
+> compressed map. Branch `feature/v2-phase2-web-research` (main at `65170b2`,
+> which already carries the M1 merge); app suite 988 green (V1 474-oracle
+> preserved) + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that one lacks
+> trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — V2 PHASE 2, M1 `sandbox_exec` CLOSED (live-signed 2026-07-22)
-Phase 0 CLOSED + merged to `main`. **Phase 1** (broker + privileges + MCP bridge,
-M1-0→M1-7) CLOSED + MERGED to `main` (`dbfec3a`, tag `v2-phase1-complete`) after
-Sultan's live gate. **Phase 2, Milestone 1 — `sandbox_exec`** is now CLOSED on
-`feature/v2-phase2-sandbox` (cut from `main` at `637c687`; **main untouched**):
-the model runs code in an isolated throwaway container via `sandbox__run_code` —
-the FIRST execution capability — with no LOOK-only guarantee weakened. Sultan ran
-the full Live SOP on his hardware 2026-07-22 (CHECK 1 run / CHECK 2 ≤3
-self-correct gate / CHECK 3 the staging gate blocked direct AND path-traversal
-secrets, zero leaks — all PASSED) and signed off personally. Closure record:
-`docs/reports/phase2_m1_sandbox.md`; rulings DEC-8..DEC-13 in `DECISIONS.md`.
-**Next (Sultan's):** merge the branch to `main`; then the now-unblocked DEC-7
-Trust-Modes doc sweep + the DEC-1 Key-Files cleanup.
+## CURRENT STATUS — V2 PHASE 2, M2 `web_research` CLOSED (live-signed 2026-07-29)
+Phase 0 CLOSED + merged. **Phase 1** (broker + privileges + MCP bridge) CLOSED +
+MERGED (`dbfec3a`, tag `v2-phase1-complete`). **Phase 2 M1 `sandbox_exec`** CLOSED
++ MERGED to `main` (merge `dcfa25f`, tag `v2-phase2-m1-complete`). **Phase 2,
+Milestone 2 — `web_research`** is now CLOSED on `feature/v2-phase2-web-research`
+(cut from `main` at `65170b2`; **main untouched — not merged, not pushed, not
+tagged**): the model searches the web via `web__search` and reads a page via
+`web__fetch`, and everything it reads is treated as HOSTILE by construction.
+Sultan ran the full T7 Live SOP on his hardware 2026-07-29 and signed off
+personally. **The two questions the milestone could not answer for itself were
+both answered live:** (1) THE COST CHAIN closed with DASHBOARD evidence — Tavily's
+console moved 2 → 3 credits across CHECK A's single query while `budget.json`
+recorded 0.008 USD into BOTH the plugin bucket and the sovereign daily total, so
+DEC-26's doc-derived constant is VERIFIED against real billing and DEC-34's bridge
+is proven end to end; (2) THE DEC-15 × DEC-16 FRICTION QUESTION answered ZERO
+refusals — the model used `web__search` alone because Tavily returns extracted
+content, which is precisely the property DEC-18 chose it for; both rulings stand
+unchanged, and the answer is PROVIDER-CONDITIONAL (Brave/SearXNG return links, so
+switching makes fetch normal again and can reintroduce the friction). The three
+persona laws were confirmed live: query spoken before sending, three sources cited
+in natural prose with no URLs, verbosity cap held. Closure record:
+`docs/reports/phase2_m2_web_research.md`; rulings DEC-14..DEC-42 in `DECISIONS.md`.
+**Next (Sultan's):** merge the branch to `main` (consider a tag); then the
+consolidated docs pass (DEC-7 Trust-Modes sweep + DEC-1 batches 4-8), which was
+deliberately bundled to run AFTER this milestone.
+
+## V2 PHASE 2 — M2 `web_research` (CLOSED, live-signed 2026-07-29)
+Search + fetch behind `net.fetch`. Gates P0→T7, each STOP-gated.
+- **The tools:** `web__search` + `web__fetch` — catalog **v3**, seven tools,
+  byte-pinned (`tests/snapshots/look_tools_v3.json`); the project's THIRD
+  model-visible change (DEC-40). The plugin
+  (`src/muthis_plugins/web_research/`) holds NO key, NO client, NO endpoint and
+  NO socket: the provider is INJECTED already-built (DEC-27) and a page is read
+  through `ctx.net.fetch_readable` (DEC-24). A search performs ZERO fetches BY
+  SHAPE, and `fetch_gate.py` caps fetches at 3 per turn.
+- **The untrusted-content boundary — this milestone's lasting contribution:**
+  ONE wrap site (`kernel/untrusted_content.py` + `ToolRouter._outcome_for`, fresh
+  nonce per wrap, DEC-14) · ONE taint-raise site, in the SAME branch, because
+  wrapped-without-raised leaves the session looking clean (`kernel/
+  session_taint.py`, DEC-15) · ONE confirmation site (`trust/confirm_gate.py` —
+  two turns, deterministic detector, bound to sha256(tool+args), single-use,
+  DEC-16). The model never participates in its own authorization.
+- **The fetch** (`src/muthis/broker/net/`): IP-pinned and zero-credential, resolve
+  once → validate as an IP object → PIN → re-validate EVERY hop (DEC-17), under
+  ONE total wall-clock budget (DEC-22 — the per-request timeout it replaced was a
+  turn-budget DoS under tainted redirects), with ONE httpx client per HOSTNAME so
+  a TLS connection can never be reused across hosts (DEC-42).
+- **The search seam** (`src/muthis/broker/search/`): Tavily default, Brave and
+  SearXNG behind the same protocol; the destination is CONFIGURATION-ONLY (no
+  url/base_url/host parameter anywhere, signature-scanned), so a tainted model can
+  never aim the key-bearing client (DEC-18).
+- **Attribution, three layers** (DEC-20): the persona citation law (DEC-41), the
+  internal directive on the wrapped result, and the kernel-drawn domain badge
+  whose facts come from the FETCHER, never from a plugin (DEC-36/37/38).
+- **Privacy:** third-party HTTP logging SILENCED at the composition root
+  (`logging_policy.py`, DEC-28) — httpx logs full URLs at INFO, which would have
+  written fetched URLs and the user's search QUERY into the app log. Fixed before
+  the first real key ran.
+- **Ceiling discipline:** `orchestrator.py` BYTE-IDENTICAL throughout (DEC-19's
+  zero-touch plan, proven); five mechanical extractions bought the room
+  (`persona_rules.py`, `composition.py`, `kernel/tool_result_pairing.py`,
+  `kernel/router_registry.py`, `kernel/router_surfaces.py`, plus
+  `kernel/core_router.py`). **`tool_router.py` now sits at 300/300 and is
+  IRREDUCIBLE** — any future addition needs a funnel-split RULING, so budget one
+  at Milestone-3 planning (DEC-38).
+- **Mutation testing's actual record:** ZERO code defects, SEVEN holes in the
+  GUARDS. The three real defects (DEC-22, DEC-28, DEC-42) came from design review
+  and live probing. Mutation testing tests the tests — see the closure report §5.
+- **Known limits (accepted, recorded):** an empty badge on snippet-only turns · no
+  per-claim attribution · the model is the MESSENGER for confirmation ·
+  `_execute_route`'s docstring is protected from compression.
 
 ## V2 PHASE 2 — M1 `sandbox_exec` (CLOSED, live-signed 2026-07-22)
 Isolated code execution behind `sandbox.execute`. Gates P0→T6, each STOP-gated.
@@ -42,11 +102,14 @@ Isolated code execution behind `sandbox.execute`. Gates P0→T6, each STOP-gated
   path structure refused OUTRIGHT (DEC-13 — `/` `\` `..` → no `/work` escape, by
   construction), binary refused, content never logged. Proven DETERMINISTICALLY
   in the live SOP (DEC-12), never via model judgment.
-- **Confirmation / session-taint DEFERRED to `web_research`** (DEC-10 — no
+- **Confirmation / session-taint were DEFERRED to `web_research`** (DEC-10 — no
   trigger here: the launch schema has no network param, taint is unpopulated).
-- **Untouched:** the draw path / Option-A sync / HighlightGate (git-verified);
-  main at `637c687`. `orchestrator.py` 299/300 = tracked ceiling debt (extract
-  before `web_research`). 604 app + 27 sdk green; ADMISSIBLE. Full detail:
+  **DELIVERED there** (DEC-15/DEC-16); the DEC-15 refinement keeps a network-LESS
+  sandbox run friction-free under active taint — the isolation IS the containment.
+- **Untouched:** the draw path / Option-A sync / HighlightGate (git-verified).
+  604 app + 27 sdk green at M1 close; ADMISSIBLE. **MERGED to `main` 2026-07-22
+  (merge `dcfa25f`, tag `v2-phase2-m1-complete`)**; `main` then took the DEC-1
+  docs merge and sits at `65170b2`. Full detail:
   `docs/reports/phase2_m1_sandbox.md`.
 
 ## V2 PHASE 1 — broker, privileges, MCP (M1-0→M1-7, zero V1 behavior change)
@@ -110,6 +173,12 @@ Isolated code execution behind `sandbox.execute`. Gates P0→T6, each STOP-gated
   an evicted server is spoken in Arabic (queued behind any playing audio,
   never overlapping), proven by a live diag showing an eviction announced
   aloud.
+- **Gate audits:** M1 (2026-07-22) — NOT closed; `sandbox_exec` wired no MCP
+  eviction voice, so the predicted landing did not happen. M2 (2026-07-29) —
+  NOT closed either; `web_research` mounts a native plugin, not an MCP server,
+  so it still has no eviction a user would need to hear. **REMAINS DEFERRED**,
+  and the "Phase 2" landing is now two gates stale — the next milestone that
+  actually ships an MCP-backed capability should either close it or re-assign it.
 
 ### (b) The `muthis/annotate` profile bridge (Q-1.2)
 - **Item:** `muthis-profile/1` ships `muthis/read_file` + `muthis/capture`
@@ -227,8 +296,12 @@ Phase 4 — read-only perception) — NEVER click/type/press/clipboard. RTX 4060
 
 ## Non-negotiable rules
 - **≤300 lines/module**, single responsibility, importable in isolation. If a
-  module nears the limit, SPLIT (don't compress). At/near ceiling now:
-  `orchestrator.py` 300, `tts.py` 300, `turn.py` 298, `sidekick_window.py` ~270.
+  module nears the limit, SPLIT (don't compress). At/near ceiling now (measured
+  2026-07-29): **`tool_router.py` 300 — AT the ceiling AND irreducible, any
+  addition needs a funnel-split RULING (DEC-38)**, `turn_voice.py` 300,
+  `orchestrator.py` 299 (byte-identical through M2), `tts.py` 296,
+  `sidekick_window.py` 280, `fetcher.py` 273, `confirm_gate.py` 269,
+  `turn_pass.py` 269.
 - **Language split**: user-facing strings Arabic; logs/comments/identifiers/commits English.
 - **Threading**: Tk lives on its own daemon thread; asyncio↔Tk only via
   `queue.Queue` commands. Keyboard→loop only via `loop.call_soon_threadsafe`.

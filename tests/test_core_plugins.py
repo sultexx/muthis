@@ -11,6 +11,7 @@ everything the model sees.
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import json
 import re
@@ -18,7 +19,9 @@ from pathlib import Path
 
 import muthis_plugins
 from muthis.cloud.tool_schemas import LOOK_ONLY_TOOLS
-from muthis.kernel.tool_router import build_core_router
+from muthis.kernel.core_router import build_core_router
+from muthis.kernel.router_surfaces import MAX_TOOLS
+from muthis.kernel.tool_result_pairing import WEB_FETCH_TOOL, WEB_SEARCH_TOOL
 from muthis.kernel.turn import RUN_CODE_TOOL
 from muthis_plugins.common import FILES_CAPABILITY_ABSENT_AR, KERNEL_SERVICED_AR
 from muthis_plugins.file_read import FileReadPlugin
@@ -29,7 +32,29 @@ from muthis_sdk import FilesCapability, PluginContext, load_manifest
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v1.json"
 V2_SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v2.json"
+V3_SNAPSHOT = Path(__file__).parent / "snapshots" / "look_tools_v3.json"
 PLUGINS_DIR = Path(muthis_plugins.__file__).parent
+
+
+class _StubFetcher:
+    """`ctx.net`'s embodiment, unused by the catalog — mounting only reads
+    descriptors. No network, no key, and never `muthis.main`."""
+
+    async def fetch_readable(self, url):  # pragma: no cover - never called here
+        raise AssertionError("the catalog test must not fetch")
+
+
+def _v3_router():
+    """The v3 catalog built through the REAL production mounts, in production
+    ORDER: core four → sandbox → web."""
+    from muthis.composition import mount_web_research
+    from muthis_plugins.sandbox_exec import SandboxExecPlugin
+    from muthis_plugins.web_research.plugin import WebResearchPlugin
+
+    router = build_core_router(read_file=None)
+    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    mount_web_research(router, WebResearchPlugin(), _StubFetcher())
+    return router
 
 PLUGIN_SET = {
     "look_pointer": (LookPointerPlugin, "highlight_target", True),
@@ -77,20 +102,95 @@ def test_v2_catalog_byte_pins_sandbox_run_code():
         "utf-8") == SNAPSHOT.read_bytes()
 
 
+def test_v3_catalog_byte_pins_the_web_tools():
+    """T6b — the THIRD model-visible change (V1 four → v2 sandbox → v3 web).
+    Byte-pinned to look_tools_v3.json; V1 and v2 stay as historical anchors.
+
+    Mounted through the REAL composition helper, not a hand-rolled copy: the
+    snapshot must state what PRODUCTION shows the model, so a drift in the
+    mount's namespace or schema fails here rather than at a live 400."""
+    catalog = [d.schema for d in _v3_router().descriptors()]
+    canonical = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
+    assert canonical.encode("utf-8") == V3_SNAPSHOT.read_bytes(), (
+        "the v3 catalog drifted from look_tools_v3.json — a model-visible change; "
+        "revert the schema edit or re-approve the snapshot")
+    assert [t["name"] for t in catalog] == [
+        "highlight_target", "draw_shapes", "request_screen_refresh",
+        "read_local_file", RUN_CODE_TOOL, WEB_SEARCH_TOOL, WEB_FETCH_TOOL]
+    # v3 is v2 with two tools APPENDED — the earlier anchors are untouched.
+    v2 = json.loads(V2_SNAPSHOT.read_text(encoding="utf-8"))
+    assert catalog[:len(v2)] == v2, "v3 must extend v2, never rewrite it"
+    assert (json.dumps(LOOK_ONLY_TOOLS, ensure_ascii=False, indent=2) + "\n").encode(
+        "utf-8") == SNAPSHOT.read_bytes()
+
+
+def test_the_v3_catalog_holds_the_descriptor_cap():
+    catalog = _v3_router().descriptors()
+    assert len(catalog) == 7
+    assert len(catalog) <= MAX_TOOLS, f"{len(catalog)} tools exceed the cap {MAX_TOOLS}"
+
+
+def test_the_web_tools_are_router_serviced_not_kernel_serviced():
+    """They are SERVICED through the router (DEC-39), unlike the sandbox
+    declaration — so `kernel_serviced` must stay False or `service()` would
+    refuse them defensively."""
+    by_name = {d.schema["name"]: d for d in _v3_router().descriptors()}
+    assert by_name[WEB_SEARCH_TOOL].kernel_serviced is False
+    assert by_name[WEB_FETCH_TOOL].kernel_serviced is False
+    assert by_name[RUN_CODE_TOOL].kernel_serviced is True
+
+
 def test_every_model_visible_tool_name_matches_the_anthropic_pattern():
     """The lesson of the T6 live 400 (DEC-11): a dot-namespaced name broke the
     Anthropic tool-name pattern, and NOTHING in the suite caught it. Guard EVERY
     model-visible catalog name here — this must fail loudly if any future plugin
-    (namespaced or bare) ships a name the API would reject."""
+    (namespaced or bare) ships a name the API would reject.
+
+    Runs over the FULL v3 catalog, not only v2: `web__search` / `web__fetch` are
+    exactly the kind of namespaced name that produced the live 400."""
     api_name = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
-    from muthis_plugins.sandbox_exec import SandboxExecPlugin
-    router = build_core_router(read_file=None)
-    router.mount(SandboxExecPlugin(), namespace="sandbox", provenance="sandbox_exec")
+    router = _v3_router()
+    checked = {d.schema["name"] for d in router.descriptors()}
+    assert {WEB_SEARCH_TOOL, WEB_FETCH_TOOL} <= checked, (
+        "the name guard no longer covers the web tools")
     for descriptor in router.descriptors():
         name = descriptor.schema["name"]
         assert api_name.match(name), f"tool name {name!r} violates ^[a-zA-Z0-9_-]{{1,128}}$"
     for tool in LOOK_ONLY_TOOLS:  # the byte-pinned V1 four are valid too (bare names)
         assert api_name.match(tool["name"]), tool["name"]
+
+
+def test_the_composition_root_actually_mounts_the_web_tools_after_the_sandbox():
+    """AST over `main.py`, never an import (it runs `load_dotenv()` at module
+    level and reads live credentials).
+
+    Mutation found this missing: every catalog test above builds its OWN router,
+    so PRODUCTION could stop mounting the web tools entirely — or mount them
+    BEFORE the sandbox, silently reordering the byte-pinned catalog — and nothing
+    would fail. Order matters: v3 must stay v2 with two tools APPENDED."""
+    main_py = Path(__file__).resolve().parents[1] / "src" / "muthis" / "main.py"
+    tree = ast.parse(main_py.read_text(encoding="utf-8"))
+
+    calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (getattr(node.func, "id", "") == "mount_web_research"
+             or getattr(node.func, "attr", "") == "mount")
+    ]
+    kinds = [
+        "web" if getattr(c.func, "id", "") == "mount_web_research" else "other"
+        for c in sorted(calls, key=lambda c: c.lineno)
+    ]
+    assert "web" in kinds, "the composition root no longer mounts the web tools"
+    sandbox_lines = [
+        c.lineno for c in calls
+        if any(getattr(a, "func", None) is not None
+               and getattr(a.func, "id", "") == "SandboxExecPlugin" for a in c.args)
+    ]
+    web_lines = [c.lineno for c in calls if getattr(c.func, "id", "") == "mount_web_research"]
+    assert sandbox_lines and web_lines
+    assert min(web_lines) > max(sandbox_lines), (
+        "the web mount must follow the sandbox mount — v3 is v2 plus two APPENDED")
 
 
 def test_router_descriptors_are_the_same_schema_objects():

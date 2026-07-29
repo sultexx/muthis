@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "muthis-sdk"
-version = "2.0.0a2"
+version = "2.0.0a3"
 description = "Public plugin contract for Mut'his V2: plugin types, manifest loader, and the conformance kit"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }

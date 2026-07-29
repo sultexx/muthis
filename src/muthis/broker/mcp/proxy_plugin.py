@@ -6,8 +6,10 @@ The kernel's blindness rule (§8.1) is realized here: to the ToolRouter this
 is an ordinary plugin with descriptors and an execute(); every MCP detail
 (session, strikes, quarantine, hygiene) hides behind the HOST callable it
 delegates to. Results come back is_error-or-not but NEVER as exceptions,
-already policy-wrapped; the host's ServiceOutcome path raises the taint
-flag (external server = untrusted by definition, §8.5).
+already policy-SANITIZED (text-only, capped). The router — not this proxy and
+not the host — raises the taint flag from the taint=True mount and applies the
+§3.2 untrusted-content wrapping on the way out (DEC-14): external server =
+untrusted by definition (§8.5), and the framing is the kernel's to give.
 """
 
 from __future__ import annotations

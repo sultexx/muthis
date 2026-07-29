@@ -20,18 +20,21 @@ from pathlib import Path
 
 import muthis_sdk
 
-KERNEL_MODULES = (
-    "muthis.kernel.budget",
-    "muthis.kernel.draw_dispatch",
-    "muthis.kernel.highlight_gate",
-    "muthis.kernel.history_hygiene",
-    "muthis.kernel.interrupt_hooks",
-    "muthis.kernel.orchestrator",
-    "muthis.kernel.tool_router",
-    "muthis.kernel.turn",
-    "muthis.kernel.turn_pass",
-    "muthis.kernel.verbosity",
-)
+KERNEL_PACKAGE = "muthis.kernel"
+
+# DERIVED, never hand-maintained. The list used to be typed out, and it had
+# silently fallen four modules behind the package (frame_capture, session_taint,
+# tool_result_pairing, untrusted_content) while the docstring above claimed
+# "every kernel module" — a guard asserting less than it says it does. Every
+# extraction under the ≤300-line law adds a module here, so deriving it is what
+# makes the next one covered BY CONSTRUCTION rather than by remembering.
+def _kernel_modules() -> tuple[str, ...]:
+    package_dir = Path(importlib.import_module(KERNEL_PACKAGE).__file__).parent
+    return tuple(
+        f"{KERNEL_PACKAGE}.{source.stem}"
+        for source in sorted(package_dir.glob("*.py"))
+        if source.stem != "__init__"
+    )
 
 
 def test_the_shims_are_gone():
@@ -61,6 +64,10 @@ def test_sdk_imports_nothing_from_the_app():
 
 
 def test_kernel_modules_import_in_isolation():
-    for kernel_name in KERNEL_MODULES:
+    kernel_modules = _kernel_modules()
+    # Fail loudly if the derivation ever finds nothing — a guard that iterates an
+    # empty list passes while proving nothing.
+    assert len(kernel_modules) >= 13, kernel_modules
+    for kernel_name in kernel_modules:
         module = importlib.import_module(kernel_name)
         assert module.__name__ == kernel_name

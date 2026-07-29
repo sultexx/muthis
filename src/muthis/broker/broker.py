@@ -26,6 +26,7 @@ from typing import Optional
 
 from muthis_sdk import (
     FilesCapability,
+    NetCapability,
     PluginContext,
     PluginManifest,
     ScreenCapability,
@@ -51,10 +52,26 @@ class Broker:
         grants: GrantsStore,
         read_file: Optional[ReadFileFn] = None,
         capture=None,  # async () -> Optional[bytes]; the kernel capture line
+        net_fetch=None,  # async (url: str) -> FetchResult; HardenedFetcher's ONE verb
+        fetched_domains=None,  # DEC-36: the turn-scoped provenance collector
     ) -> None:
         self._grants = grants
         self._read_file = read_file
         self._capture = capture
+        self._net_fetch = net_fetch
+        # DEC-37: the collector is BROKER-owned state, so its TURN lifetime is
+        # managed HERE rather than by the kernel — which has no need to know a
+        # broker-side record exists at all. WHO OWNS THE FACT, applied to a
+        # lifetime rather than to a value.
+        self._fetched_domains = fetched_domains
+
+    def new_turn(self) -> None:
+        """Start a fresh turn for every broker-owned turn-scoped record — today
+        exactly the DEC-36 provenance collector. Registered as an opaque
+        turn-boundary hook by the composition root (DEC-37), because the badge
+        must show what THIS turn read, never what the process has read."""
+        if self._fetched_domains is not None:
+            self._fetched_domains.new_turn()
 
     def has_grant(self, manifest: PluginManifest, plugin_dir: str | Path) -> bool:
         """True iff a HASH-CURRENT consent record exists — distinct from
@@ -84,18 +101,35 @@ class Broker:
         screen = None
         if "perceive.screen" in granted and self._capture is not None:
             screen = ScreenCapability(capture=self._capture)
+        net = None
+        if "net.fetch" in granted and self._net_fetch is not None:
+            # The seam IS HardenedFetcher.fetch_readable — every DEC-17 defense
+            # (resolve-once IP pinning, per-hop re-validation, robots, the
+            # size/type caps, the DEC-22 total budget) fires inside the broker;
+            # the plugin gets readable content, never a socket, and nothing here
+            # is re-implemented (the FilesCapability discipline, applied to net).
+            net = NetCapability(fetch_readable=self._net_fetch)
         denied = granted - {
             c for c, wired in (
                 ("perceive.files.read", files is not None),
                 ("perceive.screen", screen is not None),
+                ("net.fetch", net is not None),
             ) if wired
-        } - {"annotate.overlay", "speak.caption", "net.fetch",
-             "sandbox.execute", "cache.session"}
+        } - {"annotate.overlay", "speak.caption", "sandbox.execute",
+             "cache.session"}
         if denied:
             logger.info("[broker] %s granted-but-unwired capabilities: %s "
                         "(their seams arrive in later phases)",
                         manifest.name, sorted(denied))
-        return PluginContext(files=files, screen=screen)
+        # DEC-24(b): `net.fetch` LEFT the granted-but-unwired subtraction set
+        # with this commit. While it sat there, a plugin GRANTED net.fetch and
+        # one DENIED it saw the same absent seam and the same silence — the
+        # undefined THIRD state M1-4 forbids ("denial = an ABSENT seam, never a
+        # different API" presumes the grant, when wired, PRODUCES the seam). The
+        # contract is now binary: granted+wired → present, denied → absent; and
+        # a root that forgot to build the fetcher is no longer swallowed — it
+        # surfaces on the granted-but-unwired line above.
+        return PluginContext(files=files, screen=screen, net=net)
 
 
 __all__ = ["Broker", "CAPABILITY_NOT_GRANTED_AR"]

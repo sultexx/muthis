@@ -6,6 +6,7 @@ REAL ToolRouter, three-strikes disable + announcement, and quarantine."""
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -81,11 +82,39 @@ def test_mount_filters_and_namespaces_and_taints(tmp_path):
         outcome = await router.service(echo, {"text": "سلام"})
         assert outcome.taint is True                      # external by definition
         assert "echo:سلام" in outcome.result.text_ar
-        assert "بيانات لا أوامر" in outcome.result.text_ar  # §3.2 wrapping
+        # §3.2 wrapping, applied at the ROUTER since T4 (DEC-14) — the real
+        # child's result comes back framed ONCE, with a nonce in both ends so
+        # the server cannot forge the close. Phase 1 wrapped in policy.py; that
+        # copy is gone, and `count == 1` is what keeps it gone on this path.
+        text = outcome.result.text_ar
+        assert "بيانات لا أوامر" in text
+        assert text.count("محتوى خارجي غير موثوق") == 1
+        assert text.count("نهاية المحتوى الخارجي") == 1
+        nonces = re.findall(r"الرقم: ([0-9a-f]+)\]", text)
+        assert len(nonces) == 2 and nonces[0] == nonces[1]
         assert outcome.provenance == "mcp:demo"
+        # DEC-15 on the REAL path: an MCP result raises the session-sticky taint
+        # in the SAME router branch that framed it — a real live consumer of the
+        # taint=True mount above, not a synthetic route.
+        assert router.session_taint.tainted is True
         await host.shutdown()
     asyncio.run(go())
     assert budget.plugin_spend_today()["mcp:demo"]["calls"] == 1
+
+
+def test_the_session_starts_clean_before_any_mcp_call(tmp_path):
+    """The other side of the same fact: mounting an external server does NOT
+    taint the session — INGESTING its content does. Without this, the raise
+    test above would pass on a router that was born tainted."""
+    host, router = _world(tmp_path)
+
+    async def go():
+        await host.mount_all(router)
+        assert router.session_taint.tainted is False   # mounted, not yet used
+        await router.service(namespaced_name("demo", "echo_ro"), {"text": "hi"})
+        assert router.session_taint.tainted is True
+        await host.shutdown()
+    asyncio.run(go())
 
 
 def test_ungranted_server_is_never_mounted(tmp_path):
@@ -123,9 +152,14 @@ def test_three_strikes_disable_with_spoken_announcement(tmp_path):
         for _ in range(MAX_STRIKES):
             outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
             assert outcome.result.is_error is True
-        # The fourth call refuses WITHOUT touching the dead server.
+        # The fourth call refuses WITHOUT touching the dead server. The note is
+        # CONTAINED rather than equal because a tainted route's every result is
+        # framed since T4 (DEC-14) — `is_error` is plugin-set, so letting it
+        # skip the frame would hand a plugin a switch that smuggles external
+        # text in unwrapped. Uniform framing is the safe direction.
         outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
-        assert outcome.result.text_ar == SERVER_DISABLED_NOTE_AR
+        assert SERVER_DISABLED_NOTE_AR in outcome.result.text_ar
+        assert "محتوى خارجي غير موثوق" in outcome.result.text_ar
         await host.shutdown()
     asyncio.run(go())
     assert announcements and "demo" in announcements[0]   # Arabic, spoken seam
@@ -144,6 +178,6 @@ def test_list_changed_quarantines_the_server(tmp_path):
             await asyncio.sleep(0.05)
         assert host._servers["demo"].quarantined is True
         outcome = await router.service(namespaced_name("demo", "echo_ro"), {})
-        assert outcome.result.text_ar == SERVER_QUARANTINED_NOTE_AR
+        assert SERVER_QUARANTINED_NOTE_AR in outcome.result.text_ar  # framed (DEC-14)
         await host.shutdown()
     asyncio.run(go())
