@@ -3480,3 +3480,109 @@ it was never about fusion). Zones per DEC-47 with the DEC-49 ruling 4 startup in
 **Nothing above is built. Nothing here opens implementation.**
 
 ---
+
+## DEC-51 (2026-07-29) — `doc_rag` mounts `taint=True` **TOGETHER WITH** the kernel-side read hint — APPROVED (Sultan)
+
+- **RECORDING NOTE, stated first because it is a governance finding, not a footnote.**
+  This entry was **MISSING from the ledger** when the Milestone-3 implementation session
+  opened: `main` was at `b7654f7`, the last entry was DEC-50, and a full search of every
+  governance document and of **every commit on every branch** (`git log --all -S "DEC-51"`)
+  returned nothing. The milestone brief cites DEC-51 as governing, so the ruling exists but
+  had never been written down. It is transcribed here from Sultan's own wording in that
+  brief rather than reconstructed from inference — **no clause below is invented, and none
+  is recalled from memory** (the DEC-43 discipline: a governing rule that cannot be read is
+  the defect, and law text is never reconstructed). **Sultan should confirm the wording.**
+
+- **Item:** how `doc_rag` mounts, given that DEC-32 made the mount's `taint` flag drive
+  THREE things at the router at once.
+
+### THE RULING
+
+**Mount with `taint=True` TOGETHER WITH the kernel-side read hint**, so `doc_rag`
+**raises taint on every retrieved passage YET is NOT classified high-impact.**
+
+- **`taint=True`** because everything the milestone reads is **HOSTILE BY CONSTRUCTION**:
+  a retrieved passage is text the user's document supplied, and the model must treat it as
+  data, never as instructions. This is what arms the DEC-14 wrap and the DEC-15
+  session-sticky raise — both key off exactly this flag.
+- **The read hint** because the KERNEL knows this route only READS a local file. Without
+  it, `RouteImpact.high_impact(external=taint)` reduces to `external and not
+  read_only_hint` → **True**, and **`doc_rag` would gate ITSELF behind a spoken
+  confirmation** — a permission prompt in front of reading a local document, which is
+  absurd.
+- **Assert BOTH directions:** taint IS raised, and the call is NOT high-impact. One
+  assertion alone is satisfiable by a mutation that hard-codes the other.
+
+### WHY THIS IS THE RULING DEC-32 ASKED FOR, BY NAME
+
+**DEC-32 predicted this exact case and asked to be re-read at this gate.** Its words: *"If
+a `doc_rag` route were mounted `taint=True` without stating a `read_only_hint`, the
+fail-closed default would classify it high-impact and put spoken confirmation in front of
+every document retrieval. That may well be right — but it must be a DECISION taken with
+this coupling in view, not a surprise discovered live."* This entry is that decision. The
+coupling was recorded when it was introduced, and it is now being spent as designed.
+
+### THE ARITHMETIC, DRIVEN DIRECTLY (P0b, 2026-07-29) — not asserted
+
+Measured against the REAL `RouteImpact`, both directions, no model involved (DEC-12):
+
+| mount | `high_impact(external=True)` |
+|---|---|
+| `RouteImpact(read_only_hint=True)` — the ruling | **False** — taint raised, NOT high-impact |
+| `RouteImpact()` — the hint omitted | **True** — self-gating, the absurdity above |
+| `RouteImpact(capabilities={net.fetch})` — `web_research` | True — unchanged |
+
+`doc_rag` is granted **no capability at all**, so `high_impact`'s first arm cannot fire
+either: reading a local document sends nothing anywhere — the V1 `read_local_file`
+argument, unchanged.
+
+### THE FRICTION THIS CREATES — instrumented at T6, NOT judged here
+
+Because the taint is session-sticky (DEC-2), **after ingesting a document a `web__fetch`
+DOES require spoken approval.** That is the DEC-15 × DEC-16 machinery working exactly as
+designed, and it is a REAL behaviour change for the user. **T6 instruments it; it does not
+judge it.** Sultan rules on the friction the way he did for DEC-15 × DEC-16 at M2 — from a
+live measurement, not from a prediction.
+
+### WHAT THIS COSTS THE ROUTER — measured at P0b: **ZERO**
+
+Both flags are **constructor arguments** on `ToolRouter.mount` / `mount_plugin`, which
+already carry `taint: bool` and `impact: RouteImpact`. `tool_router.py` is **byte-identical**
+with the full wiring applied. See the P0b measurement recorded below.
+
+---
+
+## P0b CEILING MEASUREMENT (2026-07-29) — the `doc_rag` mount costs `tool_router.py` **ZERO lines** — GATE PASSED
+
+- **Item:** DEC-38/DEC-39 froze `tool_router.py` at **300/300, IRREDUCIBLE**, and required a
+  RULING — not a mechanical move — before any addition. `doc_rag` mounts tools, so the gate
+  had to be measured before the milestone opened.
+- **Method — MEASURED, not estimated** (M2 produced nine estimate-vs-measurement gaps, and
+  the T5 ceiling finding was an estimate wrong by 9 lines): the FULL mount + servicing
+  wiring was written out against scratchpad copies of all six affected files, syntax-checked,
+  and diffed. Nothing was written into the repo.
+
+| file | before | after | Δ |
+|---|---|---|---|
+| **`kernel/tool_router.py`** | 300 | **300** | **0 — byte-identical** |
+| **`kernel/turn_pass.py`** | 269 | **269** | **0 — line-neutral** |
+| `kernel/tool_result_pairing.py` | 171 | 201 | +30 |
+| `kernel/turn.py` | 183 | 185 | +2 |
+| `main.py` | 194 | 196 | +2 |
+| `composition.py` | 247 | 278 | +31 |
+| `kernel/orchestrator.py` | 299 | 299 | 0 — not touched |
+
+- **WHY THE ROUTER COST IS ZERO, structurally:** `service()` dispatches by NAME out of
+  `self._routes` and contains nothing tool-specific except the V1 `READ_FILE_TOOL`
+  degradation branch; `mount()` already takes `taint` and `impact`; `_outcome_for` wraps and
+  raises off `route.taint`. **Every `mount()` call site lives OUTSIDE the file**, and DEC-51's
+  two facts are constructor arguments. The funnel-split ruling DEC-38 reserved is **NOT
+  needed for this milestone** — it stays reserved for whatever first needs a real line here.
+- **`turn_pass.py` is line-neutral by REPLACEMENT, not by luck:** its servicing condition
+  already enumerated routed tools (`READ_FILE_TOOL or … in WEB_TOOLS`), so it becomes one
+  named set — `ROUTER_SERVICED_TOOLS` — instead of an or-chain that grows with every
+  milestone. One line replaced by one line, and the next routed tool costs zero here too.
+- **VERDICT: the P0b gate PASSES. T1 may open.** No design decision is required and none was
+  taken; the measurement simply says the addition does not touch the frozen file.
+
+---
