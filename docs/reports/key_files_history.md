@@ -454,3 +454,66 @@ Evolution:
 - **A KNOWN, ACCEPTED interplay:** a NEW highlight_target wipes drawn shapes, because
   RectangleWidget clears with delete("all"). highlight_target is the V1 path and stays
   untouched; the shapes widget is tag-scoped precisely so the reverse can never happen.
+
+---
+
+## src/muthis_plugins/ (the plugin layer) and sdk/ (muthis-sdk)
+
+Current shape: four native V1 plugins, plus sandbox_exec and web_research; the SDK is
+the independently semver'd public contract.
+
+Evolution:
+
+- **V2 Phase 0, Q-2 (dogfood):** the four V1 tools were re-founded as core plugins over
+  muthis-sdk with their schemas moved VERBATIM, precisely so the plugin contract would
+  be proven by the app's own tools before any third party used it. Three are DECLARATION
+  plugins (kernel_serviced=True -- execution stays on the V1 circuits letter for letter);
+  file_read is the fully ROUTED executor, with FileReader's secret/binary/size gates kept
+  KERNEL-side and never delegated.
+- **Phase 0 M4:** cloud/tool_schemas.py became an assembly re-export in the exact V1
+  order, so the catalog's byte-identity survived the move.
+- **Phase 1 (SDK extended):** ScreenCapability added at 2.0.0a2; the conformance kit's
+  permission-violation suite went live (starved-context denial + undeclared-capability
+  spy detection) at ZERO skips on the core four.
+- **Phase 2 M1 (sandbox_exec):** built gate by gate -- the contract skeleton first, then
+  the runner, then the per-turn gate, then the servicing wiring. DEC-8's `docker cp`
+  staging was superseded live by DEC-9's stdin bootstrap when cp proved incompatible with
+  --read-only. The T6 live SOP then produced two rulings that outlived the milestone:
+  DEC-11 (the `__` separator, after a real Anthropic 400 on the dotted name -- the actual
+  defect was a MISSING guard, now a test over every catalog name) and DEC-12 (a security
+  guard is verified by driving the guard directly, never through model judgment), which
+  in turn surfaced DEC-13 (path structure in staged names refused outright).
+- **Phase 2 M2 (web_research):** the first plugin that holds NO key, NO client, NO
+  endpoint and NO socket -- the provider is injected already-built (DEC-27) and pages are
+  read through ctx.net (DEC-24). It became model-visible under DEC-40 (catalog v3), and
+  its cost reaches the ledger through the router's own carrier (DEC-34) rather than any
+  field the plugin controls.
+- **SDK 2.0.0a3:** NetCapability added -- ONE verb, `fetch_readable(url)`, with no
+  socket, client, base URL, header or method surface, so a plugin cannot CONSTRUCT a
+  request. Adding a capability class is an additive contract change, hence the a3 bump.
+
+## src/muthis/broker/ and broker/mcp/ (Phase 1)
+
+Current shape: grants + the capability-gated context door; the MCP client/host/policy/
+proxy; the kernel stays blind to MCP entirely.
+
+Evolution:
+
+- **M1-4:** the golden rule made inspectable -- consent pinned to the manifest sha256 so
+  ANY manifest byte change silently invalidates the grant (an update-diff by
+  construction); denial expressed as an ABSENT seam rather than a different API.
+- **M1-5:** the MCP layer landed stdlib-only (Q-1.1), with the protocol version PINNED
+  and a 4 MiB frame wall. UTF-8 wire armor for python children was live-critical on this
+  machine: Windows cp1256 pipes broke the wire in practice.
+- **M1-6/7:** mcp_runtime turned any ToolPlugin into an MCP stdio server (deliberately
+  SYNC stdio -- the Windows asyncio-stdin swamp avoided); the composition root mounts
+  trusted plugins.d servers READ-ONLY at boot. The Phase-1 scope law kept them out of the
+  model catalog, which stayed the byte-pinned V1 four until Phase 2 chose to change it.
+- **Phase 2 M2 (T4/DEC-14):** the untrusted-content WRAPPING left broker/mcp/policy.py
+  for the ONE router boundary. Keeping both would have double-wrapped the MCP path and
+  nested a STATIC, forgeable delimiter inside the nonce-bearing one. policy.py keeps
+  result HYGIENE only; do not re-add a wrap there.
+- **Phase 2 M2 (T6a/DEC-24):** the broker gained the net_fetch seam and `net.fetch` LEFT
+  the granted-but-unwired set -- while it sat there, a granted and a denied plugin saw
+  the same absent seam and the same silence, which is the undefined THIRD state M1-4
+  forbids.
