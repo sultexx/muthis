@@ -2611,24 +2611,40 @@ and zero law breaches.** A rule nobody could read, that nobody broke, was not th
   by inventing a substitute list:** choosing a replacement model carries cost and product-vision consequences,
   so it is Sultan's decision, and a guessed fallback would be a fabricated law wearing an engineering costume.
 
-### NOT DONE — 12 SOURCE/TEST CITATIONS, BLOCKED BY THE DOCS-ONLY CONSTRAINT
+### NOT DONE — 27 SOURCE/TEST CITATIONS ACROSS 19 FILES, BLOCKED BY THE DOCS-ONLY CONSTRAINT
 
 The ruling asked for all 38 references; the same instruction forbade source and test changes and named
 `orchestrator.py` explicitly. Both cannot hold, so **the docs half is complete and every source/test citation is
 untouched and reported**, on the same reasoning already applied to `orchestrator.py`: this is a separate ruling.
-They are, with the citation each carries:
 
-- `kernel/orchestrator.py:56` — §9.3, the 90 s turn bound (**byte-identical, 299 lines — explicitly out of scope**)
+**MEASURED, NOT ESTIMATED — and the first count in this entry was WRONG.** It said 12, carried over from the
+audit's dot-spelling finding. A full scan of `src/`, `tests/`, `sdk/`, `scripts/` and `reference/` for
+`ARCHITECTURE_v4_1` · `ARCHITECTURE_v4.1` · `v4.1 §N` · `Law §N` returns **26 citations in 18 files**, plus
+`reference/asr.py:277` (a bare `§17.5`, in the frozen reference tree) = **27**. More than double. The number is
+corrected here rather than quietly left standing, because an inaccurate count inside the ruling that retires a
+document for being inaccurate would be the same defect wearing a different hat.
+
+- **`kernel/orchestrator.py:56`** — `v4.1 §9.3`, the 90 s turn bound. **Byte-identical at 299 lines, explicitly
+  out of scope, and the reason this class needs its own ruling.**
 - `cloud/protocol.py:2` (§3.7 / §9.3), `:10` (§17.4), `:71` (§5.3-4), `:84` (§9.3)
 - `cloud/claude_agent.py:2`, `:45` (§4.2), `:52` (§4.2), `:60` (§17.5), `:93` (§9.3)
-- `kernel/budget.py:27` (§4.2, the `0.75` default) — `:3`'s "Rule 10" is a NAME and needs no repointing
-- `tests/test_claude_agent.py:2` (§15 step 8 — an ORPHAN citation living in a test)
-- Also unswept and worth the same ruling: `activation.py:5` and `reference/asr.py:277` cite laws without naming
-  the document.
+- `kernel/budget.py:27` (§4.2, the `0.75` default) · `kernel/history_hygiene.py:5` · `kernel/turn_pass.py:7`
+- `activation.py:5` · `voice_out.py:6` · `stubs.py:3` · `logging_policy.py:62` · `broker/search/__init__.py:17`
+- `overlay/shapes_widget.py:50` · `overlay/style_env.py:5` · `overlay/win32_glue.py:5` ·
+  `overlay/window_commands.py:4`
+- `vision/downscale.py:26` and `:84` · `vision/screen_capture.py:22` (all three cite §11.5, the threading law)
+- `tests/test_claude_agent.py:2` (`v4.1 §15, step 8` — an ORPHAN citation living in a test)
+- `reference/asr.py:277` (bare `§17.5`; `reference/` is frozen and read-only, so it may warrant leaving alone)
 
-**None of these is load-bearing at runtime — every one is a comment or docstring** — but they are the last
-places in the repository that point an agent at a retired authority, and `test_claude_agent.py:2` points at an
-ORPHAN. A follow-up ruling should authorize a comment-only pass; it will touch protected files, which is
-precisely why it is not bundled here.
+**None is load-bearing at runtime — every one is a comment or docstring**, which is why none of this is urgent.
+But they are the last places in the repository pointing an agent at a retired authority, they concentrate in
+exactly three laws (§17.4 the ceiling, §17.5 the language split, §11.5 threading — all of which now have
+readable homes), and `tests/test_claude_agent.py:2` points at an ORPHAN. A follow-up ruling should authorize a
+comment-only pass; it will touch protected files, which is precisely why it is not bundled here.
+
+**Separately unresolved, and NOT a citation into this document:** `sdk/muthis_sdk/manifest.py:8, 113` and
+`conformance/checks.py:94` cite a bare "§3.7" meaning **V2_ROADMAP part 1** (Arabic is the reference language).
+They are correct as written but ambiguous against `AGENTS.md`'s former "Law §3.7". The two AGENTS.md instances
+of this collision were disambiguated in this pass; the SDK's three are source, so they wait for the same ruling.
 
 ---
