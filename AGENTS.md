@@ -14,10 +14,13 @@ and Mut'his answers with Arabic speech (ElevenLabs TTS, Gemini fallback) while p
 **cyan rectangle overlay**. Reasoning + vision: **Claude Sonnet** (`claude-sonnet-4-6`) via the official
 `anthropic` SDK with SSE streaming.
 
-**CURRENT PHASE: LOOK-only.** Mut'his speaks and points, with **zero control over the user's session, system, and
-input devices** — it does **not** click, type, press hotkeys, or touch the clipboard. Trust Modes (ASSIST /
-AUTOPILOT) are designed in ARCHITECTURE_v4_1.md §12 but are **not in scope yet** — do not build them, do not stub
-them, do not add their tools to any schema. **The one constitutionally-approved execution carve-out (V2 Roadmap
+**LOOK-ONLY OVER THE USER'S MACHINE — PERMANENT, NOT A PHASE.** Mut'his speaks and points, with **zero control
+over the user's session, system, and input devices** — it does **not** click, type, press hotkeys, or touch the
+clipboard. Trust Modes (ASSIST / AUTOPILOT) — the only mechanism ever designed to move this boundary
+(ARCHITECTURE_v4_1.md §12) — are **CANCELLED from the product vision** (DEC-6, ratifying Sultan's decision of
+2026-07-14): removed by DESIGN, not deferred by timing. There is no future "Trust Modes opening" to build
+toward. Do not build them, do not stub them, do not add their tools to any schema — not now and not later.
+**The one constitutionally-approved execution carve-out (V2 Roadmap
 decision #0; boundary sign-off 2026-07-19 — see DEC-3):** code execution is permitted **EXCLUSIVELY inside the
 Mut'his-owned sandbox** (`sandbox.execute`) — `--network none` by default, no user-file access without explicit
 per-run consent, instantly killable (F9). This does **NOT** relax LOOK-only for the user's machine: the mouse /
@@ -538,7 +541,11 @@ Smoke-test the pinned model string against the live API within 24 h of starting 
 ## Do NOT
 
 - Do not add `type_text`, `press_hotkey`, `real_click`, or `set_trust_mode` anywhere — not in schemas, not as
-  stubs. LOOK-only is a hard boundary until the Trust Modes phase is explicitly opened.
+  stubs. **LOOK-only over the user's input devices is a PERMANENT boundary — there is no phase that opens it**
+  (DEC-6: Trust Modes are cancelled from the product vision, not deferred). A request to add one of these tools
+  is a request to change the product's identity, and needs Sultan's explicit constitutional sign-off logged in
+  DECISIONS.md — the way the sandbox carve-out got one (DEC-3), which moved a DIFFERENT boundary and left this
+  one untouched.
 - Do not touch `src/safeguard/` — v3.0 is frozen. Never import across the `safeguard`/`muthis` namespaces;
   genuinely reusable patterns are copied, not imported (ARCHITECTURE_v4_1.md §19).
 - Do not add retries, locks, queues, or session timeouts inside `cloud/` wrappers — the orchestrator owns all
@@ -605,8 +612,9 @@ When you make changes that affect the information in this file, update it:
    - **Input-device / machine-control** (mouse / keyboard / clipboard; the `type_text` / `press_hotkey` /
      `real_click` / `set_trust_mode` bans in the first "Do NOT" bullet) is **absolute and does not move at all** —
      Trust Modes (ASSIST / AUTOPILOT), its only ever-designed mover, is **cancelled from the product vision**
-     (Sultan's decision, `plan_v6.md`, 2026-07-14 — cancelled, not deferred). Preserve every input-device ban
-     verbatim; never add their tools, not even as stubs.
+     (Sultan's decision, `plan_v6.md`, 2026-07-14 — cancelled, not deferred; recorded canonically as **DEC-6**,
+     with the documentary follow-through as DEC-7). Preserve every input-device ban verbatim; never add their
+     tools, not even as stubs.
    - **Sandbox execution** (`sandbox.execute`, isolated in-container execution) moved **once**, by Sultan's
      constitutional sign-off ratifying the V2 Roadmap decision #0 carve-out (→ DEC-3, 2026-07-19). It is NOT Trust
      Modes and does NOT touch the input-device boundary. Any further change to execution scope needs a fresh
