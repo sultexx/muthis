@@ -6,7 +6,8 @@ lives HERE, in the broker, and hands back readable content, never a socket.
 
 `address_guard` is the SSRF validator (built + tested first); `fetcher` is the
 IP-pinned fetch loop; `session_policy` holds the per-domain rate limiter and the
-RAM-only LRU.
+RAM-only LRU; `client_pool` keeps ONE client per HOSTNAME so a TLS connection is
+never reused across hosts (DEC-42).
 
 WIRED SINCE T6 (DEC-24): the composition root builds ONE `HardenedFetcher` and
 injects `fetch_readable` into the Broker, which hands a granted plugin
@@ -17,6 +18,12 @@ and no refusing stub. A plugin never sees this package.
 
 from __future__ import annotations
 
+from .client_pool import (
+    DEFAULT_MAX_CLIENTS,
+    ClientFactory,
+    ClientRegistry,
+    default_client_factory,
+)
 from .address_guard import (
     BAD_URL_AR,
     BLOCKED_ADDRESS_AR,
@@ -87,4 +94,9 @@ __all__ = [
     # session policy
     "RateLimiter",
     "SessionCache",
+    # DEC-42: a client per HOSTNAME, so a TLS connection never crosses hosts
+    "ClientFactory",
+    "ClientRegistry",
+    "DEFAULT_MAX_CLIENTS",
+    "default_client_factory",
 ]

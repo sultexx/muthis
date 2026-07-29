@@ -61,7 +61,7 @@ def _fetch(url, mapping, *, handler=None, domains=None, robots_enabled=False):
 
     async def go():
         fetcher = HardenedFetcher(
-            client=httpx.AsyncClient(
+            client_factory=lambda: httpx.AsyncClient(
                 transport=httpx.MockTransport(handler or default_handler),
                 trust_env=False, follow_redirects=False,
                 headers={"User-Agent": USER_AGENT}),
@@ -132,7 +132,7 @@ def test_a_cached_page_still_counts_as_read_this_turn():
 
     async def go():
         fetcher = HardenedFetcher(
-            client=httpx.AsyncClient(
+            client_factory=lambda: httpx.AsyncClient(
                 transport=httpx.MockTransport(handler), trust_env=False,
                 follow_redirects=False, headers={"User-Agent": USER_AGENT}),
             resolver=lambda hostname, port: mapping[hostname],

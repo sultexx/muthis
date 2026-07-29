@@ -54,18 +54,25 @@ def _resolver(mapping):
 
 def _client(handler):
     # Mirrors the production client config, but with a MockTransport (no net).
-    return httpx.AsyncClient(
-        transport=httpx.MockTransport(handler),
-        trust_env=False,
-        follow_redirects=False,
-        headers={"User-Agent": USER_AGENT},
-    )
+    # A FACTORY, not a client (DEC-42): the fetcher keeps one client per
+    # HOSTNAME, and a seam that accepted a single shared client is exactly how
+    # cross-host connection reuse came back. MockTransport is stateless, so one
+    # handler safely backs every client the registry builds.
+    def factory():
+        return httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            trust_env=False,
+            follow_redirects=False,
+            headers={"User-Agent": USER_AGENT},
+        )
+
+    return factory
 
 
 def _run(handler, url, *, mapping=None, robots_enabled=True) -> FetchResult:
     async def go():
         fetcher = HardenedFetcher(
-            client=_client(handler),
+            client_factory=_client(handler),
             resolver=_resolver(mapping or {}),
             robots_enabled=robots_enabled,
         )
@@ -308,7 +315,7 @@ def test_second_fetch_is_served_from_cache():
         return httpx.Response(200, text=_html("cached-body"), headers={"content-type": "text/html"})
 
     async def go():
-        fetcher = HardenedFetcher(client=_client(handler),
+        fetcher = HardenedFetcher(client_factory=_client(handler),
                                   resolver=_resolver({"c.example": ["104.20.23.154"]}),
                                   robots_enabled=False)
         try:
@@ -326,10 +333,15 @@ def test_second_fetch_is_served_from_cache():
 
 # ── isolation: the default client carries no credentials ─────────────────────
 def test_default_client_is_credential_free():
+    """DEC-42 moved client CONSTRUCTION into the per-hostname registry, so the
+    property is now read off a client the fetcher's own registry produced —
+    strictly stronger than reading a held attribute, because it proves the
+    wiring and the config together."""
     async def go():
         fetcher = HardenedFetcher()
         try:
-            return fetcher._client.trust_env, fetcher._client.follow_redirects
+            client = await fetcher._clients.acquire("docs.example.com")
+            return client.trust_env, client.follow_redirects
         finally:
             await fetcher.aclose()
 
@@ -362,7 +374,7 @@ def test_total_budget_cuts_a_slow_multi_hop_chain():
         return httpx.Response(301, headers={"location": f"https://hop{hop['n']}.example/"})
 
     async def go():
-        fetcher = HardenedFetcher(client=_client(handler), resolver=slow_resolver,
+        fetcher = HardenedFetcher(client_factory=_client(handler), resolver=slow_resolver,
                                   robots_enabled=False, total_budget_s=0.35)
         try:
             return await fetcher.fetch_readable("https://start.example/")
@@ -400,7 +412,7 @@ def test_total_budget_includes_the_robots_lookup():
         return httpx.Response(200, text="page", headers={"content-type": "text/html"})
 
     async def go():
-        fetcher = HardenedFetcher(client=_client(handler), resolver=resolver,
+        fetcher = HardenedFetcher(client_factory=_client(handler), resolver=resolver,
                                   robots_enabled=True, total_budget_s=0.2)
         try:
             return await fetcher.fetch_readable("https://r.example/page")

@@ -97,6 +97,7 @@ load_dotenv()  # Law 5.1: .env before any muthis import that reads keys
 from muthis.broker.net.address_guard import (                              # noqa: E402
     BLOCKED_ADDRESS_AR, system_resolver,
 )
+from muthis.broker.net.client_pool import ClientFactory                    # noqa: E402
 from muthis.broker.net.fetcher import HardenedFetcher                      # noqa: E402
 from muthis.broker.net.provenance import FetchedDomains                    # noqa: E402
 from muthis.broker.net.transport import USER_AGENT, TIMEOUT_S              # noqa: E402
@@ -271,14 +272,20 @@ async def _silent_tts(text: str):
     return None
 
 
-def mock_web_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
-    """A client shaped EXACTLY like the fetcher's own (trust_env off, redirects
-    NOT followed) over a mock transport, so the hop loop, the pin and the caps
-    are the production ones and only the socket is simulated."""
-    return httpx.AsyncClient(
-        transport=httpx.MockTransport(handler), trust_env=False,
-        follow_redirects=False, timeout=httpx.Timeout(TIMEOUT_S),
-        headers={"User-Agent": USER_AGENT})
+def mock_web_clients(handler: Callable[[httpx.Request], httpx.Response]) -> ClientFactory:
+    """A client FACTORY shaped exactly like the fetcher's own (trust_env off,
+    redirects NOT followed) over a mock transport, so the hop loop, the pin, the
+    caps and the DEC-42 per-hostname registry are all the production ones and
+    only the socket is simulated. A factory, not a client: the fetcher keeps one
+    client per HOSTNAME, and MockTransport is stateless so one handler safely
+    backs every client the registry builds."""
+    def factory() -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), trust_env=False,
+            follow_redirects=False, timeout=httpx.Timeout(TIMEOUT_S),
+            headers={"User-Agent": USER_AGENT})
+
+    return factory
 
 
 def permissive_resolver(hostname: str, port: int) -> "list[str]":
@@ -305,12 +312,12 @@ class WebSession:
     the wire and the reasoner injected. Mirrors `composition._build_broker_graph`
     minus the MCP host, which no check here exercises."""
 
-    def __init__(self, *, client: httpx.AsyncClient, provider: Any = None,
+    def __init__(self, *, client_factory: ClientFactory, provider: Any = None,
                  budget: Optional[Budget] = None, resolver=permissive_resolver,
                  read_file=None, sandbox: Any = None) -> None:
         self.domains = FetchedDomains()
-        self.fetcher = HardenedFetcher(client=client, resolver=resolver,
-                                       domains=self.domains)
+        self.fetcher = HardenedFetcher(client_factory=client_factory,
+                                       resolver=resolver, domains=self.domains)
         self.plugin = WebResearchPlugin(provider=provider)
         self.budget = budget or Budget(daily_limit_usd=10.0,
                                        budget_file=pathlib.Path(tempfile.gettempdir())
@@ -454,7 +461,7 @@ async def check_cost_chain(checks: Checks, budget: Budget) -> "dict[str, Any]":
 
     checks.record(names[0], True)
     before_spent, before_calls, before_total = _bucket(budget.budget_file, "web_research")
-    session = WebSession(client=mock_web_client(lambda r: httpx.Response(404)),
+    session = WebSession(client_factory=mock_web_clients(lambda r: httpx.Response(404)),
                          provider=provider, budget=budget)
     try:
         results = await session.turn(
@@ -508,7 +515,7 @@ async def check_ssrf(checks: Checks, online: bool) -> "dict[str, str]":
     NETWORK error instead, which `not ok` would have accepted. That is the
     difference between a check and a check that cannot fail."""
     evidence: "dict[str, str]" = {}
-    fetcher = HardenedFetcher(client=mock_web_client(_ssrf_handler),
+    fetcher = HardenedFetcher(client_factory=mock_web_clients(_ssrf_handler),
                               resolver=permissive_resolver)
     try:
         cases = {
@@ -658,7 +665,7 @@ async def check_wrap_confirm_sandbox(
         same call TWICE, which is where single-use is actually observable.)
     E — turn 5 runs code under the still-active taint and must not be gated."""
     sandbox = SandboxService(runner=SandboxRunner(stage_gate=stage_file_gate))
-    session = WebSession(client=mock_web_client(_pages_handler), sandbox=sandbox)
+    session = WebSession(client_factory=mock_web_clients(_pages_handler), sandbox=sandbox)
     evidence: "dict[str, Any]" = {}
     try:
         clean_before = session.router.session_taint.tainted
@@ -801,7 +808,7 @@ async def plant_privacy_canary(checks: Checks, nonces: "list[str]") -> "dict[str
     themselves run at the END of the script, over the WHOLE run's logs."""
     root = logging.getLogger()
     previous = root.level
-    session = WebSession(client=mock_web_client(_privacy_handler))
+    session = WebSession(client_factory=mock_web_clients(_privacy_handler))
     try:
         root.setLevel(logging.DEBUG)
         served = "\n".join(await session.turn(

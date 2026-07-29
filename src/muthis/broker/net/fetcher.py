@@ -16,10 +16,11 @@ re-exported here so importers are unaffected. Address validation is
 Defenses, each a DEC-17 clause: content-type allowlist (html/plain/json), honest
 MuthisBot agent, per-domain rate limit, RAM-only session LRU (never launders
 taint), robots respected → an Arabic vision-path note, PDF refused honestly;
-a SEPARATE long-lived httpx client, trust_env=False, zero cookies/auth (the
-Clicky lesson); NEVER raises (Law 11); content is NEVER logged. The whole
-operation runs under one TOTAL wall-clock budget (DEC-22) so a tainted slow
-redirect chain can never starve the turn.
+SEPARATE long-lived httpx clients — one per HOSTNAME, so a TLS connection is
+never reused across hosts (DEC-42, `client_pool.py`) — trust_env=False, zero
+cookies/auth (the Clicky lesson); NEVER raises (Law 11); content is NEVER
+logged. The whole operation runs under one TOTAL wall-clock budget (DEC-22) so a
+tainted slow redirect chain can never starve the turn.
 
 READABLE EXTRACTION (DEC-18, in extract.py): an HTML body is reduced to readable
 prose (markup stripped, NOT injection — the DEC-14 router wrapper is the injection
@@ -36,9 +37,8 @@ from dataclasses import dataclass, replace
 from typing import Optional
 from urllib.parse import urlsplit
 
-import httpx
-
 from .address_guard import Resolver, system_resolver
+from .client_pool import ClientFactory, ClientRegistry
 from .extract import (  # re-exported below so importers keep working
     EXTRACT_FAILED_AR,
     EXTRACT_TRUNCATED_AR,
@@ -95,13 +95,15 @@ class FetchResult:
 
 
 class HardenedFetcher:
-    """One per session, composed at the root; owns ONE long-lived httpx client
-    distinct from the API client. `fetch_readable` is the only public entry."""
+    """One per session, composed at the root; owns a bounded registry of
+    long-lived httpx clients — one per HOSTNAME (DEC-42) — all distinct from the
+    key-bearing API client. `fetch_readable` is the only public entry."""
 
     def __init__(
         self,
         *,
-        client: Optional[httpx.AsyncClient] = None,
+        client_factory: Optional[ClientFactory] = None,
+        clients: Optional[ClientRegistry] = None,
         resolver: Resolver = system_resolver,
         rate_limiter: Optional[RateLimiter] = None,
         cache: Optional["SessionCache[FetchResult]"] = None,
@@ -109,16 +111,15 @@ class HardenedFetcher:
         total_budget_s: float = TIMEOUT_S,
         domains: Optional[FetchedDomains] = None,
     ) -> None:
-        # ONE long-lived client, SEPARATE from the key-bearing API client. Zero
-        # creds: trust_env=False kills proxy / NETRC / host env; no cookies are
-        # ever set; follow_redirects=False so the transport re-validates each hop.
-        self._client = client or httpx.AsyncClient(
-            trust_env=False,
-            follow_redirects=False,
-            timeout=httpx.Timeout(TIMEOUT_S),
-            headers={"User-Agent": USER_AGENT},
-        )
-        self._transport = PinnedTransport(self._client, resolver)
+        # DEC-42: a client per HOSTNAME, all of them separate from the
+        # key-bearing API client, so a TLS connection can never be reused across
+        # hosts (see client_pool.py for the measured defect and the three
+        # rejected alternatives). The seam is a FACTORY, never a client: passing
+        # one shared client was the old shape, and it is exactly how this gap
+        # would return — a factory cannot express it without deliberate effort.
+        self._clients = clients if clients is not None else ClientRegistry(
+            factory=client_factory)
+        self._transport = PinnedTransport(self._clients.acquire, resolver)
         self._rate = rate_limiter or RateLimiter()
         self._cache: "SessionCache[FetchResult]" = cache or SessionCache()
         self._robots = RobotsCache(
@@ -135,9 +136,9 @@ class HardenedFetcher:
         self._domains = domains if domains is not None else FetchedDomains()
 
     async def aclose(self) -> None:
-        """Close the long-lived client (lifecycle owned by the composition
+        """Close every per-hostname client (lifecycle owned by the composition
         root, like every other seam)."""
-        await self._client.aclose()
+        await self._clients.aclose()
 
     async def fetch_readable(self, url: str) -> FetchResult:
         """The net.fetch entry: an SSRF-hardened GET returning readable content

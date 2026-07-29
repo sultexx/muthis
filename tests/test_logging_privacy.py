@@ -92,7 +92,7 @@ def _fetch_capturing_all_logs() -> tuple[object, list[str]]:
 
     async def go():
         fetcher = HardenedFetcher(
-            client=httpx.AsyncClient(
+            client_factory=lambda: httpx.AsyncClient(
                 transport=httpx.MockTransport(handler),
                 trust_env=False,
                 follow_redirects=False,

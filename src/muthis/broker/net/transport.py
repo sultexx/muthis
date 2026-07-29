@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Union
+from typing import Awaitable, Callable, Union
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -55,11 +55,21 @@ class _Raw:
     domain: str
 
 
-class PinnedTransport:
-    """The wire layer over an injected httpx client + resolver."""
+# DEC-42: the transport asks for a client BY HOSTNAME instead of holding one.
+# Declared here rather than imported from client_pool.py so the dependency runs
+# client_pool -> transport (for the wire constants) and never back: a transport
+# that imported the registry would be a cycle.
+ClientProvider = Callable[[str], Awaitable[httpx.AsyncClient]]
 
-    def __init__(self, client: httpx.AsyncClient, resolver: Resolver) -> None:
-        self._client = client
+
+class PinnedTransport:
+    """The wire layer over a per-HOSTNAME client provider + an injected
+    resolver. It holds NO client of its own (DEC-42): asking for one by hostname
+    is what makes a cross-host connection unrepresentable, and the transport is
+    the only layer that knows the VALIDATED hostname of the hop it is issuing."""
+
+    def __init__(self, client_for_host: ClientProvider, resolver: Resolver) -> None:
+        self._client_for_host = client_for_host
         self._resolver = resolver
 
     async def fetch_raw(self, url: str) -> Union[_Raw, str]:
@@ -99,15 +109,23 @@ class PinnedTransport:
 
     async def _issue(self, pinned: PinnedRequest) -> Union[httpx.Response, str]:
         """Issue exactly the pinned request (connect to the IP, Host + SNI carry
-        the hostname). Streamed so the body cap runs incrementally. httpx errors
-        become Arabic notes — never a raise."""
+        the hostname) over the client that serves THIS hostname and no other
+        (DEC-42). Streamed so the body cap runs incrementally. httpx errors
+        become Arabic notes — never a raise.
+
+        `pinned.hostname` is the key on purpose: it is the name `address_guard`
+        VALIDATED and the same name the Host header and the SNI extension carry,
+        so the connection's certificate and the client it lives in are keyed off
+        one fact. Reading the key off the raw URL instead would let the pool key
+        and the verified name drift apart, which is the whole defect."""
         headers = {"Host": pinned.host_header, "User-Agent": USER_AGENT}
         extensions = {"sni_hostname": pinned.sni_hostname} if pinned.sni_hostname else {}
         try:
-            req = self._client.build_request(
+            client = await self._client_for_host(pinned.hostname)
+            req = client.build_request(
                 "GET", pinned.pinned_url, headers=headers, extensions=extensions
             )
-            return await self._client.send(req, stream=True)
+            return await client.send(req, stream=True)
         except httpx.TimeoutException:
             logger.info("[fetch] %s timeout", pinned.hostname)
             return TIMEOUT_AR
@@ -136,7 +154,7 @@ class PinnedTransport:
 
 
 __all__ = [
-    "PinnedTransport", "_Raw",
+    "PinnedTransport", "ClientProvider", "_Raw",
     "USER_AGENT", "USER_AGENT_TOKEN", "MAX_BYTES", "TIMEOUT_S", "MAX_REDIRECTS",
     "TIMEOUT_AR", "NETWORK_ERROR_AR", "TOO_LARGE_AR", "TOO_MANY_REDIRECTS_AR",
 ]

@@ -2241,3 +2241,80 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   live SOP.
 
 ---
+
+## DEC-42 (2026-07-29) — a TLS connection may never be reused across hosts: ONE httpx client per HOSTNAME — APPROVED, EXECUTED (closes a certificate-verification gap in DEC-17; found while building DEC-25's T7 SNI negative)
+
+- **Item:** the DEC-17 fetcher owned ONE long-lived httpx client and connects to a **pinned IP**, so every request's
+  httpcore origin is `(scheme, <ip>, port)`. httpcore pools by ORIGIN and by nothing else —
+  `AsyncHTTPConnection.can_handle_request(origin)` compares `origin == self._origin` and never looks at the
+  request's `sni_hostname`. Two DIFFERENT hostnames resolving to ONE address — **ordinary on any CDN** — therefore
+  SHARED a pooled connection whose certificate had been verified for whichever host was fetched FIRST.
+- **How it surfaced:** building DEC-25's real-handshake SNI negative for T7. The probe reported a FALSE FAIL
+  (`wrong SNI was ACCEPTED`), and the cause was not the fetcher's SNI handling but connection reuse: two sends on
+  one client skip the handshake entirely. **Measured on `docs.python.org`:** a deliberately WRONG SNI answered
+  **200 in 109 ms** on a warm client; the identical request on a FRESH client is refused with
+  `CERTIFICATE_VERIFY_FAILED`; with no `sni_hostname` extension at all it fails on an IP mismatch (so the
+  extension IS honoured — DEC-25's property holds, and the T7 probe now uses a fresh client per attempt).
+- **What was never at risk:** the SSRF guarantee. Every hop is still resolved once, validated as an IP object and
+  pinned by `address_guard`. What did not survive reuse was the narrower guarantee that the certificate was
+  verified for the host actually being READ.
+- **RULING (Sultan, 2026-07-29): close it BEFORE the live run, option (c2) — one client per HOSTNAME.** T7 is the
+  milestone's acceptance gate, and accepting a milestone whose central security component has a known
+  certificate-verification gap would make the sign-off mean less than it should. Cheap now, expensive after a merge.
+- **THE DECIDING ARGUMENT, adopted as the reason of record:** the defect is that protection rested on connections
+  not being reused — a **circumstance**. Disabling keepalive would have replaced it with reliance on httpcore's
+  idle-connection policy: *the same argument one layer up*, reopened silently by an upgrade, a default shift or a
+  future tuning commit. **(c2) makes cross-host reuse UNREPRESENTABLE** — a connection lives inside a client, a
+  client serves one hostname — which is enforcement by construction, the standard every ruling in this milestone
+  upheld (DEC-14 wrapping, DEC-15 classification, DEC-20/36 the badge's source, DEC-34 who owns the cost). Keepalive
+  would have been the first protection resting on CONFIGURATION rather than STRUCTURE.
+- **THE OPTIONS, all MEASURED against the installed httpx 0.28.1 / httpcore 1.0.9 — not against documentation:**
+  - **(b) key the pool by hostname — UNAVAILABLE.** `can_handle_request` takes an origin and compares it whole;
+    neither library exposes a hook that could add the hostname to that key. Read in the installed source.
+  - **(a) one client per fetch — leaves the WORST case open.** A redirect from host A to host B inside a single
+    `fetch_readable`, both on one IP, still shares that operation's client — and under DEC-15 the redirect target
+    is chosen by **TAINTED** content, so the attacker-controlled path is exactly the one it fails to close.
+    Per-REQUEST scoping closes it at strictly worse cost than (c3) with no better guarantee.
+  - **(c3) disable keepalive — closes it, rejected on the argument above.** Measured: wrong SNI → `ConnectError`;
+    cost 1 → 3 TCP connects and 1452 → 1687 ms for a two-page same-host turn (+235 ms).
+  - **(c1) a HOSTNAME origin plus a pinning `network_backend` — the architecturally cleanest shape, REJECTED, and
+    the reason is recorded because a future contributor will see it as the OBVIOUS refactor and must find the
+    argument before starting.** It does work (probed live through a hand-built httpx transport over
+    `httpcore.AsyncConnectionPool(network_backend=...)`). But `connect_tcp` receives the HOSTNAME and no
+    per-request data, so the backend must either **RESOLVE AGAIN** — reopening the DNS-rebinding window
+    `validate_and_pin` exists to close — or receive the validated address through shared mutable state that is only
+    safe while nothing runs concurrently, which is a circumstance rather than a guarantee. Making it genuinely
+    correct means moving resolve-and-validate INTO the backend, where a failure can only raise and the never-raise
+    Arabic-note discipline (Law 11) needs a translation layer. **That trades a PROVEN guarantee (SSRF) against an
+    unproven redesign in order to fix a weaker one, mid-milestone, at an acceptance gate.** If revisited, it is a
+    milestone of its own, never a refactor.
+- **THE COST IS NEARLY NOTHING**, because the pooling that pays is INSIDE one host: robots.txt, the document and
+  every redirect hop of one fetch share a hostname, and a second fetch of the same host reuses its connection
+  exactly as before (**measured: two same-host fetches = 1 TCP connect, unchanged**). Only CROSS-HOST reuse is
+  lost, which is the point. A NEW host costs one handshake — **181.9 ms median, 1.82% of the DEC-22 10 s budget** —
+  which it already paid before.
+- **Implementation:** new `broker/net/client_pool.py` (`ClientRegistry`, bounded LRU on the `SessionCache` shape,
+  default 8 hosts) — an evicted client is **CLOSED, never dropped**, so an eviction cannot leak a socket.
+  `PinnedTransport` takes a `ClientProvider` (`Callable[[str], Awaitable[AsyncClient]]`) instead of a client and
+  keys on **`pinned.hostname`** — the name `address_guard` VALIDATED and the same name the Host header and the SNI
+  extension carry, so the pool key and the verified name cannot drift. `HardenedFetcher` owns the registry's
+  `aclose`. **`address_guard.py` is BYTE-IDENTICAL (git-verified): the SSRF property did not move by one line,
+  which is the whole reason (c1) was rejected.**
+- **THE SEAM IS NOW A FACTORY, not a client** (`client_factory=`), and that is load-bearing rather than cosmetic: a
+  caller cannot express "one shared client for every host" without deliberately writing a factory that returns the
+  same object. The old `client=` shape is exactly how this gap would come back, so it is gone — from tests too, so
+  no composition anywhere can verify a weaker property than production wires.
+- **Guards (DEC-12, 6 mutations ALL RED, `PYTHONDONTWRITEBYTECODE=1`):** registry bypassed / keyed by IP instead of
+  hostname / eviction not closing / SNI extension dropped / `validate_and_pin`'s IP check skipped (which also turns
+  the T7 script's B1-B6 RED) / `aclose` leaking. `tests/test_net_client_pool.py` proves the property the way DEC-25
+  was proved — two hostnames mapped to ONE IP through the REAL fetcher, asserting they never shared a client —
+  **each separation test paired with a same-host REUSE control**, without which a registry that returned a fresh
+  client every time would pass vacuously.
+- **A HOLE IN MY OWN TEST, found while writing it — the same shape as the milestone's earlier six:** the
+  eviction-closes-the-client assertion read `is_closed` AFTER the `finally: aclose()`, where it is True whatever
+  eviction did. **A state that teardown also produces must be sampled BEFORE teardown**, so the closed flag is now
+  captured inside the async block.
+- **Status:** DONE. 988 + 27 green (975 + 13 new). T7's checks are unchanged and unweakened; B8 keeps the live
+  handshake leg with a fresh client per attempt. **Nothing further is built before Sultan's live SOP.**
+
+---
