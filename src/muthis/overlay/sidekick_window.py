@@ -5,11 +5,11 @@ SidekickOverlay — the cyan-rectangle LOOK pointer as a real Win11 window.
 LOOK-ONLY: this window DRAWS A RECTANGLE (plus a short Arabic caption) and
 nothing else. It never moves the mouse, clicks, types, or reads input.
 
-Threading (AGENTS.md §11.5): Tkinter is single-threaded and thread-affine, so
-the window lives on its OWN daemon thread running the Tk mainloop. The async
-orchestrator never touches Tk directly — show()/hide() drop a command on a
-queue.Queue and return immediately, so the asyncio loop is never blocked. The
-Tk thread drains the queue from inside the mainloop via root.after().
+The threading law: Tkinter is single-threaded and thread-affine, so the window
+lives on its OWN daemon thread running the Tk mainloop. The async orchestrator
+never touches Tk directly — show()/hide() drop a command on a queue.Queue and
+return immediately, so the asyncio loop is never blocked. The Tk thread drains
+the queue from inside the mainloop via root.after().
 
 Coordinates are ALREADY PHYSICAL pixels (the orchestrator did the sent→physical
 scale). For those to land exactly on a 125%/150%-scaled display the PROCESS must

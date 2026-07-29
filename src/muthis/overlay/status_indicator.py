@@ -12,8 +12,8 @@ FOUR states drive the color: listening (cyan) / thinking (amber) / speaking
 (green) / idle (HIDDEN). `set_state(state)` just updates the visual; WHO calls it
 (the real turn phases) is batch 2-B — this module only paints.
 
-Threading (AGENTS.md §11.5): this is a pure VIEW on the Tk thread, exactly like
-the other widgets. It NEVER touches asyncio. `set_state` runs from inside
+The threading law: this is a pure VIEW on the Tk thread, exactly like the other
+widgets. It NEVER touches asyncio. `set_state` runs from inside
 `dispatch_command` (the Tk-thread queue drain), and the gentle pulse is a
 self-rescheduling `schedule` (root.after) loop — NEVER a blocking `sleep`/`while`.
 

@@ -24,8 +24,8 @@ at the ≤300-line law's ceiling (split, don't compress), and a multi-line Arabi
 prompt is a distinct concern. This file imports only stdlib `logging`, so it
 stays importable in isolation and test_persona.py needs no SDK.
 
-Language split (AGENTS.md §17.5): the persona TEXT is user-facing, so it is
-Arabic; every log, comment, and identifier here is English.
+The language-split law: the persona TEXT is user-facing, so it is Arabic; every
+log, comment, and identifier here is English.
 
 Fallback policy (caller-mandated): `resolve_system_prompt` returns the Saudi
 persona on the normal path. ONLY if the builder yields an empty string or
