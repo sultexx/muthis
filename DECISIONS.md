@@ -2746,9 +2746,360 @@ exactly three laws (§17.4 the ceiling, §17.5 the language split, §11.5 thread
 readable homes), and `tests/test_claude_agent.py:2` points at an ORPHAN. A follow-up ruling should authorize a
 comment-only pass; it will touch protected files, which is precisely why it is not bundled here.
 
-**Separately unresolved, and NOT a citation into this document:** `sdk/muthis_sdk/manifest.py:8, 113` and
-`conformance/checks.py:94` cite a bare "§3.7" meaning **V2_ROADMAP part 1** (Arabic is the reference language).
-They are correct as written but ambiguous against `AGENTS.md`'s former "Law §3.7". The two AGENTS.md instances
-of this collision were disambiguated in this pass; the SDK's three are source, so they wait for the same ruling.
+**Separately unresolved, and NOT a citation into this document** *(historical — RESOLVED by the phantom-section
+pass above)*: `sdk/muthis_sdk/manifest.py:8, 113` and `conformance/checks.py:94` cited a bare "§3.7" meaning
+**V2_ROADMAP part 1** (Arabic is the reference language). They were correct as written but ambiguous against
+`AGENTS.md`'s former "Law §3.7". The two AGENTS.md instances of this collision were disambiguated in this pass;
+the SDK's three were source, so they waited for the separate ruling — which they got, and all three now say
+"V2_ROADMAP part 1 §3.7" explicitly.
+
+---
+
+## DEC-44 (2026-07-29) — `doc_rag` Arabic normalization + the encoder path — APPROVED (Sultan + architect), NOT YET IMPLEMENTED
+
+- **Item:** How Arabic text is normalized for retrieval, and what produces the dense vectors. The roadmap
+  (V2_ROADMAP part 2 §4.2) says "int8 ONNX multilingual embeddings, CPU ONLY" and names a candidate class; it
+  does not say what normalization runs, where it lives, or how the model is chosen.
+
+### THE NORMALIZER IS SEPARATE, AND IT CALLS `normalize_ar` — IT NEVER MODIFIES IT
+
+- **Resolution:** `doc_rag` gets its **own document normalizer**, which **CALLS** `normalize_ar`
+  (`kernel/verbosity.py:116`) and **never touches it**. Not one line of `normalize_ar` moves.
+- **Why, and this is the load-bearing part: `normalize_ar` SITS ON THE AUTHORIZATION PATH.** It is the front half
+  of DEC-16's **deterministic approval detector** — the function that decides, on the raw STT transcript and
+  without the model's participation, whether the user actually approved a high-impact call. **Widening a security
+  primitive to serve a retrieval concern is the exact pattern this project rejected six separate times across
+  Milestone 2** (DEC-13's "enforce the contract, don't normalize around it"; DEC-21-E's allow-list over a
+  deny-list; DEC-28's silence over a redaction filter that would put security parsing inside the logging path;
+  DEC-42's byte-identical stronger property). A retrieval tweak that improves recall by a percent and quietly
+  changes what counts as "yes" is a catastrophic trade, and it would be invisible in a retrieval benchmark.
+- **A GUARD ASSERTS `normalize_ar` STAYS BYTE-IDENTICAL.** The discipline is only real if a test enforces it —
+  DEC-42's shape, where the stronger property is pinned while the weaker one is free to change.
+- **The document normalizer adds document-specific work** the speech path has no reason to want: **tatweel**
+  (ـــ) stripping and **punctuation unification**. These are correct for a PDF and meaningless for a spoken
+  transcript, which is a second, independent argument that the two normalizers are different functions.
+
+### NO STEMMING — THE HYBRID DESIGN ALREADY ASSIGNS MORPHOLOGY TO THE DENSE HALF
+
+- **Resolution:** **No stemming, no light stemming, no affix stripping** in the BM25 pipeline.
+- **Why:** Arabic morphology is exactly what the **dense** retriever is for. Stemming the lexical half would
+  **damage its unique strength — exact technical identifiers** (`asyncio.to_thread`, `MAX_EXTRACT_CHARS`, a
+  version string, an API name) — **in order to partially duplicate a job the dense side already does better**.
+  Exact-token matching is precisely why **DEC-18** valued lexical retrieval alongside semantic search in the
+  first place. A hybrid whose two halves have been made to overlap is not a hybrid; it is one retriever paying
+  for two.
+
+### TWO PIPELINES FROM ONE CHUNK
+
+- **Resolution:** each chunk produces **two texts**: the **normalized** text for BM25, and **near-raw** text for
+  the encoder.
+- **Why:** encoders are trained on natural text. **Aggressive normalization measurably degrades them** — the
+  diacritics, the letter forms and the punctuation the lexical side wants flattened are signal the model learned
+  from. The two retrievers want opposite things from the same characters, so they get their own copies.
+
+### THE ENCODER PATH: ONNX RUNTIME + AN INT8-QUANTIZED MULTILINGUAL MODEL
+
+- **Resolution:** **ONNX Runtime**, CPU execution provider, with an **int8-quantized multilingual encoder**.
+  This is what the roadmap's "int8 on CPU" means operationally, under the **zero-VRAM law** (`قانون صفر VRAM`,
+  V2_ROADMAP part 2 §4.2; `AGENTS.md:52` — the app uses ~0 GB VRAM and never competes with the user's game).
+- **CLOUD EMBEDDING APIS ARE REJECTED — this is not a cost decision.** Sending chunks to an embedding endpoint
+  means **the user's private documents leave the machine**. `doc_rag` is the feature most likely to be pointed at
+  a contract, a medical report or an unpublished manuscript. It contradicts the privacy-first law outright
+  (`CONTRIBUTING.md` law 6: no transcripts, audio or screenshots to disk; working memory lives in RAM and dies
+  with the session), and it would also make the most private feature the one that requires a network round-trip.
+- **`torch` / `sentence-transformers` REJECTED on dependency weight.** The comparison that settles it:
+  **trafilatura's `lxml` was acceptable** (DEC-21-E) because it is a compiled wheel of ordinary size that one
+  subsystem imports. **`torch` is orders of magnitude heavier**, drags a CUDA-shaped dependency tree onto a
+  machine that must not use VRAM, and **slows every boot** — including the boots that never open a document.
+  ONNX Runtime carries the inference we need and nothing else.
+
+### THE SPECIFIC MODEL IS A P0 MEASUREMENT GATE, NOT A CHOICE FROM MEMORY
+
+- **Resolution:** **the encoder is NOT named in this decision.** It is chosen by **measurement at P0**
+  (`diag_rag_bench.py`, which the roadmap itself already requires: «القرار النهائي بقياس حي»).
+- **Why this is a rule and not caution:** **Arabic quality in small multilingual encoders varies sharply and
+  unpredictably** — models with near-identical English benchmarks diverge badly on Arabic, and the published
+  multilingual averages hide it. The roadmap names a candidate CLASS (`multilingual-e5-small` int8, with a
+  `bge-m3`-class flag for users who accept a longer index build); **this decision deliberately does not promote
+  that candidate to a choice.** Naming a model from memory and writing it into the design would be **the same
+  fabrication risk DEC-43 just forbade for law text** — an authoritative-looking specific that no one measured.
+  The failure mode is identical: it looks like a decision, so nobody re-checks it.
+- **The model is pinned by FINGERPRINT with a SPOKEN first-download — the DEC-3-D pattern**, which pinned the
+  sandbox image by sha256 with a spoken first-pull. Same reasoning: a silently-swapped artifact is a supply-chain
+  hole, and a multi-second first-run download with no voice is a hang as far as the user can tell.
+
+### DEGRADATION IS EXPLICIT, NEVER SILENT
+
+- **Resolution:** **BM25 works standalone.** A missing, corrupt or unloadable encoder degrades the system to
+  **lexical-only retrieval** with an **explicit ENGLISH log** (the language-split law — this is a pipeline log,
+  not a user surface).
+- **Why:** the alternative is a system that returns worse answers with no outward difference, which is the
+  failure class this ledger keeps ruling against (DEC-35's misreported reason; DEC-47's confident answer from a
+  partial index). Retrieval quality falling by half is exactly the kind of degradation a user cannot detect from
+  the outside, so it must announce itself.
+
+- **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The P0 measurement
+  gate runs first and is a PREREQUISITE, not a step inside implementation.
+
+---
+
+## DEC-45 (2026-07-29) — `doc_rag` chunking: structural boundaries, small-to-big, sized in TOKENS — APPROVED (Sultan + architect), NOT YET IMPLEMENTED
+
+- **Item:** Where a document is cut, what unit the cut is measured in, and what each chunk carries.
+
+### STRUCTURAL BOUNDARIES, WITH A FIXED WINDOW AS FALLBACK
+
+- **Resolution:** cut on **structure — heading → paragraph → fill to the cap**. A **fixed window** is the
+  **FALLBACK** for raw text that has no structure to follow (plain TXT, a PDF whose parser yields no blocks).
+- **Why:** a document's own boundaries are free, already correct, and produced by the author. A window is a
+  guess. Using the window only where structure is absent means the guess never overrides a known answer.
+
+### SMALL-TO-BIG: MATCH ON THE PRECISE CHUNK, RETURN THE PARENT BLOCK
+
+- **Resolution:** retrieval **matches** on the precise chunk and **returns** the parent block.
+- **Why:** the two operations want opposite sizes, and small-to-big is the only shape that gives each what it
+  wants. **A precise chunk matches well and cannot be reasoned from** — it scores highly because it is dense with
+  the query's terms, and then it hands Claude a fragment with its context amputated. A large block reasons well
+  and matches poorly, because its signal is diluted across everything else in it. Matching small and returning
+  big pays the retrieval cost at the size retrieval likes and the reading cost at the size reading likes.
+
+### SEMANTIC CHUNKING REJECTED
+
+- **Rejected:** semantic (embedding-boundary) chunking.
+- **Why:** it **encodes the document twice** — once to find the boundaries, once to index the resulting chunks —
+  which **doubles the single most expensive CPU operation in the whole pipeline under the zero-VRAM law**. The
+  roadmap's own worst case is a 400-page book at one to three minutes of indexing; doubling that is the
+  difference between a spoken "give me two minutes" and an unusable feature. It buys boundary quality on
+  documents that, by this decision, already have structural boundaries available for free.
+
+### CODE BLOCKS AND TABLES ARE ATOMIC
+
+- **Resolution:** a code block or a table is **never split**. One that exceeds the window is handled
+  **EXPLICITLY, with a truncation note** — never silently cut.
+- **Why:** splitting one **destroys both retrievers at once**, which no other content type does. Half a table
+  loses the header row that gives every cell its meaning, so the dense vector encodes rows of unlabelled
+  numbers; half a code block loses the identifiers and the structure that were the exact-match signal BM25
+  exists to catch. The hybrid has no half that survives it. The explicit truncation note is the same honesty rule
+  as DEC-47's refusals: the system says what it did rather than presenting a fragment as the whole.
+
+### SIZE IS MEASURED IN TOKENS, USING THE MODEL'S OWN TOKENIZER — NEVER IN CHARACTERS
+
+- **Resolution:** every chunk and overlap size is measured in **tokens, by the encoder's own tokenizer**. A
+  **STRICT guard FAILS the operation** if any chunk exceeds the window after tokenization.
+- **Why — this is the trap this decision exists to close.** **Multilingual tokenizers emit MORE tokens per
+  Arabic character than per English character**, often by a large factor, because Arabic script is less densely
+  represented in their vocabularies. So a chunk sized in CHARACTERS **fits comfortably in English and silently
+  overflows in Arabic**. The overflow is not an error: the encoder truncates at its max sequence length, the
+  chunk's tail is simply **never indexed**, and **nothing complains**. The document appears fully ingested. The
+  answer that needed the tail comes back wrong, with no signal anywhere in the system that a tail existed. **This
+  is a defect that fires ONLY in the reference language** — the language this product exists to serve — and it is
+  invisible to any English-language test.
+- **The Arabic token-per-character ratio is MEASURED at P0**, not assumed, for the same reason DEC-44 refuses to
+  name a model from memory: the number depends on the tokenizer that P0 selects.
+- **The guard FAILS the operation rather than warning.** A warning on a path that produces a silently incomplete
+  index is a warning nobody reads before trusting the answer.
+- **Overlap follows the same token budget and lands on SENTENCE boundaries** — an overlap cut mid-sentence
+  reproduces, at small scale, the amputation small-to-big exists to prevent.
+
+### EVERY CHUNK CARRIES ITS LOCATION — INERT NOW, LOAD-BEARING IN PHASE 3
+
+- **Resolution:** each chunk carries its **location: page + paragraph position**. It is **INERT at launch** —
+  nothing reads it until the **Phase-3 visual citation** (V2_ROADMAP part 2 §4.3, «الاستشهاد المرئي»).
+- **Why capture it now rather than later:** **the parser yields it FREE at ingestion, and it is unrecoverable
+  afterwards without a full re-index.** This is the asymmetry that settles it — capturing it costs a field, and
+  not capturing it costs the entire ingestion budget again, on a feature that is the roadmap's stated
+  differentiator. It is also the one piece of state that must be captured while the document is still open.
+- **A total cap bounds the retrieved text per call** — the **`MAX_EXTRACT_CHARS` precedent**
+  (`broker/net/extract.py:32`), where the web fetcher caps readable text so a single result can never flood the
+  turn.
+
+- **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The Arabic
+  token-per-character ratio and the resulting window are P0 outputs.
+
+---
+
+## DEC-46 (2026-07-29) — `doc_rag` fusion and reranking: RRF, an entry floor, no reranker at launch — APPROVED (Sultan + architect), NOT YET IMPLEMENTED
+
+- **Item:** How the lexical and dense result lists are combined, whether a reranker sits after them, and how the
+  combined result meets DEC-4's wrapping rule.
+
+### RRF — RECIPROCAL RANK FUSION
+
+- **Resolution:** fuse with **RRF**, which uses **RANKS ONLY**.
+- **Why — it is immune BY CONSTRUCTION to the problem, not tuned around it.** **BM25 scores are unbounded and
+  corpus-dependent; cosine similarity is bounded.** Any fusion that reads the scores must first make them
+  comparable, and there is no principled way to do that across two different corpora, let alone across a mixed
+  one. RRF never reads a score, so the incompatibility cannot reach it.
+- **And it needs ONE constant instead of a weight we could not calibrate.** A weighted fusion needs α — and
+  **we have no ground truth to calibrate α against**. Worse, the right α is **not stable across content types**:
+  Arabic-on-Arabic prose and Arabic-on-mixed-technical text (an Arabic manual full of English identifiers) want
+  visibly different balances, so a single tuned α is wrong for one of them by construction. RRF's k is a
+  smoothing constant, not a claim about the corpus.
+- **REJECTED — weighted score fusion:** a **tuning knob masquerading as calibration**. It looks like a parameter
+  we set deliberately; it is a number we would have guessed, wearing the costume of a measurement.
+- **REJECTED — cascade (BM25 filters, dense reranks the survivors):** it **makes the lexical recall ceiling the
+  whole system's ceiling**. Anything BM25's first stage misses is gone before the dense retriever ever sees it —
+  and **what BM25 misses is precisely what the dense half was added to catch** (a paraphrase, a morphological
+  variant, a synonym). The cascade would hide its own worst failures, and the benchmark would look fine because
+  the recall it lost was never in the candidate set to be measured.
+
+### AN EXPLICIT ENTRY FLOOR FOR THE DENSE RETRIEVER
+
+- **Resolution:** the dense retriever has an **explicit entry floor**: a result below it does not enter fusion.
+- **Why:** **cosine similarity always returns something.** Ask an unrelated question and the nearest vector is
+  still returned, at whatever similarity it happens to have — and under rank-only fusion **an unrelated nearest
+  vector enters at FULL rank weight**, indistinguishable from a genuine top hit. That is the one place RRF's
+  score-blindness costs something, so the floor is applied before fusion rather than inside it.
+- **BM25 is immune for free** and needs no floor: zero matching terms is zero score, so the lexical half simply
+  returns nothing when it has nothing. **The asymmetry is a property of the two retrievers, not an oversight**,
+  and the floor exists to give the dense half the same honest empty answer.
+
+### NO RERANKER AT LAUNCH
+
+- **Resolution:** **no cross-encoder reranker at launch.** Recorded as the **FIRST upgrade** if T7 shows weak
+  retrieval quality.
+- **Why — and the primary reason is NOT cost:** **Claude itself is the better reranker, and it already
+  re-evaluates what it is handed.** A small cross-encoder would spend seconds of a voice turn's silence
+  pre-sorting passages for a model that will sort them better anyway, on its own, as part of answering. **When
+  latency is the scarce resource, paying it to pre-empt work the next stage does for free is the wrong trade** —
+  this is the DEC-22 reasoning (where the fix was a total wall-clock budget, because turn latency is the resource
+  under real pressure), applied one layer up. The token cost the reranker would save is already bounded by
+  DEC-45's cap, so it is not saving that either.
+- **Recorded as an upgrade path rather than dismissed:** if T7's live retrieval quality is weak, the reranker is
+  the first thing to add, and this entry is where that starts.
+
+### DEDUPLICATE BY PARENT, DELIVER IN RELEVANCE ORDER
+
+- **Resolution:** **deduplicate BY PARENT before filling the cap**, and deliver results in **relevance order**.
+- **Why dedupe by parent:** small-to-big (DEC-45) means several high-ranked **children of one parent** are
+  common — a well-matching section produces many well-matching chunks. Without parent-level dedupe, **one
+  document (or one section) consumes the entire context budget**, and the second-best source never appears. The
+  dedupe is what keeps the cap a budget across sources instead of a first-come queue.
+- **Why relevance order:** **the cap may truncate**, so whatever is dropped must be the least relevant thing,
+  not the last thing to arrive. Ordering by document position would make truncation arbitrary.
+
+### THE DEC-4 INTERSECTION: ONE WRAPPER, ONE NONCE, FOR THE WHOLE RESULT
+
+- **Resolution:** the retrieved set is wrapped **ONCE, with ONE nonce, for the whole result** — because **it is
+  ONE tool result**. This is the **`web_research` shape** (DEC-14's single wrap at the router).
+- **Refines DEC-4**, which said "§3.2 delimiters wrap every retrieved passage". The unit of wrapping is the
+  **tool result**, not the passage: a per-passage wrap would multiply nonces inside one result, teaching the
+  model that the delimiters are ordinary formatting that appears repeatedly — which is exactly the erosion the
+  nonce exists to prevent.
+- **Inter-chunk source and location separators are CITATION METADATA, not security boundaries.** The distinction
+  is the whole point: they exist so Claude can attribute a claim to a page, and they carry no security meaning,
+  so nothing downstream may treat them as a trust boundary.
+- **The plugin AGGREGATES and ORDERS, and WRAPS NOTHING** — DEC-4's kernel-side absolute, unchanged: security a
+  plugin author can weaken is not security. **T4's AST guard runs against the new `doc_rag` package** so this is
+  enforced mechanically rather than by review.
+
+- **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED).
+
+---
+
+## DEC-47 (2026-07-29) — `doc_rag` ingestion: three size zones, no partial ingestion, refusal estimated up front — APPROVED (Sultan + architect), NOT YET IMPLEMENTED
+
+- **Item:** What happens when a document is opened — which of the three paths it takes, what is refused, when the
+  refusal is decided, and what the refusal says.
+
+### THREE SIZE ZONES
+
+- **Resolution:**
+  1. **At or below the injection threshold → FULL INJECTION + prompt-cache.** **Chunking, encoding and indexing
+     are ALL bypassed** — none of the machinery in DEC-44/45/46 runs at all.
+  2. **Between the threshold and the maximum → index and retrieve** (the hybrid path).
+  3. **Above the maximum → a CLEAN REFUSAL.**
+- **Why the ordering matters for the BUILD, not just the runtime:** zone 1 is **the most common path, and it is
+  simultaneously the cheapest and the most accurate** — no retrieval step can beat handing the model the whole
+  document. **Build and test zone 1 FIRST**, the **`stub_read_file` ordering** (`broker/search/protocol.py:130`):
+  the simplest working path lands first and the elaborate machinery arrives behind it, so the feature is useful
+  before the index exists and the index has a working baseline to be measured against.
+- **The threshold is `MUTHIS_DOC_INJECT_LIMIT = 50000` IN TOKENS, not characters** — DEC-4's value, with the
+  unit **made explicit for the same reason as DEC-45**. Corroborating rather than contradicting: V2_ROADMAP part
+  2 §4.1 already says «مستند ≤ ~50k توكن», tokens. DEC-4 recorded the number without its unit, and a unitless
+  50000 read as characters would put the boundary in a completely different place — several times too low, and
+  wrong by a different factor in Arabic than in English.
+
+### PARTIAL INGESTION IS REJECTED — SULTAN'S RULING
+
+- **Resolution:** **no partial ingestion.** A document above the maximum is refused, never indexed in part.
+- **Provenance, recorded because it matters:** **the architect initially recommended the opposite and WITHDREW
+  it** on this argument.
+- **Why — THE DISCLOSURE AND THE HARM ARE SEPARATED IN TIME.** The "I indexed the first N pages" notice fires
+  **ONCE, at ingestion**. The wrong answer arrives **LATER**, in some subsequent turn, with nothing connecting
+  the two. And **the model does not know what it does not know**: it sees a complete-looking index, finds nothing
+  about the un-indexed chapter, and **answers confidently from the part it has**. The user cannot detect it —
+  there is no observable difference between "the document does not say that" and "the half you indexed does not
+  say that."
+- **This is structurally the same failure DEC-2 fixed**, where per-turn taint let a risk disclosed in one turn
+  cause harm in a later one, and the fix was to make taint **session-sticky** rather than per-turn. Same shape
+  here: a one-time disclosure cannot cover an open-ended future of answers.
+- **And it is worse in a TEACHING product, where trust is the deliverable.** A tool that is confidently wrong
+  about a textbook does not merely fail a query; it teaches the wrong thing and is believed.
+
+### A BACKGROUND INGESTION TASK IS ALSO REJECTED
+
+- **Rejected:** ingesting in the background so the user can keep talking.
+- **Why:** it is **a lifecycle outside the kernel, which Law 11 forbids outright** (`CONTRIBUTING.md` law 4: no
+  loops, no locks, no retries, no conversation memory outside the kernel). This is not a trade-off being
+  weighed — it is a law, and the feature is redesigned around it rather than the law being bent for the feature.
+
+### THE REFUSAL IS ESTIMATED UP FRONT — NEVER AFTER SPENDING THE BUDGET
+
+- **Resolution:** size is **estimated in tokens BEFORE any encoding runs**, and compared against a maximum
+  derived as **ingestion budget ÷ measured per-chunk encode time** — a **P0-derived number**, not a guess.
+- **Why:** so **refusal costs seconds rather than ninety**. **Ingesting and THEN refusing would be worse than
+  either option on its own**: the user waits out the entire indexing budget in silence and receives a refusal at
+  the end of it, having paid the full cost for nothing. The order of operations IS the feature here.
+
+### THE REFUSAL OFFERS A PATH — THE ROBOTS-REFUSAL PATTERN
+
+- **Resolution:** the refusal names **what the user can do instead**: ask about a **specific section**, **split
+  the file**, or — the strongest — **open it on screen and point**, which runs the **LOOK-only vision path**.
+- **Why:** this is the **robots-refusal pattern**, where a block becomes a showcase. The third option is not a
+  consolation: it routes the user into the capability that actually distinguishes Mut'his from every
+  document-chat tool, so the largest document — the one the index cannot take — is answered by the feature
+  nothing else has.
+
+### PDF REFUSAL PRECISION — THIS CLOSES DEC-35
+
+- **Resolution:** a **TYPE-ACCURATE Arabic note that NAMES the format**, distinguishing:
+  - a **SCANNED PDF** (no text layer) — an **honest TERMINAL refusal**; OCR is out of launch scope; from
+  - an **UNSUPPORTED format** (DOCX / EPUB).
+- **DEC-35's lesson, stated as the rule it produced: a refusal that misreports its reason turns a TERMINAL
+  condition into a RETRYABLE one.** The observed behaviour was not a model error — **the model rationally
+  retried four different paths** against a "not found" note, because "not found" is a retryable condition and a
+  competent agent retries it. It was told the wrong thing and behaved correctly on the wrong thing.
+- **This is a MESSAGE change in `file_reader.py` — NOT a gate change.** **The binary sniff and the secret-name
+  guard do not move one line.** This is **the DEC-42 discipline**: the stronger property stays byte-identical
+  while the weaker one is fixed. A message defect is repaired inside the message layer; the security guard it
+  sits next to is not "improved" while the file is open.
+
+### THE PDF PARSER IS DEFERRED TO P0, WITH A BINDING ACCEPTANCE CONDITION
+
+- **Resolution:** the library is **not chosen here**. It is selected at **P0** against conditions that bind:
+  1. it **yields page and paragraph position** (DEC-45's location field is unrecoverable later);
+  2. it stays **light** (the DEC-44 dependency-weight argument);
+  3. it **WORKS ON A REAL ARABIC PDF.**
+- **Why condition 3 is the one that decides it:** **Arabic PDF extraction has known, common failure modes** —
+  **reversed character order** and **disjoined letters** where the shaped presentation forms are extracted
+  without being reassembled. Both produce output that is *syntactically* text and *semantically* garbage, so
+  they pass a "did we get a string back" check and poison the index invisibly. **A library that works in English
+  and fails in Arabic is worthless here**, and English-only testing cannot tell the difference. The roadmap names
+  PyMuPDF as its candidate (part 2 §4.2); this decision does not promote that name to a choice for the same
+  reason DEC-44 does not name an encoder.
+- **It runs via `asyncio.to_thread`, inside the ingestion budget** — the threading law: blocking parse work never
+  freezes the single event loop (`vision/downscale.py` and `broker/net/extract.py` are the existing precedents).
+
+### LAUNCH SCOPE
+
+- **IN:** text PDF, Markdown, TXT.
+- **OUT, with honest refusals:** scanned PDFs (OCR), DOCX, EPUB.
+- **The index is SESSION-SCOPED and dies with the session** — privacy-first (`CONTRIBUTING.md` law 6); persistent
+  indexes behind explicit consent are post-launch, as the roadmap already states.
+
+- **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The ingestion
+  maximum, the per-chunk encode time it is derived from, and the PDF library are ALL **P0 outputs** — the
+  measurement gate runs before implementation opens.
 
 ---
