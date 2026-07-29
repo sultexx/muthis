@@ -2840,6 +2840,13 @@ the SDK's three were source, so they waited for the separate ruling — which th
 
 - **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The P0 measurement
   gate runs first and is a PREREQUISITE, not a step inside implementation.
+- **→ RESOLVED + PARTLY SUPERSEDED (2026-07-29).** The P0 gate ran (DEC-48). **DEC-49 ruling 2** chose
+  `multilingual-e5-small` int8 and made its input format BINDING (`passage: ` / `query: `, MEAN pooling, L2);
+  `bge-m3` is disqualified on three stated conditions. **DEC-50 then retired the lexical half**, so from this
+  entry: the TWO-PIPELINE design collapses to ONE (near-raw to the encoder), **the document normalizer is NOT
+  to be built** (its consumer is gone — stub-first), and the NO-STEMMING ruling is **MOOT** (it protected BM25;
+  it becomes live again if a lexical index ever returns). **The `normalize_ar` byte-identity guard SURVIVES
+  UNCHANGED** — it protects DEC-16's authorization detector, which has nothing to do with retrieval.
 
 ---
 
@@ -2915,6 +2922,14 @@ the SDK's three were source, so they waited for the separate ruling — which th
 
 - **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The Arabic
   token-per-character ratio and the resulting window are P0 outputs.
+- **→ RATIONALE CORRECTED by DEC-49 ruling 5 (2026-07-29); the RULE is UNCHANGED.** The measured Arabic-to-
+  English token ratio is **×1.11** (0.269–0.326 vs 0.295), so the "Arabic overflows dramatically" justification
+  above is **OVERSTATED**. The rule stands on its own ground — overflowing the encoder window is forbidden
+  regardless of ratio, and tokens remain the only correct unit. **INVERTED FINDING:** the MIXED technical
+  document tokenizes WORSE (0.358) than the pure-Arabic one (0.317), so **the expensive case is mixed content,
+  not Arabic**. The measured window clash also stands: e5-small's 512-token limit means the roadmap's 400–700
+  range OVERFLOWS at the top. **DEC-50** keeps this entry otherwise intact — chunking, small-to-big, atomic
+  code/tables and the carried position are all UNAFFECTED by the lexical retirement.
 
 ---
 
@@ -2994,6 +3009,16 @@ the SDK's three were source, so they waited for the separate ruling — which th
   enforced mechanically rather than by review.
 
 - **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED).
+- **→ RETIRED IN FULL by DEC-50 (2026-07-29). DO NOT BUILD ANY OF THE FUSION MACHINERY ABOVE.** Measurement
+  showed BM25's unique contribution over dense is **ZERO** (0/17 at @5 and at the effective k; the union scores
+  exactly dense alone), and dense beats BM25 even on the IDENTIFIER axis (86 % vs 71 %) — so `doc_rag` is
+  **DENSE-ONLY** and there is no second list to fuse. RRF, the weighted-fusion rejection and the cascade
+  rejection all lose their subject. **The dense ENTRY FLOOR was already retired earlier, by DEC-49 ruling 3**,
+  for the separate reason that it proved underivable (the distributions overlap).
+  **TWO CLAUSES SURVIVE and are still binding:** (a) **parent dedupe + relevance order + the total cap**, which
+  are properties of small-to-big and the delivery cap, NOT of fusion; (b) **ONE wrapper with ONE nonce for the
+  whole result**, with inter-chunk separators as citation metadata and the plugin wrapping NOTHING — a security
+  rule that was never about fusion. **The no-reranker-at-launch ruling also stands.**
 
 ---
 
@@ -3101,6 +3126,14 @@ the SDK's three were source, so they waited for the separate ruling — which th
 - **Implementation timing:** lands with the `doc_rag` milestone (Phase 2 M3, NOT YET OPENED). The ingestion
   maximum, the per-chunk encode time it is derived from, and the PDF library are ALL **P0 outputs** — the
   measurement gate runs before implementation opens.
+- **→ RESOLVED by the P0 gate (2026-07-29).** **The PDF library is `pypdf`** (DEC-49 ruling 1): the roadmap's
+  PyMuPDF FAILED this entry's own binding Arabic condition on BOTH corpus PDFs under all six extraction modes,
+  and an Arabic reshaping repair layer was REJECTED. Recorded cost: `pypdf` yields position only through its
+  visitor API and must be ASSEMBLED. **The zone relation is now an INVARIANT with a startup guard** (DEC-49
+  ruling 4): `budget ÷ per-chunk-time × tokens-per-chunk` **MUST EXCEED** `MUTHIS_DOC_INJECT_LIMIT`, or zone 2
+  is empty and this entry's three-zone design is incoherent. **The PDF-refusal precision clause (closing
+  DEC-35) is UNAFFECTED** by DEC-49/50 and remains a MESSAGE change in `file_reader.py` with the binary sniff
+  and secret-name guard byte-identical.
 
 ---
 
@@ -3330,5 +3363,120 @@ effective recall is higher than reported: dense 82 %, not 76 %.**
 but it is 17 questions on three documents, BM25's 71 % on identifiers is not zero, and
 DEC-18's argument was about a capability rather than an average. Retiring a retriever on
 this sample is a bigger step than the sample supports, and this entry does not take it.
+
+---
+
+## DEC-50 (2026-07-29) — the lexical half is RETIRED for launch: `doc_rag` is DENSE-ONLY — APPROVED (Sultan)
+
+- **Status:** **RULED.** Closes the fusion question DEC-49 deferred. **BM25 and RRF are both
+  retired for launch.** Retrieval is dense-only.
+- **Evidence:** the DEC-49 delta run — `docs/reports/phase2_m3_p0_rag_bench.md` (addendum).
+
+### THE MEASUREMENT IS NOT MARGINAL, IT IS ZERO
+
+- **BM25's unique contribution over dense: 0 of 17 at @5, 0 of 17 at the effective k, and
+  0 identifier-bearing questions where BM25 wins alone.** The recall-supplement union
+  (dense ranks, BM25 appends only its exact matches that dense missed) scores **82 %** —
+  **exactly dense alone**.
+- **Dense beats BM25 on the IDENTIFIER axis, 86 % vs 71 %** — the axis DEC-18 believed BM25
+  owned outright.
+- **The earlier per-document 100 % was misread, and this entry records the correction.** It
+  was evidence that the Markdown document is EASY, not that BM25 owns identifiers:
+  **dense scores 100 % on that document too.** The per-document split conflated *technical
+  document* with *identifier-bearing question*; the mechanical identifier axis separated
+  them and reversed the conclusion.
+
+### THE DECIDING ARGUMENT IS REVERSIBILITY — DEC-45'S LOGIC, INVERTED
+
+**DEC-45 pays UP FRONT for position data because it is UNRECOVERABLE later without a full
+re-index.** BM25 is the exact opposite case: **its index is built from CHUNK TEXT, and the
+chunks are retained** — so re-adding it later requires **NO re-encoding**. The expensive
+artifact is the embedding; a lexical index is cheap to build on top of what we already keep.
+
+- **THE PRINCIPLE, recorded as reusable:** **pay up front only for what cannot be recovered;
+  defer what can be recovered cheaply.** The same reasoning that made DEC-45 capture
+  position at ingestion makes retiring BM25 safe here — one artifact is unrecoverable, the
+  other is rebuildable from data we keep.
+- **Retiring here is DISCIPLINE, not risk.** Shipping a second retriever that measurably
+  contributes nothing costs code, latency, a normalizer, a second pipeline and a fusion
+  layer — all of which must be correct, tested and maintained — to buy a contribution
+  measured at zero.
+
+### WHAT RETIRES WITH IT — each recorded explicitly, so nothing is built for a consumer that no longer exists
+
+1. **DEC-46 IN FULL — RETIRED.** No fusion is needed when there is one retriever. (Its dense
+   entry floor was already retired by DEC-49 ruling 3, for a different reason.) RRF, the
+   weighted-fusion rejection, the cascade rejection and the parent-dedupe-before-fusion
+   ordering all lose their subject. **Parent dedupe and relevance ordering survive as
+   DELIVERY rules** — they are properties of small-to-big and the cap, not of fusion.
+2. **DEC-44's TWO-PIPELINE design COLLAPSES TO ONE: near-raw text to the encoder.** The
+   normalized pipeline existed for BM25 and has no other consumer.
+3. **DEC-44's DOCUMENT NORMALIZER — DO NOT BUILD IT** (stub-first). Its consumer is gone.
+   Building it now would be a component with no caller, which is exactly what stub-first
+   exists to prevent.
+4. **DEC-44's NO-STEMMING ruling is MOOT.** It protected BM25's identifier precision; with
+   BM25 retired there is nothing for it to protect. **Recorded as moot rather than deleted**
+   — its reasoning was CONFIRMED by measurement and becomes live again the moment a lexical
+   index returns.
+5. **KEEP the `normalize_ar` BYTE-IDENTITY GUARD.** It protects **DEC-16's authorization
+   detector**, which is a security boundary INDEPENDENT of retrieval. It costs nothing and
+   **must survive any future retrieval work** — including work that reintroduces BM25. This
+   is the one piece of DEC-44 that does not depend on the lexical half existing.
+
+### HONEST LIMIT — the case this corpus does NOT contain
+
+**The corpus contains no pathological case of the kind BM25 exists for: a query for a RARE
+LITERAL TOKEN carrying no semantic context** — an error code, a config key, a serial
+number. Seven identifier-bearing questions do not prove such a case is absent from real
+use; they prove it is absent from this sample. A dense encoder has no reason to place
+`ERR_0x8007` near anything, because the string carries no meaning to embed.
+
+- **THE REMEDY IS PRE-DESIGNED AND DELIBERATELY NOT BUILT (stub-first).** **Chunks are
+  already retained in RAM**, so a plain **verbatim scan over retained chunk text** covers
+  this case completely — **no normalizer, no second pipeline, no fusion, no index**. It is
+  strictly smaller than reinstating BM25.
+- **Recorded as THE NAMED FIX so that if the gap appears, no new design session is needed.**
+  This is the whole point of writing it down now: the reversibility argument above is only
+  honest if the path back is already described.
+
+### A SECOND FINDING THAT CHANGES A DECISION'S STATUS — the persona law is LOAD-BEARING
+
+**Effective recall is 82 %, so roughly ONE IN FIVE questions will not have its answer
+retrieved at all.** The only thing standing between that and a confident WRONG answer is
+the persona law from **DEC-49 ruling 3** — Mut'his says plainly **«ما لقيت هذا في المستند»**
+rather than inferring from what it did retrieve.
+
+- **STATUS UPGRADED: that law is LOAD-BEARING, not a nicety.** It is the single guard
+  against this milestone's most likely failure mode, and its failure is silent by
+  construction — a confident answer assembled from the wrong passage looks exactly like a
+  correct one.
+- **T7 MUST TEST IT DIRECTLY:** ask a question whose answer is **NOT** in the document and
+  assert Mut'his says so plainly instead of inferring from what it retrieved. Not observed
+  in passing — driven, as an acceptance check.
+- **This is DEC-49 ruling 3's other half arriving.** That ruling retired a deterministic
+  floor and replaced it with layered pressure plus a Phase-3 backstop; the 82 % figure is
+  the measurement that says how much weight the layered half is actually carrying until
+  Phase 3 lands.
+
+### THE STANDING RULE THIS GATE PRODUCED — now in `AGENTS.md`
+
+**A filter or threshold INSIDE a check can silently exclude the check's own SUBJECT.** Any
+check with a cutoff must report WHICH cutoff it used and HOW MANY cases it admitted; **a
+check that examined nothing must never look like a check that passed**, and a zero admitted
+count is a failure rather than a pass. Measured **twice in this one gate** — a too-narrow
+Arabic probe set passed a PDF the human eye failed on sight, and a fixed 150-character
+block floor printed nothing for a glossary whose blocks average 52 characters. **Third face
+of a known family:** *a test that builds its own graph proves nothing about production*
+(DEC-40) and *state a teardown also produces must be sampled BEFORE teardown* (M2). All
+three are one defect — **the check and the thing checked were never connected, and the
+green result does not say so.**
+
+### WHAT IS NOW SETTLED FOR THE MILESTONE-3 PLAN
+
+`pypdf` → structural chunking with position → **one** near-raw pipeline → `e5-small` int8
+(`passage: ` / `query: `, mean pooling, L2) → **dense-only ranking** → parent dedupe,
+relevance order, total cap → ONE wrapper with ONE nonce (DEC-46's wrapping clause survives;
+it was never about fusion). Zones per DEC-47 with the DEC-49 ruling 4 startup invariant.
+**Nothing above is built. Nothing here opens implementation.**
 
 ---

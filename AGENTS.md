@@ -430,6 +430,18 @@ in DECISIONS.md (DEC-43).
   the mutation looks survived, i.e. a guard appears to hold while never having been exercised at all — the one
   failure mode that would quietly discredit every guard in the milestone. Measured live on 2026-07-25 (the T5
   classification run). Clear `__pycache__` if a result ever looks impossible, and re-run.
+- **A CHECK WITH A CUTOFF MUST REPORT ITS CUTOFF AND ITS ADMITTED COUNT** (standing rule, 2026-07-29, from the
+  `doc_rag` P0 gate — DEC-50). A filter or threshold INSIDE a check can silently exclude the check's own
+  SUBJECT, and the check then reports success having examined nothing. **A check that examined nothing must
+  never look like a check that passed.** Any check carrying a cutoff — a length floor, a ratio threshold, a
+  probe set, a sample filter — states WHICH cutoff it used and HOW MANY cases it admitted, and a zero admitted
+  count is a FAILURE, not a pass. Measured twice in one gate: an Arabic-correctness metric whose probe set was
+  too narrow PASSED a PDF the human eye failed on sight, and a fixed 150-character block floor printed NOTHING
+  for a glossary PDF whose blocks average 52 characters — while looking like it had run. **This is the third
+  face of a family already recorded here:** *a test that builds its own graph proves nothing about production*
+  (DEC-40 — five of six mutations survived because every test built its own router) and *state a teardown also
+  produces must be sampled BEFORE teardown* (M2). All three are the same defect: **the check and the thing
+  checked were never actually connected, and nothing in the green result says so.**
 - **Comments explain WHY**, especially around Win32/Tk bridging and SDK quirks.
 - **Language split** (LAW — the binding form is CONTRIBUTING.md acceptance condition 3): user-facing strings
   (voice prompts, overlay captions, error speech) are
