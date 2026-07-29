@@ -1,5 +1,5 @@
 """
-test_claude_agent.py — the fake-session integration test (v4.1 §15, step 8).
+test_claude_agent.py — the fake-session integration test.
 
 No network. We fake the SDK's MessageStream with hand-built event objects
 and assert that ClaudeAgent translates them into the exact CloudReasoner

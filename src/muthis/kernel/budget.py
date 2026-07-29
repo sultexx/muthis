@@ -23,8 +23,8 @@ Design contract:
     cannot accumulate across hundreds of turns.
 
 Environment variables (.env is loaded once at process entry, before imports):
-  MUTHIS_DAILY_BUDGET_USD : daily ceiling in USD (default 0.75 per
-                            ARCHITECTURE_v4_1 §4.2). Never hardcoded in
+  MUTHIS_DAILY_BUDGET_USD : daily ceiling in USD (default 0.75, carried by
+                            DEFAULT_DAILY_LIMIT_USD below). Never hardcoded in
                             logic — the constant below is only the fallback.
 """
 

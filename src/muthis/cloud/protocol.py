@@ -1,5 +1,5 @@
 """
-protocol.py — The CloudReasoner contract (ARCHITECTURE_v4.1 §3.7 / §9.3).
+protocol.py — The CloudReasoner contract (the provider-abstraction law).
 
 Law of the Routed Wrapper: every cloud provider (Claude, Gemini, ...) hides
 behind this exact interface. The orchestrator consumes the same event stream
@@ -7,7 +7,7 @@ regardless of which provider answered. Swapping providers is a router-config
 change, never a downstream rewrite.
 
 This module has ZERO third-party dependencies on purpose — it must be
-importable in isolation (v4.1 §17.4) and by every test stub.
+importable in isolation (the ≤300-line law) and by every test stub.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ ResponseEvent = TextDelta | ToolCall | TurnComplete
 @dataclass(frozen=True)
 class UserInput:
     """One user utterance after STT. The quality path is text-only by design
-    (v4.1 §5.3-4: STT only on the quality path; Claude has no native audio).
+    (STT only on the quality path; Claude has no native audio).
     """
     text: str
 
@@ -81,7 +81,7 @@ class UserInput:
 class CloudReasoner(Protocol):
     """Implemented by claude_agent.ClaudeAgent and (later) gemini_agent.
 
-    Contract (v4.1 §9.3):
+    Contract (AGENTS.md, the CloudReasoner protocol):
       - run() is ONE provider turn. No retries, no loops, no session state.
       - The wrapper owns no locks, no lifecycles, no event queues (Law 11).
         Session bounds (90 s), budget gating, and cancellation live in the
