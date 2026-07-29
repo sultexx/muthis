@@ -144,8 +144,8 @@ def test_the_classification_module_never_reads_a_descriptors_read_only_field():
 
 
 def test_the_classification_module_imports_nothing_but_stdlib():
-    """Importable in isolation (§17.4) and unbribable: it cannot consult a
-    plugin, a manifest or the router even by accident."""
+    """Importable in isolation (the ≤300-line law) and unbribable: it cannot
+    consult a plugin, a manifest or the router even by accident."""
     tree = ast.parse(HIGH_IMPACT_PY.read_text(encoding="utf-8"))
     imported = set()
     for node in ast.walk(tree):

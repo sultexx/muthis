@@ -1,7 +1,7 @@
 # src/muthis/kernel/core_router.py
 """
 build_core_router — the default kernel router's COMPOSITION, extracted from
-tool_router.py under the ≤300-line law (§17.4: split, don't compress).
+tool_router.py under the ≤300-line law (split, don't compress).
 
 A MOVE ONLY: the function is byte-identical to its tool_router.py original, so
 the byte-pinned V1 catalog (tests/snapshots/look_tools_v1.json) and the read

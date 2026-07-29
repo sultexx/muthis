@@ -5,8 +5,8 @@ vendors, a BLIND consumer.
 
 Built on the proven CloudReasoner pattern (`cloud/protocol.py`): every provider
 hides behind this exact interface, selection is a `.env` change, and the consumer
-never learns which vendor answered. Zero third-party deps here on purpose, so the
-contract imports in isolation (§17.4) and any test double can implement it.
+never learns which vendor answered. No third-party deps here, so the contract
+imports in isolation (the ≤300-line law) and any test double can implement it.
 
 WHY THE BROKER OWNS THIS — not the plugin, and not `cloud/`:
 DEC-17 put the hardened fetcher in the broker because "external plugin code holds

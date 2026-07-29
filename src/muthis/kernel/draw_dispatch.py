@@ -16,8 +16,8 @@ LOOK-only: applying a PendingDraw only DRAWS overlay graphics — never the
 mouse, never a click, never typing.
 
 Lives in its own module because orchestrator.py is at the ≤300-line ceiling
-(AGENTS.md §17.4: split, don't compress) and highlight_gate.py cannot host it
-(turn.py imports highlight_gate — importing turn back would be a cycle).
+(split, don't compress) and highlight_gate.py cannot host it (turn.py imports
+highlight_gate — importing turn back would be a cycle).
 """
 
 from __future__ import annotations

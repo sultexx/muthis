@@ -20,9 +20,9 @@ agent's frozen `system_prompt`. build/resolve take the dims as explicit
 arguments, keeping this module a pure function of its inputs.
 
 Why a separate module (not inside orchestrator.py): orchestrator.py is already
-at the ≤300-line law's ceiling (AGENTS.md §17.4 — split, don't compress), and a
-multi-line Arabic prompt is a distinct concern. This file imports only stdlib
-`logging`, so it stays importable in isolation and test_persona.py needs no SDK.
+at the ≤300-line law's ceiling (split, don't compress), and a multi-line Arabic
+prompt is a distinct concern. This file imports only stdlib `logging`, so it
+stays importable in isolation and test_persona.py needs no SDK.
 
 Language split (AGENTS.md §17.5): the persona TEXT is user-facing, so it is
 Arabic; every log, comment, and identifier here is English.

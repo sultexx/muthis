@@ -48,11 +48,11 @@ lifecycle and a reconnect-retry exception summary, never a URI), and `urllib3`
 A deliberate debugging session can still raise either logger AFTER startup; this
 policy sets the floor at process entry, where a leak would otherwise be silent.
 
-Pure stdlib, importable in isolation (§17.4) — deliberately NOT in `main.py`, so
-a test can assert the policy without importing the composition root, which calls
-`load_dotenv()` at import and would pull the developer's REAL keys (now including
-a live Tavily key) into the test process. The policy is DEFINED here and APPLIED
-at the root; nothing is scattered.
+Pure stdlib, importable in isolation (the ≤300-line law) — deliberately NOT in
+`main.py`, so a test can assert the policy without importing the composition
+root, which calls `load_dotenv()` at import and would pull the developer's REAL
+keys (now including a live Tavily key) into the test process. The policy is
+DEFINED here and APPLIED at the root; nothing is scattered.
 """
 
 from __future__ import annotations

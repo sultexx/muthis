@@ -4,10 +4,10 @@ AutoHideController — owns the SINGLE pending auto-hide task for the cyan LOOK
 overlay, with cancel-and-replace semantics.
 
 Why a separate module (not inside orchestrator.py): orchestrator.py sits at the
-≤300-line law's ceiling (AGENTS.md §17.4 — split, don't compress), and "a timer
-that hides the rectangle after N seconds" is a distinct, single responsibility.
-This file imports only stdlib asyncio + the Overlay protocol, so it stays
-importable in isolation and its test needs no SDK and no real screen.
+≤300-line law's ceiling (split, don't compress), and "a timer that hides the
+rectangle after N seconds" is a distinct, single responsibility. This file
+imports only stdlib asyncio + the Overlay protocol, so it stays importable in
+isolation and its test needs no SDK and no real screen.
 
 The contract the orchestrator relies on:
   * schedule() starts a background task (asyncio.create_task — NON-blocking) that

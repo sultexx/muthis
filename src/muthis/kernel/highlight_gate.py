@@ -17,7 +17,7 @@ State is per-turn and resets BY CONSTRUCTION — the orchestrator builds a fresh
 HighlightGate at the top of every _run_turn_pipeline, so there is nothing to
 reset by hand and no state can leak between user turns. Lives in its own module
 (pure stdlib) because orchestrator.py is at the ≤300-line ceiling and turn.py is
-near it — split, don't compress (AGENTS.md §17.4).
+near it — split, don't compress.
 """
 
 from __future__ import annotations
