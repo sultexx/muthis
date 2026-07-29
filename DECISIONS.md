@@ -1311,6 +1311,12 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   every mounter state it. That is the cheap escape hatch; it costs one field and one argument per mount site, and
   it should be taken the moment a route needs "untrusted results, but not an external actor" (or the reverse).
 - **Implementation timing:** recorded now; no code change. Re-read this entry at the `doc_rag` milestone gate.
+- **→ ANSWERED by DEC-51** (2026-07-29, at the `doc_rag` P0b gate — the re-read this entry asked for actually
+  happened). The ruling: `doc_rag` mounts **`taint=True` TOGETHER WITH the kernel-side read hint**, so it raises
+  taint on every retrieved passage yet is NOT high-impact. The escape hatch above (give `RouteImpact` its own
+  `external` field) was **NOT needed** — the coupling recorded here was spent exactly as designed, with the
+  second flag rather than a second fact. **This entry's prediction was correct and its cost was zero:** the
+  scenario it named was met with a decision taken in view of the coupling, not discovered live.
 
 ---
 
@@ -3487,31 +3493,50 @@ it was never about fusion). Zones per DEC-47 with the DEC-49 ruling 4 startup in
   This entry was **MISSING from the ledger** when the Milestone-3 implementation session
   opened: `main` was at `b7654f7`, the last entry was DEC-50, and a full search of every
   governance document and of **every commit on every branch** (`git log --all -S "DEC-51"`)
-  returned nothing. The milestone brief cites DEC-51 as governing, so the ruling exists but
-  had never been written down. It is transcribed here from Sultan's own wording in that
-  brief rather than reconstructed from inference — **no clause below is invented, and none
-  is recalled from memory** (the DEC-43 discipline: a governing rule that cannot be read is
-  the defect, and law text is never reconstructed). **Sultan should confirm the wording.**
+  returned nothing. **PROVENANCE, recorded honestly: decided in the design session, recorded
+  LATE, wording CONFIRMED by Sultan at this gate (2026-07-29).** The gap was Sultan's — the
+  ruling was made in conversation and no prompt ever issued it into the ledger; it is the
+  same trap that halted work before `web_research`, whose plan cited DEC-14→20 before those
+  entries existed. It was transcribed from his wording rather than reconstructed, then
+  confirmed and replaced with the wording below (the DEC-43 discipline: a governing rule
+  that cannot be read is the defect, and law text is never reconstructed from memory).
 
-- **Item:** how `doc_rag` mounts, given that DEC-32 made the mount's `taint` flag drive
-  THREE things at the router at once.
+- **Item:** does `doc_rag` raise taint, and does that make it high-impact?
 
-### THE RULING
+### RESOLUTION — UNIFORM TAINT: every zone, every format, always
 
-**Mount with `taint=True` TOGETHER WITH the kernel-side read hint**, so `doc_rag`
+**Mounted `taint=True` TOGETHER WITH the kernel-side read hint**, so `doc_rag`
 **raises taint on every retrieved passage YET is NOT classified high-impact.**
 
-- **`taint=True`** because everything the milestone reads is **HOSTILE BY CONSTRUCTION**:
-  a retrieved passage is text the user's document supplied, and the model must treat it as
-  data, never as instructions. This is what arms the DEC-14 wrap and the DEC-15
-  session-sticky raise — both key off exactly this flag.
-- **The read hint** because the KERNEL knows this route only READS a local file. Without
-  it, `RouteImpact.high_impact(external=taint)` reduces to `external and not
-  read_only_hint` → **True**, and **`doc_rag` would gate ITSELF behind a spoken
-  confirmation** — a permission prompt in front of reading a local document, which is
-  absurd.
-- **Assert BOTH directions:** taint IS raised, and the call is NOT high-impact. One
-  assertion alone is satisfiable by a mutation that hard-codes the other.
+### REASON — the distinction is not local-versus-external, it is whether the user SAW it
+
+**`read_local_file` returns a few thousand characters, NUMBERED — the user sees what
+entered the context.** Any document reaching `doc_rag` is **BY DEFINITION too large to have
+been inspected**: even the 50 000-token injection threshold exceeds a hundred pages, and a
+PDF can hide text a user never sees *even with the file open*. That is the real line, and it
+does not run where "local versus external" runs.
+
+**A UNIFORM rule is simpler AND stronger than one varying by format or zone**, because a
+per-format or per-zone rule would make **security depend on the parser** — the component
+most likely to be swapped, upgraded or surprised by a malformed file. Uniform taint cannot
+be defeated by choosing a different input shape.
+
+### ACCEPTED CONSEQUENCE — Sultan's ruling, not an oversight
+
+Taint is sticky (DEC-2), so **ingesting a document TAINTS THE SESSION**: any later
+`web__fetch` or networked sandbox run requires spoken approval. **This is INTENTIONAL, not
+a defect — a hostile PDF's goal is precisely to push the model outward**, and that is the
+exact motion the confirmation stands in front of. Measured in T6/T7 as an instrumented
+**OBSERVATION**; Sultan rules on the friction as he did for DEC-15 × DEC-16.
+
+### TECHNICAL CLAUSE — what DEC-32 warned about
+
+Impact classification reads `taint` as the **EXTERNALITY** signal, so **`taint=True` ALONE
+would make `doc_rag` gate ITSELF behind spoken confirmation** — absurd for reading a local
+file. **Mount BOTH flags. Assert BOTH directions:** taint IS raised, and the call is NOT
+high-impact. One assertion alone is satisfiable by a mutation that hard-codes the other.
+
+- **Timing:** implemented at **T4**, verified live at **T6**.
 
 ### WHY THIS IS THE RULING DEC-32 ASKED FOR, BY NAME
 
@@ -3535,14 +3560,6 @@ Measured against the REAL `RouteImpact`, both directions, no model involved (DEC
 `doc_rag` is granted **no capability at all**, so `high_impact`'s first arm cannot fire
 either: reading a local document sends nothing anywhere — the V1 `read_local_file`
 argument, unchanged.
-
-### THE FRICTION THIS CREATES — instrumented at T6, NOT judged here
-
-Because the taint is session-sticky (DEC-2), **after ingesting a document a `web__fetch`
-DOES require spoken approval.** That is the DEC-15 × DEC-16 machinery working exactly as
-designed, and it is a REAL behaviour change for the user. **T6 instruments it; it does not
-judge it.** Sultan rules on the friction the way he did for DEC-15 × DEC-16 at M2 — from a
-live measurement, not from a prediction.
 
 ### WHAT THIS COSTS THE ROUTER — measured at P0b: **ZERO**
 
