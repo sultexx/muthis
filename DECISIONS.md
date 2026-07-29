@@ -3603,3 +3603,69 @@ with the full wiring applied. See the P0b measurement recorded below.
   taken; the measurement simply says the addition does not touch the frozen file.
 
 ---
+
+## DEC-52 (2026-07-29) — `composition.py`'s extraction seam, NAMED AT PLANNING TIME: the MOUNTS — APPROVED (Sultan), NOT EXECUTED
+
+- **Status:** **SEAM NAMED AND RESERVED. NO EXTRACTION PERFORMED.** `composition.py` lands
+  this milestone at **278/300** — 22 lines of headroom, which is LEGAL. This entry exists so
+  that a future milestone does not DISCOVER the ceiling mid-task, which is the DEC-23
+  posture and what saved M2 three separate stalls.
+- **Item:** which seam `composition.py` splits on when it needs to, decided now rather than
+  under pressure later.
+
+### THE MEASURED GROWTH — and it names its own axis
+
+From `git log` over the file, one row per commit that touched it:
+
+| lines | commit |
+|---|---|
+| 156 | `e3f82b8` extract build helpers from `main.py` |
+| 157 → 165 → 171 → 182 → 187 | the M2 security wiring (taint, confirm gate, `ctx.net`, badge) |
+| 208 → 212 | turn-boundary hooks, badge from the broker's record |
+| **247** | **`72278b4` — make `web__search`/`web__fetch` MODEL-VISIBLE (+35, the largest jump)** |
+| **278** | projected, with this milestone's `mount_doc_rag` (+31) |
+
+**The largest single jump is the MOUNT commit, and the projected one is the next mount.**
+The growth axis is not "wiring" in general — it is **one mount function per capability
+milestone**, measured at 27 lines (`mount_web_research`) and 31 (`mount_doc_rag`).
+
+### THE SEAM: `composition_mounts.py` — the MOUNTS leave, the BUILDERS stay
+
+- **A BUILDER constructs a component from configuration** — `_build_broker_graph` (81),
+  `_build_orchestrator` (20), `_build_sandbox` (8), `_size_sent_image` (14),
+  `_pointer_anim_ms` (27), `_log_docker_fallback_decision` (16). These do NOT grow per
+  milestone; they answer "what object exists".
+- **A MOUNT states the KERNEL'S OWN SECURITY FACTS about a route** — `taint`, `impact`,
+  `namespace`, `provenance`. DEC-15's rule is that these are "assigned by whoever MOUNTS the
+  route and never by the plugin", and DEC-51 is a ruling *about a mount's two flags*. That is
+  a different question from "what object exists", and it is the security-critical one.
+- **This is a PRINCIPLED seam, not a size split.** The evidence that mount sites deserve
+  their own readable home is already in the ledger: **DEC-40 found that five of six mutations
+  survived because every test built its OWN router — deleting the production mount call
+  entirely stayed green.** The mount site is exactly the place where a deletion is invisible,
+  which is the same argument that keeps `tool_router.py`'s dispatch funnel readable.
+
+### PROJECTED ARITHMETIC (measured parts, projected total — not executed)
+
+| | now | after the extraction |
+|---|---|---|
+| `composition.py` | 278 | **≈ 222** (−58 mounts, +2 import lines) |
+| `composition_mounts.py` | — | **≈ 86** (58 moved + ~10 imports + module docstring) |
+
+**Each future capability milestone then costs `composition.py` ZERO** and adds ~30 lines to a
+file with ~210 of headroom — the same shape as the `ROUTER_SERVICED_TOOLS` set, which made
+the next routed tool cost `turn_pass.py` zero.
+
+### WHY NOT NOW
+
+**22 lines is legal, and an extraction is not free.** Landing it inside a feature milestone
+would put a refactor between the feature and its attribution — the exact reason the
+`ROUTER_SERVICED_TOOLS` replacement was landed ALONE and BEFORE any `doc_rag` wiring in this
+same session. **The trigger is explicit: the FIRST milestone whose mount would push
+`composition.py` past 300 executes this extraction FIRST, alone, byte-identical, before its
+feature work.** Phase 3 (the Navigator and the visual citation) is the expected trigger and
+is expected to touch this file.
+
+- **Implementation timing:** NOT NOW. Reserved, with the trigger above.
+
+---
