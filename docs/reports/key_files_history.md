@@ -404,3 +404,53 @@ Evolution:
 - **bug 3 (tts_diacritics):** born speech-only. Vowelizing history would corrupt the
   model's reasoning, so the map is applied to a COPY at the speak() choke point, with
   whole-word Arabic-boundary matching so a short key never corrupts a longer word.
+
+---
+
+## src/muthis/overlay/ (the overlay package)
+
+Current shape: `sidekick_window.py` owns the Tk lifecycle and the command queue;
+`window_commands.py` is the pure dispatcher; the widgets (rectangle, pointer, shapes,
+caption bar, status dot, domain badge) are pure VIEWs on one shared canvas;
+`focus_dimmer.py` is the second Toplevel; `style.py` + `style_env.py` are the styling
+config; `win32_glue.py` holds the ctypes.
+
+Evolution:
+
+- **Batch 1 (the neon look):** OverlayStyle born frozen, with the dataclass defaults AS
+  the neon defaults, plus glow_strokes() emulating a glow Tk cannot do natively (outer
+  dim halo + inner bright core).
+- **Batch 2-A / 2-B (the status light):** StatusIndicator added as a VISUAL-ONLY corner
+  dot with per-state colors and a cosine pulse; 2-A shipped it no-op-safe through the
+  same command queue so 2-B only had to add the real turn-phase call sites and the
+  capture-chokepoint light-clear. The same round REMOVED an earlier pointer HALO that
+  hugged the gliding tip -- it cluttered content over code -- along with its only
+  support, `pointer.last_pos`.
+- **v5 Phase A (Law 17.4 split):** style.py had reached the 300-line ceiling, so the
+  env parsing and the transparent-key guard were extracted WHOLE to style_env.py, with
+  TRANSPARENT_KEY re-exported so importers did not change.
+- **Geometric drawing Phase A:** ShapesWidget added, drawing ALREADY-PHYSICAL shapes on
+  the shared canvas under SHAPES_TAG, exercised only by a smoke script until Phase B
+  wired the tool.
+- **v6 B (step badges):** numbered how-to badges -- an unfilled glow ring plus one crisp
+  Arabic-Indic numeral at its centre, numbered by list ORDER counting step shapes only,
+  restarting every draw().
+- **v6 C (live captions):** CaptionBar born as the bottom-centre chip; the same round
+  made VoiceOut the caption choke point, so the privacy boundary covered the eyes too.
+- **v6 C0 (Law 17.4 split):** sidekick_window.py sat at 299, so dispatch_command and
+  _bbox_center were extracted WHOLE to window_commands.py, both re-exported.
+- **v6 D (Cinematic Spotlight):** FocusDimmer born, cutting a transparent hole around
+  the highlight bbox; default OFF from the start.
+- **v7 Phase 2 (the whiteboard + caption sync):** FocusDimmer gained show_full() /
+  fade_out() so the dim could become a BOARD rather than a spotlight (flag default ON),
+  with the fade built from self-rescheduling after() frames on the status-pulse pattern;
+  CaptionBar gained show_text_later() and the generation counter, because streamed
+  sentences had been flashing at text-generation speed while their audio played much
+  longer; and the Win32 DPI / click-through glue was extracted to win32_glue.py under
+  the same 299-line pressure.
+- **v7.2 (teardown thread-affinity):** after mainloop the Tk thread now deletes every
+  widget/root reference and forces a gc.collect(), so Tcl objects are freed on the
+  thread that created them. Without it the process aborted with Tcl_AsyncDelete.
+- **A KNOWN, ACCEPTED interplay:** a NEW highlight_target wipes drawn shapes, because
+  RectangleWidget clears with delete("all"). highlight_target is the V1 path and stays
+  untouched; the shapes widget is tag-scoped precisely so the reverse can never happen.
