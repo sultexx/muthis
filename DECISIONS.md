@@ -3103,3 +3103,92 @@ the SDK's three were source, so they waited for the separate ruling — which th
   measurement gate runs before implementation opens.
 
 ---
+
+## DEC-48 (2026-07-29) — the `doc_rag` P0 measurement gate: results — **OBSERVATION, NOT A RULING**
+
+- **Status:** **MEASURED, NOTHING CHOSEN.** No encoder, no PDF library, no window and no
+  threshold was selected. Every item below is Sultan's to rule. Recorded here because five
+  of the measurements **qualify or contradict a premise written into DEC-44..47**, and a
+  signed decision whose rationale has been measured false is exactly the stale-source-of-
+  truth defect DEC-43 was written about.
+- **Full numbers:** `docs/reports/phase2_m3_p0_rag_bench.md`. **Harness:**
+  `scripts/diag_rag_bench.py` (script only — zero changes to `src/`, `sdk/` or `tests/`;
+  988 + 27 green; corpus read from outside the repo, socket guard armed, ZERO network
+  calls after the model fetch).
+
+### THE ACCEPTANCE FAILURE — the roadmap's named PDF library is disqualified
+
+**PyMuPDF FAILS DEC-47's binding Arabic condition on BOTH corpus PDFs**, under all six of
+its extraction modes (default, ±ligatures, ±whitespace, `words`, `rawdict`). The failure
+is **character TRANSPOSITION** — the definite article's lam hops one position, so
+`الجامعة` arrives as `اجلامعة` and `الاصطناعي` as `االصطناعي`. `pdfminer.six` fails
+differently, emitting whole words in **visual order** (`جامعة` → `ةعماج`). **`pypdf`
+passes both conditions on both files**, but is ~10× slower and yields position only
+through its visitor API, which the caller must assemble into paragraphs.
+
+**Both failures produce syntactically valid Arabic**, so every "did we get a string back"
+check passes and the index is poisoned silently. This is the precise scenario DEC-47
+wrote the condition for, and it fired on the first corpus.
+
+**THE METHOD FINDING, which matters more than the library:** the automated
+Arabic-correctness metric **PASSED a document that the human sample failed instantly** —
+`االصطناعي` was visible in the first printed line. The probe set was widened and the
+corrected metric then failed PyMuPDF on both documents. **DEC-47's instruction to make
+this half HUMAN-JUDGED earned its place on the first run**; the machine check was
+measurably too weak before a human looked at it.
+
+### FIVE PREMISES QUALIFIED BY MEASUREMENT
+
+1. **DEC-45's Arabic-token premise is much weaker than written.** The decision says
+   multilingual tokenizers emit *more* tokens per Arabic character. Measured: Arabic
+   0.269–0.326 tok/char vs English 0.295 — **×1.11 at the high end**, and the most
+   Arabic-dense document scores *lower* than the mixed technical one (0.358, the highest
+   in the set). **THE RULE IS UNAFFECTED and must not be relaxed** — sizing in tokens is
+   still the only correct unit, and a 2,000-character chunk still overflows a 512-token
+   model in either language. Only the stated reason is weaker: the driver is token density
+   generally, not Arabic specifically.
+2. **DEC-46's hybrid never beats dense alone**, under either encoder, at any k — and the
+   gap *widens* as the dense half improves (bge-m3: dense 71 % vs RRF 47 % at @1). The
+   mechanism is the very property RRF was chosen for: rank-only fusion gives the weak half
+   equal weight by construction. A parent-dedupe confound was ruled out with a no-dedupe
+   control that scored identically. **DEC-44's no-stemming reasoning is CONFIRMED in the
+   same table:** BM25 scores 100 % on the identifier-rich technical document and 50 % on
+   both Arabic-prose documents, exactly as the decision predicted.
+3. **DEC-46's dense entry floor is NOT DERIVABLE as specified**, under either candidate.
+   Positive and negative cosine distributions overlap (−0.11 for e5-small, −0.20 for
+   bge-m3). The worst negative is a topically-adjacent absence — a PID question against a
+   motor-control document — scoring above most true positives. **A topically-adjacent
+   absence is indistinguishable from a correct answer under raw cosine.**
+4. **DEC-47's zone 2 CAN BE EMPTY.** The derived maximum depends on encode speed, so with
+   `bge-m3` at a 60 s budget it is ≈40,830 tokens — **below `MUTHIS_DOC_INJECT_LIMIT`
+   (50,000)**. Every document large enough to need an index is then already too large to
+   build one, and the three-zone design collapses to two with no retrieval path.
+   **`MUTHIS_DOC_INJECT_LIMIT` and the ingestion budget are NOT independent knobs**; the
+   relation `budget ÷ per-chunk-time × tokens-per-chunk > MUTHIS_DOC_INJECT_LIMIT` is
+   currently written down nowhere.
+5. **DEC-44's fingerprint-pinning clause does not reach `bge-m3`.** Its official repository
+   ships **no int8 artifact at all** — fp32 only, 2,267 MB with external data. An int8
+   bge-m3 requires either local quantization (torch-free, but the fingerprint then pins our
+   build rather than the publisher's) or a community re-upload with unknown provenance.
+   `multilingual-e5-small` ships a publisher-built int8 (118 MB), so the clause works as
+   written for it and not for the other.
+
+### RECORDED CORRECTIONS TO THE BRIEF'S OWN FIGURES
+
+- The corpus PDF described as "232-page" **measures 228 pages**. Measured value used.
+- The ground truth names one document by a slugified filename that does not match the file
+  on disk. The mapping is unique; the bench resolves it by slug with a uniqueness
+  assertion rather than by renaming anything.
+- Ground truth was verified before being trusted: all 12 positive PDF labels were confirmed
+  to carry their answer on the cited page. A benchmark scored against unverified labels
+  measures the labels.
+
+### WHAT WAS DELIBERATELY NOT DONE
+
+No winner is named, no dependency was added to `AGENTS.md`'s install line, and no
+`doc_rag` implementation, package or wiring exists. The bench dependencies are recorded in
+the report only; they join the install line when a candidate is chosen. **Every number
+above is a property of this corpus (3 documents, 17 positive + 3 negative questions) on
+this hardware, and the sample's sufficiency is itself one of the open rulings.**
+
+---
