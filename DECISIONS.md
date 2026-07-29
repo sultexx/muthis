@@ -2641,23 +2641,79 @@ language, V2_ROADMAP part 1). `§4.3` was resolved to **DEC-26** by opening the 
 standing rule, and no ruling has overridden that for a comment edit. Left untouched and reported rather than
 silently changed.
 
-### NEW FINDING — 15 LAW-NUMBERED CITATIONS REMAIN, AND 11 OF THEM CITE A SECTION `AGENTS.md` DOES NOT HAVE
+### THE PHANTOM-SECTION PASS — **COMPLETE** (2026-07-29, authorized separately; on `main`)
 
-Found while verifying the pass. These were invisible to every earlier sweep because they name no retired
-document — they were never in the 27, and they are NOT authorized.
+The finding above — 11 sites citing `AGENTS.md §17.4` / `§17.5` / `§11.5`, plus the SDK's three bare `§3.7` — is
+now **CLOSED**. It was found while verifying the source pass and was invisible to every earlier sweep because it
+names no retired document, so it needed its own authorization, which it got.
 
-- **THE NEW CLASS (11 sites, 10 files): `AGENTS.md §17.4` / `§17.5` / `§11.5`, or a bare `(§17.4)`. `AGENTS.md`
-  HAS NO NUMBERED SECTIONS AT ALL.** These are arguably worse than the citations just retired: they name a file
-  an agent CAN open, so they look valid, and the reader searches a real document for a section that was never in
-  it. Sites: `logging_policy.py:51` · `overlay_autohide.py:7` · **`persona.py:23` and `:27` (protected file)** ·
-  `broker/search/protocol.py:9` · `kernel/core_router.py:4` · `kernel/draw_dispatch.py:19` ·
-  `kernel/highlight_gate.py:20` · `overlay/sidekick_window.py:8` · `overlay/status_indicator.py:15` ·
-  `tests/test_high_impact.py:147`. All name laws that now have readable homes, so the fix is mechanical — but it
-  is a different defect from the one DEC-43 ruled on, so it waits for its own authorization.
-- **The SDK's three `§3.7`** (`manifest.py:8, 113`, `conformance/checks.py:94`): CORRECT in meaning — V2_ROADMAP
-  part 1 §3.7, Arabic is the reference language — but written bare, so they still collide with the retired
-  "Law §3.7". Not dangling, only ambiguous.
-- `reference/asr.py:277`, above.
+**THE DEFECT, RESTATED: `AGENTS.md` HAS NO NUMBERED SECTIONS AT ALL.** These 11 were worse than the citations
+DEC-43 retired, and worse in an instructive way. A pointer into a deleted document fails LOUDLY — the agent
+looks for the file, does not find it, and knows to stop trusting the pointer. A pointer into a REAL file at a
+section that was never in it fails QUIETLY: the file opens, the agent searches, finds nothing, and cannot tell
+whether the law moved, was renamed, or never existed. **A citation that is confidently wrong costs more than one
+that is obviously broken.** This is the same asymmetry DEC-35 recorded from the other side, where a refusal that
+misreported its reason turned a terminal condition into a retryable one.
+
+**THE METHOD WAS THE SAME ONE THAT WORKED BEFORE — name the law, do not renumber it.** Renumbering would have
+produced a fresh pointer that a future edit can break again; a self-describing name cannot dangle at all. All 11
+now read *the ≤300-line law* (8 sites), *the language-split law* (1) or *the threading law* (2) — in each case
+the exact phrase already used elsewhere in this codebase, so no new vocabulary was invented. Where the sentence
+already spelled the law out in full, the dangling parenthetical was simply DELETED rather than replaced, because
+it was carrying nothing: `core_router.py`, `draw_dispatch.py` and `highlight_gate.py` all already said "the
+≤300-line law" or "the ≤300-line ceiling" three words earlier.
+
+**Intent verified per site, never assumed from the number.** Every ceiling citation sits beside "split, don't
+compress" or "importable in isolation" — the law's two clauses and nothing else. The language-split site says
+outright that the persona text is Arabic while logs and identifiers are English. Both threading sites explain
+Tk's thread affinity and the `queue.Queue` hand-off, which is the same law `downscale.py` cites from the
+`asyncio.to_thread` side — one name covers both halves.
+
+**The SDK's three `§3.7` were AMBIGUOUS, not dangling, and the ambiguity is bigger than it looked.** They now
+say **V2_ROADMAP part 1 §3.7** explicitly. Verified by reading: all three sit on the Arabic-description
+requirement, which is part 1 §3.7 and nothing else. The collision is not only with the retired "Law §3.7" —
+**the roadmap collides with ITSELF.** Part 1 (الجزء الأول, the constitution and architecture) and part 2 (الجزء
+الثاني, the detailed capability specs) both number their sections from 3, so part 1 §3.2 is the plugin contract
+while part 2 §3.2 is the prompt-injection defence line. A bare `§3.2` has two readings inside one live document.
+
+**Comments and docstrings only; zero executable changes; every file LINE-NEUTRAL.** `persona.py` **209 before
+and 209 after** (touched at both `:23` and `:27`); `orchestrator.py` 299 and `tool_router.py` 300 were not
+touched at all. Also unchanged: `logging_policy.py` 92, `overlay_autohide.py` 96, `broker/search/protocol.py`
+231, `core_router.py` 81, `draw_dispatch.py` 113, `highlight_gate.py` 142, `test_high_impact.py` 227,
+`sidekick_window.py` 280, `status_indicator.py` 160, `manifest.py` 163, `conformance/checks.py` 183. Three
+batches, full suite after each: **988 + 27 green throughout.**
+
+**VERIFIED CLOSED BY RE-SCAN:** `AGENTS.md §N` in any spelling returns **nothing** across `src/`, `tests/`,
+`sdk/`, `scripts/` and `reference/`. The three retired law numbers return exactly one hit — `reference/asr.py`,
+below.
+
+**`reference/asr.py:277` IS DELIBERATELY OUT OF SCOPE WHILE THE FREEZE STANDS — a known exception, not an
+oversight.** The `reference/` tree is FROZEN and read-only by standing rule. Sultan ruled it stays: **a comment
+fix does not justify opening a freeze.** The reasoning is worth keeping, because the arithmetic is not close —
+the benefit is one stale parenthetical in a tree no agent is permitted to build on, while the cost is a
+precedent that a freeze yields to a sufficiently small edit, which is exactly how freezes stop meaning anything.
+It is recorded here so a future sweep finds a RULING rather than a miss. **If the `reference/` freeze is ever
+lifted for other reasons, this one-line fix rides along; it is never the reason to lift it.**
+
+### NEW FINDING — THE ROADMAP'S TWO PARTS SHARE A NUMBERING SCHEME (61 BARE CITATIONS)
+
+Found while disambiguating the SDK's three `§3.7`, and NOT authorized — recorded, not acted on.
+
+**MEASURED, NOT ESTIMATED:** `src/`, `tests/`, `sdk/` and `scripts/` hold **61 bare `§3.1`–`§3.4` citations
+across 39 files** whose number exists in BOTH roadmap parts, against **10** already written as "part 1 §" or
+"part 2 §". One more bare citation (`conformance/__init__.py:5`, `Roadmap §3.6`) is unambiguous because §3.5-3.7
+are part-1-only.
+
+**This is a much weaker defect than the one just closed, and the difference is the point.** Nothing here
+dangles: every one points into a live, readable document. The reader who follows a bare `§3.3` from
+`broker/net/fetcher.py` lands on part 1's privilege model when the sentence means part 2's fetch defences — and
+in nearly every case the surrounding file makes the intent obvious, so the cost is a moment of confusion rather
+than a wrong belief. **A bulk renumbering pass would touch ~39 files to buy that moment**, which is a poor trade
+against the risk of a mechanical sweep changing the wrong `§3.3`; the two roadmap parts genuinely do use these
+numbers for different rules. The right time is opportunistically, as each file is opened for other work.
+
+**What IS worth doing now is nothing at all except recording it here**, so the next agent who meets a bare
+`§3.2` knows the ambiguity is KNOWN and has a rule for resolving it: read the sentence, not the number.
 
 ### HISTORICAL — WHY THE SOURCE HALF WAS DEFERRED IN THE FIRST PLACE
 
