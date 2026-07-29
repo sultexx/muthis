@@ -2540,3 +2540,111 @@ operational and will be missed the day it is needed. **The choice between restor
 the document remains Sultan's; this entry supplies the count, not the verdict.**
 
 ---
+
+## DEC-43 (2026-07-29) — RETIRE `ARCHITECTURE_v4_1.md` from authority: `AGENTS.md` is the SOLE source of laws — APPROVED (Sultan), EXECUTED
+
+- **Status:** APPROVED and EXECUTED as a docs-only pass on `docs/retire-architecture-precedence`. Closes the
+  BLOCKING FINDING (2026-07-29) and the AUDIT above. **Supersedes** the retired header precedence rule and the
+  two Arabic clauses that mirrored it. DEC-7's original text is left untouched, per the append-only ledger rule.
+- **Ruling:** `AGENTS.md` is the **SOLE AUTHORITY ON LAWS** and on current scope. `DECISIONS.md` carries the
+  signed rulings, `CONTRIBUTING.md` the binding acceptance conditions, `V2_ROADMAP.md` planning and phase order
+  only. **`ARCHITECTURE_v4_1.md` is ARCHIVED and NOT authoritative. Do NOT restore it to authority.**
+
+### WHY RESTORATION WAS THE WORST OPTION, NOT THE CLEANEST
+
+Sultan located the file. It is **OLD**: it predates the LOOK-only product decision taken for safety and public
+release, and it contains decisions he has since **CANCELLED**. That inverts the obvious intuition. Restoring it
+would not repair a dangling pointer — it would install a **formally authoritative document full of invalid
+laws**, with `AGENTS.md` yielding to it on conflict. An agent reading Trust Modes in its §12 would find them
+**OUTRANKING** the DEC-6 cancellation stated in the source of truth, and would be correct to, under the rule as
+written.
+
+We have already paid the lighter version of this bill. Three false sentences in `AGENTS.md` — one of them the
+dotted `sandbox.run_code` that had already produced a live Anthropic 400 and forced DEC-11 — nearly bought a
+second identical failure. **A whole document of cancelled decisions holding precedence is that same failure mode
+with authority attached.**
+
+### WHY THE LAWS SURVIVE THE RETIREMENT — THE EMPIRICAL CASE
+
+The audit measured it rather than assuming it: **15 of 19 cited sections are readable today**, and every
+load-bearing engineering law among them — the ≤300 ceiling, Law 11, the language split, stub-first, the key
+discipline, the provider abstraction, the threading rule — is independently restated. The decisive find is
+`CONTRIBUTING.md`, which states the ceiling, Law 11, the language split and the golden rule as **binding
+acceptance conditions without citing a single §N**. The laws were never actually being read from the archived
+file; they were being read from here.
+
+The record confirms it: **two complete milestones and 42 signed decisions, delivered with the document absent
+and zero law breaches.** A rule nobody could read, that nobody broke, was not the thing holding the line.
+
+### WHAT WAS EXECUTED
+
+1. The header precedence rule REPLACED by an explicit authority map, carrying the WHY so a future reader who
+   finds the archived file understands why it is history rather than "restorable".
+2. Every RESOLVABLE citation repointed at where its rule is readable TODAY — marked `LAW` where `AGENTS.md`
+   itself is the home, or pointed at the `CONTRIBUTING.md` acceptance condition that binds it. **No law text was
+   reconstructed from memory at any point.** "Law 11" survives as a NAME (it is used across this ledger and the
+   source); what it lacked was a readable definition, and it now has one at first use.
+3. **The ambiguity resolved BY INTENT, never by number.** `AGENTS.md`'s "Law §3.7" (provider abstraction) and
+   the SDK's "§3.7" (Arabic is the reference language, V2_ROADMAP part 1) are DIFFERENT rules in DIFFERENT
+   documents. Each citation was read in context before rewriting; the two Key Files rows meaning the Roadmap's
+   privilege model now say "V2_ROADMAP part 1 §3.3" explicitly. Rewriting by number would have silently
+   converted roadmap citations into laws.
+4. The four ORPHANS handled honestly, with nothing invented — see below.
+5. The Arabic sibling clauses in `MIGRATION_PLAN.md` and `LESSONS.md` retired the same way; `plan_v6.md`, a
+   COMPLETED plan, got a single dated supersession note instead of a body rewrite. **A document that tells an
+   agent what to do NOW is corrected; a document that records what was decided THEN is annotated.**
+6. The fifth stale statement corrected: `AGENTS.md` still called `web_research` "NOT yet merged", false since
+   `1c59d60`. It survived the sweep because it was identical on both sides of the merge, so nothing conflicted.
+
+### THE ORPHANS — WHAT REPLACED THEM
+
+- **§20 — DELETED.** The Key Files row ordered every agent to "Read §3, §5, §20 before significant changes".
+  §20 is named nowhere else in the repository: no citation, no restatement, no clue to its subject. **An
+  unfollowable order is worse than none**, so the instruction is gone.
+- **§15 step 8** (a verification checklist) and **§16-18.1** (a pending-items list): both named numbered
+  structures that exist nowhere readable. The dead pointers are removed and the real, readable content they
+  decorated — the test's actual assertions, the smoke-test instruction — is kept.
+- **§4.2, the model-fallback table — OPEN ITEM, tracked here.** This is the ONLY orphan with an operational
+  trigger, and it fires on a day that will come. **There is no fallback table. `claude-sonnet-4-6` is pinned
+  (`claude_agent.py`, overridable via `MUTHIS_CLAUDE_MODEL`), and if it 404s the behaviour is UNDEFINED.**
+  `AGENTS.md` now says exactly that instead of pointing at a table nobody can read. **Deliberately NOT resolved
+  by inventing a substitute list:** choosing a replacement model carries cost and product-vision consequences,
+  so it is Sultan's decision, and a guessed fallback would be a fabricated law wearing an engineering costume.
+
+### NOT DONE — 27 SOURCE/TEST CITATIONS ACROSS 19 FILES, BLOCKED BY THE DOCS-ONLY CONSTRAINT
+
+The ruling asked for all 38 references; the same instruction forbade source and test changes and named
+`orchestrator.py` explicitly. Both cannot hold, so **the docs half is complete and every source/test citation is
+untouched and reported**, on the same reasoning already applied to `orchestrator.py`: this is a separate ruling.
+
+**MEASURED, NOT ESTIMATED — and the first count in this entry was WRONG.** It said 12, carried over from the
+audit's dot-spelling finding. A full scan of `src/`, `tests/`, `sdk/`, `scripts/` and `reference/` for
+`ARCHITECTURE_v4_1` · `ARCHITECTURE_v4.1` · `v4.1 §N` · `Law §N` returns **26 citations in 18 files**, plus
+`reference/asr.py:277` (a bare `§17.5`, in the frozen reference tree) = **27**. More than double. The number is
+corrected here rather than quietly left standing, because an inaccurate count inside the ruling that retires a
+document for being inaccurate would be the same defect wearing a different hat.
+
+- **`kernel/orchestrator.py:56`** — `v4.1 §9.3`, the 90 s turn bound. **Byte-identical at 299 lines, explicitly
+  out of scope, and the reason this class needs its own ruling.**
+- `cloud/protocol.py:2` (§3.7 / §9.3), `:10` (§17.4), `:71` (§5.3-4), `:84` (§9.3)
+- `cloud/claude_agent.py:2`, `:45` (§4.2), `:52` (§4.2), `:60` (§17.5), `:93` (§9.3)
+- `kernel/budget.py:27` (§4.2, the `0.75` default) · `kernel/history_hygiene.py:5` · `kernel/turn_pass.py:7`
+- `activation.py:5` · `voice_out.py:6` · `stubs.py:3` · `logging_policy.py:62` · `broker/search/__init__.py:17`
+- `overlay/shapes_widget.py:50` · `overlay/style_env.py:5` · `overlay/win32_glue.py:5` ·
+  `overlay/window_commands.py:4`
+- `vision/downscale.py:26` and `:84` · `vision/screen_capture.py:22` (all three cite §11.5, the threading law)
+- `tests/test_claude_agent.py:2` (`v4.1 §15, step 8` — an ORPHAN citation living in a test)
+- `reference/asr.py:277` (bare `§17.5`; `reference/` is frozen and read-only, so it may warrant leaving alone)
+
+**None is load-bearing at runtime — every one is a comment or docstring**, which is why none of this is urgent.
+But they are the last places in the repository pointing an agent at a retired authority, they concentrate in
+exactly three laws (§17.4 the ceiling, §17.5 the language split, §11.5 threading — all of which now have
+readable homes), and `tests/test_claude_agent.py:2` points at an ORPHAN. A follow-up ruling should authorize a
+comment-only pass; it will touch protected files, which is precisely why it is not bundled here.
+
+**Separately unresolved, and NOT a citation into this document:** `sdk/muthis_sdk/manifest.py:8, 113` and
+`conformance/checks.py:94` cite a bare "§3.7" meaning **V2_ROADMAP part 1** (Arabic is the reference language).
+They are correct as written but ambiguous against `AGENTS.md`'s former "Law §3.7". The two AGENTS.md instances
+of this collision were disambiguated in this pass; the SDK's three are source, so they wait for the same ruling.
+
+---
