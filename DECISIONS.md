@@ -4344,3 +4344,182 @@ user spends hearing nothing.
   is measured and printed; whether it needs a voice is Sultan's ruling.
 
 ---
+
+## T6 BLOCKING DEFECT (2026-07-30) — `docs__query` is never serviced when the model batches it with `docs__open`
+
+- **Status:** **T6 CANNOT BE SIGNED OFF.** DIAGNOSED, MEASURED, and **NOT FIXED** —
+  Sultan rules on the fix. `scripts/diag_doc_rag.py` reported 55 GREEN checks while the
+  milestone's core feature does not work through the path the model actually uses.
+
+### THE MECHANISM, REPRODUCED DETERMINISTICALLY — not inferred
+
+Driving the REAL production graph (`build_core_router` + sandbox + web + `mount_doc_rag`,
+production order) with a reasoner that emits several tool calls in ONE pass, which is
+ordinary model behaviour:
+
+| shape | `docs__query` result |
+|---|---|
+| `docs__query` alone, its own pass | **SERVICED** — 40 candidates, passages delivered, wrapped |
+| `docs__open` then `docs__query`, TWO passes of one turn | **SERVICED** |
+| **`docs__open` + `docs__query` in ONE pass** | **NEVER SERVICED** — the id receives `DOC_ONE_PER_PASS_AR` |
+| `docs__open`, then TWO `docs__query` in one pass | first serviced, second gets `DOC_ONE_PER_PASS_AR` |
+
+**The router path itself is healthy.** `router.service("docs__query", …)` returns real
+passages; so does `DocumentService.query`. The failure is one layer up, in
+`TurnPass.consume`: `if read_call is None: read_call = event` admits **exactly ONE
+router-serviced call per pass**, shared across ALL routed families (read / web / docs).
+When `docs__open` arrives first in the same assistant message, it takes the single slot
+and every `docs__query` id in that pass is answered by `build_tool_result_message` with
+the one-per-pass note.
+
+**This is the log signature Sultan observed, and it is diagnostic:** the query never
+reaches `DocumentService.query`, so `[doc_rag] query: candidates=…` is **never emitted** —
+four `docs__query` calls, zero query lines. The deterministic phase emits the line
+because it calls the service directly.
+
+### THE NOTE THE MODEL RECEIVED, VERBATIM
+
+> `توجيه داخلي (لا يراه المستخدم): أخدم طلب مستند واحدًا في كل خطوة تفكير. اطلبه مرة أخرى في الخطوة التالية.`
+
+**AND THE MODEL'S REACTION IS RATIONAL, WHICH IS WHY IT COSTS SO MUCH.** The note says
+"ask again in the next step" and says nothing about the OPEN having succeeded, so a
+competent agent re-issues its whole plan — `docs__open` first. Re-opening the SAME path
+is measured to cost a **FULL re-ingestion** (extract + chunk + encode again) and to
+return a **DIFFERENT doc_id**, because `DocumentService._register` suffixes a collision
+rather than replacing:
+
+```
+open #1: doc_id='book.md'    chunks=178   registry=1
+open #2: doc_id='book.md-2'  chunks=178   registry=2
+open #3: doc_id='book.md-3'  chunks=178   registry=3
+```
+
+At the live 18.00 s per ingestion, each retry buys another 18 s of silence, another copy
+of the index in RAM, and a doc_id the model has to re-read. The agentic cap then fires.
+**This is DEC-35's family again — a note that misreports its subject produces a rational
+wrong action — and it is the THIRD sighting after the PDF "not found" and the
+Docker-unavailable retry loop.**
+
+### THE ALTERNATIVES THAT WERE NOT EXCLUDED, WITH THE EVIDENCE THAT SETTLES THEM
+
+Four other paths also return without a query log line. They are listed so the transcript
+decides rather than this entry: each produces a DIFFERENT verbatim note.
+
+| note the model would have received | condition |
+|---|---|
+| `توجيه داخلي … أخدم طلب مستند واحدًا في كل خطوة تفكير` | **the measured mechanism above** |
+| `ما فيه مستند مفتوح بهذا الاسم…` | the `doc_id` was not in the registry |
+| `ما وصلني سؤال أبحث عنه في المستند.` | `question` absent, empty or not a string |
+| `ما وصلني معرّف مستند…` | `doc_id` absent or blank |
+| `قراءة المستندات غير متاحة في هذه الجلسة.` | the plugin was mounted with `service=None` |
+
+Two further paths would have left their OWN log lines, and neither appeared in the run:
+a confirm-gate refusal (`[confirm-gate] high-impact … refused`) and a plugin exception
+(`[tool_router] plugin … raised — contract breach`).
+
+### THE COVERAGE GAP — AND IT IS WORSE THAN "NOTHING TESTED IT"
+
+**The behaviour is TESTED, GREEN, AND DELIBERATE.**
+`tests/test_doc_servicing.py::test_the_first_doc_call_of_the_pass_is_the_serviced_one`
+drives exactly this shape — `_open_call("d1")` and `_query_call("d2")` in one pass — and
+asserts `routed[0].tool_use_id == "d1"`, with a sibling asserting the second id receives
+`DOC_ONE_PER_PASS_AR`. Both pass today.
+
+**So the defect is not an untested branch. It is a tested INVARIANT whose CONSEQUENCE was
+never checked.** The one-serviced-call-per-pass rule is inherited from the Phase-4 read
+path, where it is correct: one read per pass is a real bound. `doc_rag` is the first
+capability whose two tools form a MANDATORY SEQUENCE — you cannot query what you have not
+opened — and a model that plans both at once is not misbehaving.
+
+**What SHOULD have caught it, and why nothing did:**
+
+1. **No check drives `docs__query` through the ROUTER.** The diag's absence and location
+   checks (A1-A5, B1) call `DocumentService.query` DIRECTLY, because what they were
+   designed to prove is a property of RETRIEVAL against ground truth. CHECK D and CHECK F
+   drive `docs__open` through the router and through `TurnPass` — **`docs__query` goes
+   through neither.** The tool the milestone exists for has zero end-to-end coverage.
+2. **The diag's `ScriptedReasoner` emits exactly ONE tool call per pass.** The failing
+   shape is therefore *structurally unreachable* in the harness — not missed, but
+   inexpressible. A fake that cannot produce the model's real output shape cannot falsify
+   anything about it.
+3. **DEC-39 was satisfied in the letter.** It requires a servicing BRANCH before a mount,
+   and the branch exists and works. What it does not require is proof that the branch is
+   REACHED for every tool in a family, under the call patterns a model actually emits.
+
+**THE SIXTH FACE OF THE FAMILY, and the worst placement yet.** DEC-40: a test that builds
+its own graph proves nothing about production. M2: state a teardown also produces must be
+sampled before teardown. AGENTS.md's cutoff rule: a check that examined nothing must not
+look like a check that passed. T6's own four survivors. **Every earlier sighting was a
+GUARD that was not really guarded. This one is the FEATURE ITSELF** — 55 green checks over
+a capability that does not work — and the connecting defect is identical: the check and
+the thing checked were adjacent and never connected.
+
+### THE COST QUESTION HAS THE SAME ANSWER — there is no separate cost bug
+
+A pointing turn costs **$0.070** (two passes). OBS-1 cost **$0.151** and OBS-2 **$0.127**,
+inflated purely by the retry-and-reopen loop the failure caused. The `tokens=134983` line
+is the LOCAL zone ESTIMATE and never reaches the API; only **15,905 characters** were
+delivered, which is DEC-46's cap working exactly as designed.
+
+**THE PER-PASS FIXED COST, MEASURED** against `claude-sonnet-4-6` with the production
+persona, the production 9-tool catalog and a 1280x720 frame (counted with Anthropic's
+token-count endpoint, which generates nothing):
+
+| component | input tokens |
+|---|---|
+| user turn (baseline) | 43 |
+| **system / persona prompt** (9,786 chars) | **6,588** |
+| the 9 tool schemas | 2,997 |
+| screenshot 1280x720 | 1,200 |
+| history (pass 1) | 0 |
+| **FULL pass-1 request** | **10,828** |
+
+**FIXED OVERHEAD IS 10,785 TOKENS — 99.6% of a pointing turn's first request**, and the
+PERSONA alone is 61% of it. Incremental tool-catalog cost, measured in production mount
+order: V1 four = 1,582 tokens; **the five later tools (sandbox + web x2 + docs x2) add
+1,415 tokens to EVERY pass**, and a pointing turn pays all of it while touching none of
+them. Both growth axes are real and already recorded: 4 tools to 9, and
+`persona_rules.py` 116 to 233 lines.
+
+**PROMPT CACHING IS NOT WIRED AT ALL — determined by reading the code.** `claude_agent.py`
+sends `system=` as a **plain string** and `tools=` as a **plain list**, and `cache_control`
+appears **nowhere in `src/`** (the two `ephemeral` hits are English prose in unrelated
+comments). **DEC-47's zone-1 "FULL INJECTION + prompt-cache" therefore names a mechanism
+that does not exist in this codebase** — the injection half ships, the cache half was
+never built. Recorded, not fixed.
+
+### THREE FINDINGS FROM THE SAME RUN
+
+**(a) INGESTION IS TWICE THE BENCH FIGURE, and a signed decision carries the bench
+number.** OBS-4 measured **18.00 s / 67.4 ms per chunk** against T2's **30.2 ms** bench
+figure. DEC-47's derived maximum is computed FROM that constant, so in production it is
+roughly **half** of the 754,680 tokens `zones.py` prints — about **338,000**. **DEC-49
+ruling 4's invariant still HOLDS by a wide margin** (338,000 vs a 50,000 injection limit),
+nothing is broken, and zone 3 stays the rare safety valve recorded earlier today. What is
+recorded is the DEC-56 lesson repeating: **a bench number inside a signed decision that
+production does not reproduce.** The startup log line prints the bench-derived figure as
+if it were the operating one.
+
+**(b) THE MODEL READ THE TERMINAL LOGS OFF THE SCREEN AND INVENTED A CAUSE.** With the
+diag running in a visible terminal, the screenshot carried the app's own log lines into
+the model's context. It used them: it claimed **session taint was blocking the query** —
+which is **FALSE**, and this project has the receipts (E2, F2 and F6 all prove taint does
+not gate a document read; DEC-51 exists precisely so it cannot). It then spent the turn
+DEBUGGING THE SYSTEM instead of answering the user.
+
+- **The behavioural finding, stated generally: with vision, VISIBLE LOGS ARE MODEL
+  INPUT.** Nothing was leaked and no boundary was crossed — the model was reading the
+  user's own screen, which is the product's entire premise — but a plausible, confident,
+  WRONG causal story assembled from log fragments is exactly the failure the absence law
+  exists to prevent, arriving through a channel nobody had considered.
+- **It also means a developer running a diag in a visible terminal is not observing a
+  clean turn.** The measurement environment altered the measured behaviour.
+
+**(c) THE ABSENCE LAW AND THE SPOKEN-LOCATION CLAUSE REMAIN UNJUDGED.** Neither OBS-1 nor
+OBS-2 exercised them, because `docs__query` never returned passages — there was nothing
+present to locate and nothing absent to decline. **The milestone's most important
+behavioural question is still open**, and it cannot be answered until the defect above is
+ruled on and fixed. The deterministic HALF of those checks (A1-A5, B1) did run and did
+pass on Sultan's corpus; only the OBSERVED half is outstanding.
+
+---
