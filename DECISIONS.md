@@ -3862,3 +3862,124 @@ suffix check), which is a gate change and therefore needs its own ruling — pre
 Logged so the hole is a known one rather than a discovered one.
 
 ---
+
+## DEC-55 (2026-07-30) — three T3 items RULED — APPROVED (Sultan)
+
+### RULING 1 — DEC-54's exposed band is ACCEPTED as ruled; the re-route is NOT built
+
+- **Resolution:** the upward bias STANDS and the 4-line re-route is **REJECTED for launch.**
+- **Why the bias is right:** only one of the two harms is unbounded. An UNDER-estimate fully
+  injects a huge document — a context and budget blowout. An OVER-estimate merely indexes a
+  document that would have fit, which is a bounded cost on a working feature.
+- **Why the fix is refused even though it is cheap and correct-looking:** it would change what
+  **zone 1 MEANS in a signed decision.** A re-routed document has already been CHUNKED, and
+  DEC-47 states zone 1 bypasses chunking. **We do not redefine a signed decision to close a
+  band that ZERO corpus documents fall into.** The measured band stands recorded:
+  ~37,600 to 50,000 true tokens, against corpus documents at 909 / 9,945 / 103,187.
+
+### RULING 2 — the NUL-free PDF stays open, correctly logged, and gets its OWN authorization
+
+- **Resolution:** **leave it.** Closing it needs a NEW PREDICATE (magic bytes or a suffix
+  check), which is a **GATE change** — and T3's whole discipline was that the gates stay
+  byte-identical while only the message changes (the DEC-42 posture, mechanically pinned by
+  sha256 over the gate sources).
+- **THE IMPACT, RECORDED HONESTLY rather than left implied:** today a rare PDF — one with no
+  NUL byte in its first 4,096 bytes — passes `file_reader`'s binary sniff as text and yields
+  **garbled output**. **No leak. No boundary crossed. No LOOK-only violation.** The cost is a
+  bad answer, not an unsafe one.
+- **It gets its own authorization AFTER milestone close.** A gate change earns a ruling of its
+  own; it does not ride along inside a security milestone as an incidental improvement.
+
+### RULING 3 — a Phase-3 UX finding from Sultan's live run: RECORDED, NOT ACTED ON
+
+- **Observed live (Sultan):** across a MULTI-PASS explanation the user hears the short spoken
+  ack — «شفت», «زين» — **once PER PASS**, so a three-pass answer sounds like **three restarts
+  inside one explanation.**
+- **Why the existing guard does not catch it:** the UAT echo-suppression guard
+  (`speech_stream.strip_leading_repeat` + `EchoGuard`) blocks a **REPEATED IDENTICAL** line.
+  A NEW ack per pass is not a repeat — it is a fresh, different, individually-correct line.
+  The guard is working as specified; the specification did not cover this shape.
+- **This is a UX defect, not a fault:** nothing is unsafe, nothing degrades, no law is broken.
+  It is the seam between the pass-1 ack mandate (v7.1 Fix E, which exists because a measured
+  `chars=0` ack left the inter-pass gap unmasked) and multi-pass explanations, which arrived
+  later.
+- **The fix is a PERSONA CLAUSE:** the ack belongs to the **FIRST pass only**; later passes
+  continue directly.
+- **DELIBERATELY NOT LANDED HERE.** It touches the persona AND the voice line, and it does
+  **not** land inside a security milestone — the audio path stays untouched while boundaries
+  are being built (the standing posture since Phase 1).
+- **OWED AFTER MILESTONE CLOSE**, with the live evidence above as its acceptance case: a
+  three-pass explanation must carry exactly ONE spoken ack.
+
+---
+
+## T4 FINDINGS (2026-07-30) — DEC-52's trigger fired as written, and a mutation that proved nothing
+
+### DEC-52'S TRIGGER FIRED — MEASURED BEFORE WRITING, NOT DISCOVERED AFTER
+
+DEC-52 named `composition.py`'s extraction seam at planning time and wrote an explicit
+trigger: *the FIRST milestone whose mount would push the file past 300 executes the
+extraction FIRST, alone, byte-identical, before its feature work.* T4's mount was written to
+a **scratchpad copy and measured** (the P0b method) before a line entered the repo:
+`composition.py` would have landed at **320/300**.
+
+- **So the extraction ran ALONE**, in its own commit, ahead of the feature:
+  `mount_web_research` moved BYTE-IDENTICAL to `composition_mounts.py`, proven by sha256
+  against `git show HEAD:src/muthis/composition.py` (`ee9bfadc…` both sides, 25 lines), with
+  `composition.py` re-exporting the name so all nine existing importers — `main.py`, three
+  test modules and two diag scripts — kept working untouched.
+- **The measurement is why this cost nothing.** DEC-52 projected 278 for this milestone; the
+  real figure was 320 because the projection did not count `_doc_model_dir`, a builder the
+  mount needed. **A named seam plus a measurement beat a named seam plus an estimate** —
+  which is the same gap M2 recorded nine times and the T5 ceiling finding recorded once.
+- Result: `composition.py` **259/300** with the mount landed, `composition_mounts.py` 120.
+  Each future capability milestone now costs `composition.py` zero.
+
+### THE MOUNTS-VERSUS-BUILDERS SPLIT PROVED ITSELF IMMEDIATELY
+
+DEC-52's seam predicted that a MOUNT states the kernel's own security facts while a BUILDER
+answers "what object exists". T4 landed both kinds in one task, and they sorted cleanly with
+no judgement call: `_doc_model_dir` and `_build_doc_rag` went to `composition.py`,
+`mount_doc_rag` — which is nothing BUT DEC-51's two flags — went to `composition_mounts.py`.
+**A seam that requires no deliberation on its first real use is a seam chosen on the right
+axis.**
+
+### A MUTATION THAT WENT RED FOR THE WRONG REASON — the T2 trap, one level in
+
+T4's M8 (proving the relevance sort runs BEFORE the parent dedupe) cut a two-line statement
+mid-expression. The mutated module **no longer imported**, pytest reported `1 error`, the
+exit code was non-zero, and the harness scored it **RED**.
+
+- **It proved nothing.** The tests never ran, so the guard was never consulted. This is
+  exactly the defect T2 recorded — a mutation whose failure happens at COLLECTION says
+  nothing about the property — except that here it wore a **non-zero exit code as a
+  disguise**, which is harder to notice than a silent zero.
+- **THE INSTRUMENT WAS FIXED, not the score:** the harness now distinguishes a collection
+  ERROR from an assertion FAILURE and reports `SUSPECT` rather than `RED` when the summary
+  carries `error` without `failed`. M8 was then rewritten to replace the WHOLE statement
+  (valid Python), and re-ran as `1 failed` — a real assertion.
+- **The lesson, stated for the family:** "the tests failed" and "the guard caught it" are
+  different claims, and only the second one is evidence. The T3 harness already asserted a
+  mutation APPLIED; applying is necessary and not sufficient — it must also **run**.
+
+### THE THIRD IDENTICAL PAIRING ARM — a seam named, deliberately not taken
+
+`build_tool_result_message` now carries three near-identical routed arms (read / web / docs),
+of which the web and doc arms are structurally the same: serviced id gets the content, every
+other id gets that family's one-per-pass note. A `{tool_name: busy_note}` table would collapse
+them.
+
+- **NOT done, and the reason is the project's own precedent:** the `ROUTER_SERVICED_TOOLS`
+  replacement was landed ALONE and BEFORE any doc_rag wiring for exactly this reason. A
+  refactor of two working SECURITY branches does not belong inside the feature commit that
+  needed neither, and `tool_result_pairing.py` has the room (234/300).
+- **The trigger is named:** a FOURTH routed family replaces both arms with the table first.
+
+### DOC_ONE_PER_PASS_AR EXISTS BECAUSE OF DEC-35, not for tidiness
+
+Reusing `WEB_ONE_PER_PASS_AR` for a document call would tell the model "I serve one WEB
+request per step" after it asked for a DOCUMENT — sending it looking for a web call it never
+made. That is DEC-35's defect in miniature: a note that misreports its subject produces a
+rational wrong action, and the agentic loop exists to retry.
+
+---
