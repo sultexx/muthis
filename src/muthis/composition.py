@@ -24,6 +24,11 @@ from .broker.grants import GrantsStore
 from .broker.mcp.host import McpHost
 from .broker.net import FetchedDomains, HardenedFetcher
 from .broker.search import build_search_provider
+# DEC-52's named extraction, EXECUTED (T4): the MOUNTS moved to
+# composition_mounts.py when this file measured 320/300 with T4's mount. The
+# re-export keeps every existing importer — main.py, the tests, the diag
+# scripts — working unchanged (the turn.py precedent).
+from .composition_mounts import mount_web_research  # noqa: F401
 from .cloud.claude_agent import ClaudeAgent
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
@@ -32,9 +37,7 @@ from .kernel.core_router import build_core_router
 from .kernel.orchestrator import Orchestrator
 from .kernel.session_taint import SessionTaint
 from .kernel.tool_router import ToolRouter
-from muthis_sdk import NetCapability, PluginContext
 from .trust.confirm_gate import ConfirmGate
-from .trust.high_impact import NETWORK_CAPABILITY, RouteImpact
 from .kernel.turn import TurnResult
 from .overlay import DEFAULT_POINTER_ANIM_MS, SidekickOverlay
 from .stt import STT
@@ -172,33 +175,6 @@ def _build_broker_graph(
                    announce=lambda note_ar: logger.warning(
                        "[main] mcp server disabled: %s", note_ar))
     return router, host, fetcher, web_plugin, search_provider
-
-
-def mount_web_research(router: ToolRouter, plugin, fetcher: HardenedFetcher) -> None:
-    """Mount `web__search` / `web__fetch` — the project's THIRD model-visible
-    change (V1 four → v2 sandbox → v3 web), byte-pinned to look_tools_v3.json.
-
-    Called from main AFTER the sandbox mount, so v3 is v2 with two tools APPENDED
-    and the snapshot diff stays purely additive.
-
-    IN-PROCESS, not through the broker's grant flow (DEC-33): `web_research` is a
-    FIRST-PARTY NATIVE plugin like the core four and `sandbox_exec`, so it
-    receives the real capability object directly. `ctx.net` IS the hardened
-    fetcher's one verb — the plugin gets readable content, never a socket.
-
-    The two facts the KERNEL states here are the ones a plugin may never state
-    about itself (DEC-15): `taint=True`, because a page is external content by
-    definition, and `capabilities={net.fetch}`, because that is what this root
-    just granted. Both drive the DEC-16 confirmation, and `read_only=True` on the
-    plugin's own descriptors cannot lower either."""
-    router.mount(
-        plugin,
-        ctx=PluginContext(net=NetCapability(fetch_readable=fetcher.fetch_readable)),
-        namespace="web",
-        provenance="web_research",
-        taint=True,
-        impact=RouteImpact(capabilities=frozenset({NETWORK_CAPABILITY})),
-    )
 
 
 def _build_sandbox() -> SandboxService:
