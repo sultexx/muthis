@@ -15,12 +15,18 @@ Run:  set PYTHONPATH=src && python -m pytest tests/test_file_reader.py -q
 
 from __future__ import annotations
 
+import hashlib
+import inspect
 import logging
 
 import pytest
 
+from muthis import file_reader as _fr
 from muthis.file_reader import (
+    DOCUMENT_FORMATS,
     FILE_BLOCKED_AR,
+    FILE_IS_DOCUMENT_AR,
+    FILE_NOT_FOUND_AR,
     FILE_NOT_TEXT_AR,
     FILE_READ_UNAVAILABLE_AR,
     FILE_TOO_LARGE_AR,
@@ -144,3 +150,117 @@ async def test_content_never_logged(tmp_path, caplog):
 @pytest.mark.asyncio
 async def test_stub_read_file_answers_unavailable():
     assert await stub_read_file({"path": "C:/anything.py"}) == FILE_READ_UNAVAILABLE_AR
+
+
+# ───────────── DEC-35: the refusal NAMES the format (T3, doc_rag) ─────────────
+#
+# Live evidence, 2026-07-25: a PDF was refused CORRECTLY — the binary NUL sniff
+# fired exactly as designed and nothing leaked — but the note the model read
+# reported a RETRYABLE reason. The model then did the rational thing and retried
+# four different paths until MAX_AGENTIC_ITERATIONS stopped the turn: four
+# provider calls, roughly $0.10, no answer for the user. Every guard behaved to
+# spec; the SIGNAL lied about its reason. The fix is a MESSAGE, and the tests
+# below also pin the neighbouring GUARDS as byte-identical, because "improving"
+# a security gate while the file is open is what DEC-42's discipline forbids.
+
+@pytest.mark.asyncio
+async def test_a_pdf_refusal_NAMES_the_format_instead_of_a_generic_binary_note(tmp_path):
+    target = tmp_path / "textbook.pdf"
+    target.write_bytes(b"%PDF-1.7\x00\x00 stream junk")
+
+    out = await FileReader().read({"path": str(target)})
+
+    assert out == FILE_IS_DOCUMENT_AR.format(fmt="PDF")
+    assert "PDF" in out
+    assert out != FILE_NOT_TEXT_AR          # the note it REPLACED
+
+
+@pytest.mark.asyncio
+async def test_the_pdf_refusal_is_TERMINAL_and_is_NOT_the_not_found_note(tmp_path):
+    """The two halves of DEC-35's defect, asserted as inequalities rather than as
+    two independent content checks: the note must not be the not-found note (the
+    wrong reason), and it must foreclose the retry (the wrong category)."""
+    target = tmp_path / "textbook.pdf"
+    target.write_bytes(b"%PDF-1.7\x00 junk")
+
+    out = await FileReader().read({"path": str(target)})
+
+    assert out != FILE_NOT_FOUND_AR.format(path=str(target))
+    assert "لا تحاول" in out                 # do not retry — the terminal signal
+    assert "على الشاشة" in out               # ...and the path forward (vision)
+
+
+@pytest.mark.asyncio
+async def test_a_DOCX_and_a_PDF_get_DIFFERENT_notes(tmp_path):
+    """A mutation that named one format for every document would satisfy "the note
+    mentions a format" twice over. The INEQUALITY is what closes that."""
+    pdf = tmp_path / "a.pdf"
+    docx = tmp_path / "b.docx"
+    pdf.write_bytes(b"%PDF-1.7\x00 x")
+    docx.write_bytes(b"PK\x03\x04\x00 x")
+
+    pdf_note = await FileReader().read({"path": str(pdf)})
+    docx_note = await FileReader().read({"path": str(docx)})
+
+    assert pdf_note != docx_note
+    assert "PDF" in pdf_note and "DOCX" in docx_note
+
+
+@pytest.mark.asyncio
+async def test_an_UNRECOGNISED_binary_keeps_the_generic_note(tmp_path):
+    """No invented format names. Claiming a type we did not recognise would swap
+    one inaccuracy for another, which is the whole defect being fixed."""
+    target = tmp_path / "firmware.xyz"
+    target.write_bytes(b"MZ\x00\x01 binary")
+
+    assert await FileReader().read({"path": str(target)}) == FILE_NOT_TEXT_AR
+
+
+def test_every_named_format_renders_a_note_that_actually_names_it():
+    for suffix, name in DOCUMENT_FORMATS.items():
+        note = _fr._binary_refusal(suffix)
+        assert name in note, suffix
+        assert note != FILE_NOT_TEXT_AR, suffix
+    # A loop over an empty map would pass having examined nothing.
+    assert len(DOCUMENT_FORMATS) >= 5
+
+
+def test_the_format_lookup_is_case_insensitive():
+    assert _fr._binary_refusal(".PDF") == _fr._binary_refusal(".pdf")
+
+
+# ── THE GATES DID NOT MOVE. Pinned by sha256 over their own source ────────────
+#
+# DEC-35 states the requirement exactly: "The binary sniff and the secret-name
+# guard do not move one line." A pinned hash is that sentence made mechanical —
+# the GrantsStore precedent, where consent is pinned to manifest BYTES so any
+# change invalidates it by construction rather than by review.
+GATE_SOURCE_SHA256 = {
+    "_blocked_name":
+        "a204b5e6f5bd3061ddf84d545b765d037275ac39571a9b71f9141719dbd74d03",
+    "_bare_name_violation":
+        "4ad43cc6b1d3c724a2cb6d00da82083677537da35b27d7d9f9e9a8f08f230a2c",
+    "stage_file_gate":
+        "199ee14d9abfd851b0106cb3a61ed8e9803c9d5dcf5e2822d1855c4379f1224b",
+}
+
+
+@pytest.mark.parametrize("name,expected", sorted(GATE_SOURCE_SHA256.items()))
+def test_the_security_gates_are_BYTE_IDENTICAL_through_the_dec35_message_fix(
+        name, expected):
+    """If you are reading this because it failed: the message layer is what DEC-35
+    authorises changing. A gate change needs its own ruling, not a passing edit
+    made while the file happened to be open — and then this pin is updated
+    deliberately, in that ruling's commit."""
+    source = inspect.getsource(getattr(_fr, name)).encode("utf-8")
+
+    assert hashlib.sha256(source).hexdigest() == expected
+
+
+def test_the_staging_gate_still_answers_the_GENERIC_binary_note():
+    """`stage_file_gate` is DEC-13's security gate for model-staged sandbox files,
+    and it was deliberately left alone: the DEC-42 discipline is that the stronger
+    property stays byte-identical while the weaker one is fixed. A staged file has
+    no filesystem path to take a suffix from, so a format name there would be a
+    guess dressed as a fact."""
+    assert _fr.stage_file_gate("blob.pdf", b"%PDF\x00") == FILE_NOT_TEXT_AR

@@ -65,6 +65,25 @@ FILE_NOT_FOUND_AR = "ما لقيت الملف «{path}». تأكد من المس
 FILE_BLOCKED_AR = "هذا الملف من ملفات الأسرار (مفاتيح/بيانات اعتماد) وقراءته ممنوعة حمايةً للمستخدم."
 FILE_TOO_LARGE_AR = "الملف أكبر من الحد المسموح للقراءة. اطلب من المستخدم يفتح الجزء المطلوب أو حدّد ملفاً أصغر."
 FILE_NOT_TEXT_AR = "هذا ملف ثنائي (غير نصّي) وما أقدر أقرأه كنص."
+# DEC-35, closed by the doc_rag milestone: the binary refusal NAMES THE FORMAT.
+# Live evidence (2026-07-25): a PDF was refused correctly and nothing leaked, but
+# the note the model read reported a RETRYABLE reason — so the model did the
+# rational thing and retried four different paths until the agentic cap stopped the
+# turn. Four provider calls, ~$0.10, no answer. A refusal that misreports its
+# REASON turns a TERMINAL condition into a retryable one, and the agentic loop
+# exists precisely to retry, so the cost compounds. Naming the format ends the
+# attempt at the FIRST call, and the note routes to the vision path — the DEC-17
+# robots-refusal pattern, where a block becomes a showcase.
+DOCUMENT_FORMATS = {
+    ".pdf": "PDF", ".docx": "DOCX", ".doc": "DOC", ".epub": "EPUB",
+    ".odt": "ODT", ".rtf": "RTF", ".xlsx": "XLSX", ".xls": "XLS",
+    ".pptx": "PPTX", ".ppt": "PPT", ".djvu": "DjVu",
+}
+FILE_IS_DOCUMENT_AR = (
+    "هذا ملف {fmt}، وأداة قراءة النص عندي تقرأ الملفات النصية فقط فما تنفع معه. "
+    "ما فيه مسار ثاني يقرأه كنص، فلا تحاول بمسار أو صيغة ثانية. افتح الملف على "
+    "الشاشة وأنا أشرح لك منه وأشير على المكان اللي تسأل عنه."
+)
 # Staging-only (sandbox files[], DEC-13): the name must be BARE — no directory.
 FILE_NAME_NOT_BARE_AR = "اسم الملف لازم يكون بدون مسار أو مجلّد — مرّر اسم ملف بسيط فقط."
 FILE_READ_ERROR_AR = "صار خطأ أثناء قراءة الملف، جرّب مرة ثانية أو تأكد من الصلاحيات."
@@ -99,6 +118,24 @@ def _bare_name_violation(name: str) -> bool:
     A `..` in the MIDDLE of a bare name (e.g. `archive..bak`) is a legal file name,
     not a traversal segment, and is intentionally allowed (do not over-reject)."""
     return "/" in name or "\\" in name or name == ".."
+
+
+def _binary_refusal(suffix: str) -> str:
+    """DEC-35's MESSAGE fix, and ONLY a message fix.
+
+    The binary GATE decided to refuse before this function is consulted; all this
+    chooses is the sentence. A known document format gets a note that names it and
+    closes the attempt; anything else keeps the generic binary note, because
+    claiming a format we did not recognise would be a new inaccuracy in place of
+    the old one.
+
+    Deliberately NOT called from `stage_file_gate`: that is DEC-13's security gate
+    for model-staged sandbox files, and this is the DEC-42 discipline — the
+    stronger property stays byte-identical while the weaker one is fixed. A message
+    defect is repaired inside the message layer; the guard beside it is not
+    "improved" while the file happens to be open."""
+    named = DOCUMENT_FORMATS.get(suffix.lower())
+    return FILE_IS_DOCUMENT_AR.format(fmt=named) if named else FILE_NOT_TEXT_AR
 
 
 def stage_file_gate(name: str, data: bytes) -> Optional[str]:
@@ -173,7 +210,7 @@ class FileReader:
         data = resolved.read_bytes()
         if b"\x00" in data[:4096]:
             logger.info("[file_reader] refused binary file: %s", resolved)
-            return FILE_NOT_TEXT_AR
+            return _binary_refusal(resolved.suffix)   # DEC-35: name the format
         text = data.decode("utf-8-sig", errors="replace")
         body, start, end, total = self._numbered_slice(text, args)
         logger.info("[file_reader] read %s lines %d-%d of %d", resolved, start, end, total)
@@ -200,9 +237,9 @@ class FileReader:
 
 __all__ = [
     "FileReader", "ReadFileFn", "READ_FILE_TOOL", "stage_file_gate",
-    "MAX_FILE_BYTES", "MAX_RETURN_CHARS",
+    "MAX_FILE_BYTES", "MAX_RETURN_CHARS", "DOCUMENT_FORMATS",
     "FILE_NOT_FOUND_AR", "FILE_BLOCKED_AR", "FILE_TOO_LARGE_AR",
-    "FILE_NOT_TEXT_AR", "FILE_NAME_NOT_BARE_AR",
+    "FILE_NOT_TEXT_AR", "FILE_IS_DOCUMENT_AR", "FILE_NAME_NOT_BARE_AR",
     "FILE_READ_ERROR_AR", "FILE_READ_UNAVAILABLE_AR",
     "FILE_ALREADY_READ_AR", "TRUNCATION_NOTE_AR",
 ]

@@ -51,6 +51,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .activation import ActivationController  # noqa: E402,F401 — re-export: old imports keep working
+from .broker.docs.zones import assert_zone_invariant  # noqa: E402
 from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
@@ -184,6 +185,16 @@ def main() -> None:
     # into this app's log, defeating DEC-17, DEC-20 and the first privacy law.
     # See logging_policy.py; it is a deliberate control, not boilerplate.
     configure_logging()
+    # THE ZONE INVARIANT (DEC-49 ruling 4), checked HERE — after logging is
+    # configured so the failure is legible, and before the event loop opens so a
+    # broken configuration stops the process instead of surfacing later as one
+    # strange document. The derived ingestion maximum MUST EXCEED
+    # MUTHIS_DOC_INJECT_LIMIT or zone 2 is EMPTY: every document large enough to
+    # need an index is already too large to build one, and the three-zone design
+    # is incoherent rather than degraded. P0 measured that inversion happening
+    # under the rejected encoder, so it is a real configuration, not a
+    # hypothetical. It RAISES; it does not warn.
+    assert_zone_invariant()
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
