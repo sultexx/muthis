@@ -4196,3 +4196,151 @@ the pin was built for, observed instead of imagined.
   matters most.
 
 ---
+
+## T6 FINDINGS (2026-07-30) — the FOUR mutations that SURVIVED, and what each one bought
+
+- **Status:** RECORDED. `scripts/diag_doc_rag.py` is BUILT (`b559353`) and NOTHING is
+  declared passed — Sultan runs the live SOP personally and signs off. These are the
+  findings the build produced, kept because the survivors are worth more than the
+  thirteen that went RED: a mutation that goes RED confirms a check; a mutation that
+  SURVIVES names a property nobody was checking.
+
+### THE HEADLINE — "UP FRONT" IS NOT "BEFORE ENCODING"
+
+Deleting DEC-47's up-front zone gate entirely **stayed GREEN**. The reason is the
+sharpest formulation this milestone has produced: the SECOND, exact gate
+(`ZonePolicy.exceeds_budget`, DEC-54) refused the very same document — **same zone,
+same Arabic note, still zero vectors computed** — so every behavioural assertion the
+check made was satisfied while DEC-47's actual ruling had been destroyed.
+
+- **What was destroyed:** DEC-47 states that "the order of operations IS the feature" —
+  a refusal must cost the seconds extraction took, never the ingestion budget. Under the
+  mutation the document was fully CHUNKED before being refused. The user still gets a
+  refusal; they just pay for it.
+- **Why no behavioural assertion could see it:** the zone, the note and the vector count
+  are all IDENTICAL on both paths. The property is not in the outcome, it is in WHICH
+  GATE produced the outcome.
+- **The fix is to read the decision's own flag, not its behavioural shadow.**
+  `ZoneDecision.exact` is False on the estimated gate and True on the exact one, and the
+  up-front path produces no `ChunkReport` at all. Check **G6** asserts both.
+- **The family, stated once:** a check that verifies an OUTCOME two different code paths
+  can produce is not checking the path. This is the same defect as `AGENTS.md`'s standing
+  cutoff rule and DEC-40's self-built graph — **the check and the thing checked were
+  adjacent but never connected** — and it is now the FIFTH sighting.
+
+### THE OTHER THREE SURVIVORS, all the same family
+
+1. **Dropping DEC-51's `read_only_hint` stayed GREEN**, because the absurdity DEC-32
+   named — a two-turn spoken confirmation in front of reading a LOCAL FILE — cannot
+   appear on the FIRST document: the session is still clean, so the confirm gate has
+   nothing to fire on. It appears on the SECOND. Check **F6** drives exactly that turn.
+   **The counterfactual was being tested one turn too early.**
+2. **Answering a scanned PDF with `unsupported(".pdf")` stayed GREEN** against an
+   inequality check, because the two notes really are DIFFERENT — the suffixes differ —
+   while DEC-35's ruling was gone: a scanned PDF would be told to convert it and try
+   again, which is precisely the terminal-condition-reported-as-retryable defect that
+   cost four provider calls and ~$0.10 in DEC-35's live evidence. **The inequality is
+   necessary and not sufficient.** Check **H1** now asserts it TOGETHER WITH each note
+   carrying its own condition's clause.
+3. **A delivery-cap mutation scored GREEN in a configuration where its checks were
+   SKIPPED.** The harness was fixed, not the score: an expected check that reports SKIP
+   never ran, so the verdict is **SUSPECT**, and the mutation was re-driven where the
+   checks execute (RED there). This is T4's M8 lesson one level in — "the tests failed",
+   "the guard caught it" and "the guard was never consulted" are three different claims,
+   and only the second is evidence.
+
+### ZONE 3 IS A RARE PATH UNDER THE SHIPPED POLICY — CORRECT, NOT A DEFECT
+
+The T6 brief asked for the up-front refusal to be exercised on the 228-page corpus PDF.
+**The premise was false and it was refused rather than accommodated.** Measured against
+the live policy: zone 3 begins above **754,680 tokens** (1,986 chunks x 380 at 30.2 ms
+inside a 60 s budget) and the largest P0 corpus document is **103,187** true tokens
+(DEC-48/DEC-54) — roughly **seven times under** the derived maximum. It routes to zone 2.
+No limit was lowered to make the premise true; the refusal is driven on a document sized
+FROM the live policy, and the discrepancy is printed as a FINDING in the script's own
+output.
+
+- **THE ARCHITECTURAL CONSEQUENCE, recorded so it is not later read as a bug:** with
+  `e5-small` at a 60 s budget, **zone 3 needs a document roughly SEVEN TIMES the largest
+  corpus file.** That is the design working. Zone 3 is a **SAFETY VALVE** — against
+  pathological input, and against a future SLOWER ENCODER — not a routine path.
+- **The proof that the valve is real is already in the ledger:** DEC-49 ruling 4 measured
+  the relation INVERTING under `bge-m3` (a derived maximum of ~40,830 against a 50,000
+  injection limit), which is the configuration where zone 2 empties and zone 3 swallows
+  everything. The startup invariant exists for exactly that day.
+- **So a rare zone 3 and a loud startup invariant are two halves of ONE design**, and
+  neither should be "fixed" toward the other without re-deriving both.
+
+### THE WEBSOCKET FINDING — VERIFIED, AND IT LANDS SOMEWHERE ELSE THAN EXPECTED
+
+**The latent shape is REAL.** `TurnPass.new_turn_voice()` lazily resolves an unset
+session factory to the real `TTS().open_speech_session` whenever `MUTHIS_STREAM_TTS` is
+truthy, and `TurnVoice.begin_open()` then opens a LIVE ElevenLabs WebSocket. Any diag
+script that builds an `Orchestrator` without passing `speech_session_factory` inherits
+it. `diag_doc_rag.py` was measured doing exactly that on its first run — a real
+handshake, dumped into the DEBUG-level log its own privacy check reads — and now passes
+a factory returning `None` (the documented way a caller stays buffered).
+**`diag_web_research.py` has the same omission and was NOT modified**: it belongs to a
+signed, merged milestone, and opening one mid-flight is not something we do. It joins
+the post-milestone pass with the other owed items.
+
+- **THE VERIFICATION CORRECTS THE PREMISE, and the correction matters.** The brief
+  attributed an "armed socket guard / zero network calls" assertion to M2's T7.
+  **`diag_web_research.py` contains NO socket guard at all** (zero occurrences). That
+  claim belongs to **`diag_rag_bench.py`** — **DEC-48**, THIS milestone's own P0 gate,
+  which DEC-48 itself labels OBSERVATION, NOT A RULING. **So M2's T7 asserts nothing
+  that the latent shape falsifies, and M2's signed result STANDS.** What is inaccurate
+  is a DOCSTRING sentence in that script ("Everything else runs with no key and no
+  network"), which is false on a machine with `MUTHIS_STREAM_TTS` and an ElevenLabs key
+  in `.env` — i.e. Sultan's.
+- **AND THE GUARD THAT DOES EXIST IS NARROWER THAN IT CLAIMS. MEASURED, not reasoned.**
+  `NetworkGuard` patches `socket.socket.connect` and `socket.create_connection`. Driven
+  directly on this machine (Python 3.14.4, win32, **ProactorEventLoop**), against
+  127.0.0.1 on a closed port so nothing leaves the machine:
+
+  | path | verdict |
+  |---|---|
+  | sync `socket.create_connection` | **CAUGHT** (positive control) |
+  | sync `sock.connect()` | **CAUGHT** (positive control) |
+  | `asyncio.open_connection` | **WENT AROUND** (WinError 1225 — the OS really tried) |
+  | `websockets.connect` | **WENT AROUND** |
+  | `httpx.AsyncClient.get` | **WENT AROUND** |
+
+  **Cause:** Windows' ProactorEventLoop connects through `_overlapped.ConnectEx`, never
+  through `socket.socket.connect`, so a guard patching those two symbols is blind to
+  EVERY asyncio connection — WebSocket, httpx and plain streams alike.
+- **WHAT THIS DOES AND DOES NOT MEAN.** The bench's recorded verdict `ZERO network
+  calls` is **still TRUE for what actually ran**: every phase after arming used
+  `onnxruntime`, `tokenizers`, `pypdf`, `pymupdf`, `pdfminer` and `numpy`, all local, and
+  `hf_hub_download` is synchronous and ran BEFORE arming. **What is overstated is the
+  guard's COVERAGE**, and its docstring says "Raises on ANY outbound connection". The
+  risk is forward-looking: a future measurement phase reaching for `httpx` or any async
+  client would slip past in silence, which is the failure mode a guard exists to make
+  impossible.
+- **NO CODE CHANGE NOW, and the reason is scope rather than size.** Both items — the
+  session-factory omission and the guard's async blindness — are **OWED AFTER MILESTONE
+  CLOSE**, with the UX pass and the NUL-free-PDF ruling. Acceptance cases, so the fix is
+  not re-derived later: (a) `diag_web_research.py --deterministic` opens ZERO sockets on
+  a fully-keyed machine; (b) `NetworkGuard` catches `asyncio.open_connection` on the
+  Proactor loop, proven by the probe above with its two sync positive controls intact.
+
+### OBS-4 ADDED TO THE LIVE SOP — INGESTION SILENCE, MEASURED AND NOT JUDGED
+
+The script now times **ingestion start to index-ready for every zone-2 document** and
+prints it as an OBSERVATION. `service.open` is the whole of ingestion — extract,
+estimate, zone, chunk, encode, index — so the interval timed is exactly the interval a
+user spends hearing nothing.
+
+- **Why it is worth a ruling:** a ~100k-token document is roughly 263 chunks at the
+  30.2 ms/chunk measured at T2 — **about 8 SECONDS** — plus the one-time encoder load
+  and a ~2.6 s parse for a 228-page PDF. Sultan has ruled before that seconds of silence
+  inside a voice turn are a system fault, not a wait.
+- **The precedent is DEC-3-D**, where the sandbox image's first pull was announced ALOUD
+  on exactly this reasoning: a multi-second wait with no voice is indistinguishable from
+  a hang. **The seam already exists** — `model_pin.FIRST_DOWNLOAD_AR` is announced before
+  the first model download and is currently wired to the LOGGER, not the voice line (the
+  `McpHost.announce` posture).
+- **NOTHING WAS BUILT.** No announcement, no seam wiring, no persona clause. The number
+  is measured and printed; whether it needs a voice is Sultan's ruling.
+
+---

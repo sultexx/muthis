@@ -1240,7 +1240,7 @@ class AbsenceSetup:
 
 async def check_absence_and_location(
     checks: Checks, corpus: Optional[Corpus], service: Optional[DocumentService],
-    setup: AbsenceSetup,
+    setup: AbsenceSetup, observations: Observations,
 ) -> "dict[str, Any]":
     """THE MILESTONE'S MOST IMPORTANT CHECK — its deterministic half.
 
@@ -1281,13 +1281,57 @@ async def check_absence_and_location(
 
     evidence: "dict[str, Any]" = {}
     # ── Which corpus documents actually index (zone 2)? ───────────────────────
+    # THE CLOCK IS STARTED HERE AND NOWHERE ELSE. `service.open` is the whole of
+    # ingestion — extract, estimate, zone, chunk, encode, index — so timing it
+    # measures exactly the interval a user would spend hearing nothing, which is
+    # the number OBS-4 exists to put in front of Sultan.
     indexed: "list[tuple[pathlib.Path, str, int]]" = []
+    timings: "list[str]" = []
+    first_zone2 = True
     for path in corpus.files:
+        started = time.perf_counter()
         opened = await service.open(path)
-        if opened.ok and opened.doc_id:
+        elapsed = time.perf_counter() - started
+        is_index = opened.ok and bool(opened.doc_id)
+        per_chunk = (f"{elapsed * 1000 / opened.chunks:.1f} ms/chunk"
+                     if is_index and opened.chunks else "-")
+        # The document's NAME never appears — suffix, size and timing only.
+        timings.append(
+            f"{path.suffix} · zone={opened.zone} · chunks={opened.chunks} · "
+            f"{elapsed:.2f} s · {per_chunk}"
+            + ("  ← INCLUDES the one-time encoder load (~1.0 s measured at T2)"
+               if is_index and first_zone2 else ""))
+        if is_index:
             indexed.append((path, opened.doc_id, opened.chunks))
+            first_zone2 = False
     evidence["documents that reached zone 2 (admitted)"] = len(indexed)
     evidence["documents examined (the corpus cutoff)"] = len(corpus.files)
+    # ── OBS-4. MEASURED, NEVER JUDGED — recorded before the early returns below,
+    #    so a corpus that indexes nothing still reports its timings rather than
+    #    losing them to a branch. Sultan has ruled before that seconds of silence
+    #    in a voice turn are a system fault, so the number is his to weigh.
+    observations.add(
+        "OBS-4 — INGESTION SILENCE: ingestion start → index ready, per document",
+        {
+            "per document (name and path withheld — privacy law)": timings,
+            "measured with": ("the PINNED e5-small int8 encoder — this observation "
+                              "is only reached when the model is present and "
+                              "hash-verified, so no row here is a stub's timing"),
+            "what the arithmetic predicts": (
+                "a ~100k-token document is roughly 263 chunks at the 30.2 ms/chunk "
+                "measured at T2 — about 8 SECONDS — plus the one-time encoder load "
+                "and the parse (a 228-page pypdf parse measured ~2.6 s at P0). The "
+                "rows above are what actually happened on this hardware."),
+            "what to judge": (
+                "Is this silence acceptable inside a voice turn, or does it need a "
+                "SPOKEN announcement? The precedent is DEC-3-D, where the sandbox "
+                "image's first pull was announced aloud on exactly this reasoning: a "
+                "multi-second wait with no voice is indistinguishable from a hang. "
+                "The same seam already exists here — `model_pin.FIRST_DOWNLOAD_AR` "
+                "is announced before the first model download and is currently wired "
+                "to the LOGGER, not the voice line. NOTHING IS BUILT FOR THIS: it is "
+                "measured and printed, and the ruling is yours."),
+        })
     checks.record(names[1], bool(indexed))
     if not indexed:
         # A FAILURE, not a skip: the corpus and the encoder were both supplied,
@@ -1888,10 +1932,12 @@ async def main() -> None:
     live_service: Optional[DocumentService] = None
     if corpus is not None and encoder_present:
         live_service = DocumentService(model_dir=model_dir, policy=policy)
-        absence_ev = await check_absence_and_location(checks, corpus, live_service, setup)
+        absence_ev = await check_absence_and_location(
+            checks, corpus, live_service, setup, observations)
         setup.ready = bool(setup.doc_id and setup.absent_question)
     else:
-        absence_ev = await check_absence_and_location(checks, None, None, setup)
+        absence_ev = await check_absence_and_location(
+            checks, None, None, setup, observations)
 
     corpus_canary = await _corpus_content_canary(corpus)
     corpus_names = [p.name for p in corpus.files] if corpus else []
