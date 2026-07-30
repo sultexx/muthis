@@ -55,9 +55,9 @@ from .broker.docs.zones import assert_zone_invariant  # noqa: E402
 from .kernel.budget import Budget  # noqa: E402
 from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
-    _build_broker_graph, _build_orchestrator, _build_sandbox,
+    _build_broker_graph, _build_doc_rag, _build_orchestrator, _build_sandbox,
     _log_docker_fallback_decision, _pointer_anim_ms, _size_sent_image,
-    mount_web_research,
+    mount_doc_rag, mount_web_research,
 )
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
@@ -108,6 +108,15 @@ async def run() -> None:
     # (DEC-39), the wrap and taint raise, the confirm gate, the per-turn cap and
     # the provenance badge all landed BEFORE the model could call them.
     mount_web_research(router, web_plugin, fetcher)
+    # V2 Phase 2 (T4): docs__open + docs__query join the catalog — the FOURTH
+    # model-visible change in the project's history (byte-pinned to
+    # look_tools_v4.json). Mounted AFTER the web tools so v4 is v3 with two tools
+    # APPENDED, and — DEC-39's REQUIREMENT, not a preference — the SERVICING branch
+    # in tool_result_pairing.py landed BEFORE this line, because a mounted-but-
+    # unserviced tool bypasses the wrap, the taint raise and the confirm gate, then
+    # takes the pointer ack and hard-terminates the turn.
+    doc_service, doc_plugin = _build_doc_rag()
+    mount_doc_rag(router, doc_plugin)
     model_tools = [descriptor.schema for descriptor in router.descriptors()]
     _log_docker_fallback_decision()
 
@@ -164,6 +173,7 @@ async def run() -> None:
         listener.stop()       # stop the keyboard thread first (no new turns)
         await mcp_host.shutdown()  # terminate MCP children before the UI goes
         overlay.close()       # stop the overlay's Tk thread
+        doc_service.clear()   # drop every open document: session-scoped by law
         await fetcher.aclose()  # release the net.fetch client (DEC-17: a SEPARATE pool)
         await search.aclose()   # release the key-bearing search client (DEC-18)
         await agent.aclose()  # release the shared httpx client (root owns shutdown)

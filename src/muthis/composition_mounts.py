@@ -70,4 +70,51 @@ def mount_web_research(router: ToolRouter, plugin, fetcher: HardenedFetcher) -> 
     )
 
 
-__all__ = ["mount_web_research"]
+def mount_doc_rag(router: ToolRouter, plugin) -> None:
+    """Mount `docs__open` / `docs__query` — the project's FOURTH model-visible
+    change (V1 four → v2 sandbox → v3 web → v4 docs), byte-pinned to
+    look_tools_v4.json. Called AFTER the web mount so v4 is v3 with two tools
+    APPENDED and the snapshot diff stays purely additive.
+
+    DEC-51 IS THIS FUNCTION'S WHOLE POINT, and the two flags travel TOGETHER:
+
+      * **`taint=True`** because any document reaching this route is BY DEFINITION
+        too large to have been inspected. The real line is not local-versus-external
+        — it is whether the USER SAW IT. `read_local_file` returns a few thousand
+        NUMBERED characters; the injection threshold alone exceeds a hundred pages,
+        and a PDF can hide text a user never sees even with the file open. A UNIFORM
+        rule is also STRONGER than one varying by zone or format, which would make
+        security depend on the PARSER — the component most likely to be swapped,
+        upgraded, or surprised by a malformed file.
+      * **`read_only_hint=True`** because impact classification reads `taint` as the
+        EXTERNALITY signal, so `taint=True` ALONE would classify this route
+        high-impact and put a two-turn SPOKEN CONFIRMATION in front of reading a
+        local file. DEC-32 predicted this exact coupling and asked to be re-read at
+        this gate; DEC-51 is the decision it asked for, and this line spends it.
+
+    ACCEPTED CONSEQUENCE, Sultan's ruling and not an oversight: taint is sticky
+    (DEC-2), so ingesting a document TAINTS THE SESSION and any later `web__fetch`
+    or networked sandbox run needs spoken approval. That is intentional — a hostile
+    PDF's goal is precisely to push the model outward, which is the exact motion the
+    confirmation stands in front of.
+
+    Both facts are the KERNEL'S (DEC-15). The plugin's own `read_only=True`
+    descriptors can neither raise nor lower either, and a test proves it.
+
+    NO CAPABILITY is granted, so `high_impact`'s capability arm cannot fire either:
+    reading a local document sends nothing anywhere — the V1 `read_local_file`
+    argument, unchanged. `ctx` is a bare `PluginContext` for the same reason the
+    sandbox mount passes none: the document service is INJECTED into the plugin
+    already-built (DEC-27), so there is no capability seam for the broker to hand
+    over and nothing here for a denial to make absent."""
+    router.mount(
+        plugin,
+        ctx=PluginContext(),
+        namespace="docs",
+        provenance="doc_rag",
+        taint=True,
+        impact=RouteImpact(read_only_hint=True),
+    )
+
+
+__all__ = ["mount_doc_rag", "mount_web_research"]

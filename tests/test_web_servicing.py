@@ -442,12 +442,19 @@ def test_router_serviced_tools_holds_exactly_the_routed_tools():
     with the pointer ack that flips the draw gate (DEC-39). Pinning the value
     means that omission fails HERE instead of live."""
     from muthis.file_reader import READ_FILE_TOOL
-    from muthis.kernel.tool_result_pairing import ROUTER_SERVICED_TOOLS, WEB_TOOLS
+    from muthis.kernel.tool_result_pairing import (
+        DOC_OPEN_TOOL, DOC_QUERY_TOOL, DOC_TOOLS, ROUTER_SERVICED_TOOLS, WEB_TOOLS,
+    )
 
-    assert ROUTER_SERVICED_TOOLS == {READ_FILE_TOOL, WEB_SEARCH_TOOL, WEB_FETCH_TOOL}
+    # T4 (doc_rag) joined the set. Updating this pin is DELIBERATE and belongs in
+    # the commit that adds the family — an exact-value pin exists precisely so a
+    # new routed tool cannot arrive without a human editing this line.
+    assert ROUTER_SERVICED_TOOLS == {READ_FILE_TOOL, WEB_SEARCH_TOOL,
+                                     WEB_FETCH_TOOL, DOC_OPEN_TOOL, DOC_QUERY_TOOL}
     # Stated as a SUPERSET relation too: a family may grow, but every member of
     # a routed family must be in the serviced set — that is the real invariant.
     assert WEB_TOOLS <= ROUTER_SERVICED_TOOLS
+    assert DOC_TOOLS <= ROUTER_SERVICED_TOOLS
     assert READ_FILE_TOOL in ROUTER_SERVICED_TOOLS
     # The draw tools must NEVER be in it: they are the branch this set exists to
     # keep routed tools OUT of.

@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import subprocess
 
 from .broker.broker import Broker
 from .broker.grants import GrantsStore
+from .broker.docs.service import DocumentService
 from .broker.mcp.host import McpHost
 from .broker.net import FetchedDomains, HardenedFetcher
 from .broker.search import build_search_provider
@@ -28,7 +30,7 @@ from .broker.search import build_search_provider
 # composition_mounts.py when this file measured 320/300 with T4's mount. The
 # re-export keeps every existing importer — main.py, the tests, the diag
 # scripts — working unchanged (the turn.py precedent).
-from .composition_mounts import mount_web_research  # noqa: F401
+from .composition_mounts import mount_doc_rag, mount_web_research  # noqa: F401
 from .cloud.claude_agent import ClaudeAgent
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
@@ -46,6 +48,7 @@ from .vision.downscale import (
     DEFAULT_VISION_MAX_WIDTH, compute_scale_factors, downscale_to_max_width,
 )
 from .vision.screen_capture import ScreenCapture, primary_monitor_size
+from muthis_plugins.doc_rag.plugin import DocRagPlugin
 from muthis_plugins.sandbox_exec.runner import SandboxRunner
 from muthis_plugins.sandbox_exec.service import SandboxService
 from muthis_plugins.web_research.plugin import WebResearchPlugin
@@ -175,6 +178,39 @@ def _build_broker_graph(
                    announce=lambda note_ar: logger.warning(
                        "[main] mcp server disabled: %s", note_ar))
     return router, host, fetcher, web_plugin, search_provider
+
+
+def _doc_model_dir() -> pathlib.Path:
+    """Where the pinned encoder artifacts live. `MUTHIS_DOC_MODEL_DIR` overrides.
+
+    Outside the repo by default: a 118 MB model is not source, and a cache under
+    the user's home survives a reinstall — the sandbox image's pull-cache shape."""
+    raw = os.getenv("MUTHIS_DOC_MODEL_DIR")
+    if raw and raw.strip():
+        return pathlib.Path(raw.strip()).expanduser()
+    return pathlib.Path.home() / ".muthis" / "models" / "e5-small-int8"
+
+
+def _build_doc_rag() -> tuple[DocumentService, DocRagPlugin]:
+    """V2 Phase 2 (T4): the document servicer, and the plugin that is handed it.
+
+    The SERVICE is built here and INJECTED already-built (DEC-27's shape, as the
+    search provider is injected into `web_research`): it opens the user's private
+    files and holds WHOLE documents, so it lives in the broker and the plugin can
+    reach it only through two verbs.
+
+    NO PER-TURN GATE, and that is measured rather than forgotten: `TurnPass`
+    services ONE router call per pass and the agentic loop caps at
+    MAX_AGENTIC_ITERATIONS, so document opens are already bounded at four per turn
+    BY CONSTRUCTION. A second cap would bound nothing that is not already bounded
+    — contrast the DEC-22 fetch cap, where one pass could otherwise chain
+    redirects without limit.
+
+    The ROOT keeps the service because it owns the teardown: the index is
+    session-scoped and dies with the session (privacy law), so `clear()` belongs
+    beside `agent.aclose()` in main's ordered shutdown, never inside a plugin."""
+    service = DocumentService(model_dir=_doc_model_dir())
+    return service, DocRagPlugin(service=service)
 
 
 def _build_sandbox() -> SandboxService:

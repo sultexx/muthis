@@ -71,6 +71,28 @@ WEB_ONE_PER_PASS_AR = (
     "اطلبه مرة أخرى في الخطوة التالية."
 )
 
+# T4: the doc tools, derived from the ONE separator like every namespaced name
+# above. Answered BY NAME for the same reason, and DEC-39 makes the ORDER of that
+# work a requirement rather than a preference: this branch and the servicing
+# condition below land BEFORE the tools reach the catalog, because a
+# MOUNTED-BUT-UNSERVICED tool bypasses every boundary (no DEC-14 wrap, no DEC-15
+# taint raise, no DEC-16 confirm gate), then falls to the draw branch where it
+# receives the POINTER ack, flips the per-turn draw gate and hard-terminates the
+# turn. That is not a hypothetical: it is the M2 bug this ordering rule came from.
+DOC_OPEN_TOOL = namespaced_name("docs", "open")
+DOC_QUERY_TOOL = namespaced_name("docs", "query")
+DOC_TOOLS = frozenset({DOC_OPEN_TOOL, DOC_QUERY_TOOL})
+
+# Its OWN wording, not the web note reused. DEC-35's lesson is that a refusal
+# misreporting its reason turns a terminal condition into a retryable one, and
+# telling the model "I serve one WEB request per step" after it asked for a
+# DOCUMENT is a smaller version of the same lie — the model would look for a web
+# call it never made.
+DOC_ONE_PER_PASS_AR = (
+    "توجيه داخلي (لا يراه المستخدم): أخدم طلب مستند واحدًا في كل خطوة تفكير. "
+    "اطلبه مرة أخرى في الخطوة التالية."
+)
+
 # EVERY tool the kernel services THROUGH THE ROUTER, as one name for one idea.
 # `TurnPass` used to spell this as an or-chain (`== READ_FILE_TOOL or in
 # WEB_TOOLS`) that each milestone lengthened by hand. The set is not a tidy-up:
@@ -80,7 +102,10 @@ WEB_ONE_PER_PASS_AR = (
 # flipping the draw gate and killing the turn (DEC-39). Naming the set puts that
 # whole class of mistake in ONE place a test can pin, and makes the next routed
 # tool cost `turn_pass.py` zero lines.
-ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS
+# T4 adds DOC_TOOLS here and NOWHERE ELSE: because `TurnPass` tests membership in
+# this one set, the new routed family costs `turn_pass.py` exactly ZERO lines —
+# which is what naming the set bought (measured at P0b, and now spent).
+ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS | DOC_TOOLS
 
 
 def build_tool_result_message(
@@ -150,6 +175,21 @@ def build_tool_result_message(
                 "tool_use_id": tool_use_id,
                 "content": content,
             })
+        elif block.get("name") in DOC_TOOLS:
+            # BY NAME, exactly like the read and the web calls above — never the
+            # draw branch. A THIRD near-identical arm is deliberate here: folding
+            # the routed families into one note table would edit two working
+            # security branches inside a security milestone, and this file has the
+            # room (see the seam noted below `__all__`).
+            if tool_use_id is not None and tool_use_id == read_id:
+                content = read_result[1]
+            else:
+                content = DOC_ONE_PER_PASS_AR
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+            })
         elif block.get("name") == RUN_CODE_TOOL:
             # T5: answered BY NAME (like read) so a run can NEVER hit the draw
             # branch. The serviced run gets its Arabic output; a second run_code
@@ -178,6 +218,17 @@ __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR",
     "RUN_CODE_TOOL", "RUN_CODE_ALREADY_AR", "RUN_CODE_UNAVAILABLE_AR",
     "WEB_SEARCH_TOOL", "WEB_FETCH_TOOL", "WEB_TOOLS", "WEB_ONE_PER_PASS_AR",
+    "DOC_OPEN_TOOL", "DOC_QUERY_TOOL", "DOC_TOOLS", "DOC_ONE_PER_PASS_AR",
     "ROUTER_SERVICED_TOOLS",
     "build_tool_result_message",
 ]
+
+# SEAM NAMED AT PLANNING TIME (the DEC-23 / DEC-52 posture, so a future
+# contributor does not discover it mid-task): the web and doc arms of
+# `build_tool_result_message` are now structurally IDENTICAL — serviced id gets the
+# content, every other id gets that family's one-per-pass note. A FOURTH routed
+# family should replace both with a single arm reading a `{tool_name: busy_note}`
+# table, which then costs each later family one dict entry instead of eight lines.
+# NOT done now, and the reason is the same one that made the `ROUTER_SERVICED_TOOLS`
+# replacement land ALONE and BEFORE any doc_rag wiring: a refactor of two working
+# security branches does not belong inside the feature commit that needed neither.
