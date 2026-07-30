@@ -100,9 +100,12 @@ DOC_CHUNK_FAILED_AR = (
     "أشرح لك منه."
 )
 
+# The note law: an I/O error left NOTHING opened, and it is retryable only after
+# the path or the permissions change — saying so stops a blind immediate retry.
 DOC_READ_FAILED_AR = (
-    "صار خطأ وأنا أفتح المستند. تأكد من المسار والصلاحيات، أو افتحه على الشاشة "
-    "وأنا أشرح لك منه."
+    "صار خطأ وأنا أفتح المستند، فما فُتح شي وما صار له فهرسة. إعادة المحاولة "
+    "بنفس المسار بتعطي نفس الخطأ: تأكد من المسار والصلاحيات مع المستخدم، أو "
+    "افتحه على الشاشة وأنا أشرح لك منه."
 )
 
 

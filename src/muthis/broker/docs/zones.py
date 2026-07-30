@@ -28,9 +28,10 @@ THE DERIVED MAXIMUM IS MEASURED, NOT CHOSEN (DEC-47 / DEC-49 ruling 4):
     max_chunks = ingestion budget / per-chunk encode time
     max_tokens = max_chunks * mean tokens per chunk
 
-Every input is a P0 output. The per-chunk figure below is the PRODUCTION one
-(30.2 ms, measured at T2 through this repo's own encoder path), not the bench
-harness's 226 ms — the harness pays a per-call setup this path does not.
+Every input is a P0 output. The per-chunk figure is a BENCH measurement and T6
+measured the operating one at more than double it — see `PER_CHUNK_ENCODE_MS`
+below for the numbers, why the constant is deliberately not changed, and why the
+startup log prints both.
 
 THE INVARIANT, AND WHY IT IS A STARTUP ASSERTION RATHER THAN A COMMENT: the
 derived maximum MUST EXCEED the injection limit, or zone 2 is EMPTY — every
@@ -70,10 +71,28 @@ DEFAULT_INJECT_LIMIT_TOKENS = 50_000
 # 60 s is the row DEC-49 ruling 4 states the invariant against.
 DEFAULT_INGESTION_BUDGET_SECONDS = 60.0
 
-# Per-chunk encode time, PRODUCTION path, measured at T2 on this machine: 30.2 ms.
-# P0's harness reported 30.6 ms for the same model on the same hardware; the two
-# agree, which is the point of quoting both.
+# Per-chunk encode time. 30.2 ms was measured at T2 through this repo's encoder
+# path on a warm, isolated bench; P0's harness reported 30.6 ms for the same model
+# on the same hardware, and the two agreeing is why the figure was trusted.
+#
+# T6 CORRECTION — THE BENCH FIGURE IS NOT THE OPERATING ONE. The first real live
+# SOP measured 18.00 s to ingest a 267-chunk document: 67.4 ms per chunk, MORE
+# THAN DOUBLE this constant, on a machine also running the overlay, the voice
+# line and a live turn. So the derived maximum below is roughly HALF in
+# production (~338,000 tokens rather than ~754,680).
+#
+# THE CONSTANT IS DELIBERATELY NOT CHANGED HERE. It feeds `max_tokens`, which is
+# a ZONE BOUNDARY — moving it re-routes documents, and that is a design decision
+# needing a ruling, not a reaction to one measurement. DEC-49 ruling 4's
+# invariant holds either way and by a wide margin (338,000 against a 50,000
+# injection limit), so nothing is broken. What IS fixed is the startup log, which
+# used to print the bench-derived figure as though it were the operating one —
+# the DEC-56 lesson landing in the one place an operator actually reads.
 PER_CHUNK_ENCODE_MS = 30.2
+
+# The live-measured figure, kept BESIDE the constant it qualifies so the two can
+# never drift apart in a reader's head. Reported at startup; it derives nothing.
+MEASURED_LIVE_PER_CHUNK_MS = 67.4
 
 # The mean chunk the maximum is expressed in, from the P0 zone arithmetic.
 MEAN_CHUNK_TOKENS = 380
@@ -249,17 +268,27 @@ def assert_zone_invariant(policy: ZonePolicy | None = None) -> ZonePolicy:
     # console that is cp1256 here, at startup, BEFORE any stdout reconfigure has a
     # chance to matter in a traceback — an em dash would turn the one message an
     # operator needs into mojibake. The same cp1256 armor the MCP wire needed.
+    # BOTH figures. Printing only the derived one states a maximum production does
+    # not reproduce; printing only the live one would hide the boundary actually in
+    # force. The operator needs to see the GAP, not a number swapped underneath them.
+    live_max = int(policy.max_tokens * policy.per_chunk_ms / MEASURED_LIVE_PER_CHUNK_MS)
     logger.info("[doc_rag] zones: inject<=%d tokens, index<=%d tokens "
-                "(%d chunks at %.1f ms within a %.0fs budget), refuse above",
+                "(%d chunks at %.1f ms/chunk BENCH within a %.0fs budget), refuse above",
                 policy.inject_limit, policy.max_tokens, policy.max_chunks,
                 policy.per_chunk_ms, policy.budget_seconds)
+    logger.info("[doc_rag] zones: that %.1f ms/chunk is a BENCH figure; the live SOP "
+                "measured %.1f, so the OPERATING maximum is nearer %d tokens. The "
+                "invariant holds either way (%d > %d).",
+                policy.per_chunk_ms, MEASURED_LIVE_PER_CHUNK_MS, live_max,
+                live_max, policy.inject_limit)
     return policy
 
 
 __all__ = [
     "DEFAULT_INGESTION_BUDGET_SECONDS", "DEFAULT_INJECT_LIMIT_TOKENS",
     "ENV_INGEST_BUDGET", "ENV_INJECT_LIMIT", "MEAN_CHUNK_TOKENS",
-    "PER_CHUNK_ENCODE_MS", "TOKENS_PER_CHAR_CEILING", "DocZone",
+    "MEASURED_LIVE_PER_CHUNK_MS", "PER_CHUNK_ENCODE_MS",
+    "TOKENS_PER_CHAR_CEILING", "DocZone",
     "ZoneConfigurationError", "ZoneDecision", "ZonePolicy",
     "assert_zone_invariant", "estimate_tokens",
 ]

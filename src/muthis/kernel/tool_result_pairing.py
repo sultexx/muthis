@@ -88,10 +88,49 @@ DOC_TOOLS = frozenset({DOC_OPEN_TOOL, DOC_QUERY_TOOL})
 # telling the model "I serve one WEB request per step" after it asked for a
 # DOCUMENT is a smaller version of the same lie — the model would look for a web
 # call it never made.
-DOC_ONE_PER_PASS_AR = (
-    "توجيه داخلي (لا يراه المستخدم): أخدم طلب مستند واحدًا في كل خطوة تفكير. "
-    "اطلبه مرة أخرى في الخطوة التالية."
+#
+# T6 BLOCKING FIX — THE NOTE, NEVER THE SLOT. The one-serviced-call-per-pass
+# bound STAYS: it protects the Phase-4 read bound and widening it is a design
+# decision, not a reaction to a bug. What was broken was this note. `doc_rag` is
+# the FIRST capability whose two tools form a MANDATORY SEQUENCE — you cannot
+# query what you have not opened — so a model that plans BOTH in one message is
+# behaving correctly. The old text said only "ask again in the next step" and
+# said NOTHING about the open having succeeded, so a competent agent re-issued
+# its WHOLE plan, open first: a full re-ingestion (18 s of silence, another index
+# in RAM) per retry until the agentic cap fired. Measured live.
+#
+# So there are TWO notes, because the STATE ACHIEVED differs and the standing
+# note law (AGENTS.md) requires each note to report the state it actually
+# reached. One text claiming "the document was opened" when the serviced call was
+# a QUERY would be a fresh instance of the very defect this fix closes.
+DOC_OPENED_ASK_NEXT_AR = (
+    "توجيه داخلي (لا يراه المستخدم): فُتح المستند بنجاح وهو جاهز الآن — "
+    "لا تفتحه مرة أخرى، فإعادة الفتح تعيد الفهرسة كاملة بلا فائدة. "
+    "أخدم طلب مستند واحدًا في كل خطوة تفكير، فأرسل استعلامك في الخطوة التالية "
+    "مستخدماً المعرّف الذي أعطيتك إياه."
 )
+
+# The serviced doc call was NOT an open (a second query in the same step, or a
+# read/web call took the step's one slot). Nothing was opened, so nothing claims
+# it — the note states what DID happen, that the condition is TRANSIENT, and the
+# one valid next move.
+DOC_ONE_PER_PASS_AR = (
+    "توجيه داخلي (لا يراه المستخدم): خدمت طلب مستند واحدًا في هذه الخطوة، "
+    "وهذا الطلب لم يُنفَّذ بعد — ما صار فيه خطأ ولا تغيّر شي. "
+    "أرسله مرة أخرى في الخطوة التالية كما هو."
+)
+
+
+def doc_deferral_note(serviced: Optional[ToolCall]) -> str:
+    """WHICH deferral note an unserviced doc id receives, from what was SERVICED.
+
+    The kernel already holds this fact — `read_result` carries the serviced call
+    — so reporting it costs nothing and withholding it cost a full re-ingestion
+    per retry. Fails SAFE: an unknown or absent serviced call gets the note that
+    claims nothing."""
+    if serviced is not None and serviced.name == DOC_OPEN_TOOL:
+        return DOC_OPENED_ASK_NEXT_AR
+    return DOC_ONE_PER_PASS_AR
 
 # EVERY tool the kernel services THROUGH THE ROUTER, as one name for one idea.
 # `TurnPass` used to spell this as an or-chain (`== READ_FILE_TOOL or in
@@ -184,7 +223,9 @@ def build_tool_result_message(
             if tool_use_id is not None and tool_use_id == read_id:
                 content = read_result[1]
             else:
-                content = DOC_ONE_PER_PASS_AR
+                # The note reports the state ACHIEVED, not only the deferral —
+                # see `doc_deferral_note` and the standing note law.
+                content = doc_deferral_note(read_result[0] if read_result else None)
             results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -219,6 +260,7 @@ __all__ = [
     "RUN_CODE_TOOL", "RUN_CODE_ALREADY_AR", "RUN_CODE_UNAVAILABLE_AR",
     "WEB_SEARCH_TOOL", "WEB_FETCH_TOOL", "WEB_TOOLS", "WEB_ONE_PER_PASS_AR",
     "DOC_OPEN_TOOL", "DOC_QUERY_TOOL", "DOC_TOOLS", "DOC_ONE_PER_PASS_AR",
+    "DOC_OPENED_ASK_NEXT_AR", "doc_deferral_note",
     "ROUTER_SERVICED_TOOLS",
     "build_tool_result_message",
 ]

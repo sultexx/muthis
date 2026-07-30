@@ -299,23 +299,34 @@ class ScriptedReasoner:
     DEC-12's standard applied to the whole turn machinery: every guard below is
     reached by a call this script chose, so no check can pass because the model
     happened to refuse at the prompt layer (the CHECK-3 false negative of M1's
-    first SOP)."""
+    first SOP).
+
+    A pass may be written as ONE (tool, args) pair or as a LIST of them. THE LIST
+    FORM IS NOT A CONVENIENCE — it is the T6 blocking defect's whole lesson. A
+    real model routinely emits several tool calls in ONE assistant message, and
+    while this harness could only express one call per pass, the shape that broke
+    `docs__query` live was STRUCTURALLY INEXPRESSIBLE here. A fake that cannot
+    produce the model's real output shape can never falsify anything about it."""
 
     def __init__(self) -> None:
-        self.script: "list[tuple[str, dict]]" = []
+        self.script: "list[Any]" = []
         self.passes: "list[tuple[str, str]]" = []
 
     async def run(self, user_input, screenshot, history, tool_choice="auto"):
         self.passes.append((user_input.text, tool_choice))
         if self.script:
-            name, args = self.script.pop(0)
-            uid = f"diag_{len(self.passes)}"
-            yield ToolCall(name=name, args=args, tool_use_id=uid)
+            step = self.script.pop(0)
+            calls = step if isinstance(step, list) else [step]
+            content: "list[dict[str, Any]]" = []
+            for index, (name, args) in enumerate(calls):
+                uid = f"diag_{len(self.passes)}_{index}"
+                yield ToolCall(name=name, args=args, tool_use_id=uid)
+                content.append({"type": "tool_use", "id": uid,
+                                "name": name, "input": args})
             yield TurnComplete(
                 input_tokens=0, output_tokens=0, cost_usd=0.0,
                 stop_reason="tool_use", model="diag/scripted",
-                assistant_content=[{"type": "tool_use", "id": uid,
-                                    "name": name, "input": args}])
+                assistant_content=content)
         else:
             yield TextDelta("تمّت الخطوة.")
             yield TurnComplete(
@@ -475,7 +486,7 @@ class DocSession:
             speech_session_factory=lambda: None)
 
     async def turn(self, user_text: str, *,
-                   script: "Optional[list[tuple[str, dict]]]" = None) -> "list[str]":
+                   script: "Optional[list[Any]]" = None) -> "list[str]":
         """Drive ONE full turn and return the tool_result texts it produced —
         exactly what the model was handed back. Every boundary on the way (the
         turn hooks, the confirm gate's one look at the raw transcript, the wrap,
@@ -899,6 +910,100 @@ async def check_chunk_guard(checks: Checks, policy: ZonePolicy,
                   "token indexes cleanly",
                   control.ok and control.index is not None
                   and len(control.index) > 0 and control_encoded > 0)
+    return evidence
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CHECK K — the MANDATORY SEQUENCE: docs__open + docs__query in ONE message
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+async def check_mandatory_sequence(checks: Checks, workdir: pathlib.Path,
+                                   policy: ZonePolicy) -> "dict[str, Any]":
+    """THE CHECK THAT WAS MISSING, and its absence is what let 55 green checks
+    sit on top of a capability that did not work.
+
+    `doc_rag` is the FIRST capability whose two tools form a MANDATORY SEQUENCE —
+    you cannot query what you have not opened — so a model that plans BOTH in one
+    assistant message is behaving correctly. `TurnPass` services ONE routed call
+    per pass (a real bound, inherited from the Phase-4 read path and deliberately
+    NOT widened here), so the query is deferred. That is fine. What was NOT fine
+    was the note: it said only "ask again next step" and said NOTHING about the
+    open having succeeded, so the model re-issued its whole plan — open first —
+    and paid a FULL re-ingestion per retry until the agentic cap fired.
+
+    WHY NOTHING CAUGHT IT: no check drove `docs__query` through the ROUTER at all
+    (the absence checks call the service directly, by design), and this harness's
+    reasoner could emit only ONE call per pass, so the failing shape could not be
+    written down. Both are closed here — the shape is driven end to end through
+    the REAL router and the REAL `TurnPass`, exactly as the model emits it."""
+    document = _write(workdir, "sequence_doc.txt",
+                      _arabic_filler(int(policy.inject_limit / TOKENS_PER_CHAR_CEILING)
+                                     + 50_000))
+    service = DocumentService(model_dir=_model_dir(), policy=policy,
+                              encoder=StubEncoder())
+    session = DocSession(service=service)
+    evidence: "dict[str, Any]" = {}
+    try:
+        # PASS 1: both calls in ONE assistant message — the live shape.
+        first = await session.turn(
+            "افتح المستند وجاوبني منه.",
+            script=[[(DOC_OPEN_TOOL, {"path": str(document)}),
+                     (DOC_QUERY_TOOL, {"doc_id": "sequence_doc.txt",
+                                       "question": "ما الغرض من الفقرة؟"})]])
+        opened_note = first[0] if first else ""
+        deferred = first[1] if len(first) > 1 else ""
+        evidence["pass 1 — open note (head)"] = opened_note.replace("\n", " ")[:120]
+        evidence["pass 1 — query note (VERBATIM)"] = deferred.replace("\n", " ")[:260]
+
+        # Option B: BOTH ids answered, or the next turn 400s on an orphan.
+        checks.record("K1 both calls in one message are PAIRED (no orphan tool_use)",
+                      len(first) == 2)
+        # THE THREE OBLIGATIONS OF THE NOTE LAW, asserted as behaviour. Each one
+        # is a thing the OLD note failed to say, and each failure is what made
+        # the model re-issue its plan.
+        checks.record("K2 the deferral note reports the STATE ACHIEVED "
+                      "(the document WAS opened)",
+                      "فُتح المستند بنجاح" in deferred)
+        checks.record("K3 the note says re-opening is UNNECESSARY "
+                      "(this is what stopped the re-ingestion loop)",
+                      "لا تفتحه مرة أخرى" in deferred)
+        checks.record("K4 the note names the VALID NEXT STEP (query, next step)",
+                      "الخطوة التالية" in deferred)
+        # And it must NOT read as a failure: nothing went wrong, so a note that
+        # sounded like an error would invite exactly the retry it is preventing.
+        checks.record("K5 the note is not an error and demands no approval",
+                      APPROVAL_WORD_AR not in deferred
+                      and "تعذّر" not in deferred and "خطأ" not in deferred)
+
+        # PASS 2: the query re-issued in the NEXT step IS serviced and returns
+        # real passages — "answered usefully", end to end.
+        second = await session.turn(
+            "أكمل.",
+            script=[[(DOC_QUERY_TOOL, {"doc_id": "sequence_doc.txt",
+                                       "question": "ما الغرض من الفقرة؟"})]])
+        answered = second[0] if second else ""
+        evidence["pass 2 — query result (head)"] = answered.replace("\n", " ")[:160]
+        checks.record("K6 the query re-issued in the NEXT step returns real PASSAGES",
+                      HEADER_AR in answered and NOTHING_FOUND_AR not in answered
+                      and len(answered) > 400)
+
+        # RE-OPEN IDEMPOTENCE, through the same live path: the retry the old note
+        # provoked must now cost nothing instead of a full re-ingestion.
+        before_docs = service.open_documents
+        reopened = await session.turn(
+            "افتحه مرة ثانية.",
+            script=[[(DOC_OPEN_TOOL, {"path": str(document)})]])
+        after_docs = service.open_documents
+        reopen_note = reopened[0] if reopened else ""
+        evidence["re-open — registry before/after"] = f"{before_docs} → {after_docs}"
+        checks.record("K7 re-opening the SAME path returns the SAME doc_id and "
+                      "builds NO second index",
+                      after_docs == before_docs
+                      and "sequence_doc.txt»" in reopen_note
+                      and "sequence_doc.txt-2" not in reopen_note)
+    finally:
+        await session.aclose()
     return evidence
 
 
@@ -1915,6 +2020,7 @@ async def main() -> None:
 
     zone_ev = await check_zones(checks, corpus, policy, workdir)
     chunk_ev = await check_chunk_guard(checks, policy, workdir, counter, counter_name)
+    sequence_ev = await check_mandatory_sequence(checks, workdir, policy)
     wrap_ev = await check_wrap_and_taint(checks, nonces, workdir, policy)
     mount_ev = check_dec51(checks)
     friction_ev = await check_friction(checks, observations, workdir, policy)
@@ -1965,6 +2071,7 @@ async def main() -> None:
     _dump("CHECK A/B — the absence law and the spoken location (DETERMINISTIC half)",
           absence_ev)
     _dump("CHECK C — DEC-53's refusal path (BINDING)", chunk_ev)
+    _dump("CHECK K — the MANDATORY SEQUENCE (open + query in ONE message)", sequence_ev)
     _dump("CHECK D — wrapping, nonce, forged close, taint", wrap_ev)
     _dump("CHECK E — DEC-51 on the REAL mount", mount_ev)
     _dump("CHECK F — the DEC-51 friction (mechanism asserted, cost observed)", friction_ev)

@@ -50,11 +50,32 @@ OPEN_TOOL = "open"
 QUERY_TOOL = "query"
 
 # ─── The Arabic surfaces (user-facing strings Arabic; logs/ids English) ───────
-NO_SERVICE_AR = "قراءة المستندات غير متاحة في هذه الجلسة."
-EMPTY_PATH_AR = "ما وصلني مسار مستند أفتحه."
-EMPTY_DOC_ID_AR = "ما وصلني معرّف مستند. افتح المستند أول، وبعدها اسأل عنه."
-OPEN_FAILED_AR = "تعذّر فتح المستند."
-UNKNOWN_TOOL_AR = "هذه الأداة غير معروفة لهذه الإضافة."
+# EVERY note below obeys the standing note law (AGENTS.md): state what WAS
+# accomplished, whether the condition is TERMINAL or TRANSIENT, and the one valid
+# next step. A note missing any of the three produces a retry loop — measured
+# three times now (DEC-35's PDF, the Docker-unavailable run, and T6's own
+# deferral note, which cost a full re-ingestion per retry).
+NO_SERVICE_AR = (
+    "قراءة المستندات غير متاحة في هذه الجلسة، وما فُتح أي مستند. هذا وضع ثابت "
+    "طول الجلسة فلا تحاول مرة أخرى بأي مسار. اطلب من المستخدم يفتح الملف على "
+    "الشاشة وأنا أشرح لك منه."
+)
+EMPTY_PATH_AR = (
+    "ما وصلني مسار مستند، فما فُتح شي وما صار خطأ. اسأل المستخدم عن المسار "
+    "الكامل للملف ثم أعد المحاولة."
+)
+EMPTY_DOC_ID_AR = (
+    "ما وصلني معرّف مستند، فما تغيّر شي. افتح المستند أول بأداة الفتح، وبعدها "
+    "اسأل عنه بالمعرّف اللي أعطيك إياه."
+)
+OPEN_FAILED_AR = (
+    "ما قدرت أفتح المستند وما صار له فهرسة. تأكد من المسار مع المستخدم، أو "
+    "اطلب منه يفتح الملف على الشاشة وأنا أشرح لك منه."
+)
+UNKNOWN_TOOL_AR = (
+    "هذه الأداة غير معروفة لهذه الإضافة وما نُفّذ شي. لا تعيد نفس الاستدعاء — "
+    "استخدم أداة فتح المستندات أو أداة الاستعلام."
+)
 
 # Zone 1 — the whole document. The header states the FORMAT of what follows so the
 # model knows it is holding everything and need not call `query` (which would find

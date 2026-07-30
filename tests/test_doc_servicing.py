@@ -251,8 +251,16 @@ def test_servicing_a_doc_call_RAISES_the_session_taint():
 
 def test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one():
     """DEC-35 one level up: telling the model "I serve one WEB request per step"
-    after it asked for a DOCUMENT sends it looking for a web call it never made."""
-    from muthis.kernel.tool_result_pairing import WEB_ONE_PER_PASS_AR
+    after it asked for a DOCUMENT sends it looking for a web call it never made.
+
+    T6 BLOCKING FIX: the deferral note now also reports the STATE ACHIEVED. This
+    shape — `docs__open` + `docs__query` in ONE assistant message — is the exact
+    live failure: the old note said only "ask again next step", so the model
+    re-issued its whole plan (open first) and paid a FULL re-ingestion per retry.
+    The note must therefore say the open SUCCEEDED and that re-opening is
+    pointless, or the retry loop returns."""
+    from muthis.kernel.tool_result_pairing import (
+        DOC_OPENED_ASK_NEXT_AR, WEB_ONE_PER_PASS_AR)
 
     router, _plugin = _graph()
     complete, routed, _gate = _consume(
@@ -261,10 +269,31 @@ def test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one():
         complete.assistant_content, None, None, HighlightGate(), routed, None)
 
     contents = [b["content"] for b in pairing["content"]]
-    assert DOC_ONE_PER_PASS_AR in contents
+    assert DOC_OPENED_ASK_NEXT_AR in contents
     assert WEB_ONE_PER_PASS_AR not in contents
+    # The three obligations of the standing note law, asserted as behaviour
+    # rather than as wording: what was accomplished, that it is transient, and
+    # the one valid next move.
+    assert "فُتح المستند بنجاح" in DOC_OPENED_ASK_NEXT_AR
+    assert "لا تفتحه مرة أخرى" in DOC_OPENED_ASK_NEXT_AR
+    assert "الخطوة التالية" in DOC_OPENED_ASK_NEXT_AR
     # Option B: EVERY tool_use is answered, or the NEXT turn 400s on an orphan.
     assert len(contents) == 2
+
+
+def test_a_second_QUERY_in_one_pass_never_claims_a_document_was_opened():
+    """The other half of the same law. When the serviced call was a QUERY, no
+    open happened — and a note claiming one would be a fresh instance of the
+    defect the fix above closes, in the opposite direction."""
+    router, _plugin = _graph()
+    complete, routed, _gate = _consume(
+        router, [_query_call("q1"), _query_call("q2")])
+    pairing = build_tool_result_message(
+        complete.assistant_content, None, None, HighlightGate(), routed, None)
+
+    contents = [b["content"] for b in pairing["content"]]
+    assert DOC_ONE_PER_PASS_AR in contents
+    assert "فُتح المستند بنجاح" not in "".join(contents)
 
 
 def test_the_first_doc_call_of_the_pass_is_the_serviced_one():

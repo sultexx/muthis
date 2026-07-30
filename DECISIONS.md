@@ -4523,3 +4523,188 @@ ruled on and fixed. The deterministic HALF of those checks (A1-A5, B1) did run a
 pass on Sultan's corpus; only the OBSERVED half is outstanding.
 
 ---
+
+## DEC-58 (2026-07-30) — the T6 blocking defect: fix the NOTE, keep the SLOT, make re-open IDEMPOTENT — APPROVED (Sultan), EXECUTED
+
+- **Status:** **RULED and EXECUTED.** Five fixes, one new law, one deferral. T6 is still
+  NOT signed off: Sultan runs the live SOP and signs off personally.
+
+### RULING 1 — FIX THE NOTE, NEVER THE SLOT
+
+**The one-serviced-call-per-pass bound STAYS.** It protects a real thing (the Phase-4
+read bound), `tool_router.py` is at 300/300, and widening it is a DESIGN decision, not a
+reaction to a bug. What was broken was the NOTE: it said only "ask again in the next
+step" and said NOTHING about the open having succeeded, so the model rationally
+re-issued its whole plan — open first — and paid a FULL re-ingestion per retry.
+
+- **Executed:** `DOC_OPENED_ASK_NEXT_AR` states that the document WAS opened, that
+  re-opening is pointless, and that the query belongs in the NEXT step. The sequence now
+  costs ONE EXTRA PASS (~$0.034) instead of an 18-second re-ingestion.
+- **TWO notes, not one, and that is the law applied to itself.** The deferral note is
+  chosen from what was actually SERVICED (`doc_deferral_note`): a note claiming "the
+  document was opened" when the serviced call was a QUERY would be a fresh instance of
+  the exact defect this fix closes, in the opposite direction. The kernel already holds
+  the fact — `read_result` carries the serviced call — so reporting it costs nothing.
+- **OPEN QUESTION FOR PHASE 3, recorded rather than answered:** `doc_rag` is the FIRST
+  capability whose tools form a MANDATORY SEQUENCE, and a model planning both at once is
+  CORRECT behaviour, not misbehaviour. The Navigator may have mandatory sequences too.
+  Whether the single routed slot should become per-FAMILY, or whether the sequence should
+  be expressed some other way, is a design question for Phase-3 planning — not something
+  to settle under the pressure of a live failure.
+
+### RULING 2 — RE-OPENING THE SAME PATH IS IDEMPOTENT
+
+`_register` suffixed a collision (`book.md` → `book.md-2` → `book.md-3`), so every retry
+paid a full re-ingestion AND handed back a doc_id the model had not been given. **This is
+correct independently of the note bug:** the index is session-scoped and the document has
+not changed.
+
+- **Executed:** a path map checked BEFORE `ingest` — everything expensive is downstream
+  of that line — returning the SAME doc_id and reusing the existing index. Measured:
+  open #1 builds 178 chunks, opens #2 and #3 return the same id at 0.00 s with the
+  registry still holding ONE document. The map is cleared WITH the registry, because a
+  doc_id whose index no longer exists is the one state the reuse branch must never reach.
+- Zone-1 documents are unaffected: they register nothing and have no index to reuse.
+
+### RULING 3 — NEW STANDING LAW: a note states the STATE, the TERMINALITY, and the NEXT STEP
+
+**Promoted from observation to law on its THIRD sighting**, and recorded in `AGENTS.md`
+(the sole authority on laws). DEC-35's PDF answered "not found" and drew four provider
+calls at ~$0.10 · a Docker-unavailable run drew the whole `SandboxGate` budget, three
+`docker create` attempts at rc=1, ~$0.12 · this deferral note cost a full re-ingestion per
+retry. **One pattern:** a refusal or deferral that reports only what did NOT happen
+produces a retry loop, because retrying is what a competent agentic model does with an
+unexplained failure.
+
+**THE AUDIT, run against every model-facing note. Fixed now (doc_rag only):**
+
+| note | what it failed |
+|---|---|
+| `EMPTY_PATH_AR` | no state, no terminality, no next step |
+| `EMPTY_DOC_ID_AR` | no state |
+| `OPEN_FAILED_AR` | the catch-all for an unexpected exception — said none of the three |
+| `NO_SERVICE_AR` | no next step |
+| `UNKNOWN_TOOL_AR` | no state, no next step |
+| `EMPTY_QUESTION_AR` | never said the document was STILL OPEN — so "fix it by re-opening" |
+| `DOC_READ_FAILED_AR` | did not say a retry with the same path gives the same error |
+
+**REPORTED, NOT FIXED — the post-milestone pass owns these:**
+
+| note | what it fails | why it matters |
+|---|---|---|
+| **`WEB_ONE_PER_PASS_AR`** | **state achieved** | **THE SAME DEFECT, one family over.** A serviced `web__search` with a deferred `web__fetch` never tells the model the search succeeded. It has not bitten yet only because search and fetch are not a mandatory sequence. |
+| `RUN_CODE_UNAVAILABLE_AR` | terminality, next step | this IS the Docker-unavailable finding, still open |
+| `PLUGIN_FAILED_NOTE_AR` | terminality, next step | "internal fault" reads as retryable to any agent |
+| `UNROUTED_TOOL_NOTE_AR` | next step | |
+| `KERNEL_SERVICED_NOTE_AR` | next step | |
+| `FILE_READ_UNAVAILABLE_AR` | next step | |
+| `FILE_BLOCKED_AR` | next step | ARGUABLY CORRECT as-is: for a secret, offering a path is the wrong instinct. Ruled at the pass, not here. |
+
+**Passing already, kept as the reference shape:** `FILE_ALREADY_READ_AR`,
+`RUN_CODE_ALREADY_AR`, `DOC_TOO_LARGE_AR`, `PDF_SCANNED_AR`, `DOC_UNSUPPORTED_AR`,
+`DOC_CHUNK_FAILED_AR`, `DOC_NOT_OPEN_AR`, `NOTHING_FOUND_AR`.
+
+### RULING 4 — THE STARTUP LOG STATED A FIGURE PRODUCTION DOES NOT REPRODUCE
+
+`PER_CHUNK_ENCODE_MS = 30.2` is a BENCH measurement; the live SOP measured **67.4 ms**,
+so the derived maximum is nearer **338,000** tokens than the 754,680 the log printed.
+
+- **The CONSTANT is deliberately NOT changed.** It feeds `max_tokens`, which is a ZONE
+  BOUNDARY — moving it re-routes documents, and that needs a ruling rather than a
+  reaction to one measurement. **DEC-49 ruling 4's invariant holds by a wide margin
+  either way (338,150 > 50,000) and nothing is broken.**
+- **The LOG is what changed**, and it now prints BOTH: the boundary actually in force,
+  labelled BENCH, and the operating estimate beside it. Printing only the derived figure
+  states a maximum production does not reproduce; printing only the live one would hide
+  the boundary really in force. **The operator needs to see the GAP** — the DEC-56 lesson
+  landing in the one place an operator reads.
+
+### RULING 5 — THE COVERAGE GAP IS CLOSED, AND THE INSTRUMENT WAS THE REAL DEFECT
+
+**CHECK K** drives `docs__open` + `docs__query` in ONE assistant message through the REAL
+router and the REAL `TurnPass`, exactly as the model emits them, and asserts the query is
+answered usefully — the note's three obligations, then the query re-issued in the next
+step returning real passages, then idempotent re-open.
+
+- **The harness's `ScriptedReasoner` now emits MULTIPLE tool calls per pass.** This is the
+  deeper half of the fix: the failing shape was **structurally inexpressible** in the
+  instrument, so no amount of diligence could have caught it there. A fake that cannot
+  produce the model's real output shape can never falsify anything about it.
+- **Mutation-verified:** reverting the note fix takes K2+K3 RED; deleting only the
+  do-not-reopen clause takes K3 RED; reverting idempotence takes K7 RED. **16 of 18
+  mutations RED**, with the two survivors reported below rather than scored.
+
+### WHAT IS STILL UNCOVERED — reported, not quietly carried
+
+- **M20 SURVIVED: nothing asserts the startup log reports both figures.** Ruling 4 could
+  be reverted silently. A check was NOT added, because the brief scoped this round to
+  fixes 1-5 and adding one is scope Sultan has not authorised. **Owed.**
+- **M15 is INCONCLUSIVE, not green:** deleting relevance ordering survives on the
+  synthetic corpus because it has two parents and the delivery cap never binds. It will
+  discriminate on the real 228-page PDF. Ordering is a delivery-quality rule, not a
+  security guard, so DEC-12's must-go-RED standard does not reach it.
+- **DEVIATION FROM THE STATED CONSTRAINT, declared rather than hidden:** the guard is now
+  **1186 + 27**, not 1185 + 27. One test was ADDED —
+  `test_a_second_QUERY_in_one_pass_never_claims_a_document_was_opened` — because the note
+  fix is behaviour-affecting and `CONTRIBUTING.md` requires a test for that, and because
+  the "second query" direction is the one CHECK K does not cover. An existing test's
+  EXPECTATION was updated (`test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one`),
+  which is the ruled behaviour change, not a weakening. Sultan may reject the addition.
+
+---
+
+## PROMPT CACHING (2026-07-30) — DEFERRED, SHAPE REPORTED, NOTHING BUILT
+
+- **Status:** **REPORT ONLY.** It touches a signed Phase-0/1 contract (`CloudReasoner` /
+  `TurnComplete`) and Sultan rules on sequencing. Read from the installed SDK, never from
+  memory (the DEC-43 discipline applied to a vendor spec).
+
+### WHY IT IS THE LARGEST COST LEVER IN THE PROJECT
+
+Measured on one pass: **10,828 input tokens, of which 10,785 (99.6%) is FIXED overhead** —
+persona 6,588 (61%), the 9 tool schemas 2,997, the screenshot 1,200. **The persona and the
+tool catalog are BYTE-IDENTICAL across every pass of every turn since V1**, which is
+exactly the cacheable shape, and every milestone has grown both (4 tools to 9;
+`persona_rules.py` 116 to 233 lines). The five post-V1 tools add **1,415 tokens to EVERY
+pass**, and a pointing turn pays all of it while touching none of them.
+
+### WHAT THE API REQUIRES — from the installed SDK
+
+1. **It is GA on the standard path — no beta header.** `cache_control` is on the
+   NON-beta `ToolParam` and `TextBlockParam`, and the non-beta `Usage` model carries the
+   confirmation fields. (`prompt-caching-2024-07-31` survives in the beta enum for
+   backwards compatibility only.)
+2. **The system prompt must stop being a plain string.** `message_create_params.system` is
+   `Union[str, Iterable[TextBlockParam]]`; only the BLOCK form accepts a breakpoint. So
+   `system=` becomes `[{"type": "text", "text": …, "cache_control": {"type": "ephemeral"}}]`.
+3. **The tool catalog is marked on the LAST tool.** `ToolParam.cache_control` creates a
+   breakpoint covering everything up to and including that block.
+4. **TTL is `"5m"` (default) or `"1h"`** — `CacheControlEphemeralParam.ttl`.
+5. **A hit is confirmed by `usage.cache_read_input_tokens`; a write by
+   `usage.cache_creation_input_tokens`.** Both are `Optional[int]` and both are already on
+   the `message_start` usage this code reads.
+
+### THE CONSTRAINT THAT DECIDES THE SHAPE
+
+**THE CATALOG IS BYTE-PINNED** to `tests/snapshots/look_tools_v4.json`. Writing
+`cache_control` into a tool schema would change the model-visible catalog's bytes and fail
+that guard — correctly, because it IS a model-visible change. **So the breakpoint must be
+applied to a COPY at request time and never to the mounted descriptors.** That is a design
+constraint, not a detail, and it is the first thing an implementation must get right.
+
+### THE LINE COST — ESTIMATED, AND EXPLICITLY NOT AUTHORISATION (DEC-56)
+
+| file | now | change |
+|---|---|---|
+| `cloud/claude_agent.py` | 270/300 | the system block + the tool-list copy + reading two usage fields — **~12-18 lines** |
+| `cloud/protocol.py` | 104/300 | two optional `TurnComplete` fields + docstring — **~6 lines** |
+
+**These figures are a WARNING, not permission.** DEC-56 exists because DEC-52's seam was
+right and its number was wrong by 42 lines; the P0b method — write it against a scratchpad
+copy, syntax-check it, diff it, count it, keep it out of the repo — decides at execution
+time. Two further questions belong to that ruling and are not answered here: whether
+`TurnComplete` gaining fields is additive enough for a signed protocol, and whether the
+budget should learn that cached input tokens are billed at a different rate — because a
+cost model that ignores the discount would misreport the ledger Rule 10 defends.
+
+---

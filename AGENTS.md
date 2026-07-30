@@ -442,6 +442,24 @@ in DECISIONS.md (DEC-43).
   (DEC-40 — five of six mutations survived because every test built its own router) and *state a teardown also
   produces must be sampled BEFORE teardown* (M2). All three are the same defect: **the check and the thing
   checked were never actually connected, and nothing in the green result says so.**
+- **EVERY NOTE THE MODEL READS MUST STATE THE STATE ACHIEVED, WHETHER THE CONDITION IS TERMINAL OR
+  TRANSIENT, AND THE VALID NEXT STEP** (standing rule, 2026-07-30, promoted from observation to law on its
+  THIRD sighting). A refusal or deferral that reports only what did NOT happen produces a **retry loop**,
+  because retrying is exactly what a competent agentic model does with an unexplained failure — and the
+  agentic loop exists to retry. **Measured three times, in three unrelated subsystems, at the same order of
+  cost:** DEC-35's PDF answered "not found" — a retryable condition — and drew four provider calls at ~$0.10;
+  a Docker-unavailable run drew the whole `SandboxGate` budget, three `docker create` attempts at rc=1 in one
+  turn, ~$0.12; and `doc_rag`'s deferral note said "ask again next step" while saying NOTHING about the open
+  having succeeded, so the model re-issued its whole plan and paid a FULL re-ingestion (18 s of silence, a
+  second index in RAM) per retry until the cap fired. **The three obligations, each earned by one of those:**
+  (1) **what WAS accomplished** — «the document was opened», «the search ran»; a note that omits this invites
+  the model to redo work that already succeeded; (2) **TERMINAL or TRANSIENT** — a terminal condition must say
+  so and close the attempt («لا تحاول مرة أخرى»), a transient one must say what changes; (3) **the valid NEXT
+  STEP**, named, because "do not do X" leaves a model with no sanctioned move and the helpful move is usually
+  the wrong one (the DEC-57 positive-instruction argument, applied to notes). **This binds every
+  model-facing Arabic note** — plugin results, kernel refusals, gate directives — and it is a MESSAGE-layer
+  law: it never licenses changing a gate, a bound or a limit to make a note easier to write (the DEC-42
+  discipline, and DEC-55 ruling 2's precedent of leaving a gate alone).
 - **Comments explain WHY**, especially around Win32/Tk bridging and SDK quirks.
 - **Language split** (LAW — the binding form is CONTRIBUTING.md acceptance condition 3): user-facing strings
   (voice prompts, overlay captions, error speech) are

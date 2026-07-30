@@ -72,7 +72,12 @@ DOC_NOT_OPEN_AR = (
     "ما فيه مستند مفتوح بهذا الاسم. افتح المستند أول بأداة فتح المستندات، "
     "بعدها اسألني عن اللي فيه."
 )
-EMPTY_QUESTION_AR = "ما وصلني سؤال أبحث عنه في المستند."
+# The note law again: the document is STILL OPEN and nothing failed — only the
+# question was missing — so the note says so, or the model re-opens to "fix" it.
+EMPTY_QUESTION_AR = (
+    "ما وصلني سؤال أبحث عنه في المستند. المستند لا يزال مفتوحاً وجاهزاً وما "
+    "تغيّر شي، فأعد الاستعلام بنفس المعرّف ومعه سؤال محدد."
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -119,6 +124,10 @@ class DocumentService:
         self._model_dir = pathlib.Path(model_dir)
         self._policy = policy or ZonePolicy.from_env()
         self._registry = registry or IndexRegistry()
+        # T6: path -> (doc_id, pages), so re-opening the SAME document is
+        # IDEMPOTENT. See `open`. RAM-only and dies with the process, exactly
+        # like the registry it mirrors; never logged (it holds a real path).
+        self._opened_paths: dict[str, tuple[str, Optional[int]]] = {}
         # ONE encoder per process, built on first use. `encoder` is injectable so
         # a test drives the real service without an ONNX runtime present.
         self._encoder = encoder
@@ -142,8 +151,27 @@ class DocumentService:
         the caller cannot name it — see `zones.py` for why that ownership matters.
 
         Never raises: `DocumentIngestor` already turns every failure into an
-        Arabic note, and this adds no new failure surface of its own."""
+        Arabic note, and this adds no new failure surface of its own.
+
+        RE-OPENING AN ALREADY-OPEN PATH IS IDEMPOTENT (T6): the SAME doc_id comes
+        back and the existing index is reused, at essentially zero cost. This is
+        correct independently of any model behaviour — the index is
+        session-scoped and the document has not changed — and the check has to
+        sit HERE, before `ingest`, because everything expensive is downstream of
+        this line. Without it every retry paid a FULL re-ingestion (18 s measured
+        live) and `_register`'s collision suffix handed back a DIFFERENT id each
+        time (`book.md`, `book.md-2`, `book.md-3`), so the model also lost the id
+        it had just been given."""
         path = pathlib.Path(path)
+        known = self._opened_paths.get(_path_key(path))
+        if known is not None:
+            doc_id, pages = known
+            index = self._registry.get(doc_id)
+            if index is not None:
+                logger.info("[doc_rag] reopen: already open, reusing the index "
+                            "(chunks=%d) — no re-ingestion", len(index))
+                return OpenedDocument(zone=DocZone.INDEX.value, doc_id=doc_id,
+                                      pages=pages, chunks=len(index))
         outcome = await self._ingestor.ingest(path)
         if not outcome.ok:
             return OpenedDocument(zone=outcome.zone.value, note_ar=outcome.note_ar)
@@ -155,8 +183,10 @@ class DocumentService:
             return OpenedDocument(zone=outcome.zone.value, text=outcome.text,
                                   pages=_pages(outcome))
         doc_id = self._register(path, outcome.index)
+        pages = _pages(outcome)
+        self._opened_paths[_path_key(path)] = (doc_id, pages)
         return OpenedDocument(zone=outcome.zone.value, doc_id=doc_id,
-                              pages=_pages(outcome), chunks=len(outcome.index))
+                              pages=pages, chunks=len(outcome.index))
 
     def _register(self, path: pathlib.Path, index: SessionIndex) -> str:
         """Store the index under a SPEAKABLE id — the file's own name.
@@ -213,12 +243,30 @@ class DocumentService:
     # -- lifecycle (the process's own, and only that) ------------------------
     def clear(self) -> None:
         """Drop every open document. Called at shutdown by the root that built
-        this — the index is session-scoped and dies with the session (privacy)."""
+        this — the index is session-scoped and dies with the session (privacy).
+
+        The path map goes WITH the registry: leaving it behind would hand back a
+        doc_id whose index no longer exists, which is the one state `open`'s
+        reuse branch must never be able to reach."""
         self._registry.clear()
+        self._opened_paths.clear()
 
     @property
     def open_documents(self) -> int:
         return len(self._registry)
+
+
+def _path_key(path: pathlib.Path) -> str:
+    """The identity of a document ON DISK, for the idempotent-reopen check.
+
+    Resolved so that two spellings of one file — the model may echo the user's
+    path back differently — are recognised as the same document. Falls back to
+    the raw string when resolution fails (a path that cannot be resolved cannot
+    be ingested either, so the fallback only has to be STABLE, not correct)."""
+    try:
+        return str(path.resolve())
+    except OSError:
+        return str(path)
 
 
 def _passage(chunk: Chunk, score: float) -> Passage:
