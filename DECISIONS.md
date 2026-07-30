@@ -3743,3 +3743,122 @@ Against the real corpus at a 400-token window, the largest chunks measured **400
   message, logging and degradation have never been seen.
 
 ---
+
+## DEC-54 (2026-07-30) — the zone ESTIMATE must be biased, and the two boundaries want OPPOSITE biases: ruled UP, with the exposed band recorded — SULTAN'S TO RULE, EXECUTED at T3 in the safe direction
+
+- **Status:** **EXECUTED in the direction that cannot fail unboundedly, and RAISED because the
+  other direction has a real cost.** T3 ships the upward bias. The candidate refinement below
+  is NOT built — it changes what zone 1 MEANS, which is not an implementation choice.
+- **Item:** DEC-47 says the refusal is "estimated in tokens BEFORE any encoding". It does not
+  say which way the estimate should err. The question has no default, because **the two
+  boundaries the estimate crosses have opposite failure costs.**
+
+### WHY AN ESTIMATE IS UNAVOIDABLE HERE — it is structural, not laziness
+
+The zone decision must be taken BEFORE the encoder exists, because zone 1 is *defined* by
+never touching the encoder (DEC-47), and the model's own tokenizer arrives WITH the encoder.
+An exact count at decision time would require loading the very thing the cheap path is
+defined by not loading. So the number is a projection from the character count, and the only
+question left is which way it leans.
+
+### THE TENSION, stated once because it is not obvious
+
+| | under-estimate | over-estimate |
+|---|---|---|
+| **zone 1/2 boundary** | injects more than the configured limit — bounded cost, and MORE accurate | indexes a document that could have been injected — **loses the accuracy zone 1 exists for** |
+| **zone 2/3 boundary** | admits a document that then **EXCEEDS the ingestion budget** — the exact failure DEC-47 was written to prevent | refuses slightly early, at a threshold 7x above the largest corpus document |
+
+**The 1/2 boundary prefers a LOW estimate and the 2/3 boundary prefers a HIGH one.** No single
+bias is right for both, which is why this needed deciding rather than defaulting.
+
+### THE RULING — bias UP, because only one of the two harms is unbounded
+
+An upper bound is the only choice that is safe where the harm is unbounded. A document that
+blows the ingestion budget produces the silent ninety-second wait DEC-47 exists to forbid; a
+document indexed when it could have been injected produces a worse answer from a working
+feature. **Those are not the same kind of cost**, which is the DEC-49-ruling-1 argument
+(a 10x slower extraction is absorbed by the budget; wrong text is absorbed by nothing) applied
+to a different pair.
+
+The constant is `0.358` tok/char — **the HIGHEST ratio P0 measured over anything**, which is
+the MIXED technical document, not the pure-Arabic one at 0.317 and not the Arabic corpus range
+of 0.269-0.326. DEC-49 ruling 5's inverted finding is what makes that the right pick: markup,
+identifiers and punctuation drive token density harder than script does.
+
+### THE EXPOSED BAND, MEASURED AND RECORDED RATHER THAN HIDDEN
+
+Over-estimation can misroute a document whose TRUE size falls between
+`inject_limit x (0.269/0.358)` ~= **37,600** and **50,000** tokens — roughly the top quarter
+below the limit, and only for LOW-density documents. **Zero of the three P0 corpus documents
+fall inside it** (909 / 9,945 / 103,187), so the band is real but currently unpopulated.
+
+### THE SECOND GATE, BUILT — it removes the tension from the boundary that mattered
+
+The budget-critical side is closed exactly, not by a better estimate: chunking yields the
+TRUE chunk count for free, and **encode time is per CHUNK rather than per token**, so a second
+gate compares the real cost unit against the real budget **after chunking and before the first
+vector**. Both gates refuse before any encoding. The estimate's remaining job is only to stop
+an absurd document from being chunked at all.
+
+### THE CANDIDATE REFINEMENT — NOT BUILT, because it redefines zone 1
+
+The 1/2 exposure could be closed the same way: after chunking, the exact token total is known,
+so a document whose TRUE size is at or below the injection limit could be **RE-ROUTED to full
+injection** at zero extra cost, with the encoder still never having encoded anything. It is
+~4 lines and it would make the estimator's upward bias cost nothing at all.
+
+**It is not built, and the reason is a definition rather than a risk.** DEC-47 states that in
+zone 1 "chunking, encoding and indexing are ALL bypassed". A re-routed document would have
+been CHUNKED before being injected — still zero encoding, still full injection, but no longer
+a document that bypassed everything. **That is a change to what a signed decision says zone 1
+is, and this entry does not take it.** Recorded with its arithmetic so the ruling is a
+sentence rather than a re-derivation.
+
+- **Implementation timing:** the upward bias and the second gate are LIVE at T3
+  (`token_estimate.py`, `zones.py`). The re-route awaits a ruling.
+
+---
+
+## T3 FINDINGS (2026-07-30) — two smaller records: a defect a test caught, and a file split before it landed
+
+### THE FIRST PAGE WAS THE ONLY UNLABELLED PAGE — caught by a test, not by review
+
+Zone 1 marks positions in the injected copy so the model can cite a location (DEC-45 captures
+page and section precisely for this, and Phase 3's visual citation is the eventual consumer).
+The first draft emitted a marker only when the position CHANGED — and for the first block
+nothing had changed yet, so **page 1 was silently the one page in the document without a
+label.** Page 1 is also the page a reader is most likely to ask about first.
+
+**Worth recording because of the shape rather than the size:** the bug is invisible to every
+behavioural assertion about zone 1 (the full text is present, the zone is right, the encoder is
+untouched) and visible only to a test that names the *first* page specifically. It is the same
+family as a length floor that filters out the only case a check exists to examine — the guard
+and the guarded were adjacent but never connected.
+
+### `zones.py` WAS SPLIT AT 288/300 BEFORE IT LANDED, NOT FLAGGED FOR LATER
+
+A brand-new module at 288/300 is one bugfix from a stall. DEC-23 and DEC-52 name seams for
+files at 273 and 247 — with 27 and 53 lines of headroom — and 12 lines is not that situation.
+So the estimator left for `token_estimate.py` (zones.py 265, token_estimate.py 68), on a
+PRINCIPLED seam rather than a size cut: **the estimate is a measured property of a corpus and a
+tokenizer; the zones are a design decision about paths.** A new encoder re-measures the ratio
+and moves nothing else; a new zone moves the boundaries and re-measures nothing.
+
+**The distinction from DEC-30's refusal to split matters:** DEC-30 kept a dispatch funnel whole
+because splitting it would have separated half a decision from its other half. Nothing here is
+half a decision — the boundaries and the ratio are two facts that happen to be multiplied
+together.
+
+### OBSERVATION — a NUL-free PDF still slips past the binary sniff
+
+`file_reader`'s binary gate sniffs the first 4,096 bytes for a NUL. A PDF whose header region
+happens to contain none would pass it and be decoded as garbage "text" — the DEC-35 note would
+never fire, and the model would receive nonsense that looks like content.
+
+**NOT fixed here, deliberately.** DEC-35 scopes this pass to the MESSAGE layer and states that
+the binary sniff does not move one line. Closing this needs a NEW PREDICATE (a magic-byte or
+suffix check), which is a gate change and therefore needs its own ruling — precisely the
+"improvement made while the file happened to be open" that the DEC-42 discipline forbids.
+Logged so the hole is a known one rather than a discovered one.
+
+---
