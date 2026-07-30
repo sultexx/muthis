@@ -3983,3 +3983,216 @@ made. That is DEC-35's defect in miniature: a note that misreports its subject p
 rational wrong action, and the agentic loop exists to retry.
 
 ---
+
+## DEC-56 (2026-07-30) — a named seam plus an ESTIMATE is not a plan: RE-MEASURE at execution time — APPROVED (Sultan)
+
+- **Status:** **RULED**, and it REFINES DEC-23/DEC-52 rather than replacing them. The practice of
+  naming a seam at planning time stands; what is added is the second half.
+- **Item:** DEC-52 named `composition.py`'s seam correctly AND attached a wrong number to it.
+
+### THE EVIDENCE, from T4
+
+| | DEC-52's projection | measured at execution |
+|---|---|---|
+| `composition.py` after the `doc_rag` mount | **278/300** (legal, "why not now") | **320/300** (breach) |
+
+**The seam was right; the estimate was wrong by 42 lines.** The projection counted
+`mount_doc_rag` and missed `_doc_model_dir` — a BUILDER the mount could not exist without. A
+planning-time estimate cannot see the collaborators a feature turns out to need, because they
+are discovered while building it.
+
+### THE RULING — two obligations, not one
+
+1. **NAME the seam at planning time** (DEC-23, unchanged): an extraction candidate is
+   identified BEFORE a fix needs it, never mid-fix under pressure where compression becomes
+   tempting.
+2. **RE-MEASURE at execution time, BEFORE writing into the repo** (new): the addition is
+   written against a scratchpad copy and counted. **The projection is a warning, never an
+   authorisation.**
+
+- **Why this is worth a ruling rather than a habit:** DEC-52's own text reasoned FROM its
+  number — *"22 lines is legal, and an extraction is not free"* — and that conclusion was
+  sound for 278 and wrong for 320. **A stale projection inside a signed decision reads as
+  permission.** It is the same failure DEC-43 retired a document for, at a smaller scale.
+- **The record of estimates in this project is already clear:** M2 produced NINE
+  estimate-versus-measurement gaps, and the T5 ceiling finding was an estimate wrong by 9
+  lines. T4 makes it ten. The P0b method — write it out, syntax-check it, diff it, keep it out
+  of the repo — is the one that has never been wrong.
+
+---
+
+## T4 PREDICTION CONFIRMED (2026-07-30) — `ROUTER_SERVICED_TOOLS` cost the next routed family ZERO lines
+
+When the or-chain became a named set (commit `4e6e2cd`, landed ALONE and BEFORE any doc_rag
+wiring), the stated payoff was that **the next routed tool would cost `turn_pass.py` zero
+lines**. T4 added a routed family and `turn_pass.py` is **git-UNTOUCHED** — 269 lines before
+and after.
+
+**Recorded because a prediction made and then confirmed is evidence about the SHAPE of the
+refactor, not a compliment.** The set was not a tidy-up: it moved a whole class of mistake —
+a routed tool that falls through to the LOOK-only `else`, bypassing the wrap, the taint raise
+and the confirm gate, then taking the pointer ack and killing the turn — into ONE place a test
+can pin by value. The exact-value pin then did its job: adding `DOC_TOOLS` FAILED
+`test_router_serviced_tools_holds_exactly_the_routed_tools` until a human edited that line
+deliberately.
+
+---
+
+## T4 SEAM NAMED (2026-07-30) — `tool_result_pairing.py` grows +33 per milestone; its seam, and the projection is NOT authorisation
+
+- **The measured growth**, one row per milestone that touched it:
+
+| lines | when |
+|---|---|
+| 138 | before `sandbox_exec` |
+| 171 | + the run_code surfaces (M1) |
+| **234** | + the web arm and T4's doc arm |
+
+  **+33 per capability milestone**, and Phase 3 (the Navigator, the visual citation) adds tools.
+  66 lines of headroom is comfortable TODAY and is two milestones of runway, not three.
+- **THE SEAM:** `build_tool_result_message` now carries three routed arms — read / web / docs —
+  of which **the web and doc arms are structurally IDENTICAL**: the serviced id gets the
+  content, every other id gets that family's one-per-pass note. The extraction is a
+  **`{tool_name: busy_note}` TABLE** replacing both arms, after which each new routed family
+  costs ONE DICT ENTRY instead of eight lines. The READ arm stays separate — its note is
+  CONDITIONAL on which family was actually serviced, which is a different decision.
+- **Trigger:** the FOURTH routed family, or any milestone whose addition would breach 300.
+- **THE PROJECTION MUST BE RE-MEASURED BEFORE USE — DEC-56 applied to this very entry.** The
+  arms measure ~8 lines each today and a table would cost ~6, so the naive saving is ~10 lines;
+  that number is a WARNING, not an authorisation, and the P0b method decides at execution time.
+- **NOT extracted now**, and the reason is the project's own precedent: the
+  `ROUTER_SERVICED_TOOLS` replacement was landed ALONE and BEFORE any doc_rag wiring, so a
+  refactor of two working SECURITY branches does not belong inside a feature commit that needed
+  neither.
+
+---
+
+## UX OBSERVATIONS OWED AFTER MILESTONE CLOSE (2026-07-30) — two live findings, DEC-35's shape twice
+
+> Recorded together because they are ONE pass of work, they touch the persona and the voice
+> line, and neither belongs inside a security milestone. **No code action now.**
+
+### (1) DOCKER-UNAVAILABLE IS DEC-35 REPEATING — a terminal condition drew the full retry budget
+
+- **Observed live (Sultan's run):** with Docker unavailable, the model exhausted the **ENTIRE
+  `SandboxGate` budget — three `docker create` attempts at rc=1 in ONE turn, ~$0.12** — against
+  a condition that could not succeed on any attempt.
+- **THE SHAPE IS EXACTLY DEC-35's**, and that is why it earns an entry rather than a bug
+  report. DEC-35's PDF answered "not found", a RETRYABLE condition, and drew four rational
+  retries at ~$0.10. Here the runner's honest Arabic note reports the FAILURE but does not
+  communicate **TERMINALITY**, so a competent agent retries — because retrying is what the
+  agentic loop is for. **A refusal that does not say "this cannot succeed" is an invitation.**
+- **Cost comparison worth keeping:** DEC-35 was ~$0.10 across four provider calls; this is
+  ~$0.12 across three container attempts plus its passes. **The same defect class has now been
+  measured twice, in two unrelated subsystems, at the same order of cost.** That is what makes
+  it a pattern rather than an incident.
+- **The fix is a MESSAGE change** of the DEC-35 kind — the note names the condition as terminal
+  for this session and stops the attempt at the FIRST call. It is NOT a gate change: the
+  `SandboxGate` budget and the runner's never-raise contract do not move.
+- **Owed AFTER milestone close.** Acceptance case: a Docker-down turn performs **ONE** create
+  attempt, not three.
+
+### (2) THE MULTI-PASS SPOKEN ACK — one ack per pass sounds like three restarts
+
+Full detail in **DEC-55 ruling 3**. Restated here so the post-milestone UX pass has both items
+in one place: across a multi-pass explanation the user hears the short ack («شفت», «زين») once
+PER PASS; the echo guard blocks a REPEATED IDENTICAL line, not a NEW ack per pass, so it is
+working as specified against a shape the specification never covered. Fix is a persona clause —
+the ack belongs to the FIRST pass only. Acceptance case: a three-pass explanation carries
+exactly ONE spoken ack.
+
+### WHY BOTH WAIT
+
+Each touches the persona and/or the voice line. The audio path has stayed byte-untouched
+through every boundary-building milestone since Phase 1, and that posture is worth more than
+landing two UX fixes early. **Neither is unsafe; both are cost-and-polish.**
+
+---
+
+## DEC-57 (2026-07-30) — the `doc_rag` persona laws: the ABSENCE clause and the SPOKEN LOCATION — APPROVED (Sultan), EXECUTED at T5
+
+- **Status:** **EXECUTED.** Both clauses APPENDED to `persona_rules.py`; `persona.py`
+  BYTE-IDENTICAL (git-verified empty diff), and `test_persona.py` +
+  `test_persona_web_laws.py` both pass UNMODIFIED (git-verified empty diff).
+- **Item:** the model-facing half of DEC-49 ruling 3 / DEC-50, plus DEC-46's surviving
+  citation-metadata clause made SPOKEN.
+
+### (a) THE ABSENCE CLAUSE — LOAD-BEARING, and the number is the argument
+
+**Effective recall is 82%, so roughly ONE QUESTION IN FIVE will not have its answer
+retrieved.** The mechanism that would have caught that deterministically DOES NOT EXIST:
+DEC-49 ruling 3 retired the dense entry floor after measurement proved the positive and
+negative cosine distributions OVERLAP (−0.11), because a topically-adjacent absence scores
+like a true answer. **A floor cannot separate them and would HIDE content from the model,
+which is worse than having none.** DEC-50 upgraded this law to load-bearing. **Until Phase
+3's visual citation lands, this clause is the ONLY guard against the milestone's most likely
+failure: a confident answer synthesised from chunks that do not contain the answer.**
+
+- **STATED AS A POSITIVE INSTRUCTION, not only a prohibition**, and that is a design choice
+  rather than tone: "do not infer" leaves a model with no sanctioned move, and the helpful
+  move is the wrong one. So the law names the alternative and CALLS IT A CORRECT ANSWER —
+  say «ما لقيت هذا في المستند», then state what the passages DO cover, then offer to narrow
+  to a named chapter or section.
+- **It carries its own WHY:** closeness is not presence. The reasoning is what stops a future
+  edit from "simplifying" the law back into the hole it closes.
+- **And the anti-fabrication half:** never fill the gap by inferring from a passage that
+  lacks the answer, and never complete from the model's own knowledge while attributing it to
+  the document — DEC-20's shape in its document form.
+
+### (b) THE SPOKEN LOCATION — RULED, and it belongs in THIS commit
+
+- **Why here and not later:** the tool result ALREADY carries a page or section per passage
+  (DEC-46's surviving clause) and DEC-45 already made every chunk carry position at
+  ingestion. **Without a persona clause the model MAY or MAY NOT mention where it read
+  something — inconsistently, turn to turn.** At 82% recall that inconsistency is the whole
+  point: a user who hears «في صفحة 12 من المستند» can open the page and CHECK; a user who
+  hears an unlocated claim cannot.
+- **This is DEC-20's spoken-prose citation pattern applied to documents**, and it is the
+  **HUMAN-verifiable backstop that PRECEDES Phase 3's MACHINE-verifiable visual citation.**
+- **It is NOT the visual citation.** DEC-45's position data stays INERT for rendering; this
+  clause only lets the model SPEAK what it already receives. A test asserts the clause
+  contains no drawing instruction at all — a draw order in the persona would put a box on
+  screen for every retrieval.
+- **Constraints identical to DEC-20's:** natural spoken prose, no formatting syntax, no URL,
+  INSIDE the verbosity cap rather than extending it.
+- **Plus the clause DEC-20 earned:** an INVENTED position is worse than none, because it is
+  checkable and wrong — it spends the very trust the clause exists to build. A passage
+  arriving without a position is attributed to the document without naming a page.
+
+### METHOD — four rules, each earned by a defect this project already met
+
+1. **`persona.py` byte-identical**, git-verified. The T1 extraction existed for this and is
+   now demonstrated a second time.
+2. **THE DELTA IS PINNED, NOT THE PROMPT.** New baseline `2901089b…` at 8,518 chars; the
+   composed prompt MUST change and its first 8,518 characters MUST still hash to that value.
+   Delta = 1,268 chars. **A SECOND anchor is kept further back** — DEC-41's pre-web-law pin
+   (`cda7fc4e…`, 6,799 chars) — because a commit that mangled a web law AND re-based the T4
+   baseline would pass one check and not two.
+3. **CHECKED AGAINST THE LIVE §3.2 CONSTANTS**, not a copy. All three delimiter markers and
+   both wrap-fragment prefixes are absent from the delta AND from the whole prompt.
+4. **ASSERT THE LAW, NOT ITS WORDS.** M2's sixth guard hole was asserting two words that
+   occur elsewhere, so deleting a whole law stayed green. **Closed BY CONSTRUCTION here:
+   every one of the 12 anchors is asserted with `count(...) == 1`**, and a CONTROL test
+   proves the phrases a careless author would have reached for are genuinely ambiguous
+   (`إلزامي` 9×, `ذكر المصدر` 3×, the bare verbosity-cap sentence 2×) — so the uniqueness
+   rule is not vacuously satisfiable.
+
+### DEC-41's CENTRAL CLAIM, NOW DEMONSTRATED RATHER THAN ASSERTED
+
+DEC-41 said the delta hash catches "a rewrite of any earlier rule … even if that rule's own
+test still passes." **T5's M13 proved it live.** It re-worded the WEB citation law's
+verbosity sentence; that law's own test kept passing (the substring it asserts still appeared
+once — from the NEW doc clause), and `test_the_two_clauses_are_purely_additive` FAILED. **A
+mangle hid from the rule's own test and was caught by the delta.** That is the exact scenario
+the pin was built for, observed instead of imagined.
+
+- **14 MUTATIONS, ALL RED**, each proving it APPLIED, `PYTHONDONTWRITEBYTECODE=1`: each
+  clause's header deleted, each load-bearing part deleted, a law reproducing the delimiter
+  wording (caught by THREE independent guards), a clause emitting markdown, a clause ordering
+  DRAWING, a mangle of an earlier rule, and a clause leaking into `persona.py`.
+- **M10 and M13 were re-run individually to confirm they fail on the INTENDED assertion** —
+  T4's M8 lesson generalised: "the tests failed" and "the guard caught it" are different
+  claims, and a set of RED verdicts is worth checking at the two places where the reason
+  matters most.
+
+---
