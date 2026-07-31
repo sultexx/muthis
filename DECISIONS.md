@@ -5560,3 +5560,375 @@ the voice work** rather than holding a security milestone open.
   time with a guard that says so. **NOT merged and NOT tagged — both are Sultan's.**
 
 ---
+
+## DEC-65 — also **DEC-A** of the Phase-3 design session (2026-07-31) — `SessionMode`: a GENERAL long-lived session primitive, NOT a Teach Mode — APPROVED (Sultan), NOT YET IMPLEMENTED
+
+- **Item:** the first primitive of the Phase 3 Navigator milestone (`feature/v3-navigator`) — a
+  long-lived conversational MODE: what it is, who owns which half of it, how it is entered and
+  left, and what it is forbidden from touching.
+- **Reason it is GENERAL and not a "Teach Mode" — Sultan's ruling, and it is deliberate:** future
+  modes (Teaching, Review, Debug) must INHERIT this structure rather than force a redesign.
+  **Binding a primitive to the one feature that needed it first is how rigid architectures are
+  born.** Navigator is the first CONSUMER of `SessionMode`; it is not its definition.
+
+### THE OWNERSHIP SPLIT — the KERNEL owns the FRAME, the MODEL owns the CONTENT
+
+- **Resolution:** the **KERNEL** owns `active` · `mode name` · `current step` · `total` ·
+  `last-progress time`. The **MODEL** owns what each step SAYS, what to point at, and how to
+  explain it.
+- **Why:** **"Step 3 of 5" is a STRUCTURAL FACT, not a phrase.** If the model owned it, it would
+  be a CLAIM with no backing — indistinguishable from a fabricated one, and unfalsifiable at the
+  moment it matters. This is the same principle, in a sixth place, that kept plugin-set `is_error`
+  from gating the untrusted-content wrap (DEC-29), kept a plugin's declared `read_only` from
+  driving impact classification (DEC-15 / T5 COMMIT 1), kept a plugin from wrapping its own output
+  (DEC-14), kept a plugin-set number out of the sovereign ledger (DEC-34), and kept the domain
+  badge's provenance on the FETCHER side (DEC-36). **WHO OWNS THE FACT.**
+
+### SINGLE TRANSITION AUTHORITY — the model REQUESTS, the KERNEL decides
+
+- **Resolution:** every mode change is a **REQUEST evaluated by the kernel**. There is **never a
+  direct state change** from model output.
+- **Why, and why the conditions are named NOW and built later:** today the conditions are trivial;
+  tomorrow they are not — a pending confirmation (DEC-16), a running sandbox. **ONE evaluation
+  point is what keeps that from becoming scattered special cases.** So the conditions are NAMED
+  now and BUILT later (stub-first — AGENTS.md's stub-first LAW, the DEC-34 deferral precedent), in
+  ONE place: the **`RouteImpact` shape** (`src/muthis/trust/high_impact.py`) is the named home.
+
+### A REFUSED TRANSITION IS REPORTED, NEVER SWALLOWED
+
+- **Resolution:** a refused transition returns a note that states **(1) what WAS achieved,
+  (2) whether the condition is TERMINAL or TRANSIENT, and (3) the valid NEXT STEP.**
+- **Binding home of that obligation:** the AGENTS.md standing rule of **2026-07-30** — *"EVERY NOTE
+  THE MODEL READS MUST STATE THE STATE ACHIEVED, WHETHER THE CONDITION IS TERMINAL OR TRANSIENT,
+  AND THE VALID NEXT STEP"* — promoted to law on its THIRD sighting (DEC-35's type-inaccurate PDF
+  refusal · the Docker-unavailable run · `doc_rag`'s deferral note, fixed by DEC-58).
+- **Why it is restated here:** a refusal that fails to say so produces a **RETRY LOOP**, because
+  retrying is exactly what a competent agentic model does with an unexplained failure — and the
+  agentic loop exists to retry. **M3 paid for this in live runs.** Precision, recorded so the
+  lesson is not overstated: four live SOP runs failed with the SAME visible symptom (the model
+  retrying) and **THREE different causes** — an incomplete note (DEC-58), a slot rule that
+  deferred the payload-bearing call (DEC-62), and a `doc_id` that could not survive a
+  natural-language round-trip (DEC-63). **The incomplete note was one of the three, and it is the
+  one this clause exists to prevent.** A retry loop is a symptom, not a diagnosis.
+
+### NO NESTING — one mode at a time, and mode-to-mode is ONE evaluated decision
+
+- **Resolution:** **ONE mode at a time.** A mode-to-mode change is **ONE evaluated decision (exit +
+  enter together)** — **never two sequential operations.**
+- **Why:** two operations create an **intermediate state nobody owns** — the **undefined THIRD
+  state DEC-24 closed** at `broker.py:92`, where a granted plugin and a denied plugin saw the same
+  absent seam. The contract there was made BINARY; the same discipline applies here.
+
+### THREE INDEPENDENT EXITS
+
+1. **A DETERMINISTIC EXIT-WORD DETECTOR on the raw transcript** — the `verbosity.detect_command` /
+   DEC-16 pattern (`normalize_ar` + the isolation rule), **MODEL-INDEPENDENT**. **A confused or
+   injected model must never be able to trap the user in a mode.**
+2. **MODEL-SIGNALLED COMPLETION** — a request, subject to the transition authority above.
+3. **AN INACTIVITY TIMEOUT.**
+
+- **The timeout is on IDLE TIME, not turn count (Sultan's ruling).** A user may spend ten minutes
+  on one step without producing a turn, so **counting turns measures the wrong thing.**
+- **It is evaluated LAZILY at the start of the next turn — NEVER by a background timer.** A timer
+  is a **lifecycle outside the kernel, which Law 11 forbids** (CONTRIBUTING.md acceptance
+  condition 4) and which **DEC-47 already rejected for background ingestion** — there, too, the
+  feature was redesigned around the law rather than the law bent for the feature. Lazy evaluation
+  achieves the same result with **zero threads**.
+- **ACCEPTED CONSEQUENCE, recorded rather than discovered later:** the mode **does not ANNOUNCE
+  its own expiry.** Mut'his speaks only after F9, so expiry is DISCOVERED at the next turn — and
+  the visual indicator will already be gone.
+
+### A VISIBLE MODE INDICATOR, DRAWN BY THE KERNEL FROM ITS OWN STATE
+
+- **Resolution:** the **DEC-36 badge shape** — kernel-drawn, **never model-authored**.
+- **Why:** a model claiming "step 3" while the indicator reads 2 is **VISIBLY CONTRADICTED**. The
+  indicator is the deterministic backstop for the frame, exactly as the domain badge is the
+  deterministic backstop for spoken citation (DEC-20 layer three).
+
+### F9 KEEPS ITS ONE MEANING — BARGE-IN. IT NEVER MEANS "EXIT", IN ANY MODE
+
+- **Why:** re-defining a safety gesture BY STATE is the anti-pattern **DEC-16 rejected outright**
+  ("F9 is reserved for barge-in and must not become state-dependent"). A gesture whose meaning
+  depends on invisible state is not a safety gesture.
+
+### A MODE GRANTS NO PRIVILEGE, EVER — HARD INVARIANT
+
+- **Resolution:** a mode **changes conversational behaviour ONLY.** It **does not touch the
+  security model**: it grants no capability, raises **no taint** (it ingests no external content),
+  and is **NEVER PERSISTED** — it dies with the process (privacy-first, CONTRIBUTING.md law 6, the
+  `SessionIndex` and `SessionTaint` shape).
+- **Why record something this obvious:** **it looks obvious today and becomes tempting after three
+  modes** — *"in Debug mode, give the sandbox network."* That sentence is a **constitutional
+  change** (DEC-3 / V2 Roadmap decision #0 is the ONLY execution carve-out and it does not move),
+  and it must read as one when someone proposes it.
+- **LOOK-only does not move in this milestone or in any mode.** No `type_text`, no `real_click`, no
+  input synthesis of any kind (DEC-6, permanent).
+
+### A SIDE QUESTION MID-MODE ANSWERS WITHOUT ADVANCING THE STEP
+
+- **Resolution:** mode PERSISTENCE is **independent of step PROGRESS** — by design, not by patch.
+
+- **Implementation timing:** T1 (the primitive) and T2 (the transition authority + the three
+  exits), in the state carrier the **P0 D-2 measurement** identifies. NOT YET IMPLEMENTED.
+
+---
+
+## DEC-66 — also **DEC-B** of the Phase-3 design session (2026-07-31) — `Plan` and `Step` are ARCHITECTURAL PRIMITIVES, not a list of strings — APPROVED (Sultan), NOT YET IMPLEMENTED
+
+- **Item:** what the kernel actually STORES when Mut'his is guiding a task, and who may change it.
+- **Reason — Sultan's ruling, and it CORRECTED the architect's:** the proposal was a list of
+  strings. **A list of strings CANNOT be extended later without redesigning every producer and
+  every consumer at once.** The kernel owns **THE PLAN**, not the step texts.
+
+### PLAN AND STEP ARE DISTINCT ENTITIES, AND THE STEP ID IS THE LOAD-BEARING PART
+
+- **Resolution:** **`Plan`** (title, ordered steps, current step) and **`Step`** (a **STABLE ID
+  that survives reordering**) are distinct entities.
+- **Why the stable id is load-bearing:** plan edits may **delete or insert** steps, so a positional
+  reference breaks **SILENTLY** and "step 3" quietly becomes something else. That is
+  **structurally the DEC-63 id-mismatch defect in a new place** — a machine identifier that cannot
+  survive the round trip it is actually put through, failing with no observable difference.
+
+### THE FIELDS ARE NOT BUILT NOW; THE SHAPE THAT CAN RECEIVE THEM IS
+
+- **Resolution:** **stub-first.** Step state, a citation reference from DEC-67 (DEC-C), anything
+  later — **not built now.** The SHAPE that can receive them is built now.
+- **Why:** **DEC-45 is the precedent** — position data was paid for UP FRONT because it is
+  unrecoverable later without a full re-index. **A plan is worse: it lives in RAM and dies with
+  the session**, so there is no re-index to fall back on at all. DEC-50 states the reusable form of
+  the rule: **pay up front only for what cannot be recovered; defer what can be recovered
+  cheaply.** A plan's shape is the unrecoverable half.
+
+### THE KERNEL STORES, NUMBERS AND BOUNDS-CHECKS — IT NEVER INTERPRETS TEXT
+
+- **Resolution:** storage, numbering and bounds-checking are the kernel's. **Interpretation is
+  not.**
+- **Why:** **retention is not comprehension**, and this project already runs on that distinction —
+  `turn_hooks` holds **opaque callables the router never inspects** (DEC-37), and the router
+  carries **wrapped content it never parses** (DEC-14). **Ownership here is STRUCTURAL, not
+  linguistic.**
+
+### PROGRESS IS A MODEL REQUEST THE KERNEL APPROVES — NOT A DETERMINISTIC DETECTOR
+
+- **Resolution:** step progress is a **REQUEST**, approved by the kernel. **EXIT stays
+  DETERMINISTIC.**
+- **Why — classification by ROLE, the DEC-62 reasoning:** DEC-16's deterministic detector exists
+  because approval is an **AUTHORIZATION** decision, where a **false positive is a BYPASS**. Step
+  progress is **not authorization**: its worst case is **being on the wrong step**, which is
+  **VISIBLE in the kernel-drawn indicator** and corrected with a word. **The visible indicator is
+  the deterministic backstop** — exactly as the domain badge backstops spoken citation (DEC-36).
+- **EXIT is different in KIND, not in degree:** being trapped in a mode is a **CONTROL problem, not
+  a content one**, so it keeps the deterministic detector (DEC-65 exit 1).
+
+### ADVANCE, BACK, JUMP AND PLAN-EDIT ALL PASS THROUGH THE SAME TRANSITION AUTHORITY
+
+- **Resolution:** **no special paths.** Every one of them is a request evaluated at the ONE point
+  DEC-65 establishes.
+
+### THE INTERNAL DIRECTIVE LINE — REUSING AN EXISTING STRUCTURAL FACT
+
+- **Resolution:** each turn the model receives an **INTERNAL DIRECTIVE line** carrying the
+  KERNEL's frame — step number, total, and the kernel's stored text — marked with the
+  **`DIRECTIVE_OPEN_AR` family** (the `verbosity.py` / `highlight_gate.py` marker the persona obeys
+  and never reads aloud).
+- **Why that marker and not a new rule:** the family is **already stripped before the DEC-16
+  approval detector**, so the new line inherits that behaviour **for free** — no new rule, no
+  second mechanism. **Mechanism precision, recorded because T2 will build against it:** the strip
+  is **DEC-31's** `strip_directive_lines`, and it keys on **`DIRECTIVE_MARKER_AR`** («توجيه
+  داخلي») — the family CORE — deliberately, because `DIRECTIVE_OPEN_AR` is **not** a substring of
+  `INTERRUPTED_NOTE_AR`. A directive line that carried the outer form only would **not** be
+  stripped. Reuse the marker core, and the property holds.
+
+- **Implementation timing:** T1 (the primitives) and T4 (Navigator v1 — plan creation, step
+  directives). NOT YET IMPLEMENTED.
+
+---
+
+## DEC-67 — also **DEC-C** of the Phase-3 design session (2026-07-31) — "Show me where": evidence pointing as a UNIVERSAL trust surface — APPROVED (Sultan), NOT YET IMPLEMENTED
+
+- **Item:** generalising document citation into a single property: **any claim Mut'his makes about
+  the screen, it can point at.**
+- **Reason:** this is the **purest expression of the project's philosophy** — an assistant whose
+  evidence is always POINTABLE — and it is the **deterministic backstop the absence law currently
+  lacks.** DEC-57(a)'s «ما لقيت هذا في المستند» is, at **82% effective recall**, the ONLY layer
+  between a retrieval miss and a confident fabrication, and it is a PERSONA law, not a gate.
+
+### THE STRUCTURAL COLLISION — RULED
+
+- **The collision:** **DEC-45's position data is page-and-paragraph INSIDE a document; drawing
+  needs PIXELS on screen.** There is **no conversion** between them unless the document is OPEN
+  and Mut'his can SEE it.
+- **Resolution — three cases, ruled:**
+  1. **Phase 3 builds SCREEN pointing ONLY.**
+  2. **Pointing at a DISPLAYED document is DEFERRED behind the pointing-accuracy measurement
+     (D-1).** It requires matching a KNOWN PASSAGE to its SCREEN POSITION — **precisely where
+     vision models are weakest** (bounding-box precision, small elements).
+  3. **An INDEXED-but-not-displayed document gets an HONEST REFUSAL that REDIRECTS to the vision
+     path:** *"the answer is on page 8 — open the document on screen and I'll point at it."*
+- **Why (3) is a feature and not an apology:** it is the **robots-refusal pattern** (DEC-47) — **a
+  limit becomes a showcase.** The refusal names what the user can DO, and what it names is the
+  strongest thing the product has.
+
+### THE MODEL DECIDES WHAT TO POINT AT; THE KERNEL DRAWS
+
+- **Resolution:** the **KERNEL NEVER INVENTS A POSITION** when the model gives none. **Absence is
+  more honest than a computed guess.**
+- **Why this DIFFERS from the DEC-36 badge, deliberately:** the badge is a **purely KERNEL fact**
+  (what was actually fetched — the kernel owns it end to end). **Pointing is a SEMANTIC JUDGEMENT
+  the kernel does not own.** So the ownership split lands in a different place, and that is
+  correct rather than inconsistent: DEC-36's rule is *the kernel owns the FACT*, not *the kernel
+  invents the answer*.
+
+### THE DRAW GATE HOLDS WITH NO EXCEPTION — AND BOTH HALVES ARE RECORDED
+
+- **THE PRINCIPLE:** **ONE VISUAL INTENT PER TURN.** The goal is **not distracting the user** — it
+  is not counting draw operations.
+- **THE ENFORCEMENT:** **ONE CALL crosses the gate** — a **mechanical PROXY** for the principle,
+  because intent is **not machine-checkable**.
+- **COMPOSITION WITHIN ONE OPERATION STAYS PERMITTED.** `draw_shapes` has always drawn rectangles,
+  arrows, labels, step badges and the whiteboard **in a single call**, so **no future rendering
+  system is obstructed** by this gate.
+- **Why BOTH halves are written down:** recording only the principle invites **widening the gate by
+  semantic judgement** ("this is really one intent"); recording only the enforcement invites
+  **removing the gate for the wrong reason** ("it only counts calls"). **Two opposite errors, one
+  prevention.**
+
+### THE CONSEQUENCE, AND IT IS CORRECT
+
+- **Evidence pointing COMPETES with navigator pointing for the SAME per-turn resource.** A step
+  points at **the action, OR at the evidence — not both in one breath.** Accepted, not worked
+  around.
+
+- **Implementation timing:** T5 (evidence pointing, SCREEN ONLY). The displayed-document path is
+  DEFERRED behind D-1 and is **not** in this milestone. NOT YET IMPLEMENTED.
+
+---
+
+## DEC-68 — also **DEC-D** of the Phase-3 design session (2026-07-31) — the P0 MEASUREMENT GATE, and what each number DECIDES — APPROVED (Sultan), NOT YET EXECUTED
+
+- **Item:** the three measurements that gate the Navigator milestone, and — the part that makes
+  this a decision rather than a task list — **what each number DECIDES.**
+- **Reason (Sultan's count, recorded as his):** **nine times in Phase 2 measurement beat estimate;
+  three of those halted work at a ceiling, and one proved a signed premise was INVERTED.**
+  **Naming the unknowns in advance is itself an architectural decision** — an unnamed unknown is
+  resolved by whoever hits it first, at implementation time, alone.
+- **Governing rule for the whole gate:** where a **PROJECTION** is reported it is marked
+  **explicitly as NOT AUTHORIZATION** — DEC-56 ("a named seam plus an ESTIMATE is not a plan:
+  RE-MEASURE at execution time"), whose operative phrasing was set in the *T4 SEAM NAMED* record
+  of 2026-07-30. And **a check with a cutoff MUST report its cutoff and its ADMITTED COUNT**, with
+  a zero admitted count a FAILURE and never a pass (AGENTS.md standing rule, 2026-07-29, DEC-50).
+
+### D-1 — POINTING ACCURACY, BY ELEMENT SIZE
+
+- **The unknown:** research shows vision models **lose bounding-box precision on high-resolution
+  complex layouts** and **degrade sharply on SMALL elements**, with the predicted centre sometimes
+  falling **outside the true box** — and **Mut'his downscales to 1280×720 before sending**
+  (`vision/downscale.py`), which makes a small element **smaller**.
+- **Method:** **Sultan supplies real screenshots with ~25 hand-marked targets.** Accuracy is
+  reported **BY ELEMENT SIZE**, never as one aggregate.
+- **WHAT THE NUMBER DECIDES:**
+  | result | decision |
+  |---|---|
+  | high accuracy at ALL sizes | build **NO** crop-and-zoom |
+  | fails on SMALL only | **conditional refinement by size** |
+  | weak generally | **re-examine downscaling itself** before ANY pointing-dependent feature |
+- **It also decides DEC-67's deferred document path.**
+
+### D-2 — THE `SessionMode` STATE CARRIER, AND THE KERNEL CEILINGS
+
+- **The unknown:** `orchestrator.py` **299/300** and `tool_router.py` **300/300** are both full,
+  and `tool_router.py` is **IRREDUCIBLE** (DEC-38's STANDING CONSTRAINT: what remains is the
+  dispatch funnel itself).
+- **Method:** **write the state in FULL against scratchpad copies** and **count the real cost on
+  every candidate carrier.** No estimates — the EIGHTH MEASUREMENT GAP (2026-07-28) is the
+  precedent, where a re-measure moved a carrier from +13 to +15 and killed the plan it was in.
+- **WHAT THE NUMBER DECIDES:** whether **DEC-38's dispatch-funnel SPLIT is finally needed.**
+  Recorded precisely: DEC-38 (2026-07-28, M2) created the standing constraint and directed that a
+  funnel-split RULING be budgeted at M3 planning; **M3's P0b measured the `doc_rag` mount at ZERO
+  lines, so the budget was never spent** and the split has stood reserved since. **Phase 3 is the
+  next planning round that must test it.**
+- **THE GOVERNING PRINCIPLE, and it outranks the count:** **placement is decided
+  ARCHITECTURALLY, never by line count.** If the CORRECT home is full, **we SPLIT** — we never put
+  state in the wrong place because a ceiling is tight. That is the reasoning that rejected
+  `ServiceOutcome.extras` for the badge and **paid for an extraction instead** (DEC-36).
+- **If D-2 shows a kernel split is required: STOP and REPORT.** The split is **Sultan's ruling**,
+  never a self-selected refactor.
+
+### D-3 — OVERLAY CAPACITY (the ARCHITECTURAL half ONLY)
+
+- **The unknown:** the **mode indicator** (DEC-65) and the **domain badge** (DEC-36) are BOTH
+  **PERSISTENT** elements. Does the surface have room for two?
+- **THE ARCHITECTURE — three requirements, all of them inherited rather than invented:**
+  1. persistent elements **must not collide**;
+  2. they **must not consume the caption's text budget** (**2 lines × 60 chars**,
+     `caption_bar.wrap_caption`);
+  3. they **must inherit the caption LIFECYCLE**, so `clear()` and the **hide-before-capture
+     chokepoint** (`FrameCapture.capture`) cover ghosting **with no new code** — the DEC-36
+     refinement 2, applied a second time.
+- **SULTAN'S CORRECTION, RECORDED:** **exact placement (left/right/top/bottom, spacing) is a UX
+  decision**, to be settled **after a prototype and by his eye**. It is **NOT an architectural
+  decision and must NOT be frozen here.**
+- **Measure ONLY whether the surface HAS ROOM for two persistent elements.**
+
+### THE MILESTONE SHAPE THIS GATE SITS IN
+
+- **P0 gates the milestone. Scratchpad only — no `src/` change.** Measure, never estimate;
+  implement nothing.
+- **Then:** T1 `SessionMode` + Plan/Step primitives · T2 the transition authority · T3 the
+  kernel-drawn mode indicator · T4 Navigator v1 (**NO visual verification — Sultan's ruling; v2
+  waits on D-1's numbers**) · T5 evidence pointing (screen only) · T6 the Live SOP, **BUILD ONLY**.
+- **STOP after every gate.** **T6 is never declared PASSED by an agent**, no milestone-close commit
+  and no merge: **Sultan runs the Live SOP on his own hardware and signs off PERSONALLY.**
+
+- **Implementation timing:** P0, immediately after these four decisions are confirmed recorded.
+  NOT YET EXECUTED.
+
+---
+
+## PHASE-3 RECORDING NOTES (2026-07-31) — how the four decisions were numbered, and two citation refinements — NEEDS SULTAN'S CONFIRMATION
+
+Recorded per the standing governance rule (*on ANY architectural ambiguity, record it here instead
+of guessing*). **Nothing below changes the substance of any ruling above.**
+
+### 1. THE NUMBERING — both names are carried, so no citation can fail
+
+The design session labelled the four decisions **DEC-A … DEC-D**. This ledger is **append-only and
+numbered `DEC-N`**, and DEC-64 was the last entry. They are therefore recorded as **DEC-65 … DEC-68
+with the session label in each title**, so a citation written in EITHER form resolves:
+
+| session label | ledger entry |
+|---|---|
+| DEC-A | **DEC-65** — `SessionMode` |
+| DEC-B | **DEC-66** — Plan / Step primitives |
+| DEC-C | **DEC-67** — evidence pointing |
+| DEC-D | **DEC-68** — the P0 measurement gate |
+
+**Sultan's to confirm or override.** If he prefers the letters as the canonical form, the titles
+change and the numbering is withdrawn — the reason this is flagged rather than assumed is DEC-1
+batch 6: **a source of truth that contradicts itself about a NAME is worse than one that says
+nothing.**
+
+### 2. TWO CITATION REFINEMENTS MADE WHILE RECORDING — stated, not silently applied
+
+The brief carried two pointers that resolve to a **different entry than the one named**. Both were
+recorded at their true home **with the named entry kept beside it**, because a pointer into a real
+document at a clause that does not exist **fails QUIETLY** (the DEC-43 lesson).
+
+1. **"per DEC-63 the note states what was achieved, terminal-or-transient, and the next step."**
+   The three obligations are the **AGENTS.md standing rule of 2026-07-30**, promoted on its third
+   sighting; DEC-63 is the `doc_id` round-trip ruling and does not state them. **DEC-58** is the
+   ruling that FIXED the note in M3. Recorded in DEC-65 at that home, with M3's four failed live
+   runs attributed to their **three** actual causes rather than to the note alone.
+2. **"the DIRECTIVE_OPEN_AR family … stripped before the DEC-62 approval detector."** The approval
+   detector is **DEC-16's**; **DEC-62** is the precondition/slot ruling. The strip itself is
+   **DEC-31's** `strip_directive_lines`, and it keys on **`DIRECTIVE_MARKER_AR`** — the family
+   CORE — *because* `DIRECTIVE_OPEN_AR` is not a substring of `INTERRUPTED_NOTE_AR`. Recorded in
+   DEC-66 with that mechanism spelled out, since **T2 builds against it** and the "for free"
+   property holds only if the directive line carries the marker core.
+
+### 3. NOTHING MAY CITE THESE BEFORE THIS ENTRY LANDS
+
+Satisfied: this commit is that landing. **No `src/` file was touched by TASK 0** — it is docs only,
+and the guard was **1216 + 27 green on `.venv` before and after.**
+
+---
