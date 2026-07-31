@@ -615,6 +615,16 @@ ack); (c) whether to SPLIT T5 (T5a mount + servicing + snapshot + kill-hook; T5b
   **NOT** strip textual injection — **the DEC-14 wrapper remains the guard**.
 - **Implementation timing:** T3 (the `SearchProvider` seam + Tavily / Brave / SearXNG); the query-privacy persona
   rule lands with the T6 laws; extraction wiring in T2/T6.
+- **FORWARD POINTER — added 2026-07-31 from the T6 survivor round; the ruling itself is unchanged.** Choosing a
+  provider under this ruling is **not only a trust-surface change**. The very property that makes **Tavily** the
+  default — it returns EXTRACTED CONTENT, so it collapses the search→fetch cycle — is what currently keeps
+  `web__search` and `web__fetch` an OPTIONAL pair. **Brave and SearXNG return links that need a follow-up fetch
+  to be useful, which makes the pair SEQUENTIAL** — and a sequential pair is exactly the condition under which
+  `WEB_ONE_PER_PASS_AR` bites: that note defers the second tool without ever stating that the FIRST one
+  SUCCEEDED, which is the defect DEC-58 closed for documents after it cost a full re-ingestion per retry. **So a
+  provider change under this ruling is a NOTE-CORRECTNESS change as well as a trust-surface one**, and the note
+  must be fixed BEFORE, not after, any switch away from Tavily. See *T6 SURVIVORS CLOSED (2026-07-31) → KNOWN
+  EXPOSURE — `WEB_ONE_PER_PASS_AR` fails the new note law*.
 
 ---
 
@@ -4872,5 +4882,116 @@ scratchpad copy, syntax-check it, diff it, count it, keep it out of the repo —
 execution time. `claude_agent.py` at 270 has 30 lines of headroom, which is enough on
 this estimate and NOT enough for a surprise, so a seam should be named before it is
 written.
+
+---
+
+## PROMPT CACHING — THE PRECONDITION MEASUREMENT (2026-07-31): `input_tokens` **EXCLUDES** the cached portion, so the naive ledger fails **OPEN**
+
+- **Status:** **MEASURED. STILL NOTHING BUILT.** Sultan made this a PRECONDITION of
+  implementation rather than a follow-up, because the DIRECTION of the error decides whether
+  cache-aware pricing makes Rule 10 fail OPEN or merely stop early. It answers the one
+  question DEC-59 Q2 left open and **refutes the premise of the 2026-07-30 entry above**,
+  which spoke of "a cost model that ignores the DISCOUNT". There is no discount to ignore on
+  the turn that matters — there is a PREMIUM.
+
+### METHOD — and why it has this shape
+
+- **Driven through the PRODUCTION READ SITE, not a convenient one.** `claude_agent.py:214`
+  reads `event.message.usage.input_tokens` at `message_start` of a **stream**. A
+  non-streaming `messages.create()` would have settled the arithmetic while proving nothing
+  about whether the cache counters are populated where the seam actually reads. **Both calls
+  stream, and the `message_start` usage is what is recorded below.** (The DEC-12 principle:
+  verify by driving the real path, never an equivalent-looking one.)
+- **The cache-blind total came from `count_tokens`, which is FREE** — not a third billed
+  call. It is the independent third number that turns a comparison into an identity.
+- **The prefix was deterministic and ~7.9k tokens**, far above Sonnet 4.6's **1024-token
+  minimum cacheable prefix**. Below that minimum a prefix silently does NOT cache
+  (`cache_creation_input_tokens: 0`, no error), and the run would have reported nothing while
+  looking like it ran — **the DEC-50 failure mode**, so the script fails loudly on
+  `cache_read == 0` instead of inferring a direction.
+- **Cost: exactly two billed calls**, `max_tokens=16`, one WRITE and one READ.
+
+### THE RAW NUMBERS — `claude-sonnet-4-6`, this machine, 2026-07-31
+
+`count_tokens` (free, cache-blind) total prompt = **7936**
+
+| field, at `message_start` | CALL 1 (write) | CALL 2 (read) |
+|---|---|---|
+| `input_tokens` | **13** | **13** |
+| `cache_creation_input_tokens` | **7923** | 0 |
+| `cache_read_input_tokens` | 0 | **7923** |
+| `output_tokens` | 4 | 4 |
+
+**The identity holds EXACTLY, to the token, on both calls: 13 + 7923 = 7936 = the
+cache-blind total.** `input_tokens` is the uncached REMAINDER and nothing more.
+
+- **It excludes the WRITE as well as the READ.** Call 1 was a cache MISS in every meaningful
+  sense — the tokens were processed for the first time and billed at a **premium** — yet
+  `input_tokens` still collapsed to 13. This is the finding a "the number got smaller, good"
+  reading walks straight past.
+- The counters are populated **at `message_start`**, i.e. exactly where the seam already
+  reads, and identically on the final message. No extra plumbing is needed to obtain them.
+
+### WHAT IT DOES TO TODAY'S FORMULA — the magnitude, not just the sign
+
+`_estimate_cost_usd(input_tokens, output_tokens)` prices only what it is handed. At
+`claude-sonnet-4-6` ($3.00 / $15.00 per MTok), for the turn measured above:
+
+| turn | what the ledger would record | what is actually billed | error |
+|---|---|---|---|
+| cache WRITE (1.25x) | $0.000099 | **$0.029810** | **under-reports 301x** |
+| cache READ (0.1x) | $0.000099 | **$0.002476** | **under-reports 25x** |
+| *(same turn, uncached)* | $0.023868 | $0.023868 | exact — today's formula is correct only while nothing caches |
+
+- **THE WRITE TURN IS BOTH THE WORST CASE AND THE FIRST TURN OF EVERY SESSION.** It costs
+  **1.25x MORE than not caching at all** ($0.029810 vs $0.023868) while the ledger reports
+  **1/301st** of it. **The ledger would record its largest discount at the exact moment it
+  paid its largest premium.**
+- **This is Rule 10 failing OPEN, quantified.** A ledger under-reporting by 25x-301x does not
+  stop a session that has already breached the sovereign ceiling; it reports headroom that
+  does not exist. Sultan's ruling stands confirmed: **implementing cache-aware pricing
+  against the wrong assumption would have been strictly worse than not caching at all.**
+
+### A THIRD FINDING THE MEASUREMENT HANDED OVER UNASKED — the scalar cannot price a 1h TTL
+
+The usage object carries a **nested breakdown** beside the flat counter:
+`cache_creation = {"ephemeral_5m_input_tokens": 7923, "ephemeral_1h_input_tokens": 0}`.
+
+**The two TTLs are billed at DIFFERENT multipliers — 5m at 1.25x, 1h at 2x — and the flat
+`cache_creation_input_tokens` scalar cannot tell them apart.** Pricing off the scalar is
+correct only while the code uses the 5m default; the day anyone sets `ttl: "1h"` (DEC-59's
+point 4 lists it as available) the ledger silently under-reports the write by a further 1.6x,
+**with no signal**. **Any implementation prices from the NESTED breakdown, never the scalar** —
+recorded now so it is a known constraint at write time rather than a discovery afterwards.
+
+### THE NAMED SEAM — `claude_agent.py`, named at PLANNING per DEC-23
+
+**Re-measured 2026-07-31: `claude_agent.py` = 270/300, `protocol.py` = 104/300,
+`budget.py` = 267/300.** The estimate remains **~18-26 lines** against **30 lines of
+headroom** — enough for the estimate, not enough for a surprise (DEC-56 applying to itself).
+
+**The change is ONE VERTICAL SLICE inside `claude_agent.py` — four touch points, in the order
+a token travels. Nothing else in the file moves, and the sovereign is not touched:**
+
+| # | site | today | what it becomes |
+|---|---|---|---|
+| 1 | `_PRICE_TABLE_USD_PER_MTOK` (55-58) | input/output prices per model | + the two cache MULTIPLIERS (write 1.25x / 2x by TTL, read 0.1x) |
+| 2 | the request kwargs (203-210) | `system=<str>`, `tools=self._tools` | `system=` becomes the BLOCK form with a breakpoint; `tools=` becomes the **request-time copy** (DEC-59 Q3 — the mounted descriptors are never touched) |
+| 3 | the `message_start` branch (213-214) | reads `input_tokens` only | reads the two cache counters **beside** it, from the same `usage` |
+| 4 | `_estimate_cost_usd` (263-265) + the `TurnComplete` construction (252-259) | prices two numbers | prices four; the two counters ride out as the additive optional fields (DEC-59 Q1) |
+
+- **THE PRE-AGREED ANSWER IF IT BREACHES 300** — named now so a breach has a decision instead
+  of a debate: **extract the price table and `_estimate_cost_usd` into `cloud/pricing.py`.**
+  They are already a single responsibility with no dependency on the streaming path or the
+  HTTP client, the file's own comment already scopes them ("this table only annotates
+  `TurnComplete`"), and the extraction is mechanical and byte-checkable — the same move made
+  three times in M2 (`persona_rules.py`, `composition.py`, `tool_result_pairing.py`).
+- **DEC-52's lesson still applies: this seam is named at PLANNING and RE-MEASURED at
+  EXECUTION.** The figures above are a warning, not authorisation. The P0b method — write it
+  against a scratchpad copy, syntax-check it, diff it, count it, keep it out of the repo —
+  decides.
+
+**STILL SULTAN'S TO RULE:** whether caching lands before or after the milestone closes. The
+direction is now known and the seam is named; nothing was built.
 
 ---
