@@ -5999,3 +5999,149 @@ DEC-56's rule (*a named seam plus an estimate is not a plan*) has a twin here: *
 plus a plausible inference is not a mechanism.** Run it.
 
 ---
+
+## VOICE-SURFACE PASS FINDINGS (2026-07-31) — items 3, 4 and 5 are BLOCKED; measured, candidates presented, NONE self-selected
+
+Items 1, 2 and 6 of the voice-surface pass LANDED. The remaining three stopped at
+measurement, each for a different and independently sufficient reason. Recorded together
+because two of them share one missing seam. **Nothing was implemented for any of the three.**
+
+---
+
+### FINDING A — items 3 and 4 have NO CARRIER from a broker-side event to the turn's voice
+
+**The two items are the same problem.** The `~20 s` ingestion announcement (item 3) and the
+three-strikes MCP eviction announcement (item 4) both originate INSIDE a routed service call —
+`ToolRouter.service()` → plugin → broker — and both must reach the ACTIVE `TurnVoice`.
+
+**The kernel can already do this and it is proven live:** `orchestrator.py:295` speaks
+`AGENTIC_CAP_NOTE_AR` through `turn_voice.speak_or_feed`, and `VoiceOut.refuse_for_budget`
+takes a `speak=` seam for exactly this reason — *"so it queues behind any audio already
+playing"*. **So the destination is not in question. The route to it is.**
+
+**WHAT IS MISSING, measured:**
+
+| fact | measurement |
+|---|---|
+| the announce seams are **SYNC** | `McpHost(announce: Callable[[str], None])`; `model_pin.ensure_model(announce=…)` |
+| both are wired to the **LOGGER** | `composition.py:178` (MCP), `model_pin.py:160` `_log_announce` |
+| the turn voice is reachable **only** in `TurnPass.consume` and `Orchestrator._active_turn_voice` | `turn_pass.py:245`, `orchestrator.py:124/197` |
+| `turn_voice.py` is **AT 300/300** | cannot gain a method |
+| `orchestrator.py` is **299** and FROZEN by this pass's constraints | cannot hold the binding |
+
+**THREE CANDIDATE CARRIERS, measured, none self-selected:**
+
+1. **A BOUND ANNOUNCER HOLDER** — a new `kernel/announcer.py` (~70 lines) built once at the
+   composition root and injected into both seams; `TurnPass.new_turn_voice()` binds the turn's
+   voice into it (+2 lines, 286 → 288) and the turn end unbinds. Costs: `composition.py` +6
+   (259 → 265), `host.py` +3 (248 → 251), `model_pin.py` +3 (169 → 172). **Requires the announce
+   seams to become `async`** so the feed can be awaited. **This is the DEC-37 shape** — the root
+   knows both sides, the kernel carries an opaque thing — with one difference that needs a
+   ruling: DEC-37 carries a **reset callable**, this would carry a **live value with a turn
+   lifetime**.
+2. **A THREAD-SAFE QUEUE drained by `TurnPass` after the service call.** No signature changes and
+   no async conversion. **Fatal for item 3** — the announcement would land AFTER the silence it
+   exists to explain — and acceptable for item 4, where the eviction note is not time-critical.
+3. **`loop.call_soon_threadsafe` + `create_task`.** Works from any thread, and is the only
+   candidate that survives Finding B. **It creates a background task**, which is the Law-11
+   tension DEC-47 refused to bend for background ingestion, and `turn_voice.py` has no room to
+   own it.
+
+**A RULING IS NEEDED, not a preference.** Whichever is chosen becomes the way every future
+broker-side surface speaks, and Phase 3 is voice-heavy by design.
+
+---
+
+### FINDING B — item 3 is blocked a SECOND time, and this one is structural: the ~20 s runs ON THE EVENT LOOP
+
+**Found while locating the announce point. Not previously recorded anywhere.**
+
+`DocumentIngestor.ingest` is `async`, and its zone-2 exit is **`return self._index(blocks,
+decision, report)`** — `ingest.py:196` calling a **synchronous** `_index` (`ingest.py:221`,
+`def`, not `async def`). `_index` builds the encoder (`encoder.py:82 def load`, sync) and runs
+chunking + encoding. **Extraction is correctly off-loop** (`extract.py:233`,
+`await asyncio.to_thread`) — **the encode is not.**
+
+**THE CONSEQUENCE, and it defeats item 3 independently of Finding A:** while `_index` runs, the
+event loop is BLOCKED. The ElevenLabs session's reader task lives on that loop, so it cannot
+deliver audio into the player's queue. **An announcement fed immediately before `_index` would
+not be HEARD during the silence it exists to explain** — the WebSocket send happens, and the
+audio arrives ~20 s later, after the thing it was announcing has finished.
+
+- **So item 3 has a PRECONDITION nobody has ruled on: move the zone-2 encode off the event loop**
+  (`asyncio.to_thread`, the shape `extract.py` already uses). That is a change to the ingestion
+  path, not to a voice surface.
+- **It touches a CLOSED ruling.** DEC-64 ruling 3 measured the ~20 s (20.03 s cold vs 25.79 s
+  warm, thermal derating, the accumulating-structure hypothesis REFUTED) and **ACCEPTED it as a
+  known limit**, assigning only the spoken announcement to Phase 3. **The measurement stands; what
+  was not known is that the silence is a BLOCKED LOOP rather than merely a quiet one.**
+- **It is also more than a voice defect.** For ~20 s the loop serves nothing — no barge-in path,
+  no caption pacing, no player refill. **F9 during an ingestion is worth checking on Sultan's
+  hardware**, and I have NOT verified it, because it needs the corpus and the model.
+- **NOT FIXED HERE.** It is outside the five named surfaces, it re-opens a signed acceptance, and
+  DEC-56 forbids acting on a seam that has not been re-measured at execution time.
+
+---
+
+### FINDING C — item 5 BREACHES the ≤300 law by 30 lines, and the T4-NAMED SEAM DOES NOT SOLVE IT
+
+**MEASURED, not estimated** (`tool_result_pairing.py` is at **298/300**, headroom **2**):
+
+| piece | today | after item 5 |
+|---|---|---|
+| the web note block | 7 | 35 (two notes + `web_deferral_note`, mirroring the doc arm) |
+| the web arm's `else` | — | +2 |
+| `__all__` | — | +2 |
+| **the file** | **298** | **330 / 300 — BREACH by 30** |
+
+**THE NAMED SEAM IS REFUTED BY THIS MEASUREMENT — a DEC-56 event, on the entry that predicted
+itself.** *T4 SEAM NAMED (2026-07-30)* named the extraction as *"a `{tool_name: busy_note}` TABLE
+replacing both arms"*, and stated its own trigger: **"any milestone whose addition would breach
+300."** The trigger has fired. **The SHAPE has not survived it.**
+
+- The table's premise was that **both routed arms are UNCONDITIONAL** — serviced id gets content,
+  every other id gets *that family's one note*. **Item 5 makes the web arm CONDITIONAL**, exactly
+  as DEC-58 already made the doc arm. A flat `{tool_name: note}` table **cannot express either
+  arm** any more.
+- A `{tool_name: selector}` table still merges the two arms, and **measured, that saves ~8 lines
+  of the 30** (the two arms are 11 + 17 = 28 lines; one table-driven arm plus the table is ~20).
+  **330 → ~322. STILL A BREACH, by 22.** The named seam was sized against the arms, and **the
+  cost is in the NOTES, which it does not move.**
+- **This is the entry's own warning coming true:** *"the naive saving is ~10 lines; that number is
+  a WARNING, not an authorisation."*
+
+**CANDIDATE B, measured: extract the NOTES AND SELECTORS to `kernel/deferral_notes.py`.**
+`tool_result_pairing.py` **298 → ~250**; the new module ~**108** lines. The seam is a real
+responsibility split — *which note an unserviced id receives* is a different job from *pair every
+`tool_use` with a `tool_result`* — and it is where the growth actually is.
+
+**NOT SELF-SELECTED, for the reason this ledger has recorded six times** (T5 CEILING FINDING,
+T6b BADGE / WIRING / BADGE-DRAW CEILING FINDINGS, the EIGHTH MEASUREMENT GAP): a split whose named
+shape has just been refuted by measurement is a **DESIGN decision**, and the entry that named it
+also said the method decides **at execution time**. Sultan rules where it splits.
+
+**AND THE DEFECT IS NOT URGENT, which is why stopping costs nothing.** Item 5's own brief says it
+**has not bitten**, and names the reason: Tavily returns extracted CONTENT, so search and fetch
+are not a mandatory sequence. **The risk is a PROVIDER CHANGE** (DEC-18: Brave and SearXNG return
+LINKS, making fetch the normal follow-up). The note is wrong today and harmless today; it becomes
+live the moment `MUTHIS_SEARCH_PROVIDER` changes.
+
+---
+
+### WHAT LANDED, AND THE GUARD
+
+| item | state |
+|---|---|
+| 1 — one spoken ack per ANSWER | **DONE**, 7/7 mutations RED |
+| 2 — Docker terminality note | **DONE**, 8/8 mutations RED |
+| 3 — ~20 s ingestion announcement | **BLOCKED** — Findings A **and** B |
+| 4 — MCP eviction announcement | **BLOCKED** — Finding A |
+| 5 — `WEB_ONE_PER_PASS_AR` | **BLOCKED** — Finding C |
+| 6 — the diagnostic-script LAW | **DONE** (AGENTS.md) |
+
+Guard **1216 + 27 → 1234 + 27**, measured on `.venv`. `tool_router.py` **300**, `orchestrator.py`
+**299**, `turn_voice.py` **300**, `persona.py` **209** — all UNCHANGED, git-verified. The draw
+path, Option-A sync, `HighlightGate`, caption pacing and the `VoiceOut` chokepoint were not
+touched.
+
+---
