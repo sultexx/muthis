@@ -5352,3 +5352,150 @@ change removes the mechanism that consumed the agentic cap all three times, but 
 actually lets the observations complete is unproven until Sultan runs the SOP again.**
 
 ---
+
+## DEC-63 (2026-07-31) — the `doc_id` must survive a NATURAL-LANGUAGE ROUND-TRIP, and a DIAGNOSTIC INSTRUCTION is checked against the privacy law BEFORE it is executed — APPROVED (Sultan), EXECUTED
+
+- **Item:** Two things ruled in one round. **(a)** The fix for the defect measured on the
+  FOURTH live SOP: `docs__query` never reached its ranking. **(b)** Recorded BESIDE DEC-61
+  because it will be asked again — what an agent does when an instruction to print a value
+  collides with a signed privacy decision.
+- **Reason:** `self._registry.get(doc_id)` returned `None`, so `query` returned
+  `DOC_NOT_OPEN_AR` **before its own log line** — which is why zero `query: candidates=`
+  lines coexisted with `reopen: already open`. The model paraphrased that note back as
+  «أداة فتح المستندات ما تشتغل صح», a phrase that occurs in that note and **nowhere else in
+  the codebase**. **ROOT CAUSE:** `INDEXED_AR` presents the id INSIDE guillemets, so the live
+  model must EXTRACT and RE-EMIT it. DEC-16's rule governs — **a machine identifier must
+  never depend on the model's paraphrasing.**
+
+**RESOLUTION — NORMALIZE, then RECOVER, never GUESS.** Three layers, in that order:
+
+| # | layer | behaviour |
+|---|---|---|
+| 1 | **NORMALIZE** | strip guillemets, both quote families and whitespace **before** the lookup |
+| 2 | **RECOVER** | still unmatched and **exactly ONE** document open → use it, and log a `RECOVERED MISMATCH` so the defect stays visible |
+| 3 | **REFUSE** | unmatched with **TWO OR MORE** open → the honest note; there the ambiguity is REAL, and guessing would answer about the wrong document **with no observable difference** |
+
+**The fix is SHAPE-INDEPENDENT, and that is deliberate:** we still do not know what the live
+model actually sent. It does not need to know — normalization strips the wrapper family,
+recovery catches everything else, and refusal holds exactly where guessing would be
+undetectable. **Schema UNTOUCHED:** `doc_id` stays REQUIRED, normalization and recovery need
+no optional field, so there is **no model-visible catalog change and no v5.**
+
+### THE RULING COLLISION — the logging split, UPHELD (Sultan)
+
+The brief said to print the received value beside the registry key. **A `doc_id` IS the
+file's own name** (`_register` keys the registry by filename), so logging both would have
+re-opened **the I6 breach DEC-61 closed two commits earlier**. The instruction was executed
+as a SPLIT rather than as written:
+
+| carrier | what it holds | why it is safe |
+|---|---|---|
+| the LOG (`RECOVERED MISMATCH`) | the EVENT and the SHAPE — received length, key length, `differ_only_by_wrapping` | carries no value, and still answers the diagnostic question completely |
+| the OBSERVATION line | the VERBATIM `tool_result` text | it **prints and never logs** |
+
+**The exclusion is STRUCTURAL, not a promise.** `LogTap` is a `logging.Handler` attached to
+the ROOT logger at DEBUG for the whole run — so `print()` is outside it BY CONSTRUCTION.
+That fact was established during the I6 diagnosis itself and is REUSED here rather than
+re-argued.
+
+**Sultan UPHELD the split and declined the overrule that was offered:** *"do not move the
+values into the log."*
+
+### THE STANDING RULE — recorded beside DEC-61, because this is the SECOND collision
+
+**A DIAGNOSTIC INSTRUCTION THAT PRINTS VALUES IS CHECKED AGAINST THE PRIVACY LAW BEFORE IT
+IS EXECUTED.** "Print it for debugging" is precisely the shape of instruction that re-opens
+a closed breach: it arrives while a defect is live, it is about VISIBILITY rather than
+behaviour, and it does not read as a security change — which is why it gets executed without
+the check.
+
+- **The obligation runs ONE WAY.** The executing agent performs the check, and when the
+  instruction collides with a signed decision it **states the collision, resolves it in the
+  direction the law requires, and offers the overrule.** It neither complies silently nor
+  refuses silently — the first re-opens the breach, the second withholds the diagnosis.
+- **The test is DEC-61's, plus one question.** DEC-61 classifies a surface by WHO HEARS IT
+  and HOW LONG IT LASTS. A diagnostic instruction adds: **what is the WEAKEST form of this
+  datum that still answers the question being asked?** Here the question was *"did the id
+  the model sent differ from the key, and how?"* — and two lengths plus
+  `differ_only_by_wrapping` answer it exhaustively. **When the shape suffices, the shape is
+  what the durable record gets, and the value goes to a surface that does not persist.**
+- **SECOND SIGHTING, which is why this is a rule and not a note** (Sultan's count). A brief
+  colliding with a signed decision is not a rare event: it is what happens when a milestone
+  accumulates law faster than any single instruction can carry it. **The law is the
+  invariant; the instruction is the variable.**
+
+### THE M15 PATTERN — THIRD SIGHTING, used as an INSTRUMENT rather than met as a surprise
+
+**M1 (remove the normalization) SURVIVED at first, and that is recorded rather than
+smoothed.** The mechanism was MEASURED, not guessed: with ONE document open the
+single-document recovery caught every mangled id, **so normalization was never the thing
+under test.**
+
+**The discriminating case was then built to order:** two documents open **disables recovery**
+— layer 3 holds, because there the ambiguity is real — which leaves normalization the ONLY
+path from `«a.pdf»` to a served answer. **M1 then went RED**
+(`test_normalization_alone_resolves_a_wrapped_id_when_recovery_CANNOT_help`).
+
+**What is new in the third sighting is the POSTURE.** M15's rule (AGENTS.md, 2026-07-31) was
+earned by a survivor met as a surprise and closed AFTERWARDS with a mechanism and a control.
+Here the pattern was applied FORWARD: a survivor was read immediately as *"name the case this
+suite cannot see"*, and the missing case was constructed in the same round. **The rule's
+first half — "unobservable" is a fact about the TEST — is what makes that reading
+automatic**, and it was applied to my OWN guard, which is the only place it is ever
+inconvenient.
+
+### THE INSTRUMENT WAS THE DEFECT, TWICE — K0, K1b, and K2–K5 RE-AIMED
+
+**K6 was STRUCTURALLY INCAPABLE of detecting this defect:** it handed `query` a hardcoded
+constant it already knew was the registry key, so the id never made the round trip the live
+model must make. **The harness now OBTAINS the `doc_id` from the open note**
+(`_doc_id_from_note`, PASS 0) exactly as the model must.
+
+- **K0 (added)** — the id is RECOVERABLE from the note at all. Without it, a note-format
+  change silently turns every later K check into a test of the empty string.
+- **K1b (added)** — the pass-1 query returns `HEADER_AR`. **K6 only ever proved pass 2**, and
+  pass 1 is the exact shape that failed three live runs. DEC-62 made both calls serviceable
+  in ONE pass; nothing asserted the result in the shape that had been failing.
+- **K2–K5 RE-AIMED, not deleted**, at TWO QUERIES IN ONE PASS — where a deferral still
+  legitimately fires under DEC-62. **K5's vacuity fixed:** it was purely NEGATIVE, so any
+  passages payload satisfied it and it never noticed its own subject had vanished — the
+  EIGHTH face of that family. It now carries a positive assertion.
+
+### EXECUTION NOTES, including a correction to the fix commit's own declaration
+
+- **Guard `1200 + 27` → `1210 + 27`, MEASURED on `.venv`.** The fix commit declared
+  `1209 + 27`: an **undercount by one**. `tests/test_doc_id_roundtrip.py` collects **10**
+  (six parametrized wrappings + four), and `pytest` reports 1210. **The count convention
+  exists so a silent test loss is visible** — an undercount corrupts the next comparison in
+  the safe-looking direction, so it is corrected here rather than left standing.
+- `index.py` 121 → 132 (`sole_doc_id`). `tool_router.py` **300 unchanged**,
+  `orchestrator.py` **299 unchanged**, `persona.py` **209 unchanged** — no protected file
+  moved.
+
+### CEILING BREACH — `broker/docs/service.py` is at **314/300**, and the LAW was crossed BY THIS FIX
+
+**FOUND WHILE RECORDING THIS DEC, NOT WHILE WRITING IT — REPORTED, NOT FIXED.** AGENTS.md
+line 418 states the LAW: *"Every module ≤ 300 lines … split, never compress."*
+
+- **`src/muthis/broker/docs/service.py`: 285 → 314.** The file was 15 lines UNDER the ceiling
+  at `ab505b8` and is **14 lines OVER** it at `2042528`. The fix crossed the line inside a
+  single commit and **declared nothing**, because the commit measured the guard count and the
+  protected files and never measured its own subject.
+- **It is the ONLY module in the entire `src/` tree over 300** — swept, so this is one
+  breach, not a drift.
+- **NOTHING WOULD EVER HAVE CAUGHT IT: there is no automated guard for the ≤300 LAW.** The
+  suite is green at 1210 with the breach in place. Every other ceiling in this project is
+  held by a declared row in AGENTS.md and by review — and `broker/docs/` has **no row in that
+  table at all** (the M3 docs pass is deferred to milestone close), so this file had neither
+  half of the enforcement.
+- **NOT FIXED HERE, deliberately.** A split is a DESIGN decision, and DEC-56 is explicit that
+  a named seam plus an estimate is not a plan — the seam must be RE-MEASURED at execution
+  time. Compressing to 300 is forbidden by the law's own second clause. **Sultan's ruling
+  needed:** where `service.py` splits, and whether it happens before T7 or as declared debt
+  carried into the milestone close.
+
+**STILL OPEN:** the fix is verified deterministically and by mutation. **That it lets the
+LIVE model complete the sequence is unproven until Sultan runs the SOP a fifth time** —
+OBS-1 and OBS-2 have now failed to survive four live runs.
+
+---
