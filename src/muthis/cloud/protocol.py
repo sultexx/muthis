@@ -56,6 +56,17 @@ class TurnComplete:
     stop_reason: str | None
     model: str
     assistant_content: list[dict[str, Any]] = field(default_factory=list)
+    # Prompt-caching counters, appended 2026-07-31. PURELY ADDITIVE (DEC-59 Q1):
+    # every consumer reads by name and none needed a change; new fields sit after
+    # assistant_content because a dataclass forbids a non-default after a default.
+    # A provider that does not cache leaves both None and cost_usd degrades to the
+    # pre-caching arithmetic exactly — the DEC-34 optional-field shape.
+    #
+    # These are the FLAT totals, carried for observability. PRICING does not use
+    # them: it uses the NESTED cache_creation breakdown (pricing.split_cache_creation),
+    # because the flat scalar cannot tell a 5m write (1.25x) from a 1h write (2x).
+    cache_read_input_tokens: int | None = None
+    cache_creation_input_tokens: int | None = None
 
 
 ResponseEvent = TextDelta | ToolCall | TurnComplete

@@ -19,6 +19,12 @@ Clicky-inspired engineering carried into this module:
   * Media sniffing — detect PNG vs JPEG from the first bytes; the API
                    rejects mismatched media_type declarations.
 
+Prompt caching: the persona and the tool catalog are byte-identical across every
+pass of every turn, so both carry an ephemeral breakpoint. The breakpoints are
+applied to REQUEST-TIME COPIES built in cache_control.py — the mounted tool
+descriptors are byte-pinned and must never be edited in place. Cost arithmetic,
+including the cache multipliers, lives in pricing.py.
+
 Law 11 compliance: this wrapper owns NO locks, NO session lifecycle, NO
 event queue. One call to run() == one provider turn. The orchestrator owns
 the 90 s session bound, budget gating, and cancellation.
@@ -35,7 +41,8 @@ from typing import Any, AsyncIterator
 import httpx
 from anthropic import AsyncAnthropic
 
-from .pricing import estimate_cost_usd
+from .cache_control import cacheable_system, cacheable_tools
+from .pricing import estimate_cost_usd, split_cache_creation
 from .protocol import ResponseEvent, TextDelta, ToolCall, TurnComplete, UserInput
 # Re-export: existing callers import LOOK_ONLY_TOOLS from THIS module.
 from .tool_schemas import LOOK_ONLY_TOOLS
@@ -188,6 +195,12 @@ class ClaudeAgent:
 
         input_tokens = 0
         output_tokens = 0
+        # None == this provider does not cache. The counters ride out as None and
+        # the cost degrades to input+output exactly (the DEC-34 optional shape).
+        cache_read: int | None = None
+        cache_write: int | None = None
+        cache_write_5m = 0
+        cache_write_1h = 0
         stop_reason: str | None = None
         # Tool inputs stream as partial JSON (input_json_delta). Buffer per
         # block; parse ONLY at content_block_stop. Partial JSON never escapes.
@@ -196,15 +209,20 @@ class ClaudeAgent:
         async with self._client.messages.stream(
             model=self.model,
             max_tokens=self._max_tokens,
-            system=self._system_prompt,
+            system=cacheable_system(self._system_prompt),
             messages=messages,
-            tools=self._tools,
+            tools=cacheable_tools(self._tools),
             tool_choice={"type": tool_choice},
         ) as stream:
             async for event in stream:
                 etype = event.type
                 if etype == "message_start":
-                    input_tokens = event.message.usage.input_tokens
+                    usage = event.message.usage
+                    input_tokens = usage.input_tokens
+                    cache_read = getattr(usage, "cache_read_input_tokens", None)
+                    cache_write = getattr(usage, "cache_creation_input_tokens", None)
+                    cache_write_5m, cache_write_1h = split_cache_creation(
+                        cache_write or 0, getattr(usage, "cache_creation", None))
                 elif etype == "content_block_start":
                     if event.content_block.type == "tool_use":
                         pending_tool = {
@@ -245,10 +263,17 @@ class ClaudeAgent:
         yield TurnComplete(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            cost_usd=estimate_cost_usd(self.model, input_tokens, output_tokens),
+            cost_usd=estimate_cost_usd(
+                self.model, input_tokens, output_tokens,
+                cache_read=cache_read or 0,
+                cache_write_5m=cache_write_5m,
+                cache_write_1h=cache_write_1h,
+            ),
             stop_reason=stop_reason or final_message.stop_reason,
             model=self.model,
             assistant_content=assistant_content,
+            cache_read_input_tokens=cache_read,
+            cache_creation_input_tokens=cache_write,
         )
 
     async def aclose(self) -> None:
