@@ -430,6 +430,23 @@ in DECISIONS.md (DEC-43).
   the mutation looks survived, i.e. a guard appears to hold while never having been exercised at all — the one
   failure mode that would quietly discredit every guard in the milestone. Measured live on 2026-07-25 (the T5
   classification run). Clear `__pycache__` if a result ever looks impossible, and re-run.
+- **AN UNOBSERVABLE MUTATION SURVIVOR IS EXPLAINED, NEVER EXCUSED — AND "UNOBSERVABLE" IS NEVER A LICENCE TO
+  DELETE THE CODE** (standing rule, 2026-07-31, earned by the `doc_rag` T6 survivor M15). Two halves, both
+  binding. They COMPLETE the mutation rule above: that rule says a guard is trusted only once it has been
+  broken on purpose; this one says what to do when breaking it changes nothing.
+  **(1) "Unobservable" is a fact about the TEST, not a licence to delete the code.** A mutation can survive
+  because the property it targets is enforced UPSTREAM, and the surviving code is then usually correct
+  defensive design at a layer boundary. M15 mutated the broker's delivery sort: redundant ON THAT PATH,
+  because `SessionIndex.search` already returns best-first via `argsort` — but `select` is duck-typed over a
+  plain `Sequence`, and DEC-46 assigns aggregation and ordering to the PLUGIN, which may not assume a
+  pre-sorted broker. **Deleting code because ONE path cannot see it withdraws the guarantee from every caller
+  that path does not exercise.**
+  **(2) A survivor with a KNOWN mechanism is CLOSED; a survivor with an UNKNOWN mechanism is NOT.** Closing
+  requires BOTH a measurement of *why* it survived AND a control showing the property is genuinely tested
+  somewhere. For M15 that control is M21: remove the INDEX's ranking (`argsort` → index order) and the
+  ordering test goes RED — so the test does discriminate relevance ordering and simply cannot distinguish a
+  SECOND, redundant application of it. Without both, the survivor stays OPEN. **"Probably fine" is the exact
+  state a mutation run exists to destroy**, and a survivor left unexplained silently re-admits it.
 - **A CHECK WITH A CUTOFF MUST REPORT ITS CUTOFF AND ITS ADMITTED COUNT** (standing rule, 2026-07-29, from the
   `doc_rag` P0 gate — DEC-50). A filter or threshold INSIDE a check can silently exclude the check's own
   SUBJECT, and the check then reports success having examined nothing. **A check that examined nothing must
