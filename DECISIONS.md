@@ -5932,3 +5932,70 @@ Satisfied: this commit is that landing. **No `src/` file was touched by TASK 0**
 and the guard was **1216 + 27 green on `.venv` before and after.**
 
 ---
+
+## T2 BINDING CONSTRAINT (2026-07-31) — the mode directive MUST carry the directive-family MARKER — RULED (Sultan), and CORRECTED BY MEASUREMENT before it was built against
+
+- **Status:** **BINDING ON T2.** Sultan upgraded item 2 of the PHASE-3 RECORDING NOTES from an
+  editorial correction to a constraint on the implementation. Recorded as its own block because the
+  ledger is append-only and because a constraint living inside a note gets read as commentary.
+- **Item:** DEC-66 states the per-turn mode directive is *"marked with the `DIRECTIVE_OPEN_AR`
+  family so it is stripped before the approval detector **for free**."* **That property is
+  CONDITIONAL, not free.** This block states the real condition — **measured, not reasoned.**
+
+### THE CORRECTION — MY OWN CLAIM WAS WRONG, AND THE MEASUREMENT IS WHY THIS IS RECORDED
+
+**What I told Sultan when the correction was raised:** *"T2 MUST use the marker core, not the outer
+form; the outer form would not be stripped."* **THAT IS FALSE, and it was measured false before a
+line of T2 was written.**
+
+- `DIRECTIVE_MARKER_AR` = «توجيه داخلي» is a **SUBSTRING of** `DIRECTIVE_OPEN_AR` =
+  «(توجيه داخلي — لا يراه المستخدم:». A line built from the outer form therefore **contains the
+  core**, and `strip_directive_lines` — which drops any line containing the core — **removes it**.
+- **The inference that failed:** DEC-31 chose the core *because* `DIRECTIVE_OPEN_AR` is not a
+  substring of `INTERRUPTED_NOTE_AR` (verified: it is not). That fact is true and it is the right
+  reason for DEC-31's choice — **but it does not imply the converse**, and I extended it into one.
+  The core is inside the outer form; the outer form is not inside every family member. **One
+  direction of a containment is not the other.**
+
+**MEASURED, on `.venv`, against the REAL `strip_directive_lines` / `detect_confirmation`:**
+
+| case | directive line | residue after strip | detector |
+|---|---|---|---|
+| A | built from `DIRECTIVE_OPEN_AR` | `«وافق»` | **approve** |
+| B | carries **NEITHER** core nor outer form | the whole line **survives** + `«وافق»` | **None** |
+| C | control: bare `«وافق»`, no directive | — | approve |
+
+### THE CONSTRAINT, AS IT ACTUALLY STANDS
+
+- **THE MODE DIRECTIVE LINE MUST CONTAIN `DIRECTIVE_MARKER_AR` — the family marker.** Building it
+  from `DIRECTIVE_OPEN_AR` **satisfies this**, because the outer form carries the core. Case A is
+  the proof, not the argument.
+- **THE FAILURE IS CASE B — a line carrying no family marker at all.** Then the mode context (step
+  number, total, the kernel's stored step text) **flows into the approval detector's input**, and
+  because the detector matches on **WHOLE-UTTERANCE isolation** after normalization, a genuine
+  approval **fails to match**.
+- **THE FAILURE IS IN THE SAFE DIRECTION — a FALSE NEGATIVE, never a bypass.** The user's «وافق»
+  simply stops being recognised while a mode is active: **friction, not an unauthorized call.**
+  Which is exactly why it would be **hard to notice** — it looks like the user mis-speaking rather
+  than a broken guard.
+- **What was at risk was the PROMISE, not the security.** DEC-66 promised inheritance for free; the
+  property holds only under the condition above.
+
+### WHAT T2 MUST ASSERT
+
+- A test drives a **real composed mode directive through the REAL `strip_directive_lines`** and
+  asserts the residue is exactly the bare transcript — **case A**.
+- **A POSITIVE CONTROL proves the test can fail: case B**, the same line with every family marker
+  removed, must survive the strip and must NOT be detected as an approval. Without it the
+  assertion is satisfiable by a strip that removes everything, which is the vacuous-check family
+  this project has now met repeatedly (DEC-50's cutoff rule, DEC-64 ruling 1).
+
+### THE LESSON, RECORDED BECAUSE IT IS THE SECOND TIME IN TWO DAYS
+
+**A correction is not exempt from measurement.** This one was raised as a precision fix to a
+signed decision, accepted as load-bearing, and was itself wrong in its operative clause — caught
+only because the constraint was DRIVEN against the real functions before being written down.
+DEC-56's rule (*a named seam plus an estimate is not a plan*) has a twin here: **a cited mechanism
+plus a plausible inference is not a mechanism.** Run it.
+
+---
