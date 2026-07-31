@@ -5499,3 +5499,64 @@ LIVE model complete the sequence is unproven until Sultan runs the SOP a fifth t
 OBS-1 and OBS-2 have now failed to survive four live runs.
 
 ---
+
+## DEC-64 (2026-07-31) — the M3 CLOSING rulings: K5 by whole-utterance, the reduction plan APPROVED but DEFERRED, and OBS-4's 20 s ACCEPTED — APPROVED (Sultan), EXECUTED
+
+- **Item:** Three rulings issued together at milestone close, recorded here because
+  `docs/reports/phase2_m3_doc_rag.md` certifies closure and explicitly is NOT a decision
+  record. **The fifth live run SUCCEEDED** — `query: candidates=` reached the live phase
+  for the first time, and the defect that consumed five rounds is closed.
+- **What closed the open question:** DEC-62 ended with "that it actually lets the
+  observations complete is unproven until Sultan runs the SOP again." It is now proven.
+  **OBS-1 and OBS-2 both completed, and both PASSED on their merits** — not merely
+  reached. OBS-1 got all three DEC-57(a) clauses live (found nothing · what the document
+  DOES cover · a path forward, «جرّب تحدد مستند ثاني») against eight passages that invited
+  a topically-adjacent answer. OBS-2 cited «صفحة 6 وصفحة 8» against a ground truth of
+  «صفحة 8», in prose, inside the verbosity cap, without inventing a position.
+
+### RULING 1 — K5 is FIXED by whole-utterance matching, not deleted
+
+**The note DENIES an error using the word being searched for** («ما صار فيه خطأ»), so
+`"خطأ" not in note` was false BY CONSTRUCTION. **The note was correct; the assertion was
+wrong** — DEC-16's whole-utterance-versus-substring lesson in a new place, so the same
+`normalize_ar` discipline applies. Three clauses now, none implying the others: the
+RUNTIME text equals the constant; the CONSTANT still carries the denial clause (clause 1
+is structurally blind to this, because both sides of an equality move together); and the
+constant demands no approval. Clause 2 is a POSITIVE test for a denial PHRASE — sound in
+the way the old negative test for the bare word was not, because **presence proves a
+denial while absence of «خطأ» proved nothing at all.** Three mutations, all APPLIED, all
+RED. Fixed in `cd97f35`; deterministic phase reports "all checks green".
+
+### RULING 2 — the `diag_doc_rag.py` reduction is APPROVED, and executes AFTER close
+
+**The framing that decided it:** three of the four late defects lived in the DETERMINISTIC
+half — the half pytest already owns — so the script is not too big in general, **it is too
+big where it duplicates the suite.** 2,290 lines against 308 for M1's and 1,156 for M2's;
+estimated ~1,450 after reduction. **TWO BINDING CONDITIONS:**
+
+1. **PROMOTE K7, K0 and G7 to pytest BEFORE deleting anything.** All three are
+   deterministic and guarded NOWHERE else: no test in the suite calls
+   `DocumentService.open` twice, nothing asserts the open note presents the id
+   extractably, and nothing asserts the startup log's two figures differ. **K0's
+   presentation contract cost four live runs** — deleting it as "duplicated" would
+   re-open exactly the hole that produced them.
+2. **KEEP D1–D7 and E1–E5 despite the duplication.** End-to-end confirmation of the
+   security guards on the REAL path is worth the ~106 lines.
+
+**Recorded, deliberately NOT executed.** A reduction that runs before the milestone closes
+is a refactor of the instrument that just signed it off.
+
+### RULING 3 — OBS-4's ~20 s ingestion silence is an ACCEPTED known limit
+
+Measured **20.03 s cold** against 25.79 s warm: the difference is **thermal derating, and
+the accumulating-structure hypothesis is REFUTED** — a cold boot returns the figure, which
+a leak would not. The spoken announcement (the DEC-3-D pattern) lands in **Phase 3** with
+the other owed voice surfaces — the multi-pass ack and the Docker-unavailable terminality
+note. `model_pin.FIRST_DOWNLOAD_AR` exists and is wired to the LOGGER, not the voice line.
+**A multi-second silence is a real defect; it is not a security defect, and it belongs with
+the voice work** rather than holding a security milestone open.
+
+- Milestone CLOSED. Guard **1216 + 27**. `src/` has ZERO modules over 300 for the first
+  time with a guard that says so. **NOT merged and NOT tagged — both are Sultan's.**
+
+---
