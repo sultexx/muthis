@@ -4995,3 +4995,110 @@ a token travels. Nothing else in the file moves, and the sovereign is not touche
 direction is now known and the seam is named; nothing was built.
 
 ---
+
+## DEC-60 (2026-07-31) — PROMPT CACHING SHIPPED, and the pricing that keeps Rule 10 honest shipped WITH it — APPROVED (Sultan), EXECUTED
+
+- **Item:** Whether to cache the byte-identical prefix, when, and on what accounting.
+- **Reason Sultan reversed the earlier sequencing:** the ledger is accurate TODAY only
+  because caching is off; it starts lying the moment caching is switched on. So the pricing
+  fix is not optional accompaniment — **it is the same change**. And with OBS-1/OBS-2 still
+  owed a live run, deferring meant paying full price for the decisive run and adding caching
+  afterwards: paying twice for nothing.
+
+### THE MEASURED FACT EVERYTHING RESTS ON — and it is the WORSE of the two directions
+
+`usage.input_tokens` **EXCLUDES** the cached portion. Measured live on `claude-sonnet-4-6`
+through the PRODUCTION read site (`message_start` of a stream), with the cache-blind total
+from the free `count_tokens` endpoint: **13 + 7923 = 7936, exactly, on BOTH calls.**
+
+**It excludes the WRITE as much as the read** — call 1 processed those tokens for the first
+time, at a 1.25x premium, and `input_tokens` still collapsed to 13. That is the finding a
+naive "the number got smaller, good" reading walks straight past, and it decides the severity:
+
+| turn | naive ledger | actually billed | error |
+|---|---|---|---|
+| cache WRITE (1.25x) | $0.000099 | **$0.029810** | **301x under** |
+| cache READ (0.1x) | $0.000099 | **$0.002476** | **25x under** |
+
+**The write turn is both the worst case and the FIRST turn of every session, and it costs
+1.25x MORE than not caching at all.** The naive ledger would have recorded its largest
+discount at the exact moment it paid its largest premium — **Rule 10 failing OPEN**, the
+ceiling breached while the ledger shows room that does not exist. Requiring the measurement
+BEFORE implementation was therefore load-bearing: pricing against the assumed direction
+would have been strictly worse than not caching at all.
+
+### THE OPTION-A SPLIT — one safety rationale lives in ONE place
+
+The complete feature measured **310 lines** against the 300 ceiling *after* the pre-agreed
+`pricing.py` extraction had already landed. The overage was not the pricing logic (105 lines,
+comfortable) but the two request-shaping helpers — **26 lines measured** — whose comment
+carries the byte-pin argument: *the mounted descriptors are the same dict objects, so only
+the last is shallow-copied.*
+
+**Ruled: `cloud/cache_control.py` (Option A), not a split across two existing homes.** The
+deciding argument was not the two lines of difference. The alternative would have put half
+the byte-pin reasoning in `tool_schemas.py` and half in `claude_agent.py`, and **a safety
+rationale with half of it missing is one that gets overruled in good faith.** Rationale lives
+where it is read — the same instinct that keeps the SearXNG private-destination edge inside
+`searxng.py` where an editor actually collides with it. The `broker/net/` precedent (a small
+module owning one concern) supports it.
+
+### THE NESTED-OBJECT PRICING RULE — an unknown TTL never resolves in the ledger's favour
+
+`cache_creation` is a **nested breakdown** (`ephemeral_5m` / `ephemeral_1h`) beside the flat
+scalar. The two TTLs bill at **1.25x and 2x**, and **the flat scalar cannot tell them apart** —
+so pricing off it under a 1h TTL would under-report the write by a further **1.6x with no
+signal**. Pricing therefore reads the nested object. When the breakdown is **absent**, or when
+its buckets **do not reconcile** with the scalar (a future TTL this code does not know), the
+unexplained tokens are priced at the **HIGHER** multiplier and the fallback is **LOGGED**.
+
+### WHAT SHIPPED
+
+- `cloud/cache_control.py` **70** (new) · `cloud/pricing.py` **105** · `cloud/protocol.py`
+  **115** · `cloud/claude_agent.py` **282/300** — re-measured, against a 285 projection
+  (DEC-52: a projection is a warning, not authorisation).
+- Two breakpoints, deliberately **non-redundant**: render order is tools → system → messages,
+  so the system breakpoint covers `tools + system` and the last-tool breakpoint covers `tools`
+  alone — **a persona change still leaves the catalog entry hitting.**
+- `budget.py` **unchanged**. The sovereign stays sovereign; the arithmetic was corrected where
+  the arithmetic lives.
+- **MUTATION-VERIFIED, all three APPLIED (asserted, never assumed) and all three RED:**
+  price off `input_tokens` alone → RED · price the flat scalar at the 5m rate → RED · write
+  the breakpoint INTO the mounted descriptor → RED. **The third is verbatim the
+  "simplification" `cache_control.py`'s docstring warns against — the guard and the warning
+  now agree rather than merely coexist, which makes the rationale executable.**
+- **`test_fake_session_event_sequence` is GREEN and UNTOUCHED** — a pre-existing assertion,
+  written before any of this, proving a non-caching provider still prices at
+  `850*$3/M + 64*$15/M`. Stronger evidence of the DEC-34 degradation property than anything
+  written for the occasion.
+- **One existing expectation updated, declared:** `test_saudi_persona_reaches_claude_system_param`
+  read `system` as a string; it is now the block form, so the three original assertions are
+  read out of the block VERBATIM and a fourth (the breakpoint is present) is ADDED — strictly
+  stronger, not adjusted to fit.
+- **Guard 1186 + 27 → 1198 + 27**, twelve tests for a behaviour-affecting change per
+  CONTRIBUTING.md. **ACCEPTED by Sultan — the number is a ratchet, not a target.**
+
+### THE HONEST LIMIT — and it is Sultan's to close
+
+**The direction was measured with a SYNTHETIC prefix. The PRODUCTION prefix — the persona
+plus the v4 catalog, ~9.5k tokens — has never been observed caching through the real path.**
+
+What holds by DESIGN rather than by accident: `main.py` resolves the persona **once** at
+startup and freezes it into the agent, so the system prefix is byte-stable for the life of the
+process — which is exactly the cacheable shape.
+
+**`scripts/diag_doc_rag.py` now prints the counters per provider PASS** (`input_tokens`,
+`cache_read`, `cache_write`, recorded cost), labelled **OBSERVATION**, entering no check
+register and gating nothing. Per PASS rather than per turn on purpose: a turn runs several
+passes, so passes 2+ of the FIRST turn are already the earliest possible evidence of a read.
+**EXPECTED:** the first pass of the session WRITES ~9.5k; every pass after it READS the same
+size. **If a later pass writes again, the production prefix is not byte-stable and that is a
+finding worth more than the saving** — it would mean the persona or the catalog is rebuilt
+somewhere per pass, and the ledger would pay the 1.25x premium every time.
+
+**`scripts/diag_prompt_cache_usage.py` is committed** so the direction stays re-runnable when
+vendor pricing moves, the SDK's `Usage` model changes, or the model is re-pinned. A silent
+flip of that answer would silently un-defend the ceiling and **nothing else in the suite would
+notice**.
+
+---
