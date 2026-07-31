@@ -138,6 +138,32 @@ def _binary_refusal(suffix: str) -> str:
     return FILE_IS_DOCUMENT_AR.format(fmt=named) if named else FILE_NOT_TEXT_AR
 
 
+def _log_shape(path: Path, size: Optional[int] = None) -> str:
+    """ALL a log line may say about a file: its EXTENSION and its SIZE.
+
+    NEVER the name, NEVER the directory, NEVER the path.
+
+    THIS MODULE'S OWN RECORDED DISCIPLINE USED TO SAY "path and outcome in
+    English, NEVER content", and the I6 breach proved that clause wrong about
+    WHICH HALF IS SENSITIVE. The path carries the user's document name and the
+    folder it lives in, so it is as private as the content — measured live, a
+    real corpus file name reached the logs through these very lines while the
+    content never did. `I5 passed while I6 failed` is that fact in one sentence.
+
+    LOGS, NOT SPEECH. The Arabic note returned to the model still names the file,
+    and `doc_rag` still uses the file's own name as a speakable `doc_id`. The
+    distinction is not secrecy but PERMANENCE AND AUDIENCE: the user named the
+    file and the user is listening, so saying it back is correct and useful — a
+    log persists past the session, is read by other eyes, and travels in a bug
+    report.
+
+    The shape below is what `broker/net` already logs (domain + status + size)
+    and what `doc_rag` already logs (`extract .pdf: blocks=…`): enough to debug a
+    refusal, nothing that identifies the document."""
+    suffix = path.suffix.lower() or "(no suffix)"
+    return suffix if size is None else f"{suffix} bytes={size}"
+
+
 def stage_file_gate(name: str, data: bytes) -> Optional[str]:
     """The gate for a model-STAGED sandbox file (sandbox_exec, T5 / DEC-13).
     STRICTER than FileReader.read(): read() resolves a real filesystem path, but a
@@ -181,7 +207,11 @@ class FileReader:
         try:
             return await asyncio.to_thread(self._read_blocking, args)
         except Exception as exc:  # noqa: BLE001 — the turn must survive any I/O surprise
-            logger.warning("[file_reader] read failed (%s: %s)", type(exc).__name__, exc)
+            # The EXCEPTION TEXT is dropped, not shortened: OSError.__str__
+            # embeds the offending path verbatim ("[Errno 2] ... : 'C:\\...'"),
+            # so logging `exc` re-opens the leak the type name alone cannot.
+            # `broker/net/fetcher.py` already logs exactly this shape.
+            logger.warning("[file_reader] read failed (%s)", type(exc).__name__)
             return FILE_READ_ERROR_AR
 
     # ───────────────────────────── Internals ─────────────────────────────
@@ -195,25 +225,30 @@ class FileReader:
         if not path.is_absolute():
             path = Path.cwd() / path
         if _blocked_name(path.name):
-            logger.info("[file_reader] refused secret-bearing name: %s", path)
+            logger.info("[file_reader] refused secret-bearing name: %s", _log_shape(path))
             return FILE_BLOCKED_AR
         if not path.is_file():
-            logger.info("[file_reader] not found: %s", path)
+            logger.info("[file_reader] not found: %s", _log_shape(path))
             return FILE_NOT_FOUND_AR.format(path=raw)
         resolved = path.resolve()
         if _blocked_name(resolved.name):  # symlink armor: judge the real target
-            logger.info("[file_reader] refused secret-bearing target: %s", resolved)
+            logger.info("[file_reader] refused secret-bearing target: %s", _log_shape(resolved))
             return FILE_BLOCKED_AR
         if resolved.stat().st_size > self._max_bytes:
-            logger.info("[file_reader] refused oversize file: %s", resolved)
+            # The cap is logged rather than the actual size, so the GATE line
+            # above keeps its single stat() call and stays byte-identical.
+            logger.info("[file_reader] refused oversize file: %s over %d bytes",
+                        _log_shape(resolved), self._max_bytes)
             return FILE_TOO_LARGE_AR
         data = resolved.read_bytes()
         if b"\x00" in data[:4096]:
-            logger.info("[file_reader] refused binary file: %s", resolved)
+            logger.info("[file_reader] refused binary file: %s",
+                        _log_shape(resolved, len(data)))
             return _binary_refusal(resolved.suffix)   # DEC-35: name the format
         text = data.decode("utf-8-sig", errors="replace")
         body, start, end, total = self._numbered_slice(text, args)
-        logger.info("[file_reader] read %s lines %d-%d of %d", resolved, start, end, total)
+        logger.info("[file_reader] read %s lines %d-%d of %d",
+                    _log_shape(resolved, len(data)), start, end, total)
         header = f"محتوى الملف {resolved.name} (الأسطر {start}-{end} من {total}):"
         return f"{header}\n{body}"
 

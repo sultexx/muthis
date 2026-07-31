@@ -148,6 +148,74 @@ async def test_content_never_logged(tmp_path, caplog):
 
 
 @pytest.mark.asyncio
+async def test_the_PATH_is_never_logged_on_ANY_outcome(tmp_path, caplog):
+    """I6, measured live 2026-07-31: a real corpus FILE NAME reached the logs
+    while its CONTENT never did. This module's own recorded discipline said
+    "path and outcome in English, NEVER content", and that clause was wrong
+    about WHICH HALF is sensitive — the path carries the user's document name
+    and the folder it lives in.
+
+    EVERY outcome is driven, because the leak was in five refusal lines and one
+    success line, not in any single one of them."""
+    directory = tmp_path / "QDIRCANARYQ"
+    directory.mkdir()
+    readable = directory / "QREADCANARYQ.txt"
+    readable.write_text("line one\nline two\n", encoding="utf-8")
+    binary = directory / "QBINCANARYQ.pdf"
+    binary.write_bytes(b"%PDF-1.7\x00 body")
+    secret = directory / ".env"
+    secret.write_text("KEY=value", encoding="utf-8")
+    oversize = directory / "QBIGCANARYQ.txt"
+    oversize.write_text("x" * 64, encoding="utf-8")
+    missing = directory / "QGONECANARYQ.txt"
+
+    with caplog.at_level(logging.DEBUG):
+        assert "line one" in await FileReader().read({"path": str(readable)})
+        await FileReader().read({"path": str(binary)})
+        await FileReader().read({"path": str(secret)})
+        await FileReader(max_bytes=8).read({"path": str(oversize)})
+        await FileReader().read({"path": str(missing)})
+
+    # ── THE PROPERTY: no name, no directory, no path — on any outcome ──
+    for canary in ("QDIRCANARYQ", "QREADCANARYQ", "QBINCANARYQ",
+                   "QBIGCANARYQ", "QGONECANARYQ", ".env"):
+        assert canary not in caplog.text, f"{canary} reached the logs"
+    assert str(tmp_path) not in caplog.text
+
+    # ── THE CONTROL: without it every assertion above would pass on a module
+    # that logged NOTHING AT ALL (the standing cutoff rule — a check that
+    # examined nothing must never look like a check that passed). ──
+    assert "[file_reader]" in caplog.text
+    assert ".txt" in caplog.text and ".pdf" in caplog.text   # EXTENSION is kept
+    assert "bytes=" in caplog.text                           # SIZE is kept
+
+
+@pytest.mark.asyncio
+async def test_an_OSError_never_carries_the_path_into_the_logs(tmp_path, caplog,
+                                                               monkeypatch):
+    """The SEVENTH site, found while fixing the six Sultan named: `OSError.__str__`
+    embeds the offending path verbatim (`[Errno 2] ...: 'C:\\...'`), so logging the
+    exception object re-opened the leak that the type name alone closes."""
+    target = tmp_path / "QOSERRCANARYQ.txt"
+    target.write_text("body", encoding="utf-8")
+
+    def boom(*_args, **_kwargs):
+        raise OSError(2, "No such file or directory", str(target))
+
+    monkeypatch.setattr(_fr.FileReader, "_read_blocking", boom)
+    with caplog.at_level(logging.DEBUG):
+        out = await FileReader().read({"path": str(target)})
+
+    assert out == _fr.FILE_READ_ERROR_AR
+    assert "QOSERRCANARYQ" not in caplog.text
+    assert str(tmp_path) not in caplog.text
+    # The TYPE is still reported — the control, without which this test would
+    # pass on a module that logged nothing. errno 2 raises the CONCRETE
+    # subclass, so the line names FileNotFoundError rather than OSError.
+    assert "read failed (FileNotFoundError)" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_stub_read_file_answers_unavailable():
     assert await stub_read_file({"path": "C:/anything.py"}) == FILE_READ_UNAVAILABLE_AR
 
