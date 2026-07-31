@@ -5078,6 +5078,16 @@ unexplained tokens are priced at the **HIGHER** multiplier and the fallback is *
 - **Guard 1186 + 27 → 1198 + 27**, twelve tests for a behaviour-affecting change per
   CONTRIBUTING.md. **ACCEPTED by Sultan — the number is a ratchet, not a target.**
 
+### THE HONEST LIMIT — **CLOSED 2026-07-31 by Sultan's live run. VERIFIED IN PRODUCTION.**
+
+**Pass 1 of the session WROTE 9,269 tokens; every pass after it READ 9,269 — across
+turn boundaries as well as within a turn.** The production prefix IS byte-stable, exactly
+as the structural argument predicted (`main.py` freezes the persona at startup), and the
+measured saving is **a pass falling from ~$0.034 to $0.009–0.017**. That is roughly **half
+of every turn in the project**, not only `doc_rag` — the persona and the catalog are on
+every pass of every capability. The original limit statement is left below unedited, as the
+record of what was and was not known before the run.
+
 ### THE HONEST LIMIT — and it is Sultan's to close
 
 **The direction was measured with a SYNTHETIC prefix. The PRODUCTION prefix — the persona
@@ -5100,5 +5110,141 @@ somewhere per pass, and the ledger would pay the 1.25x premium every time.
 vendor pricing moves, the SDK's `Usage` model changes, or the model is re-pinned. A silent
 flip of that answer would silently un-defend the ceiling and **nothing else in the suite would
 notice**.
+
+---
+
+## LIVE SOP RESULTS (2026-07-31) — caching VERIFIED, I6 DIAGNOSED (blocking, unfixed), the slot options MEASURED
+
+- **Status:** **DIAGNOSIS AND MEASUREMENT ONLY. Nothing was fixed and no slot rule changed** —
+  DEC-39 reserved the slot to Sultan, and the privacy fix is his to rule.
+
+### 1. CACHING — VERIFIED IN PRODUCTION (closes DEC-60's honest limit)
+
+Recorded in DEC-60 above: **write 9,269 on pass 1, read 9,269 on every pass after, across
+turns**; a pass falls from ~$0.034 to **$0.009–0.017**. Roughly **half of every turn in the
+project**, because the persona and the catalog ride every pass of every capability.
+
+### 2. I6 BLOCKING — real corpus FILE NAMES in the logs. THE MECHANISM, MEASURED
+
+**THE EMITTER IS `muthis.file_reader`.** It logs the **full resolved path** — which carries
+both the file name and its directory — at **INFO**, in **six** places (`file_reader.py`
+198, 201, 205, 208, 212, 216): refused secret-bearing name, not found, refused
+secret-bearing target, refused oversize, **refused binary file**, and the success line
+`read %s lines %d-%d of %d`.
+
+**Reproduced without the corpus** — a canary-named PDF under a canary-named directory,
+driven through the real `FileReader`, captured by the diag's own tap shape. Three of the six
+sites emitted, verbatim:
+
+```
+muthis.file_reader: [file_reader] refused binary file: ...\QDIRCANARYQ\QNAMECANARYQ.pdf
+muthis.file_reader: [file_reader] read ...\QDIRCANARYQ\QNAMECANARYQ.txt lines 1-2 of 2
+muthis.file_reader: [file_reader] not found: ...\QDIRCANARYQ\QNAMECANARYQ_absent.pdf
+```
+
+**WHAT WAS MEASURED CLEAN, so the search is closed rather than abandoned:**
+
+| candidate | result |
+|---|---|
+| `doc_rag` extraction + `DocumentIngestor.ingest` on a REAL text-layer **PDF** | **CLEAN** — reproduced; pypdf emitted nothing name-bearing |
+| `ExtractReport.describe()` / `ZoneDecision.describe()` | **CLEAN** — `source` is the SUFFIX; zones explicitly never the path |
+| `NoTextLayer` / `UnsupportedDocument` messages | **CLEAN** — page count and suffix only |
+| `service.py` reopen line | **CLEAN** — logs `chunks=%d`, never the `doc_id` |
+| TTS | **CLEAN** — char counts only (`ElevenLabs OK (%d chars)`) |
+| STT (`transcript: %r`, verbatim) | **NOT IN PLAY** — the diag drives `run_turn(text)`; no mic, no STT |
+| kernel / cloud loggers | **CLEAN** — nothing logs reply text or tool args |
+
+`LogTap` is a `logging.Handler`, so it captures **log records only** — `print()` output is
+excluded by construction. Whatever trips I6 is therefore a log record, which is what makes
+the emitter list above exhaustive rather than indicative.
+
+**WHY THE SIBLINGS PASSED, and it is not luck:** I3/I4 drive
+`DocSession.turn(DOC_OPEN_TOOL)` — the `doc_rag` path, which is clean. `read_local_file` is
+a **different tool** that never runs in that setup. And **I5 passing while I6 fails is the
+signature of this exact mechanism**: `refused binary file: <path>` logs the PATH and never
+reads the CONTENT, so content is absent and the name is present — precisely what the run
+reported.
+
+**THE ONE THING STILL TO CONFIRM FROM THE RUN ITSELF, not guessed here:** whether the model
+actually called `read_local_file` on a corpus path. `_drive_live_turn` prints `tools=[...]`
+per turn, so **grep the run transcript for `read_local_file` and for `[file_reader]`**. If
+present the chain is closed end to end — and it would tie the two failures together: *the
+loop caused the leak*, the model reaching for `read_local_file` to inspect a document it
+believed had not opened.
+
+**A DESIGN FACT THAT MATTERS FOR THE RULING (not a defect):** `service.py::_register` stores
+the index under **the file's own name** as `doc_id`, deliberately — "an opaque handle would
+be worse in a VOICE product: the model repeats this id back, and Mut'his may say it aloud".
+So the file name is by design handed to the model and may be SPOKEN. `doc_rag` never logs
+it; `file_reader` logs paths for an unrelated reason. **Any fix must decide whether the
+privacy law governs the LOGS only, or the spoken surface too.**
+
+### 3. THE SLOT RULE — the options MEASURED against scratchpad copies
+
+The rule as shipped: `turn_pass.py` takes the **first** router-serviced call of the pass
+(`if read_call is None`), services exactly one after the sync point, and
+`tool_result_pairing.py` hands every other id a family note.
+
+**THE PHASE-4 BOUND GUARDS THE WRONG QUANTITY, and the numbers say so.**
+`read_local_file` returns up to **`MAX_RETURN_CHARS` = 16,000**; `docs__query` up to
+**`MAX_PASSAGE_CHARS` = 16,000**; **`docs__open` returns a confirmation of ~110–320 chars**
+(measured from the note constants). A **count**-based bound therefore treats a ~150-char
+open confirmation as equal to a 16,000-char read — a **~100x** mismatch. What Phase 4
+actually protected was **one payload-bearing result per pass**; it expressed that as a call
+count because at the time every routed tool WAS payload-bearing.
+
+| option | `turn_pass.py` 269 | `tool_result_pairing.py` 276 | `tool_router.py` 300 |
+|---|---|---|---|
+| **1** N calls, bounded by TOTAL delivered chars (N=3, cap 16,000) | **279 (+10)** | 277 (+1) | **300 (+0)** |
+| **2** family-scoped mandatory PAIR | **285 (+16)** | 277 (+1) | **300 (+0)** |
+| **3** a PRECONDITION call does not consume the slot *(surfaced by the measurement)* | **281 (+12)** | 277 (+1) | **300 (+0)** |
+
+**NO OPTION COSTS `tool_router.py` A SINGLE LINE** — asserted by copying it untouched into
+each variant and counting, not assumed. The router's per-call gates (DEC-16 confirm, DEC-22
+budget, the sandbox cap) already run per `service()` call, so servicing more calls exercises
+existing machinery rather than new machinery. All three variants syntax-check.
+
+The pairing change is **+1 for all three and identical in each**: the serviced *id* becomes a
+serviced *set* (`tool_use_id in serviced`), which is line-neutral across the three family
+arms; only the declaration and the signature move.
+
+**OPTION 3, which Sultan did not name — the fourth option again.** Classify tools by ROLE: a
+**precondition** (`docs__open`) returns a confirmation, never content, so it *cannot* break
+the one-payload-per-pass invariant and is serviced for free without consuming the slot. It
+needs **no cap arithmetic and no accumulator** (why it is cheaper than Option 1 despite doing
+more); it is **role-scoped rather than family-scoped**, so a future capability with a prepare
+step inherits it without a family table; and — the reason it is worth ruling on — **it
+removes the loop's root cause rather than bounding it**: `docs__open` never defers
+`docs__query`, so the deferral note is never reached on the pair that caused the loop.
+
+**WHAT EACH RISKS — the specific Phase-4 behaviour:**
+
+- **Option 1** — `FILE_ALREADY_READ_AR` stops firing between two reads in one pass, so the
+  model can read **two files per pass**. The character cap holds the total, but Phase 4's
+  *pedagogy* shape (read → dim+boxes → explain, in three passes) assumed one read per pass;
+  two reads in pass 1 change what the draw pass sees. Widest blast radius, too: it applies to
+  `web__fetch` and `run_code` as well, not only docs.
+- **Option 2** — the family predicate is a table that must be updated for every new
+  capability, and a capability whose pair is *not* mandatory (web search→fetch, per DEC-18)
+  gets silently widened along with it. Also the most expensive, at +16.
+- **Option 3** — the risk is **misclassification**: a tool wrongly declared a precondition
+  that in fact returns payload would silently double the delivered bound with no signal.
+  That is exactly a mutation-verifiable property (declare `docs__query` a precondition → a
+  payload-bound test must go RED), and it is the only new failure mode it introduces.
+
+**A FIFTH, named and priced so it is not rediscovered later:** fold the pair into ONE tool
+(`docs__open` returning the first query result). It removes the problem entirely but is a
+**model-visible catalog change** — it breaks the byte pin, needs a v5 snapshot and
+re-approval, and re-opens DEC-39's servicing branch. Costly; named only for completeness.
+
+### 4. OBS-4 — recorded, no work
+
+**21.14 s / 79.2 ms per chunk, including the one-time encoder load — WORSE than the previous
+18 s.** Sultan rules on whether a spoken announcement is required. **The precedent is
+DEC-3-D**, where the sandbox image's first pull was announced aloud for exactly this reason:
+a long silent wait is indistinguishable from a hang, and the model's own retry instinct fills
+the silence — which is the same instinct that produced the loop above. `model_pin.py:163`
+already logs `first model download starting (announce seam unwired)`: **the seam exists and
+is not connected.**
 
 ---
