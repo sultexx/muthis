@@ -186,7 +186,7 @@ def test_a_web_call_is_not_refused_as_a_look_only_violation(caplog):
         _complete, routed, _run, _gate, _result, _overlay = _consume(
             router, [_fetch_call()])
 
-    assert routed is not None, "the web call was never serviced"
+    assert routed, "the web call was never serviced"
     assert not any("LOOK-only violation" in r.getMessage() for r in caplog.records)
 
 
@@ -203,8 +203,8 @@ def test_a_serviced_web_call_is_wrapped_and_raises_session_taint():
 
     assert router.session_taint.tainted is True, "the session was left clean"
     assert result.taint is True, "the turn-level taint never propagated"
-    assert "نص الصفحة" in routed[1]
-    assert routed[1] != "نص الصفحة", "the external content was not wrapped"
+    assert "نص الصفحة" in routed[0][1]
+    assert routed[0][1] != "نص الصفحة", "the external content was not wrapped"
 
 
 def test_a_serviced_fetch_counts_against_the_per_turn_cap():
@@ -227,8 +227,8 @@ def test_an_exhausted_cap_refuses_a_serviced_fetch():
     _complete, routed, _run, _gate, _result, _overlay = _one_pass(
         router, [_fetch_call()], _Overlay(), HighlightGate(), new_turn=False)
 
-    assert FETCH_GATE_EXHAUSTED_AR in routed[1]
-    assert "نص الصفحة" not in routed[1], "a capped fetch still read a page"
+    assert FETCH_GATE_EXHAUSTED_AR in routed[0][1]
+    assert "نص الصفحة" not in routed[0][1], "a capped fetch still read a page"
 
 
 def test_the_first_fetch_taints_the_session_so_the_second_needs_approval():
@@ -239,13 +239,13 @@ def test_the_first_fetch_taints_the_session_so_the_second_needs_approval():
     router, plugin, _collector = _graph()
 
     _complete, first, _run, _gate, _result, _overlay = _consume(router, [_fetch_call("w1")])
-    assert "نص الصفحة" in first[1]
+    assert "نص الصفحة" in first[0][1]
     assert router.session_taint.tainted is True
 
     _complete, second, _run, _gate, _result, _overlay = _one_pass(
         router, [_fetch_call("w2")], _Overlay(), HighlightGate(), new_turn=False)
 
-    assert "نص الصفحة" not in second[1], "a tainted-session fetch skipped the gate"
+    assert "نص الصفحة" not in second[0][1], "a tainted-session fetch skipped the gate"
     assert plugin._gate.fetches_remaining() == MAX_FETCHES_PER_TURN - 1, (
         "a REFUSED call must not spend the cap — it never fetched")
 
@@ -270,7 +270,7 @@ def test_a_web_call_is_refused_by_the_confirm_gate_in_a_tainted_session():
     _complete, routed, _run, _draw_gate, _result, _overlay = _consume(
         router, [_fetch_call()])
 
-    assert "نص الصفحة" not in routed[1], "a high-impact call ran without approval"
+    assert "نص الصفحة" not in routed[0][1], "a high-impact call ran without approval"
 
 
 def test_search_is_serviced_too_and_charges_its_cost():
@@ -279,7 +279,7 @@ def test_search_is_serviced_too_and_charges_its_cost():
 
     _complete, routed, _run, gate, _result, _overlay = _consume(router, [call])
 
-    assert routed is not None and routed[0].name == WEB_SEARCH_TOOL
+    assert routed and routed[0][0].name == WEB_SEARCH_TOOL
     assert gate.drawn is False
 
 
@@ -318,7 +318,7 @@ def test_the_production_mount_wires_ctx_net_so_a_page_is_actually_read():
 
     _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
 
-    assert "نص الصفحة" in routed[1], "production mounted the tool WITHOUT ctx.net"
+    assert "نص الصفحة" in routed[0][1], "production mounted the tool WITHOUT ctx.net"
     assert collector.domains() == ("docs.python.org",)
 
 
@@ -330,7 +330,7 @@ def test_the_production_mount_states_taint_so_external_content_is_wrapped():
 
     _complete, routed, _run, _gate, result, _overlay = _consume(router, [_fetch_call()])
 
-    assert routed[1] != "نص الصفحة", "external content was not wrapped"
+    assert routed[0][1] != "نص الصفحة", "external content was not wrapped"
     assert router.session_taint.tainted is True, "the production mount states no taint"
     assert result.taint is True
 
@@ -344,7 +344,7 @@ def test_the_production_mount_states_the_network_grant_so_the_gate_binds():
 
     _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
 
-    assert "نص الصفحة" not in routed[1], (
+    assert "نص الصفحة" not in routed[0][1], (
         "a high-impact web call ran unconfirmed in a tainted session")
 
 
@@ -402,7 +402,7 @@ def test_a_read_id_is_not_told_it_already_read_when_a_web_call_was_serviced():
     web_serviced = (_fetch_call("w1"), "محتوى الصفحة")
 
     pairing = build_tool_result_message(
-        assistant, None, None, HighlightGate(), web_serviced, None)
+        assistant, None, None, HighlightGate(), [web_serviced], None)
     by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
 
     assert by_id["w1"] == "محتوى الصفحة"
@@ -422,8 +422,78 @@ def test_the_v1_read_pairing_is_unchanged():
             "محتوى")
 
     pairing = build_tool_result_message(
-        assistant, None, None, HighlightGate(), read, None)
+        assistant, None, None, HighlightGate(), [read], None)
     by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
 
     assert by_id["r1"] == "محتوى"
     assert by_id["r2"] == FILE_ALREADY_READ_AR
+
+
+# ---------------------------------------------------------------------------
+# ROUTER_SERVICED_TOOLS — the named set that replaced the or-chain
+# ---------------------------------------------------------------------------
+
+def test_router_serviced_tools_holds_exactly_the_routed_tools():
+    """The set IS the servicing contract, so it is pinned by VALUE.
+
+    A routed tool added to `WEB_TOOLS` (or any future family) without reaching
+    this set falls through `consume()`'s LOOK-only `else`: never serviced, so
+    the DEC-14 wrap / DEC-15 raise / DEC-16 gate are bypassed, then answered
+    with the pointer ack that flips the draw gate (DEC-39). Pinning the value
+    means that omission fails HERE instead of live."""
+    from muthis.file_reader import READ_FILE_TOOL
+    from muthis.kernel.tool_result_pairing import (
+        DOC_OPEN_TOOL, DOC_QUERY_TOOL, DOC_TOOLS, ROUTER_SERVICED_TOOLS, WEB_TOOLS,
+    )
+
+    # T4 (doc_rag) joined the set. Updating this pin is DELIBERATE and belongs in
+    # the commit that adds the family — an exact-value pin exists precisely so a
+    # new routed tool cannot arrive without a human editing this line.
+    assert ROUTER_SERVICED_TOOLS == {READ_FILE_TOOL, WEB_SEARCH_TOOL,
+                                     WEB_FETCH_TOOL, DOC_OPEN_TOOL, DOC_QUERY_TOOL}
+    # Stated as a SUPERSET relation too: a family may grow, but every member of
+    # a routed family must be in the serviced set — that is the real invariant.
+    assert WEB_TOOLS <= ROUTER_SERVICED_TOOLS
+    assert DOC_TOOLS <= ROUTER_SERVICED_TOOLS
+    assert READ_FILE_TOOL in ROUTER_SERVICED_TOOLS
+    # The draw tools must NEVER be in it: they are the branch this set exists to
+    # keep routed tools OUT of.
+    from muthis.kernel.draw_dispatch import DRAW_TOOLS
+    assert not (DRAW_TOOLS & ROUTER_SERVICED_TOOLS)
+
+
+def test_every_serviced_tool_is_answered_by_name_never_the_draw_ack():
+    """The DEC-39 property, stated over the SET instead of two hard-coded names.
+
+    Each member gets an UNSERVICED id in the pairing: whatever it receives, it
+    must not be the pointer ack, and it must not flip the draw gate. Driven per
+    member so adding a routed tool extends the guard automatically."""
+    from muthis.kernel.tool_result_pairing import ROUTER_SERVICED_TOOLS
+
+    admitted = 0
+    for name in sorted(ROUTER_SERVICED_TOOLS):
+        gate = HighlightGate()
+        assistant = [{"type": "tool_use", "id": "x1", "name": name, "input": {}}]
+        pairing = build_tool_result_message(assistant, None, None, gate, None, None)
+        content = pairing["content"][0]["content"]
+        assert content != HIGHLIGHT_ACK_TEXT_AR, f"{name} took the pointer ack"
+        assert content != HIGHLIGHT_ALREADY_SHOWN_AR, f"{name} took the draw branch"
+        assert gate.drawn is False, f"{name} flipped the draw gate"
+        admitted += 1
+    # The standing cutoff rule: a check that examined nothing must never look
+    # like a check that passed.
+    assert admitted == len(ROUTER_SERVICED_TOOLS) and admitted > 0
+
+
+def test_turn_pass_dispatches_on_the_set_not_on_hard_coded_names():
+    """AST, not text: `consume` must branch on ROUTER_SERVICED_TOOLS.
+
+    Re-inlining the old or-chain would pass every behavioural test above while
+    silently restoring the per-milestone edit this set removed."""
+    import ast
+    import pathlib
+
+    source = pathlib.Path("src/muthis/kernel/turn_pass.py").read_text(encoding="utf-8")
+    names = {n.id for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Name)}
+    assert "ROUTER_SERVICED_TOOLS" in names
+    assert "WEB_TOOLS" not in names, "turn_pass re-acquired a per-family name"

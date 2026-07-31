@@ -1,0 +1,36 @@
+# doc_rag — read a real document and teach from it (V2 Phase 2, Milestone 3;
+# Roadmap §4, DEC-44..DEC-55).
+# LOOK-only is untouched: this READS and indexes in RAM. It never writes, never
+# executes, never clicks, types, presses a key or touches the clipboard — and it
+# holds no file handle at all; the broker opens every document.
+
+[plugin]
+name    = "doc_rag"
+version = "0.1.0"
+sdk     = ">=2.0.0a3,<3"
+kind    = "native"
+entry   = "muthis_plugins.doc_rag.plugin:DocRagPlugin"
+
+[descriptions]
+ar = "يفتح مستنداً حقيقياً على الجهاز — PDF نصّي أو Markdown أو نص عادي — ويشرح من محتواه الفعلي بدل التخمين من الشاشة؛ الصغير يقرأه كاملاً والكبير يفهرسه في الذاكرة ويستشهد بالصفحة، ولا يملك ملفاً ولا محلّلاً ولا فهرساً؛ الوسيط وحده هو من يفتح"
+en = "Opens a real document on this machine — text PDF, Markdown or plain text — and explains from its actual content instead of guessing from the screen; small documents are read in full, large ones are indexed in RAM and cited by page, and it holds no file, no parser and no index; the broker alone opens"
+
+[capabilities]
+# perceive.files.read is the ONLY grant, and it is the SAME privilege
+# `read_local_file` already holds — reading is perception, and it moves no action
+# boundary (LOOK-only untouched). There is deliberately no capability for the
+# encoder, the index or the zone decision: none of them is a power over the user's
+# machine that a plugin could hold, and the broker owns all three (DEC-27's
+# category argument — the enum is the inventory of REAL authority, and padding it
+# with broker-internal machinery weakens that meaning).
+required = ["perceive.files.read"]
+
+[tools.open]
+# read_only w.r.t. the user's machine — a document is parsed and indexed in RAM,
+# nothing is written. NOT a trust claim, and NOT DEC-51's hint: the kernel states
+# this route's taint and its impact at the MOUNT, never from this line (DEC-15).
+read_only = true
+
+[tools.query]
+# read_only likewise: a cosine lookup over vectors already in RAM.
+read_only = true

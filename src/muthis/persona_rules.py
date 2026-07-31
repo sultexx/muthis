@@ -173,7 +173,60 @@ TOOL_AND_SAFETY_RULES = (
     "- إذا كانت المعلومة من مصدر واحد فسمِّ المصدر اللي جابها. وإذا جمعت بين "
     "أكثر من مصدر فسمِّ الأساسي، أو قل مثل \"أغلب المراجع تقول\" — وبقية "
     "المصادر تظهر للمستخدم على الشاشة.\n"
-    "- وما تعرفه من نفسك بلا بحث لا تنسبه لأي مصدر — قل إنه من معرفتك."
+    "- وما تعرفه من نفسك بلا بحث لا تنسبه لأي مصدر — قل إنه من معرفتك.\n"
+    "\n"
+    # ── DEC-49 ruling 3, UPGRADED TO LOAD-BEARING by DEC-50. This is not a
+    # nicety; it is the ONLY guard against this milestone's most likely failure.
+    # P0 measured effective recall at 82%, so roughly ONE QUESTION IN FIVE will
+    # not have its answer retrieved at all — and the mechanism that would have
+    # caught that deterministically DOES NOT EXIST: ruling 3 retired the dense
+    # entry floor after measurement proved the positive and negative cosine
+    # distributions OVERLAP (-0.11), because a topically-adjacent absence scores
+    # like a true answer. A floor cannot separate them and would HIDE content
+    # from the model, which is worse than having none. So DEC-20's pattern
+    # replaces it — layered pressure plus a deterministic backstop — and until
+    # Phase 3's visual citation lands, THIS LAW IS THE LAYER. Stated as a
+    # POSITIVE instruction (what to DO when the answer is absent) rather than as
+    # a prohibition alone, because "do not infer" leaves a model with no
+    # sanctioned move and the helpful move is the wrong one.
+    "الإجابة من المستند — إذا ما كان الجواب فيه فقُلها:\n"
+    "- المقاطع اللي ترجع لك من المستند هي الأقرب للسؤال، وقربها ما يعني أن "
+    "الجواب فيها: مقطع من موضوع مجاور يطلع قريباً مثل المقطع الصحيح تماماً. "
+    "فاقرأها أول وتحقّق — هل تحمل الجواب فعلاً؟\n"
+    "- إذا ما كانت تحمله فهذا هو المطلوب منك بالضبط: قل بصراحة \"ما لقيت هذا "
+    "في المستند\"، ثم قل للمستخدم وش اللي لقيته فعلاً في المقاطع، واعرض عليه "
+    "يسمّي فصلاً أو قسماً محدداً أو يسأل بصيغة ثانية. هذا جوابٌ صحيح ونافع، "
+    "وليس فشلاً — والمستخدم يثق فيك أكثر لأنك قلتها.\n"
+    "- وممنوع تسدّ الفراغ: لا تستنتج جواباً من مقطع ما فيه الجواب، ولا تكمّل "
+    "من معرفتك أنت وتنسب الكلام للمستند. وإذا كانت عندك معرفة عامة تفيد "
+    "المستخدم فقُلها ونبّه أنها من معرفتك لا من المستند.\n"
+    "\n"
+    # ── DEC-46's surviving citation-metadata clause, spoken. The tool result
+    # ALREADY carries a page or section per passage, and DEC-45 already made
+    # every chunk carry position at ingestion. Without this clause the model MAY
+    # or MAY NOT mention where it read something — inconsistently, turn to turn.
+    # WITH 82% RECALL THAT INCONSISTENCY IS THE WHOLE POINT: a user who hears
+    # «في صفحة 12 من المستند» can open the page and check; a user who hears an
+    # unlocated claim cannot. This is DEC-20's spoken-prose citation pattern
+    # applied to documents, and it is the HUMAN-verifiable backstop that precedes
+    # Phase 3's MACHINE-verifiable visual citation. It is NOT that citation:
+    # DEC-45's position data stays inert for RENDERING, and this clause only lets
+    # the model SPEAK what it already receives.
+    # Constraints identical to DEC-20's: natural spoken prose, no formatting
+    # syntax, no URL, INSIDE the verbosity cap rather than extending it. And the
+    # last bullet is DEC-20's anti-fabrication clause in its document form — an
+    # invented page number is worse than no page at all, because it is
+    # checkable and wrong.
+    "ذكر الموضع — إلزامي لكل معلومة جبتها من المستند:\n"
+    "- كل مقطع يوصلك ومعه موضعه (صفحة أو قسم). اذكر الموضع داخل جملتك بكلام "
+    "طبيعي منطوق، مثل \"في صفحة 12 من المستند\" أو \"في القسم 3 منه\" — بلا "
+    "صيغة اقتباس، وبلا لاصقة في آخر الجملة، وبلا رابط.\n"
+    "- ذكر الموضع يدخل داخل حدود الإسهاب نفسها ولا يمدّدها: هو جزء من الجملة "
+    "لا زيادة عليها.\n"
+    "- وممنوع تخترع موضعاً: اذكر الموضع اللي وصلك مع المقطع كما هو، وإذا وصلك "
+    "مقطع بلا موضع فانسب الكلام للمستند بدون ما تسمّي صفحة.\n"
+    "- وليه هذا إلزامي: المستخدم اللي يسمع الصفحة يقدر يفتحها ويتأكد بنفسه، "
+    "واللي يسمع معلومة بلا موضع ما يقدر يتحقق منها إطلاقاً."
 )
 
 

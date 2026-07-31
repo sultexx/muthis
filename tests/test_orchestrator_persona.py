@@ -137,10 +137,20 @@ async def test_saudi_persona_reaches_claude_system_param(tmp_path):
         result = await orchestrator.run_turn(USER_TEXT_AR)
 
     # ── The point of the test: the Saudi persona is what Claude received ──
-    assert captured["system"] == build_saudi_persona_prompt(SENT_W, SENT_H)
-    assert captured["system"] != LOOK_SYSTEM_PROMPT       # not the MSA fallback
+    # `system` is now the BLOCK form: only the block form accepts a cache
+    # breakpoint (cache_control.py), and the persona is the largest cacheable
+    # thing in the request. The persona TEXT is unchanged, so every original
+    # assertion below is preserved verbatim — it is merely read out of the
+    # block — and the breakpoint assertion is ADDED, making this test stronger
+    # than before rather than adjusted to fit.
+    assert isinstance(captured["system"], list) and len(captured["system"]) == 1
+    system_block = captured["system"][0]
+    assert system_block["cache_control"] == {"type": "ephemeral"}
+    system_text = system_block["text"]
+    assert system_text == build_saudi_persona_prompt(SENT_W, SENT_H)
+    assert system_text != LOOK_SYSTEM_PROMPT              # not the MSA fallback
     for marker in ("أبشر", "طال عمرك", "وشلونك", "عاد"):
-        assert marker in captured["system"]
+        assert marker in system_text
 
     # ── screenshot=None: the user turn carries text only, no image block ──
     last_user_msg = captured["messages"][-1]
