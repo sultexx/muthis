@@ -5248,3 +5248,107 @@ already logs `first model download starting (announce seam unwired)`: **the seam
 is not connected.**
 
 ---
+
+## DEC-61 (2026-07-31) — the PATH is never logged, and LOGS vs SPEECH is the general rule — APPROVED (Sultan), EXECUTED
+
+- **Item:** What `file_reader` may log, and — the part that will be asked again for every
+  future surface — whether the privacy law governs the spoken surface as well.
+- **Reason:** I6 failed live: a real corpus FILE NAME reached the logs while its CONTENT
+  never did. This module's own recorded discipline said *"path and outcome in English, NEVER
+  content"*, and the measurement proved that clause **wrong about which half is sensitive**.
+  The path carries the user's document name and the folder it lives in.
+
+**RESOLUTION — the path is NEVER logged: not the filename, not the directory.** Log the
+EXTENSION, the OUTCOME and the SIZE. This is not an invention: `broker/net` already logs
+domain + status + size, and `doc_rag` already logs `extract .pdf: blocks=…`. `file_reader`
+was brought into line with the modules that got it right.
+
+**SEVEN sites, not six.** Beyond the six named refusal/success lines there was a seventh:
+`read failed (%s: %s)` logging the exception object, and **`OSError.__str__` embeds the
+offending path verbatim** (`[Errno 2] … : 'C:\…'`). Proven by measurement before it was
+changed. The exception TEXT is dropped rather than shortened — the shape
+`broker/net/fetcher.py` already uses.
+
+**THE GATES DID NOT MOVE ONE LINE** (DEC-42 discipline). Proven by changed-line ranges, not
+by eye: the diff touches 141–166 and 210–251, while `_blocked_name` occupies 104–122 and
+`stage_file_gate` 167–193 — **no changed line falls inside either**, and the binary NUL
+sniff is present unchanged before and after.
+
+### THE GENERAL RULE — LOGS vs SPEECH, recorded because it will be asked again
+
+**The privacy law governs LOGS ONLY, not the spoken surface.** `doc_rag`'s `_register`
+keeps the filename as a speakable `doc_id`, deliberately, and the Arabic note returned to
+the model still names the file.
+
+**The distinction is not secrecy but PERMANENCE AND AUDIENCE.** The user named the file and
+the user is listening, so saying «فتحت لك دليل الجامعة» is correct and useful. A log is
+different in both respects: it **persists past the session**, it is **read by other eyes**,
+and it **travels in a bug report**. Any future surface is classified by those two questions —
+who hears it, and how long does it last — rather than by whether the datum "feels" secret.
+
+- Two tests, each carrying the control that would fail on a module logging nothing: every
+  outcome driven with canary name and directory, and the `OSError` path.
+- `file_reader.py` 245 → 280/300. Guard 1198 + 27 → **1200 + 27**, declared.
+
+---
+
+## DEC-62 (2026-07-31) — a PRECONDITION call does not consume the pass slot — APPROVED (Sultan), EXECUTED
+
+- **Item:** The one-serviced-call-per-pass rule, reserved to Sultan by DEC-39 and now ruled
+  after the loop bit LIVE three times and left OBS-1/OBS-2 unjudged each time.
+- **Reason:** K1–K7 were green — the note demonstrably said the document was opened, that
+  re-opening was unnecessary, and what the next step was — and the live model re-opened
+  anyway. **A deterministic check proves the note's TEXT; it cannot prove the note CHANGES
+  BEHAVIOUR.** The note was a mitigation; the root cause was the slot rule.
+
+### THE COUNT-VS-PAYLOAD CORRECTION — what the Phase-4 bound actually protected
+
+| tool | delivered payload |
+|---|---|
+| `read_local_file` | up to **16,000** chars (`MAX_RETURN_CHARS`) |
+| `docs__query` | up to **16,000** chars (`MAX_PASSAGE_CHARS`) |
+| `docs__open` | **110–320** chars (a confirmation) |
+
+**A count-based bound therefore guarded the wrong quantity by ~100x.** Phase 4 protected
+**one payload-bearing result per pass** and expressed it as a call count only because, at
+the time, **every routed tool was payload-bearing**. Option 3 does not widen the invariant —
+**it restores it to what it always was.**
+
+**RESOLUTION — classify by ROLE.** A precondition returns a confirmation, never content, so
+it *cannot* break the invariant and is serviced for free without consuming the slot.
+`PRECONDITION_TOOLS` sits beside `ROUTER_SERVICED_TOOLS`; the precondition is serviced
+FIRST, because the query depends on the index the open builds.
+
+**It won on three grounds, not on the two lines** (measured: turn_pass +12 vs +10 for the
+payload-cap option and +16 for the family pair; **`tool_router.py` +0 for all three**):
+
+1. **It removes the loop's root cause rather than bounding it** — `docs__open` never defers
+   `docs__query`, so the deferral note is never reached on the pair that failed live.
+2. **Role is the honest expression of the invariant** — the reason a precondition is safe is
+   that it returns no payload, which is exactly what the classification says.
+3. **Role-scoped, not family-scoped** — a future capability with a prepare step (Phase 3's
+   Navigator may carry sequences) inherits it by declaring one tool, with **no family table**.
+
+### EXECUTION NOTES, including one correction to my own prediction
+
+- **`orchestrator.py` UNTOUCHED at 299.** The returned tuple keeps its arity and position;
+  only the element type changes, and both producer and consumer live in the two edited
+  files. **Declared naming debt:** orchestrator's local is still spelled `read_result` while
+  it now holds a list — renaming it would mean editing a protected file for cosmetics.
+- **MUTATION-VERIFIED, APPLIED and RED:** declaring `docs__query` a precondition kills the
+  servicing test. **Recorded precisely because it corrects the risk I predicted at
+  measurement time:** the misclassification manifests as a **DROPPED call**, not as a
+  doubled payload, because only the FIRST precondition is kept — **a safer failure than
+  predicted**, and the payload bound itself is never breached by it.
+- **One expectation re-aimed and RENAMED rather than deleted:** the T6 test that asserted the
+  query receives the deferral note now asserts BOTH calls are serviced and the query returns
+  `PASSAGE_MARKER` — the shape that failed live three times. The note constants are unchanged
+  and still guarded, now firing only for a genuinely unserviced id (two queries in one pass).
+- `turn_pass.py` 269 → 286, `tool_result_pairing.py` 276 → 298, `tool_router.py` **300
+  unchanged**. Guard **1200 + 27** green.
+
+**STILL OPEN:** OBS-1 and OBS-2 remain unjudged — they have never survived a live run. This
+change removes the mechanism that consumed the agentic cap all three times, but **that it
+actually lets the observations complete is unproven until Sultan runs the SOP again.**
+
+---
