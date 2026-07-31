@@ -4708,3 +4708,169 @@ budget should learn that cached input tokens are billed at a different rate — 
 cost model that ignores the discount would misreport the ledger Rule 10 defends.
 
 ---
+
+## T6 SURVIVORS CLOSED (2026-07-31) — M20 guarded, M15 EXPLAINED rather than excused, and one known exposure recorded
+
+- **Status:** the two mutation survivors from DEC-58 are closed, and the one they
+  could not close is now UNDERSTOOD rather than open. T6 is still NOT signed off.
+
+### M20 CLOSED — the startup log's gap is now asserted
+
+**CHECK G7** asserts that the startup log reports BOTH figures: the in-force boundary
+labelled `BENCH`, and the operating estimate derived from the live-measured per-chunk
+time. **The discriminating clause is that the two figures must DIFFER.** A mutation that
+aliases the live constant back to the bench one still prints two tidy lines; what it
+destroys is the GAP, which is the only thing the second line exists for. Measured: with
+the fix, `754,680` in force against `338,150` operating (30.2 ms bench vs 67.4 ms live).
+**M20 now goes RED.**
+
+### M15 IS NOT INCONCLUSIVE — IT IS REDUNDANT, AND THAT IS A DIFFERENT ANSWER
+
+The earlier run could not discriminate because the synthetic corpus had TWO parents, so
+the 16,000-char delivery cap never bound. **That was rebuilt properly:** 40 sections on
+DISTINCT topics, sized past the injection limit so the document really indexes, the
+ground-truth section placed LATE on purpose, and the REAL pinned encoder so "relevance"
+is a real ranking rather than a hash. The cap then BOUND — **12 parents admitted of 40,
+28 collapsed, 12,068 chars against the cap** — and the real encoder put the ground-truth
+section FIRST.
+
+**M15 SURVIVED ANYWAY, and the reason is now measured rather than guessed:**
+`SessionIndex.search` already returns candidates BEST-FIRST (`scores.argsort()[::-1]`),
+so `delivery.select`'s `sorted(...)` re-sorts an already-sorted list. **Deleting it is a
+no-op on this path.** The property it expresses is enforced UPSTREAM.
+
+**THE CONTROL THAT PROVES B1 REALLY TESTS ORDERING — M21, new:** remove the INDEX's
+ranking (`argsort` → index order) and **B1 goes RED**. So B1 does discriminate relevance
+ordering; it simply cannot distinguish a SECOND, redundant application of it.
+
+- **The redundancy is not a defect.** `select` is duck-typed over a plain `Sequence` and
+  DEC-46 assigns aggregation and ordering to the PLUGIN, which may not assume the broker
+  pre-sorted. The sort is correct defensive design at a layer boundary. It is simply not
+  independently observable through this path, and **"unobservable" is a fact about the
+  test, not a licence to delete the code.**
+- **The standard this satisfies:** a mutation that cannot discriminate proves nothing
+  (the M8 rule). M15 still cannot — but it is now known WHY, with a control that shows
+  the guard it appeared to test is genuinely tested elsewhere. **A survivor with a known
+  mechanism is closed; a survivor with an unknown one is not.**
+- **HONEST LIMIT:** Sultan's real corpus PDF is not on this machine. What was reproduced
+  is the CONDITION the real corpus creates — a binding cap over many parents with real
+  semantic ranking — not the corpus itself.
+
+### KNOWN EXPOSURE — `WEB_ONE_PER_PASS_AR` fails the new note law
+
+**RECORDED, DELIBERATELY NOT FIXED.** It is a `web_research` surface and belongs to the
+post-milestone note pass with the other owed ones.
+
+- **It carries the IDENTICAL defect the T6 blocking fix just closed for documents:** when
+  a `web__search` is serviced and a `web__fetch` deferred in the same pass, the note says
+  only "I serve one web request per step, ask again next step" — it never says **the
+  search SUCCEEDED**. By the standing note law it fails obligation (1), state achieved.
+- **WHY IT HAS NOT BITTEN, and this is the whole reason it is an exposure rather than a
+  bug report:** `web__search` and `web__fetch` are **NOT a mandatory sequence**. A model
+  can search without fetching and can fetch a URL the user supplied without searching, so
+  a deferred fetch does not invalidate a plan the way a deferred query did. `doc_rag` was
+  the first capability where the two tools MUST run in order, and that is what turned the
+  same silence into a full re-ingestion loop.
+- **THE CONDITION THAT WOULD MAKE IT BITE, so it is recognisable in advance:** any future
+  change that makes a web pair sequential — a fetch that requires a search-supplied
+  handle, or a provider that returns links needing a follow-up fetch to be useful (which
+  is exactly what selecting Brave or SearXNG does, per DEC-18). **A provider change is a
+  trust-surface change AND, now, a note-correctness change.**
+
+---
+
+## DEC-59 (2026-07-31) — PROMPT CACHING: ADDITIVE at the protocol, CONTRACTUAL at the ledger — REPORT ONLY, nothing built
+
+- **Status:** **REPORT ONLY.** Sultan rules on sequencing. Every answer below is read
+  from the installed SDK and the repo's own code, never from memory.
+
+### Q1 — DOES `TurnComplete` GAINING FIELDS BREAK THE SIGNED PROTOCOL? **NO — PURELY ADDITIVE.**
+
+Every consumer was enumerated:
+
+| consumer | how it uses `TurnComplete` | needs a change? |
+|---|---|---|
+| `cloud/claude_agent.py:252` | CONSTRUCTS it, all keyword args | no — it is the only writer |
+| `kernel/turn_pass.py:215-218` | reads `input_tokens` / `output_tokens` / `cost_usd` / `stop_reason` | **no** |
+| `kernel/budget.py:130` | reads `cost_usd` via `getattr(..., "cost_usd", 0.0)` — **duck-typed on purpose**, stated in its own comment | **no** |
+| `kernel/orchestrator.py:256` | checks `is None` only | **no** |
+| `turn_voice.py` | docstring mention | **no** |
+
+- **NO consumer would need to change.** New fields must be appended AFTER
+  `assistant_content` and carry defaults, because that field already has one and a
+  dataclass forbids a non-default after a default. Every existing construction site —
+  including every fake reasoner in the suite — keeps working untouched.
+- **The Phase-0 contract is about the THREE EVENTS**, not about a record's field count. A
+  provider that cannot cache simply leaves the fields `None`. **That is exactly the DEC-34
+  `execute_with_cost` shape**: optional, defaulted, invisible to non-participants — and it
+  is the precedent that makes this additive rather than a renegotiation.
+
+### Q2 — MUST THE BUDGET LEARN? **YES — AND `budget.py` ITSELF NEEDS NO CHANGE.**
+
+- **The two cache counters reach NOTHING today.** `claude_agent.py` reads
+  `event.message.usage.input_tokens` at `message_start` and never touches
+  `cache_read_input_tokens` or `cache_creation_input_tokens`. They are not on
+  `TurnComplete`, so they do not reach `turn_pass`, and therefore they do not reach the
+  ledger.
+- **THE FIX BELONGS IN `_estimate_cost_usd`, NOT IN THE LEDGER.** `budget.record_turn`
+  consumes a finished `cost_usd` and is deliberately duck-typed; the price table lives in
+  `claude_agent.py` and its own comment already says "budget.py is the sovereign consumer
+  of these numbers; this table only annotates `TurnComplete`". **So the sovereign stays
+  sovereign and untouched, and the arithmetic is corrected where the arithmetic lives.**
+- **THE DIRECTION OF THE ERROR IS THE ONE THING THE SDK DOES NOT SETTLE, AND IT IS NOT
+  SYMMETRIC.** The SDK documents `input_tokens` only as "the number of input tokens which
+  were used" and says nothing about whether the cached portion is included. **The
+  asymmetry is itself evidence:** `output_tokens_details` carries an EXPLICIT clause —
+  "`output_tokens` remains the inclusive, authoritative total used for billing" — and
+  **no equivalent clause exists for `input_tokens` against the cache counters.**
+
+  | if `input_tokens`… | today's formula does | the ledger | the harm |
+  |---|---|---|---|
+  | **EXCLUDES** the cached part | charges only fresh input; cache reads (0.1x) and writes (1.25x/2x) charged NOTHING | **UNDER-reports** | **the SOVEREIGN CEILING IS BREACHED SILENTLY** — Rule 10 fails open |
+  | **INCLUDES** the cached part | charges cached tokens at FULL rate though billed at 0.1x | **OVER-reports** | sessions stop early — Rule 10 fails closed |
+
+- **THE BRIEF ASSUMED THE OVER-REPORT CASE. The other one is worse**, and it is the one a
+  naive "input_tokens got smaller, everything is fine" reading would walk into: a ledger
+  that under-reports does not stop a session that HAS reached its ceiling. **Either way
+  the ledger lies, so caching without corrected accounting is not an optimisation with a
+  rounding error — it is a Rule-10 defect.**
+- **HOW TO SETTLE IT — ONE MEASUREMENT, DELIBERATELY NOT TAKEN HERE:** issue the same
+  request twice with a breakpoint on the system prompt and compare, on the second
+  response, `input_tokens` against `cache_read_input_tokens` and against the first
+  response's `input_tokens`. If the second `input_tokens` collapses to the uncached
+  remainder, it EXCLUDES. That is a live billed call, and this round is report-only.
+
+### Q3 — THE BYTE-PIN CONSTRAINT, CONFIRMED BY MEASUREMENT
+
+**`router.descriptors()` hands back the SAME dict objects on every call** (asserted by
+identity, measured). `tests/test_doc_mount.py` serialises
+`[d.schema for d in router.descriptors()]` with `json.dumps` and compares the BYTES
+against `look_tools_v4.json`. **So writing `cache_control` into a mounted schema would
+change the model-visible catalog's bytes and FAIL that guard — correctly, because it IS a
+model-visible change.**
+
+- **THE BREAKPOINT GOES ON A REQUEST-TIME COPY.** The mounted descriptors are never
+  touched: build a new list in which only the LAST element is a shallow copy carrying the
+  breakpoint — `[*tools[:-1], {**tools[-1], "cache_control": {"type": "ephemeral"}}]`. The
+  earlier dicts are shared by reference, which is safe because nothing mutates them, and
+  `{**d}` copies the one dict that gains a key.
+- **The same discipline the project already applies to `_outcome_for`'s
+  `dataclasses.replace` and to `tts.py`'s diacritized COPY:** the shared, pinned artifact
+  is never edited in place; the per-use variant is built beside it.
+
+### THE LINE COST — RE-STATED AS A WARNING, NOT AUTHORISATION (DEC-56)
+
+| file | now | change |
+|---|---|---|
+| `cloud/claude_agent.py` | 270/300 | system block + tool-list copy + two usage reads + cache-aware pricing — **~18-26 lines** |
+| `cloud/protocol.py` | 104/300 | two optional `TurnComplete` fields + docstring — **~6 lines** |
+| `kernel/budget.py` | 267/300 | **ZERO** |
+
+**Higher than the previous estimate because Q2's answer added cache-aware pricing to the
+scope.** That movement is exactly why DEC-56 exists: the P0b method — write it against a
+scratchpad copy, syntax-check it, diff it, count it, keep it out of the repo — decides at
+execution time. `claude_agent.py` at 270 has 30 lines of headroom, which is enough on
+this estimate and NOT enough for a surprise, so a seam should be named before it is
+written.
+
+---

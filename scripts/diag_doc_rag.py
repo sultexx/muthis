@@ -164,7 +164,7 @@ from muthis.broker.docs.service import (                                 # noqa:
 )
 from muthis.broker.docs.token_estimate import TOKENS_PER_CHAR_CEILING    # noqa: E402
 from muthis.broker.docs.zones import (                                   # noqa: E402
-    DocZone, ZonePolicy, assert_zone_invariant,
+    MEASURED_LIVE_PER_CHUNK_MS, DocZone, ZonePolicy, assert_zone_invariant,
 )
 from muthis.broker.net.transport import TIMEOUT_S, USER_AGENT            # noqa: E402
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete      # noqa: E402
@@ -678,6 +678,40 @@ def _blank_pdf(path: pathlib.Path, pages: int = 3) -> pathlib.Path:
 # ══════════════════════════════════════════════════════════════════════════════
 # CHECK G — zone routing on the REAL corpus, and the UP-FRONT refusal
 # ══════════════════════════════════════════════════════════════════════════════
+
+
+def check_startup_log(checks: Checks, tap: LogTap, policy: ZonePolicy
+                      ) -> "dict[str, Any]":
+    """The startup log must let an operator SEE THE GAP between the boundary in
+    force and what production actually achieves.
+
+    `PER_CHUNK_ENCODE_MS` is a BENCH figure and the live SOP measured more than
+    double it, so the derived maximum the log prints is roughly twice what this
+    machine can really ingest inside the budget. The constant is deliberately not
+    changed — it is a zone boundary — so the LOG is the whole of that fix, and
+    without a check the fix can be reverted in silence.
+
+    THE DISCRIMINATING ASSERTION is that the two figures DIFFER. A mutation that
+    aliases the live constant back to the bench one still prints two tidy lines;
+    what it destroys is the gap, which is the only thing the second line is for."""
+    logs = tap.text()
+    live_max = int(policy.max_tokens * policy.per_chunk_ms / MEASURED_LIVE_PER_CHUNK_MS)
+    in_force = f"index<={policy.max_tokens} tokens" in logs and "BENCH" in logs
+    operating = f"nearer {live_max} tokens" in logs
+    evidence = {
+        "in-force boundary line present (labelled BENCH)": in_force,
+        "operating-estimate line present": operating,
+        "bench vs live per-chunk": f"{policy.per_chunk_ms:g} ms vs "
+                                   f"{MEASURED_LIVE_PER_CHUNK_MS:g} ms",
+        "in-force vs operating maximum": f"{policy.max_tokens} vs {live_max} tokens",
+    }
+    checks.record("G7 the startup log reports BOTH the in-force BENCH boundary and "
+                  "the LIVE-measured operating estimate, and they DIFFER "
+                  "(the operator can see the gap)",
+                  in_force and operating
+                  and MEASURED_LIVE_PER_CHUNK_MS != policy.per_chunk_ms
+                  and live_max != policy.max_tokens)
+    return evidence
 
 
 async def check_zones(checks: Checks, corpus: Optional[Corpus],
@@ -1976,6 +2010,7 @@ async def main() -> None:
     policy = assert_zone_invariant()
     checks.record("G0 the DEC-49 zone invariant holds (derived maximum > inject limit)",
                   policy.max_tokens > policy.inject_limit)
+    startup_ev = check_startup_log(checks, tap, policy)
 
     corpus: Optional[Corpus] = None
     if args.corpus and args.questions:
@@ -2075,7 +2110,7 @@ async def main() -> None:
     _dump("CHECK D — wrapping, nonce, forged close, taint", wrap_ev)
     _dump("CHECK E — DEC-51 on the REAL mount", mount_ev)
     _dump("CHECK F — the DEC-51 friction (mechanism asserted, cost observed)", friction_ev)
-    _dump("CHECK G — zone routing (DEC-47)", zone_ev)
+    _dump("CHECK G — zone routing (DEC-47)", {**zone_ev, **startup_ev})
     _dump("CHECK H — type-accurate refusals (DEC-35)", type_ev)
     _dump("CHECK I — privacy and the session-scoped index",
           {**privacy_ev, **lifetime_ev, **log_ev})
