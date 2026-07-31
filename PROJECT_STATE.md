@@ -1,20 +1,70 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-29, V2 Phase 2 M2 `web_research`
-> CLOSED). **`AGENTS.md` remains the full source of truth**; this is the
-> compressed map. Branch `feature/v2-phase2-web-research` (main at `65170b2`,
-> which already carries the M1 merge); app suite 988 green (V1 474-oracle
-> preserved) + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that one lacks
-> trafilatura and produces false failures).
+> Token-saving snapshot (updated 2026-07-31, V2 Phase 2 M3 `doc_rag`
+> COMPLETE). **`AGENTS.md` remains the full source of truth**; this is the
+> compressed map. Branch `feature/v2-phase2-doc-rag` (cut from `main` at
+> `b7654f7`, which already carries the M1 and M2 merges); app suite **1216 green**
+> (V1 474-oracle preserved) + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that
+> one lacks trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — V2 PHASE 2, M2 `web_research` CLOSED (live-signed 2026-07-29)
+## CURRENT STATUS — V2 PHASE 2, M3 `doc_rag` COMPLETE (live-signed 2026-07-31)
+**Phase 2, Milestone 3 — `doc_rag`** is COMPLETE on `feature/v2-phase2-doc-rag`
+(cut from `main` at `b7654f7`; **main untouched — not merged, not pushed, not
+tagged; the merge is Sultan's**). Mut'his opens the user's own document
+(`docs__open`) and answers questions from it (`docs__query`) — catalog **v4**,
+nine tools, byte-pinned — in Arabic, aloud, citing the page. Sultan ran the Live
+SOP on his hardware on the FIFTH attempt, 2026-07-31, and signed off personally:
+`query: candidates=` reached the live phase for the first time, the absence law
+fired correctly on a genuine miss (all three DEC-57(a) clauses), and the spoken
+page citation was CORRECT against ground truth.
+**What the milestone cost, and why it is worth recording:** four earlier live runs
+all failed with the SAME visible symptom — the model retrying — and THREE different
+causes (a note that reported no state achieved; a slot rule that deferred the
+payload-bearing call; a `doc_id` that could not survive a natural-language
+round-trip). **A retry loop is a symptom, not a diagnosis.** The milestone also
+produced the project's first automated guard for the ≤300-line LAW, after a real
+breach passed in silence because neither half of the enforcement existed.
+Closure record: `docs/reports/phase2_m3_doc_rag.md`; rulings DEC-44..DEC-63.
+**Next (Sultan's):** merge to `main` (consider a tag); then the APPROVED
+`diag_doc_rag.py` reduction, which executes AFTER close and must PROMOTE K7, K0
+and G7 to pytest before deleting anything.
+
+## V2 PHASE 2 — M3 `doc_rag` (COMPLETE, live-signed 2026-07-31)
+Open a document, then ask it. Gates P0→T6, each STOP-gated.
+- **The tools:** `docs__open` + `docs__query` — catalog **v4**, nine tools,
+  byte-pinned (`tests/snapshots/look_tools_v4.json`); the project's FOURTH
+  model-visible change, additive over v3.
+- **DENSE-ONLY (DEC-50).** `pypdf` extraction → structural chunking sized in
+  TOKENS (DEC-45) → `multilingual-e5-small` int8 on ONNX → cosine over unit
+  vectors. No BM25, no fusion, no second normalized pipeline: the lexical half's
+  unique contribution over dense measured **ZERO** at the P0 gate.
+- **Three size zones decided in the BROKER (DEC-47)**, never by a plugin:
+  inject the whole text, index it, or refuse honestly — the refusal estimated UP
+  FRONT, with `assert_zone_invariant()` failing startup on an incoherent config.
+- **Security inherited WHOLE from M2, with nothing added:** a passage is wrapped
+  at the ONE router site with a fresh nonce, raises the session taint in the SAME
+  branch, and the route holds NO capability. DEC-51 mounts `taint=True` TOGETHER
+  WITH the kernel-side read hint, so reading a local document never demands
+  spoken approval while a later web fetch still does.
+- **THE LOAD-BEARING GUARANTEE is a persona law, not a gate.** At **82% effective
+  recall** a retrieval miss is the EXPECTED case and DEC-49 retired the entry
+  floor, so DEC-57(a)'s «ما لقيت هذا في المستند» is the only layer between a miss
+  and a confident fabrication until Phase 3's visual citation. Proven live.
+- **Privacy is structural:** the index is RAM-only and dies with the process, and
+  the document PATH is never logged — extension, outcome and size only (DEC-61).
+- `orchestrator.py` **untouched at 299**; `tool_router.py` absorbed the whole
+  mount at **ZERO lines**, exactly as the P0b ceiling measurement predicted.
+- **Known limits:** ~20 s of silence on first ingestion (ACCEPTED; the spoken
+  announcement lands in Phase 3 with the other voice-surface items); 82% recall;
+  no per-claim attribution; the model remains the messenger.
+
 Phase 0 CLOSED + merged. **Phase 1** (broker + privileges + MCP bridge) CLOSED +
 MERGED (`dbfec3a`, tag `v2-phase1-complete`). **Phase 2 M1 `sandbox_exec`** CLOSED
 + MERGED to `main` (merge `dcfa25f`, tag `v2-phase2-m1-complete`). **Phase 2,
-Milestone 2 — `web_research`** is now CLOSED on `feature/v2-phase2-web-research`
-(cut from `main` at `65170b2`; **main untouched — not merged, not pushed, not
-tagged**): the model searches the web via `web__search` and reads a page via
+Milestone 2 — `web_research`** CLOSED + **MERGED to `main`** (merge `1c59d60`,
+tag `v2-phase2-m2-complete`; verified an ancestor of `main`): the model searches
+the web via `web__search` and reads a page via
 `web__fetch`, and everything it reads is treated as HOSTILE by construction.
 Sultan ran the full T7 Live SOP on his hardware 2026-07-29 and signed off
 personally. **The two questions the milestone could not answer for itself were
@@ -30,9 +80,8 @@ switching makes fetch normal again and can reintroduce the friction). The three
 persona laws were confirmed live: query spoken before sending, three sources cited
 in natural prose with no URLs, verbosity cap held. Closure record:
 `docs/reports/phase2_m2_web_research.md`; rulings DEC-14..DEC-42 in `DECISIONS.md`.
-**Next (Sultan's):** merge the branch to `main` (consider a tag); then the
-consolidated docs pass (DEC-7 Trust-Modes sweep + DEC-1 batches 4-8), which was
-deliberately bundled to run AFTER this milestone.
+Both follow-ups are DONE: the branch was merged (`1c59d60`) and the consolidated
+docs pass (DEC-7 Trust-Modes sweep + DEC-1 batches 4-8) landed with it.
 
 ## V2 PHASE 2 — M2 `web_research` (CLOSED, live-signed 2026-07-29)
 Search + fetch behind `net.fetch`. Gates P0→T7, each STOP-gated.
@@ -434,6 +483,18 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
 - **I/O**: `mic.py`, `stt.py`, `hotkey.py`, `earcons.py`, `budget.py`,
   `activation.py`, `main.py` (composition root), `persona.py`.
 - **Vision**: `vision/screen_capture.py`, `vision/downscale.py`.
+- **Docs / RAG** (`broker/docs/`, V2 Phase-2 M3): `service.py` 281 (the two verbs
+  `open`/`query`; owns the encoder LIFETIME, ranks nothing), `zones.py` 294 (the
+  three size zones + `assert_zone_invariant`), `ingest.py` 274, `extract.py` 239
+  (pypdf), `chunking.py` 222 (token-sized, structural), `encoder.py` 187
+  (e5-small int8 / ONNX), `model_pin.py` 169 (artifact pinned BY FINGERPRINT),
+  `blocks.py` 164, `notes.py` 133 (DEC-35's type-accurate refusals), `index.py`
+  132 (RAM-only, dies with the process), `__init__.py` 87, `records.py` 70
+  (`Passage`/`OpenedDocument` — the cross-boundary contract), `token_estimate.py`
+  68. Plugin half: `muthis_plugins/doc_rag/plugin.py` 182, `delivery.py` 136
+  (dedupe by parent, relevance order, cap), `schema.py` 104.
+- **Caching** (`cloud/`, M3): `pricing.py` 105, `cache_control.py` 70 — the
+  ledger cannot lie about a cached turn (DEC-60).
 - **Overlay** (`overlay/`): `sidekick_window.py`, `window_commands.py`,
   `win32_glue.py`, `focus_dimmer.py`, `caption_bar.py`, `rectangle_widget.py`,
   `pointer_widget.py`, `pointer_animator.py`, `shapes_widget.py`,
