@@ -42,7 +42,6 @@ is the process's own, which is exactly the privacy guarantee.
 
 from __future__ import annotations
 
-import dataclasses
 import logging
 import pathlib
 from typing import Any, Optional
@@ -53,6 +52,9 @@ from .encoder import E5Encoder, EncoderUnavailable
 from .index import IndexRegistry, SessionIndex
 from .ingest import DocumentIngestor
 from .model_pin import E5_SMALL_INT8
+# Re-exported below: the two frozen records the verbs return, extracted under the
+# ≤300-line law. Dependency runs service → records, so nothing cycles.
+from .records import OpenedDocument, Passage
 from .zones import DocZone, ZonePolicy
 
 logger = logging.getLogger("muthis.broker.docs")
@@ -78,41 +80,6 @@ EMPTY_QUESTION_AR = (
     "ما وصلني سؤال أبحث عنه في المستند. المستند لا يزال مفتوحاً وجاهزاً وما "
     "تغيّر شي، فأعد الاستعلام بنفس المعرّف ومعه سؤال محدد."
 )
-
-
-@dataclasses.dataclass(frozen=True)
-class Passage:
-    """One retrieved chunk, with WHERE it came from and HOW well it matched.
-
-    `parent` and `score` are here because the plugin needs both to apply DEC-46's
-    two surviving delivery rules — dedupe by parent, deliver in relevance order —
-    and it is duck-typed across the boundary, so the fields ARE the contract.
-
-    `page` / `section` are the citation metadata DEC-46 distinguishes from a
-    security boundary: they exist so a claim can be attributed to a location, and
-    nothing downstream may read them as a trust signal."""
-
-    text: str
-    score: float
-    parent: str
-    page: Optional[int] = None
-    section: str = ""
-
-
-@dataclasses.dataclass(frozen=True)
-class OpenedDocument:
-    """What `open` produced: a zone, and either text, a doc_id, or a refusal."""
-
-    zone: str
-    note_ar: Optional[str] = None
-    text: str = ""
-    doc_id: str = ""
-    pages: Optional[int] = None
-    chunks: int = 0
-
-    @property
-    def ok(self) -> bool:
-        return self.note_ar is None
 
 
 class DocumentService:
