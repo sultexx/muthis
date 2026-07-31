@@ -35,6 +35,7 @@ from typing import Any, AsyncIterator
 import httpx
 from anthropic import AsyncAnthropic
 
+from .pricing import estimate_cost_usd
 from .protocol import ResponseEvent, TextDelta, ToolCall, TurnComplete, UserInput
 # Re-export: existing callers import LOOK_ONLY_TOOLS from THIS module.
 from .tool_schemas import LOOK_ONLY_TOOLS
@@ -48,14 +49,6 @@ logger = logging.getLogger("muthis.cloud.claude")
 DEFAULT_MODEL = os.getenv("MUTHIS_CLAUDE_MODEL", "claude-sonnet-4-6")
 DEFAULT_BASE_URL = os.getenv("MUTHIS_ANTHROPIC_BASE_URL", "https://api.anthropic.com")
 DEFAULT_MAX_TOKENS = int(os.getenv("MUTHIS_CLAUDE_MAX_TOKENS", "1024"))
-
-# USD per 1M tokens (input, output). Pricing reality check.
-# budget.py is the sovereign consumer of these numbers; this table only
-# annotates TurnComplete. Re-pin on every model rev (the DEC-26 discipline).
-_PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-6": (3.00, 15.00),
-    "claude-opus-4-7": (5.00, 25.00),
-}
 
 # Arabic-first persona (the language-split law). User-facing Arabic; logs English.
 LOOK_SYSTEM_PROMPT = (
@@ -252,17 +245,11 @@ class ClaudeAgent:
         yield TurnComplete(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            cost_usd=self._estimate_cost_usd(input_tokens, output_tokens),
+            cost_usd=estimate_cost_usd(self.model, input_tokens, output_tokens),
             stop_reason=stop_reason or final_message.stop_reason,
             model=self.model,
             assistant_content=assistant_content,
         )
-
-    # ── Accounting helper ─────────────────────────────────────────────────
-
-    def _estimate_cost_usd(self, input_tokens: int, output_tokens: int) -> float:
-        in_price, out_price = _PRICE_TABLE_USD_PER_MTOK.get(self.model, (3.00, 15.00))
-        return (input_tokens * in_price + output_tokens * out_price) / 1_000_000
 
     async def aclose(self) -> None:
         """Release the shared HTTP client. Orchestrator calls this once at
