@@ -185,6 +185,7 @@ from muthis.kernel.turn import DownscaledImage, RUN_CODE_TOOL            # noqa:
 from muthis.kernel.untrusted_content import (                            # noqa: E402
     NONCE_HEX_CHARS, WRAP_CLOSE_AR, WRAP_OPEN_AR,
 )
+from muthis.kernel.verbosity import normalize_ar                         # noqa: E402
 from muthis.logging_policy import configure_logging                      # noqa: E402
 from muthis.trust.confirm_gate import (                                  # noqa: E402
     APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR, ConfirmGate,
@@ -1047,13 +1048,33 @@ async def check_mandatory_sequence(checks: Checks, workdir: pathlib.Path,
                       "NO open that did not happen",
                       "الخطوة التالية" in deferred
                       and "فُتح المستند بنجاح" not in deferred)
-        # K5 gets a POSITIVE assertion: the old form was purely negative, so any
-        # passages payload satisfied it and it never noticed its own subject had
-        # vanished (the eighth face of the family).
-        checks.record("K5 the deferral is a NOTE, not an error, and demands no approval",
-                      bool(deferred) and DOC_ONE_PER_PASS_AR in deferred
-                      and APPROVAL_WORD_AR not in deferred
-                      and "تعذّر" not in deferred and "خطأ" not in deferred)
+        # K5 by WHOLE-UTTERANCE matching, never a substring hunt. The note DENIES
+        # an error USING the word «خطأ» — «ما صار فيه خطأ ولا تغيّر شي» — so the
+        # old `"خطأ" not in deferred` was false BY CONSTRUCTION: a substring test
+        # cannot tell a DENIAL from an OCCURRENCE. That is DEC-16's
+        # whole-utterance-versus-substring lesson in a new place, so the same
+        # `normalize_ar` discipline verbosity and confirm_gate already use applies
+        # here. An empty note fails the equality, so the old vacuity cannot return.
+        #
+        # THREE clauses, and none implies the others. (1) compares the RUNTIME
+        # text to the constant, so a wrong note, appended error text or a
+        # deferral that never fired all go RED — but it is BLIND to the constant
+        # itself, because both sides would move together. That blindness is what
+        # (2) and (3) cover, by reading the CONSTANT: (2) requires the DENIAL
+        # clause to still be there, so an edit turning the note into a real error
+        # goes RED; (3) requires the note not to demand approval. Note that (2)
+        # is a POSITIVE test for a denial PHRASE, which is sound in the way the
+        # old negative test for the bare word was not — presence proves denial,
+        # while absence of «خطأ» proved nothing.
+        no_error_clause_ar = "ما صار فيه خطأ"
+        checks.record("K5 the deferral is EXACTLY the known-good note, and the note "
+                      "still DENIES an error and demands no approval "
+                      "(whole-utterance, not substring)",
+                      normalize_ar(deferred) == normalize_ar(DOC_ONE_PER_PASS_AR)
+                      and normalize_ar(no_error_clause_ar)
+                      in normalize_ar(DOC_ONE_PER_PASS_AR)
+                      and normalize_ar(APPROVAL_WORD_AR)
+                      not in normalize_ar(DOC_ONE_PER_PASS_AR).split())
 
         # PASS 2: the query re-issued in the NEXT step IS serviced and returns
         # real passages — "answered usefully", end to end. The id is the
