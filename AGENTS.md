@@ -503,6 +503,21 @@ in DECISIONS.md (DEC-43).
   model-facing Arabic note** — plugin results, kernel refusals, gate directives — and it is a MESSAGE-layer
   law: it never licenses changing a gate, a bound or a limit to make a note easier to write (the DEC-42
   discipline, and DEC-55 ruling 2's precedent of leaving a gate alone).
+- **A DIAGNOSTIC SCRIPT STAYS SHORT AND TARGETED: IT VERIFIES ONLY WHAT THE SUITE STRUCTURALLY CANNOT**
+  (LAW, 2026-07-31 — Sultan's ruling that this is a PROJECT law and not a Phase-3 decision, so it is recorded
+  here rather than inside a milestone entry, where it would die with the milestone). A `scripts/diag_*.py` exists
+  for exactly two things: **LIVE MODEL BEHAVIOUR** — what a real model does with a real prompt, which no fake can
+  answer — and **THE END-TO-END PATH**, the real objects wired the way production wires them. **Everything else
+  belongs in `pytest`, where it runs on every commit instead of once per milestone at a human's discretion.**
+  **THE EVIDENCE, MEASURED:** `scripts/diag_doc_rag.py` reached **2,290 lines** against **308** for
+  `diag_sandbox.py` and **1,156** for `diag_web_research.py` — and **THREE of M3's four late defects lived in its
+  DETERMINISTIC half**, the half `pytest` already owns. **The instrument became the dominant defect source.**
+  That is the whole argument: a deterministic check inside a diag script is a test that runs rarely, is never
+  mutation-verified, and whose failures arrive during a live run when attention is on the model. **The rule is
+  not "keep it small" — it is "keep it the ONLY place that could hold it."** When a diag grows, the question is
+  never "is this too long" but **"which of these checks could pytest have run?"** — and those move, they do not
+  get deleted (DEC-64 ruling 2's binding condition: PROMOTE first, delete second, because a deterministic check
+  guarded nowhere else is not duplication).
 - **Comments explain WHY**, especially around Win32/Tk bridging and SDK quirks.
 - **Language split** (LAW — the binding form is CONTRIBUTING.md acceptance condition 3): user-facing strings
   (voice prompts, overlay captions, error speech) are
