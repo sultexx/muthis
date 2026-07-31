@@ -952,6 +952,16 @@ async def check_chunk_guard(checks: Checks, policy: ZonePolicy,
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def _doc_id_from_note(note: str) -> str:
+    """The doc_id AS THE MODEL MUST READ IT — from between the guillemets of the
+    open note. This is the instrument fix: the harness now performs the same
+    natural-language round-trip the live path performs, so an id-presentation
+    change can no longer pass here and fail live."""
+    start = note.find("«")
+    end = note.find("»", start + 1)
+    return note[start + 1:end].strip() if start != -1 and end != -1 else ""
+
+
 async def check_mandatory_sequence(checks: Checks, workdir: pathlib.Path,
                                    policy: ZonePolicy) -> "dict[str, Any]":
     """THE CHECK THAT WAS MISSING, and its absence is what let 55 green checks
@@ -979,35 +989,69 @@ async def check_mandatory_sequence(checks: Checks, workdir: pathlib.Path,
     session = DocSession(service=service)
     evidence: "dict[str, Any]" = {}
     try:
-        # PASS 1: both calls in ONE assistant message — the live shape.
+        # PASS 0 — THE INSTRUMENT FIX. The doc_id is OBTAINED FROM THE OPEN
+        # NOTE, exactly as the live model must, never hardcoded. The old script
+        # handed `query` a constant it already knew was the registry key, so it
+        # was structurally incapable of detecting an id-presentation <-> key
+        # mismatch — which is the defect that survived three live runs. The
+        # instrument has now been the real defect twice.
+        opened_first = await session.turn(
+            "افتح المستند.", script=[[(DOC_OPEN_TOOL, {"path": str(document)})]])
+        open_note = opened_first[0] if opened_first else ""
+        doc_id = _doc_id_from_note(open_note)
+        evidence["doc_id AS THE MODEL MUST READ IT (from the note)"] = repr(doc_id)
+        checks.record("K0 the doc_id is RECOVERABLE from the open note the model reads",
+                      bool(doc_id) and doc_id not in ("", "«", "»"))
+
+        # PASS 1: both calls in ONE assistant message — the live shape. Under
+        # DEC-62 the open is a PRECONDITION, so BOTH are serviced now.
         first = await session.turn(
             "افتح المستند وجاوبني منه.",
             script=[[(DOC_OPEN_TOOL, {"path": str(document)}),
-                     (DOC_QUERY_TOOL, {"doc_id": "sequence_doc.txt",
+                     (DOC_QUERY_TOOL, {"doc_id": doc_id,
                                        "question": "ما الغرض من الفقرة؟"})]])
         opened_note = first[0] if first else ""
-        deferred = first[1] if len(first) > 1 else ""
-        evidence["pass 1 — open note (head)"] = opened_note.replace("\n", " ")[:120]
-        evidence["pass 1 — query note (VERBATIM)"] = deferred.replace("\n", " ")[:260]
+        answered_now = first[1] if len(first) > 1 else ""
+        evidence["pass 1 — open note (head)"] = opened_note.replace(chr(10), " ")[:120]
+        evidence["pass 1 — query result (VERBATIM head)"] = answered_now.replace(chr(10), " ")[:260]
 
         # Option B: BOTH ids answered, or the next turn 400s on an orphan.
         checks.record("K1 both calls in one message are PAIRED (no orphan tool_use)",
                       len(first) == 2)
-        # THE THREE OBLIGATIONS OF THE NOTE LAW, asserted as behaviour. Each one
-        # is a thing the OLD note failed to say, and each failure is what made
-        # the model re-issue its plan.
-        checks.record("K2 the deferral note reports the STATE ACHIEVED "
-                      "(the document WAS opened)",
-                      "فُتح المستند بنجاح" in deferred)
-        checks.record("K3 the note says re-opening is UNNECESSARY "
-                      "(this is what stopped the re-ingestion loop)",
-                      "لا تفتحه مرة أخرى" in deferred)
-        checks.record("K4 the note names the VALID NEXT STEP (query, next step)",
-                      "الخطوة التالية" in deferred)
-        # And it must NOT read as a failure: nothing went wrong, so a note that
-        # sounded like an error would invite exactly the retry it is preventing.
-        checks.record("K5 the note is not an error and demands no approval",
-                      APPROVAL_WORD_AR not in deferred
+        # DEC-62: the query is answered IN THE SAME PASS. K6 proved this only in
+        # the NEXT step, so the shape that failed live was never asserted here.
+        checks.record("K1b the query in the SAME pass returns real PASSAGES "
+                      "(the shape that failed three live runs)",
+                      HEADER_AR in answered_now and NOTHING_FOUND_AR not in answered_now)
+
+        # PASS 1b — TWO QUERIES in one pass: the shape where a deferral note
+        # STILL legitimately fires (only one payload-bearing result per pass).
+        # K2-K5 are re-aimed here; they are NOT deleted, they are pointed at the
+        # condition that still occurs.
+        two = await session.turn(
+            "اسأل مرتين.",
+            script=[[(DOC_QUERY_TOOL, {"doc_id": doc_id, "question": "سؤال أول؟"}),
+                     (DOC_QUERY_TOOL, {"doc_id": doc_id, "question": "سؤال ثانٍ؟"})]])
+        served_q = two[0] if two else ""
+        deferred = two[1] if len(two) > 1 else ""
+        evidence["two queries — deferral note (VERBATIM)"] = deferred.replace(chr(10), " ")[:260]
+        checks.record("K2 the FIRST query of the pass is really answered "
+                      "(the deferral is not a dead pipe)",
+                      HEADER_AR in served_q)
+        checks.record("K3 the second query is DEFERRED with the doc note, "
+                      "never the web one",
+                      DOC_ONE_PER_PASS_AR in deferred
+                      and WEB_ONE_PER_PASS_AR not in deferred)
+        checks.record("K4 the deferral names the VALID NEXT STEP and claims "
+                      "NO open that did not happen",
+                      "الخطوة التالية" in deferred
+                      and "فُتح المستند بنجاح" not in deferred)
+        # K5 gets a POSITIVE assertion: the old form was purely negative, so any
+        # passages payload satisfied it and it never noticed its own subject had
+        # vanished (the eighth face of the family).
+        checks.record("K5 the deferral is a NOTE, not an error, and demands no approval",
+                      bool(deferred) and DOC_ONE_PER_PASS_AR in deferred
+                      and APPROVAL_WORD_AR not in deferred
                       and "تعذّر" not in deferred and "خطأ" not in deferred)
 
         # PASS 2: the query re-issued in the NEXT step IS serviced and returns
@@ -1815,7 +1859,8 @@ async def run_live_phase(checks: Checks, observations: Observations,
 
     agent = ClaudeAgent(system_prompt=resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_w, sent_h),
                         tools=model_tools)
-    _observe_cache_usage(agent)   # OBSERVATION only — gates nothing
+    _observe_cache_usage(agent)          # OBSERVATION only — gates nothing
+    _observe_serviced_results(router)    # OBSERVATION only — gates nothing
     await agent.warm_up_tls()
     clock: "dict[str, Any]" = {"first_audio": None}
     orchestrator = Orchestrator(
@@ -1928,6 +1973,22 @@ def _timed_tts(clock: dict, real_speak):
 # this round, so they are teed off the REASONER here, inside the diag. This
 # gates nothing and enters no check register: it is printed, and Sultan rules.
 _USAGE_SINK: "list[TurnComplete]" = []
+# The VERBATIM (tool name, Arabic text) the router handed back for each serviced
+# call — the one artefact that settles what the model actually received.
+_SERVICED_SINK: "list[tuple[str, str]]" = []
+
+
+def _observe_serviced_results(router):
+    """Tee every router-serviced outcome. OBSERVATION only — gates nothing."""
+    inner = router.service
+
+    async def service(name, args):
+        outcome = await inner(name, args)
+        _SERVICED_SINK.append((name, str(getattr(outcome.result, "text_ar", ""))))
+        return outcome
+
+    router.service = service
+    return router
 
 
 def _observe_cache_usage(agent):
@@ -1964,9 +2025,15 @@ async def _drive_live_turn(orchestrator, clock, label, question):
     print(f"\n──────── {label} ────────\nQ: {question}")
     clock["first_audio"] = None
     seen = len(_USAGE_SINK)
+    serviced_seen = len(_SERVICED_SINK)
     start = time.perf_counter()
     result = await orchestrator.run_turn(question)
     print(f"tools={[c.name for c in result.tool_calls]}  cost={result.cost_usd:.6f} USD")
+    for name, text in _SERVICED_SINK[serviced_seen:]:
+        # OBSERVATION — the VERBATIM text the model received as this call's
+        # tool_result. Printed, never logged: a doc_id IS the file's own name, so
+        # logging it would re-open the I6 breach DEC-61 closed. Gates nothing.
+        print(f"OBSERVATION tool_result [{name}]: {text[:400]}")
     for index, done in enumerate(_USAGE_SINK[seen:], start=1):
         print(f"OBSERVATION cache pass {index}: input_tokens={done.input_tokens} "
               f"cache_read={done.cache_read_input_tokens} "

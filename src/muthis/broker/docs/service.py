@@ -225,9 +225,26 @@ class DocumentService:
         is why T5 calls that law LOAD-BEARING rather than decorative."""
         if not isinstance(question, str) or not question.strip():
             return [], EMPTY_QUESTION_AR
+        doc_id = _normalize_doc_id(doc_id)
         index = self._registry.get(doc_id)
         if index is None:
-            return [], DOC_NOT_OPEN_AR
+            sole = self._registry.sole_doc_id()
+            if sole is None:
+                # Zero open, or MORE THAN ONE: the ambiguity is real and the
+                # model must disambiguate. Guessing here would answer questions
+                # about the wrong document with no observable difference.
+                return [], DOC_NOT_OPEN_AR
+            # RECOVERED MISMATCH. Made VISIBLE rather than papered over — but the
+            # values are NOT logged: a doc_id IS the file's own name (`_register`),
+            # so printing it beside the key would re-open the I6 breach DEC-61
+            # closed. The SHAPE of what the model sent is captured by the live
+            # OBSERVATION line instead, which prints and never logs.
+            logger.warning(
+                "[doc_rag] RECOVERED MISMATCH: the doc_id received does not match "
+                "the registry key (received len=%d, key len=%d, differ_only_by_"
+                "wrapping=%s) — exactly ONE document is open, so it was used",
+                len(doc_id), len(sole), _normalize_doc_id(sole) == doc_id)
+            doc_id, index = sole, self._registry.get(sole)
         try:
             encoder = self._encoder_once()
             vector = encoder.encode_queries([question.strip()])[0]
@@ -254,6 +271,18 @@ class DocumentService:
     @property
     def open_documents(self) -> int:
         return len(self._registry)
+
+
+# The wrappers a natural-language round-trip adds. `INDEXED_AR` presents the id
+# INSIDE guillemets («…»), so the model must extract and re-emit it — and may echo
+# a guillemet, quote the value, or pad it. DEC-16's rule governs: a machine
+# identifier must never depend on the model's paraphrasing.
+_DOC_ID_WRAPPERS = '«»"\'“”‘’ \t\r\n'
+
+
+def _normalize_doc_id(raw: str) -> str:
+    """The id as the registry keys it, whatever punctuation survived the trip."""
+    return raw.strip().strip(_DOC_ID_WRAPPERS).strip()
 
 
 def _path_key(path: pathlib.Path) -> str:
