@@ -146,13 +146,29 @@ def doc_deferral_note(serviced: Optional[ToolCall]) -> str:
 # which is what naming the set bought (measured at P0b, and now spent).
 ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS | DOC_TOOLS
 
+# A PRECONDITION returns a CONFIRMATION, never content, so it CANNOT break the
+# one-payload-bearing-result-per-pass invariant — and therefore does not consume
+# the pass's slot (ruled 2026-07-31, after the loop bit LIVE three times).
+#
+# WHAT THE PHASE-4 BOUND ACTUALLY PROTECTED, corrected by measurement: a
+# `read_local_file` and a `docs__query` each deliver up to 16,000 chars, while
+# `docs__open` delivers 110-320. Expressing the bound as a CALL COUNT guarded the
+# wrong quantity by ~100x; it was written that way only because every routed tool
+# was payload-bearing at the time. Classifying by ROLE restores the invariant to
+# what it always was.
+#
+# Role-scoped, not family-scoped, on purpose: a future capability with a prepare
+# step (Phase 3's Navigator may carry sequences too) inherits this by declaring
+# its tool here, with NO family table to maintain.
+PRECONDITION_TOOLS = frozenset({DOC_OPEN_TOOL})
+
 
 def build_tool_result_message(
     assistant_content: list[dict[str, Any]],
     refresh_call: Optional[ToolCall] = None,
     fresh_screenshot: Optional[bytes] = None,
     gate: Optional[HighlightGate] = None,
-    read_result: Optional[tuple[ToolCall, str]] = None,
+    read_results: Optional[list[tuple[ToolCall, str]]] = None,
     run_result: Optional[tuple[ToolCall, str]] = None,
 ) -> Optional[dict[str, Any]]:
     """ONE user message pairing a tool_result with EVERY tool_use block the
@@ -182,8 +198,14 @@ def build_tool_result_message(
     # `read_result` is the ROUTER-serviced call of the pass — a local read OR a
     # web call (T6b). Which one it was decides what the OTHER ids are told, so a
     # read id is never handed "already read" for a read that never happened.
-    read_id = read_result[0].tool_use_id if read_result else None
-    routed_name = read_result[0].name if read_result else None
+    # EVERY serviced call of the pass, not one: a precondition no longer consumes
+    # the slot, so `docs__open` and `docs__query` can both be serviced in one
+    # pass. The lookup is a SET membership rather than an id comparison; the
+    # deferral notes below are untouched and still fire for genuinely unserviced
+    # ids (a second query, a second read).
+    serviced = {call.tool_use_id: text for call, text in (read_results or ())}
+    routed_names = {call.name for call, _ in (read_results or ())}
+    last_serviced = read_results[-1][0] if read_results else None
     run_id = run_result[0].tool_use_id if run_result else None
     results: list[dict[str, Any]] = []
     for block in assistant_content:
@@ -193,10 +215,10 @@ def build_tool_result_message(
         if tool_use_id is not None and tool_use_id == refresh_id:
             results.append(_refresh_tool_result_block(tool_use_id, fresh_screenshot))
         elif block.get("name") == READ_FILE_TOOL:
-            if tool_use_id is not None and tool_use_id == read_id:
-                content = read_result[1]
+            if tool_use_id in serviced:
+                content = serviced[tool_use_id]
             else:
-                content = (FILE_ALREADY_READ_AR if routed_name == READ_FILE_TOOL
+                content = (FILE_ALREADY_READ_AR if READ_FILE_TOOL in routed_names
                            else FILE_READ_ERROR_AR)
             results.append({
                 "type": "tool_result",
@@ -205,8 +227,8 @@ def build_tool_result_message(
             })
         elif block.get("name") in WEB_TOOLS:
             # BY NAME, exactly like the read above — never the draw branch.
-            if tool_use_id is not None and tool_use_id == read_id:
-                content = read_result[1]
+            if tool_use_id in serviced:
+                content = serviced[tool_use_id]
             else:
                 content = WEB_ONE_PER_PASS_AR
             results.append({
@@ -220,12 +242,12 @@ def build_tool_result_message(
             # the routed families into one note table would edit two working
             # security branches inside a security milestone, and this file has the
             # room (see the seam noted below `__all__`).
-            if tool_use_id is not None and tool_use_id == read_id:
-                content = read_result[1]
+            if tool_use_id in serviced:
+                content = serviced[tool_use_id]
             else:
                 # The note reports the state ACHIEVED, not only the deferral —
                 # see `doc_deferral_note` and the standing note law.
-                content = doc_deferral_note(read_result[0] if read_result else None)
+                content = doc_deferral_note(last_serviced)
             results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,

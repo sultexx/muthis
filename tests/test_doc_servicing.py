@@ -195,7 +195,7 @@ def test_a_doc_call_is_not_refused_as_a_look_only_violation(caplog):
     with caplog.at_level("ERROR"):
         _complete, routed, _gate = _consume(router, [_open_call()])
 
-    assert routed is not None, "the doc call was never serviced"
+    assert routed, "the doc call was never serviced"
     assert not any("LOOK-only violation" in r.getMessage() for r in caplog.records)
 
 
@@ -207,7 +207,7 @@ def test_both_doc_tools_are_serviced_not_just_the_one_that_was_wired_first():
     for call in (_open_call(), _query_call()):
         router, _plugin = _graph()
         _complete, routed, gate = _consume(router, [call])
-        assert routed is not None, f"{call.name} was never serviced"
+        assert routed, f"{call.name} was never serviced"
         assert gate.drawn is False, f"{call.name} flipped the draw gate"
         admitted += 1
 
@@ -249,7 +249,7 @@ def test_servicing_a_doc_call_RAISES_the_session_taint():
     assert taint.tainted is True
 
 
-def test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one():
+def test_open_and_query_in_ONE_message_are_BOTH_serviced_and_the_query_answers():
     """DEC-35 one level up: telling the model "I serve one WEB request per step"
     after it asked for a DOCUMENT sends it looking for a web call it never made.
 
@@ -260,7 +260,7 @@ def test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one():
     The note must therefore say the open SUCCEEDED and that re-opening is
     pointless, or the retry loop returns."""
     from muthis.kernel.tool_result_pairing import (
-        DOC_OPENED_ASK_NEXT_AR, WEB_ONE_PER_PASS_AR)
+        DOC_ONE_PER_PASS_AR, DOC_OPENED_ASK_NEXT_AR, WEB_ONE_PER_PASS_AR)
 
     router, _plugin = _graph()
     complete, routed, _gate = _consume(
@@ -268,17 +268,28 @@ def test_the_second_doc_call_in_one_pass_gets_its_OWN_note_not_the_web_one():
     pairing = build_tool_result_message(
         complete.assistant_content, None, None, HighlightGate(), routed, None)
 
-    contents = [b["content"] for b in pairing["content"]]
-    assert DOC_OPENED_ASK_NEXT_AR in contents
-    assert WEB_ONE_PER_PASS_AR not in contents
-    # The three obligations of the standing note law, asserted as behaviour
-    # rather than as wording: what was accomplished, that it is transient, and
-    # the one valid next move.
+    # THE RULED CHANGE (Option 3): `docs__open` is a PRECONDITION — it returns a
+    # confirmation, never content — so it does not consume the pass's slot. BOTH
+    # calls are serviced, the precondition FIRST because the query depends on the
+    # index the open builds.
+    assert [call.tool_use_id for call, _ in routed] == ["d1", "d2"]
+
+    by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
+    # Option B: EVERY tool_use is answered, or the NEXT turn 400s on an orphan.
+    assert len(by_id) == 2
+    # The query returns REAL PASSAGES, not a deferral note. This is the shape
+    # that failed LIVE three times: the loop's root cause is now removed rather
+    # than bounded by a better note, so the note is never reached at all.
+    assert PASSAGE_MARKER in by_id["d2"]
+    assert DOC_OPENED_ASK_NEXT_AR not in by_id.values()
+    assert DOC_ONE_PER_PASS_AR not in by_id.values()
+    assert WEB_ONE_PER_PASS_AR not in by_id.values()
+    # The note itself is UNCHANGED and still carries the three obligations of the
+    # standing note law — it now fires only for a genuinely unserviced id (see
+    # the two-query test below), which is what the invariant always meant.
     assert "فُتح المستند بنجاح" in DOC_OPENED_ASK_NEXT_AR
     assert "لا تفتحه مرة أخرى" in DOC_OPENED_ASK_NEXT_AR
     assert "الخطوة التالية" in DOC_OPENED_ASK_NEXT_AR
-    # Option B: EVERY tool_use is answered, or the NEXT turn 400s on an orphan.
-    assert len(contents) == 2
 
 
 def test_a_second_QUERY_in_one_pass_never_claims_a_document_was_opened():
@@ -301,7 +312,7 @@ def test_the_first_doc_call_of_the_pass_is_the_serviced_one():
     complete, routed, _gate = _consume(
         router, [_open_call("d1"), _query_call("d2")])
 
-    assert routed[0].tool_use_id == "d1"
+    assert routed[0][0].tool_use_id == "d1"
     assert len(complete.assistant_content) == 2
 
 

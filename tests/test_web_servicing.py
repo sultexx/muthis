@@ -186,7 +186,7 @@ def test_a_web_call_is_not_refused_as_a_look_only_violation(caplog):
         _complete, routed, _run, _gate, _result, _overlay = _consume(
             router, [_fetch_call()])
 
-    assert routed is not None, "the web call was never serviced"
+    assert routed, "the web call was never serviced"
     assert not any("LOOK-only violation" in r.getMessage() for r in caplog.records)
 
 
@@ -203,8 +203,8 @@ def test_a_serviced_web_call_is_wrapped_and_raises_session_taint():
 
     assert router.session_taint.tainted is True, "the session was left clean"
     assert result.taint is True, "the turn-level taint never propagated"
-    assert "نص الصفحة" in routed[1]
-    assert routed[1] != "نص الصفحة", "the external content was not wrapped"
+    assert "نص الصفحة" in routed[0][1]
+    assert routed[0][1] != "نص الصفحة", "the external content was not wrapped"
 
 
 def test_a_serviced_fetch_counts_against_the_per_turn_cap():
@@ -227,8 +227,8 @@ def test_an_exhausted_cap_refuses_a_serviced_fetch():
     _complete, routed, _run, _gate, _result, _overlay = _one_pass(
         router, [_fetch_call()], _Overlay(), HighlightGate(), new_turn=False)
 
-    assert FETCH_GATE_EXHAUSTED_AR in routed[1]
-    assert "نص الصفحة" not in routed[1], "a capped fetch still read a page"
+    assert FETCH_GATE_EXHAUSTED_AR in routed[0][1]
+    assert "نص الصفحة" not in routed[0][1], "a capped fetch still read a page"
 
 
 def test_the_first_fetch_taints_the_session_so_the_second_needs_approval():
@@ -239,13 +239,13 @@ def test_the_first_fetch_taints_the_session_so_the_second_needs_approval():
     router, plugin, _collector = _graph()
 
     _complete, first, _run, _gate, _result, _overlay = _consume(router, [_fetch_call("w1")])
-    assert "نص الصفحة" in first[1]
+    assert "نص الصفحة" in first[0][1]
     assert router.session_taint.tainted is True
 
     _complete, second, _run, _gate, _result, _overlay = _one_pass(
         router, [_fetch_call("w2")], _Overlay(), HighlightGate(), new_turn=False)
 
-    assert "نص الصفحة" not in second[1], "a tainted-session fetch skipped the gate"
+    assert "نص الصفحة" not in second[0][1], "a tainted-session fetch skipped the gate"
     assert plugin._gate.fetches_remaining() == MAX_FETCHES_PER_TURN - 1, (
         "a REFUSED call must not spend the cap — it never fetched")
 
@@ -270,7 +270,7 @@ def test_a_web_call_is_refused_by_the_confirm_gate_in_a_tainted_session():
     _complete, routed, _run, _draw_gate, _result, _overlay = _consume(
         router, [_fetch_call()])
 
-    assert "نص الصفحة" not in routed[1], "a high-impact call ran without approval"
+    assert "نص الصفحة" not in routed[0][1], "a high-impact call ran without approval"
 
 
 def test_search_is_serviced_too_and_charges_its_cost():
@@ -279,7 +279,7 @@ def test_search_is_serviced_too_and_charges_its_cost():
 
     _complete, routed, _run, gate, _result, _overlay = _consume(router, [call])
 
-    assert routed is not None and routed[0].name == WEB_SEARCH_TOOL
+    assert routed and routed[0][0].name == WEB_SEARCH_TOOL
     assert gate.drawn is False
 
 
@@ -318,7 +318,7 @@ def test_the_production_mount_wires_ctx_net_so_a_page_is_actually_read():
 
     _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
 
-    assert "نص الصفحة" in routed[1], "production mounted the tool WITHOUT ctx.net"
+    assert "نص الصفحة" in routed[0][1], "production mounted the tool WITHOUT ctx.net"
     assert collector.domains() == ("docs.python.org",)
 
 
@@ -330,7 +330,7 @@ def test_the_production_mount_states_taint_so_external_content_is_wrapped():
 
     _complete, routed, _run, _gate, result, _overlay = _consume(router, [_fetch_call()])
 
-    assert routed[1] != "نص الصفحة", "external content was not wrapped"
+    assert routed[0][1] != "نص الصفحة", "external content was not wrapped"
     assert router.session_taint.tainted is True, "the production mount states no taint"
     assert result.taint is True
 
@@ -344,7 +344,7 @@ def test_the_production_mount_states_the_network_grant_so_the_gate_binds():
 
     _complete, routed, _run, _gate, _result, _overlay = _consume(router, [_fetch_call()])
 
-    assert "نص الصفحة" not in routed[1], (
+    assert "نص الصفحة" not in routed[0][1], (
         "a high-impact web call ran unconfirmed in a tainted session")
 
 
@@ -402,7 +402,7 @@ def test_a_read_id_is_not_told_it_already_read_when_a_web_call_was_serviced():
     web_serviced = (_fetch_call("w1"), "محتوى الصفحة")
 
     pairing = build_tool_result_message(
-        assistant, None, None, HighlightGate(), web_serviced, None)
+        assistant, None, None, HighlightGate(), [web_serviced], None)
     by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
 
     assert by_id["w1"] == "محتوى الصفحة"
@@ -422,7 +422,7 @@ def test_the_v1_read_pairing_is_unchanged():
             "محتوى")
 
     pairing = build_tool_result_message(
-        assistant, None, None, HighlightGate(), read, None)
+        assistant, None, None, HighlightGate(), [read], None)
     by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
 
     assert by_id["r1"] == "محتوى"

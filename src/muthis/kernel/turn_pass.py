@@ -42,6 +42,7 @@ from ..file_reader import ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .core_router import build_core_router
 from .tool_router import ToolRouter
+from .tool_result_pairing import PRECONDITION_TOOLS
 from .turn import ROUTER_SERVICED_TOOLS, RUN_CODE_TOOL, TurnResult
 from ..turn_voice import TurnVoice
 
@@ -153,6 +154,7 @@ class TurnPass:
         turn_complete: Optional[TurnComplete] = None
         refresh_call: Optional[ToolCall] = None
         read_call: Optional[ToolCall] = None
+        precondition_call: Optional[ToolCall] = None
         run_call: Optional[ToolCall] = None  # T5: the pass's run_code (first wins)
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
@@ -189,7 +191,17 @@ class TurnPass:
                     # First router-serviced call of the pass wins; every other id
                     # is answered BY NAME in tool_result_pairing.py.
                     result.tool_calls.append(event)
-                    if read_call is None:
+                    if event.name in PRECONDITION_TOOLS:
+                        # A PRECONDITION returns a confirmation, never content,
+                        # so it cannot break the one-payload-per-pass invariant
+                        # the Phase-4 bound actually protects — it is serviced
+                        # for free and never consumes the slot. This is what
+                        # lets docs__open and docs__query both land in ONE pass,
+                        # removing the re-open loop at its root rather than
+                        # bounding it with a better note.
+                        if precondition_call is None:
+                            precondition_call = event
+                    elif read_call is None:
                         read_call = event
                 elif self._sandbox is not None and event.name == RUN_CODE_TOOL:
                     # T5: an EXECUTION tool, serviced after the sync point like a
@@ -235,10 +247,15 @@ class TurnPass:
         # I/O must never delay the spoken ack). Routed through the ToolRouter
         # (V2 Phase 0) at the SAME site with the same await discipline; the
         # router never raises — every failure is already an Arabic note.
-        read_result: Optional[tuple[ToolCall, str]] = None
-        if read_call is not None:
-            outcome = await self._router.service(read_call.name, read_call.args)
-            read_result = (read_call, outcome.result.text_ar)
+        read_results: list[tuple[ToolCall, str]] = []
+        # The precondition FIRST: `docs__query` in the same pass depends on the
+        # index `docs__open` builds, so servicing them out of order would answer
+        # the query against nothing.
+        for routed_call in (precondition_call, read_call):
+            if routed_call is None:
+                continue
+            outcome = await self._router.service(routed_call.name, routed_call.args)
+            read_results.append((routed_call, outcome.result.text_ar))
             if outcome.taint and not result.taint:
                 # §3.2: coarse turn-level taint — recorded here, enforced by
                 # the high-impact gates when those tools exist (Phase 2).
@@ -263,7 +280,7 @@ class TurnPass:
         badge = getattr(self._overlay, "show_domain_badge", None)
         if badge is not None:
             badge(self._router.fetched_domains())
-        return turn_complete, refresh_call, read_result, run_result
+        return turn_complete, refresh_call, read_results, run_result
 
 
 __all__ = ["TurnPass", "REFRESH_TOOL", "STREAM_TTS_ENV"]
