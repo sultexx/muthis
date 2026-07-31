@@ -178,7 +178,8 @@ from muthis.kernel.core_router import build_core_router                  # noqa:
 from muthis.kernel.orchestrator import Orchestrator                      # noqa: E402
 from muthis.kernel.session_taint import SessionTaint                     # noqa: E402
 from muthis.kernel.tool_result_pairing import (                          # noqa: E402
-    DOC_OPEN_TOOL, DOC_QUERY_TOOL, WEB_FETCH_TOOL, WEB_SEARCH_TOOL,
+    DOC_ONE_PER_PASS_AR, DOC_OPEN_TOOL, DOC_QUERY_TOOL, WEB_FETCH_TOOL,
+    WEB_ONE_PER_PASS_AR, WEB_SEARCH_TOOL,
 )
 from muthis.kernel.turn import DownscaledImage, RUN_CODE_TOOL            # noqa: E402
 from muthis.kernel.untrusted_content import (                            # noqa: E402
@@ -1055,10 +1056,14 @@ async def check_mandatory_sequence(checks: Checks, workdir: pathlib.Path,
                       and "تعذّر" not in deferred and "خطأ" not in deferred)
 
         # PASS 2: the query re-issued in the NEXT step IS serviced and returns
-        # real passages — "answered usefully", end to end.
+        # real passages — "answered usefully", end to end. The id is the
+        # NOTE-DERIVED one here too: the instrument fix removed the hardcoded
+        # constant from pass 1 and 1b but LEFT IT HERE, so K6 — the very check
+        # the fix named as structurally incapable of seeing an id-presentation
+        # mismatch — was still handed a string it already knew was the key.
         second = await session.turn(
             "أكمل.",
-            script=[[(DOC_QUERY_TOOL, {"doc_id": "sequence_doc.txt",
+            script=[[(DOC_QUERY_TOOL, {"doc_id": doc_id,
                                        "question": "ما الغرض من الفقرة؟"})]])
         answered = second[0] if second else ""
         evidence["pass 2 — query result (head)"] = answered.replace("\n", " ")[:160]
