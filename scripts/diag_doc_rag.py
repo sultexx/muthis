@@ -1815,6 +1815,7 @@ async def run_live_phase(checks: Checks, observations: Observations,
 
     agent = ClaudeAgent(system_prompt=resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_w, sent_h),
                         tools=model_tools)
+    _observe_cache_usage(agent)   # OBSERVATION only — gates nothing
     await agent.warm_up_tls()
     clock: "dict[str, Any]" = {"first_audio": None}
     orchestrator = Orchestrator(
@@ -1922,12 +1923,55 @@ def _timed_tts(clock: dict, real_speak):
     return speak
 
 
+# ── OBSERVATION — the prompt-cache counters. Judged by nobody. ─────────────
+# TurnResult does not carry the cache counters and turn.py is out of scope for
+# this round, so they are teed off the REASONER here, inside the diag. This
+# gates nothing and enters no check register: it is printed, and Sultan rules.
+_USAGE_SINK: "list[TurnComplete]" = []
+
+
+def _observe_cache_usage(agent):
+    """Tee every TurnComplete off the live reasoner into _USAGE_SINK.
+
+    WHAT THIS CLOSES. The caching slice was measured with a SYNTHETIC prefix
+    (scripts/diag_prompt_cache_usage.py settled that `input_tokens` EXCLUDES the
+    cached portion). The PRODUCTION prefix — the persona plus the v4 catalog,
+    ~9.5k tokens — has never been observed caching through the real path.
+
+    EXPECTED, and it is the whole reason this prints per PASS rather than per
+    turn: the FIRST provider pass of the session should show a cache WRITE of
+    roughly that size, and EVERY pass after it — including later passes inside
+    the same agentic turn — a cache READ of the SAME size.
+
+    IF A LATER PASS WRITES AGAIN INSTEAD OF READING, the production prefix is
+    not byte-stable across passes and that is a finding worth more than the
+    saving: it would mean the persona or the catalog is being rebuilt somewhere
+    per pass, and the ledger would be paying the 1.25x write premium every time.
+    """
+    inner = agent.run
+
+    async def run(*args, **kwargs):
+        async for event in inner(*args, **kwargs):
+            if isinstance(event, TurnComplete):
+                _USAGE_SINK.append(event)
+            yield event
+
+    agent.run = run
+    return agent
+
+
 async def _drive_live_turn(orchestrator, clock, label, question):
     print(f"\n──────── {label} ────────\nQ: {question}")
     clock["first_audio"] = None
+    seen = len(_USAGE_SINK)
     start = time.perf_counter()
     result = await orchestrator.run_turn(question)
     print(f"tools={[c.name for c in result.tool_calls]}  cost={result.cost_usd:.6f} USD")
+    for index, done in enumerate(_USAGE_SINK[seen:], start=1):
+        print(f"OBSERVATION cache pass {index}: input_tokens={done.input_tokens} "
+              f"cache_read={done.cache_read_input_tokens} "
+              f"cache_write={done.cache_creation_input_tokens} "
+              f"cost={done.cost_usd:.6f} USD")
     print(f"reply: {result.spoken_text[:600]}")
     if clock.get("first_audio") is not None:
         print(f"latency turn→first-audio = {(clock['first_audio'] - start) * 1000:.0f} ms")
