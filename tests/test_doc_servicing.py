@@ -148,9 +148,12 @@ def _consume(router, calls, gate=None):
     turn_pass.new_turn_voice()
     gate = gate if gate is not None else HighlightGate()
     result = TurnResult()
-    complete, _refresh, routed, run = asyncio.run(turn_pass.consume(
+    complete, _refresh, serviced = asyncio.run(turn_pass.consume(
         UserInput(text="اشرح لي المستند"), None, [], gate, result, _Voice()))
-    return complete, routed, gate
+    # DEC-73: the helper unpacks the record so every ASSERTION below is driven
+    # through the new path UNCHANGED — the extraction is behaviour-identical or
+    # these tests say so.
+    return complete, serviced, gate
 
 
 def _open_call(tool_use_id="d1", args=None):
@@ -168,10 +171,10 @@ def _query_call(tool_use_id="d2", args=None):
 
 def test_a_doc_call_never_receives_the_pointer_ack():
     router, _plugin = _graph()
-    complete, routed, _gate = _consume(router, [_query_call()])
+    complete, serviced, _gate = _consume(router, [_query_call()])
 
     pairing = build_tool_result_message(
-        complete.assistant_content, None, None, HighlightGate(), routed, None)
+        complete.assistant_content, None, None, HighlightGate(), serviced)
     (block,) = pairing["content"]
 
     assert block["content"] not in (HIGHLIGHT_ACK_TEXT_AR, HIGHLIGHT_ALREADY_SHOWN_AR)
@@ -183,9 +186,9 @@ def test_a_doc_call_never_flips_the_draw_gate_or_terminates_the_loop():
     A document read that flipped it would end the turn the moment the model tried
     to open a book — before it could explain a single line of it."""
     router, _plugin = _graph()
-    complete, routed, gate = _consume(router, [_open_call()])
+    complete, serviced, gate = _consume(router, [_open_call()])
     build_tool_result_message(complete.assistant_content, None, None, gate,
-                              routed, None)
+                              serviced)
 
     assert gate.drawn is False, "a doc call flipped the unified draw gate"
     assert loop_tool_choice(gate) == "auto", "the agentic loop was terminated"
@@ -194,9 +197,9 @@ def test_a_doc_call_never_flips_the_draw_gate_or_terminates_the_loop():
 def test_a_doc_call_is_not_refused_as_a_look_only_violation(caplog):
     router, _plugin = _graph()
     with caplog.at_level("ERROR"):
-        _complete, routed, _gate = _consume(router, [_open_call()])
+        _complete, serviced, _gate = _consume(router, [_open_call()])
 
-    assert routed, "the doc call was never serviced"
+    assert serviced.read_results, "the doc call was never serviced"
     assert not any("LOOK-only violation" in r.getMessage() for r in caplog.records)
 
 
@@ -207,8 +210,8 @@ def test_both_doc_tools_are_serviced_not_just_the_one_that_was_wired_first():
     admitted = 0
     for call in (_open_call(), _query_call()):
         router, _plugin = _graph()
-        _complete, routed, gate = _consume(router, [call])
-        assert routed, f"{call.name} was never serviced"
+        _complete, serviced, gate = _consume(router, [call])
+        assert serviced.read_results, f"{call.name} was never serviced"
         assert gate.drawn is False, f"{call.name} flipped the draw gate"
         admitted += 1
 
@@ -264,16 +267,16 @@ def test_open_and_query_in_ONE_message_are_BOTH_serviced_and_the_query_answers()
         DOC_ONE_PER_PASS_AR, DOC_OPENED_ASK_NEXT_AR, WEB_ONE_PER_PASS_AR)
 
     router, _plugin = _graph()
-    complete, routed, _gate = _consume(
+    complete, serviced, _gate = _consume(
         router, [_open_call("d1"), _query_call("d2")])
     pairing = build_tool_result_message(
-        complete.assistant_content, None, None, HighlightGate(), routed, None)
+        complete.assistant_content, None, None, HighlightGate(), serviced)
 
     # THE RULED CHANGE (Option 3): `docs__open` is a PRECONDITION — it returns a
     # confirmation, never content — so it does not consume the pass's slot. BOTH
     # calls are serviced, the precondition FIRST because the query depends on the
     # index the open builds.
-    assert [call.tool_use_id for call, _ in routed] == ["d1", "d2"]
+    assert [call.tool_use_id for call, _ in serviced.read_results] == ["d1", "d2"]
 
     by_id = {b["tool_use_id"]: b["content"] for b in pairing["content"]}
     # Option B: EVERY tool_use is answered, or the NEXT turn 400s on an orphan.
@@ -298,10 +301,10 @@ def test_a_second_QUERY_in_one_pass_never_claims_a_document_was_opened():
     open happened — and a note claiming one would be a fresh instance of the
     defect the fix above closes, in the opposite direction."""
     router, _plugin = _graph()
-    complete, routed, _gate = _consume(
+    complete, serviced, _gate = _consume(
         router, [_query_call("q1"), _query_call("q2")])
     pairing = build_tool_result_message(
-        complete.assistant_content, None, None, HighlightGate(), routed, None)
+        complete.assistant_content, None, None, HighlightGate(), serviced)
 
     contents = [b["content"] for b in pairing["content"]]
     assert DOC_ONE_PER_PASS_AR in contents
@@ -310,10 +313,10 @@ def test_a_second_QUERY_in_one_pass_never_claims_a_document_was_opened():
 
 def test_the_first_doc_call_of_the_pass_is_the_serviced_one():
     router, _plugin = _graph()
-    complete, routed, _gate = _consume(
+    complete, serviced, _gate = _consume(
         router, [_open_call("d1"), _query_call("d2")])
 
-    assert routed[0][0].tool_use_id == "d1"
+    assert serviced.read_results[0][0].tool_use_id == "d1"
     assert len(complete.assistant_content) == 2
 
 
@@ -323,9 +326,9 @@ def test_a_refused_document_still_pairs_and_still_never_touches_the_draw_gate():
     router, _plugin = _graph(_Service(opened=_Opened(
         zone="refuse", note_ar="المستند أكبر من طاقتي على الفهرسة")))
 
-    complete, routed, gate = _consume(router, [_open_call()])
+    complete, serviced, gate = _consume(router, [_open_call()])
     pairing = build_tool_result_message(complete.assistant_content, None, None,
-                                        gate, routed, None)
+                                        gate, serviced)
 
     assert gate.drawn is False and loop_tool_choice(gate) == "auto"
     assert "أكبر من طاقتي" in pairing["content"][0]["content"]

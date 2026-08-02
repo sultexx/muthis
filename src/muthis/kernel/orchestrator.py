@@ -250,7 +250,7 @@ class Orchestrator:
                 await self._voice.refuse_for_budget(
                     result, self._budget, speak=turn_voice.speak_or_feed)
                 return
-            turn_complete, refresh_call, read_result, run_result = await self._pass.consume(
+            turn_complete, refresh_call, serviced = await self._pass.consume(
                 user_input, screenshot, list(self.history),
                 self._highlight_gate, result, turn_voice)
             if turn_complete is None:                    # stream died, no TurnComplete
@@ -272,7 +272,7 @@ class Orchestrator:
             fresh = await self._frames.capture(result) if serviced_refresh else None
             pairing = build_tool_result_message(
                 turn_complete.assistant_content, refresh_call, fresh,
-                self._highlight_gate, read_result, run_result)
+                self._highlight_gate, serviced)
             if pairing is not None:
                 self.history.append(pairing)
             refresh_used += int(serviced_refresh)

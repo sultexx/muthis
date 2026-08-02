@@ -30,6 +30,7 @@ from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
 from ..file_reader import FILE_ALREADY_READ_AR, FILE_READ_ERROR_AR, READ_FILE_TOOL
+from .pass_servicing import PassServiced
 from .highlight_gate import HighlightGate, draw_result_text
 
 NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
@@ -68,8 +69,7 @@ def build_tool_result_message(
     refresh_call: Optional[ToolCall] = None,
     fresh_screenshot: Optional[bytes] = None,
     gate: Optional[HighlightGate] = None,
-    read_results: Optional[list[tuple[ToolCall, str]]] = None,
-    run_result: Optional[tuple[ToolCall, str]] = None,
+    serviced_calls: Optional[PassServiced] = None,
 ) -> Optional[dict[str, Any]]:
     """ONE user message pairing a tool_result with EVERY tool_use block the
     assistant just emitted (Option B — full pairing). The refresh id (when
@@ -95,6 +95,11 @@ def build_tool_result_message(
     Lives here (not in claude_agent.py) so the orchestrator stays importable
     without the SDK stack."""
     refresh_id = refresh_call.tool_use_id if refresh_call else None
+    # DEC-73: ONE record instead of a widening parameter list. Unpacked here so
+    # every line below reads exactly as it did before the extraction.
+    serviced_calls = serviced_calls if serviced_calls is not None else PassServiced()
+    read_results = serviced_calls.read_results
+    run_result = serviced_calls.run_result
     # `read_result` is the ROUTER-serviced call of the pass — a local read OR a
     # web call (T6b). Which one it was decides what the OTHER ids are told, so a
     # read id is never handed "already read" for a read that never happened.
