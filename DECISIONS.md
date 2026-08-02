@@ -6990,3 +6990,136 @@ full and the deferred auto-download task needs one of them.
 `turn_voice.py` 300, `persona.py` 209 — all UNCHANGED.
 
 ---
+
+## P0 MEASUREMENT GATE (2026-08-02) — DEC-68's D-1, D-2 and D-3 EXECUTED. D-2 hits its STOP condition; D-1 is BLOCKED on a missing input. NOTHING IMPLEMENTED.
+
+- **Scope discipline:** scratchpad only, **zero `src/` changes**, nothing merged, nothing built.
+  The grounding corpus never entered the repo, a log, or this ledger.
+- **Governing rule honoured:** every number below is MEASURED on this machine. Where a figure was
+  available from an earlier entry it was **re-measured anyway** (DEC-56), and one such re-measure
+  changed the answer — see D-2's seam result.
+
+---
+
+### D-1 — POINTING ACCURACY BY ELEMENT SIZE: **the mechanical half MEASURED, the accuracy half BLOCKED**
+
+**BLOCKER, logged rather than guessed (the standing rule).** The corpus at
+`muthis_grounding\` contains `shots/` with **4 screenshots (1920x1080)** and **NO targets list**.
+DEC-68's method is *"Sultan supplies real screenshots with ~25 hand-marked targets"*, and the brief
+adds that each target carries an **approximate size** — which is the very axis D-1 must report on.
+A search of the Desktop found no list elsewhere.
+
+**WHY I DID NOT SUBSTITUTE MY OWN TARGETS.** Two of the three roles in this measurement are
+Sultan's — he SELECTS the targets and he JUDGES hit/near/miss by eye. If the measurer also picks
+the probe set, the set can correlate with what the model finds easy, and this project has already
+recorded that exact defect twice: **an Arabic-correctness metric whose probe set was too narrow
+PASSED a PDF the human eye failed on sight**, and a fixed block floor that printed NOTHING while
+looking like it had run. A self-selected probe set is the same family. **This is offered for
+overrule** — if Sultan prefers, I will select and describe ~25 targets, record each MEASURED size,
+run the real path and hand back annotated copies for his judgment, labelled explicitly as a
+self-selected set.
+
+**WHAT IS MEASURED AND NEEDS NO GROUND TRUTH — the downscale, which is DEC-68's stated unknown:**
+
+| | value |
+|---|---|
+| physical frame | 1920x1080 |
+| sent frame (`MUTHIS_VISION_MAX_WIDTH`=1280) | **1280x720**, `scale_x = scale_y = 1.5` exactly |
+| sent size | **0.922 MP**, long edge 1280 |
+| provider re-resize | **NONE** — under both the ~1.15 MP and ~1568 px thresholds, so the sent space IS the space the model reasons in |
+
+**Every element is 1.5x smaller per axis — 2.25x smaller in AREA — in the image the model sees:**
+
+| element | physical | in the SENT image | sent area |
+|---|---|---|---|
+| dialog button | 320x120 | 213x80 | 17,067 px2 |
+| toolbar button | 160x32 | 107x21 | 2,276 px2 |
+| menu item | 120x22 | 80x15 | 1,173 px2 |
+| editor tab | 90x20 | 60x13 | 800 px2 |
+| sidebar icon | 48x48 | 32x32 | 1,024 px2 |
+| status-bar icon | 24x24 | 16x16 | 256 px2 |
+| gutter glyph | 16x16 | 11x11 | 114 px2 |
+
+These are the SIZE BUCKETS the accuracy half must report against, and they are fixed BEFORE any
+result is seen — the half of the method that protects it from being tuned afterwards.
+
+---
+
+### D-2 — THE `SessionMode` CARRIER: **DEC-38's funnel split is NOT needed. TWO OTHER FILES BREACH.**
+
+**Method:** DEC-65 and DEC-66 written IN FULL against scratchpad copies — five new kernel modules,
+**708 lines** (`plan` 167, `session_mode` 152, `mode_transition` 188, `mode_notes` 126,
+`mode_service` 75) — then every carrier that must change was patched and COUNTED. No estimates.
+
+| file | before | after | delta | verdict |
+|---|---|---|---|---|
+| **`kernel/tool_router.py`** | 300 | **300** | **0** | **UNTOUCHED — the funnel split is NOT triggered** |
+| `kernel/orchestrator.py` | 299 | **318** | +19 | **BREACH by 18** |
+| `kernel/turn_pass.py` | 286 | **322** | +36 | **BREACH by 22** |
+| `kernel/tool_result_pairing.py` | 202 | 216 | +14 | ok, 84 left |
+| `composition.py` | 263 | 272 | +9 | ok, 28 left |
+
+**THE PRIMARY QUESTION IS ANSWERED, AND THE ANSWER IS NO.** DEC-38 reserved a dispatch-funnel
+ruling since M2 and directed that Phase 3 test it. `tool_router.py` takes **ZERO lines**, for the
+same reason M3's mount did: the mode verbs are **KERNEL-SERVICED** (the `request_screen_refresh`
+pattern — a plugin declares the schema, the kernel owns the effect), because the state they change
+is the kernel's, and a plugin holding it would make "step 3 of 5" a plugin's CLAIM rather than a
+structural fact. **The reserved budget is still unspent.**
+
+**THE PRESSURE IS SOMEWHERE ELSE, AND ONE SEAM IS NOT ENOUGH.** Both breaches were re-measured
+against their natural extraction:
+
+- **`turn_pass.py` — RESOLVED by extraction.** Moving the post-sync-point servicing block (27
+  lines) into `kernel/pass_servicing.py` and replacing `consume()`'s widening return tuple with ONE
+  `PassServiced` record lands it at **298**. **The tuple is the real finding:** it is a 4-tuple
+  becoming a 5-tuple, and every new tool category costs a local, a branch, a servicing block, a
+  tuple element, an orchestrator unpack position AND a `build_tool_result_message` parameter. That
+  is a funnel — just not the one DEC-38 named. A record makes the NEXT category cost it nothing,
+  which is DEC-66's own argument about a list of strings applied to the kernel's own return type.
+- **`orchestrator.py` — NOT RESOLVED.** The natural seam is real: every kernel-owned directive that
+  decorates the raw transcript (verbosity, the barge-in note, the mode frame) is ONE responsibility,
+  and a `TurnPrelude` holding all three is the honest split. **Measured: 301. IT STILL BREACHES BY
+  ONE.** I would have estimated 296 and been wrong — measurement beating estimate again, and the
+  margin is exactly the kind an estimate hides.
+
+**THIS IS DEC-68's STOP CONDITION, so this entry stops.** A kernel split IS required, it is a
+SECOND split beyond the obvious one, and **the split is Sultan's ruling, never a self-selected
+refactor.** Recommendation, offered and not acted on: take `pass_servicing.py` + `PassServiced`
+(it resolves `turn_pass` AND removes the funnel), and rule separately on the orchestrator, where
+`TurnPrelude` alone is one line short and the choice of what else leaves is architectural.
+
+---
+
+### D-3 — OVERLAY CAPACITY: **there IS room, and requirement 3 does NOT hold as written**
+
+**THE BOTTOM EDGE IS FULL.** All three anchors are claimed: domain badge bottom-LEFT
+(`anchor="sw"`, x=48), caption chip bottom-CENTER (`anchor="s"`, height varies with wrapping),
+status dot bottom-RIGHT (`DEFAULT_STATUS_CORNER`).
+
+**THE TOP EDGE IS FREE — but only ONE anchor is free BY CONSTRUCTION.** `MUTHIS_STATUS_CORNER`
+accepts any of four corners, so the dot can be configured to `top-left` or `top-right`. A top-CORNER
+indicator would therefore be collision-free **by default configuration**, which is precisely the
+drifting-offset argument DEC-36 rejected. **Top-CENTRE cannot be reached by any element**: the dot's
+enum is corners-only, and the caption and badge are bottom-anchored. That is a structural argument
+of the same kind the badge's own placement rests on. **Placement stays Sultan's UX decision and is
+NOT frozen here** — this records only that room EXISTS and which anchor survives any configuration.
+
+- **Requirement 1 (no collision): SATISFIABLE.** With the note that this is the LAST free edge — a
+  THIRD persistent element would need a real layout decision, not another free anchor.
+- **Requirement 2 (never consume the caption's 2x60 budget): SATISFIED BY CONSTRUCTION** — a
+  separate tag-scoped element with its own anchor cannot take a caption line, exactly as the badge.
+- **Requirement 3 (inherit the caption LIFECYCLE "with no new code"): DOES NOT HOLD.** **THE
+  CAPTION LIFECYCLE IS TWO HALVES, and a cross-turn element needs exactly one of them:**
+  - `clear_caption` fires at **EVERY turn's speech end** (four call sites in `turn_voice.py`).
+    The badge inherits it CORRECTLY because the badge is PER-TURN. **A mode indicator that
+    inherited it would vanish at the end of every turn while the mode is still active — and an
+    indicator that disappears cannot visibly contradict a model claiming the wrong step, which is
+    the entire reason DEC-65 draws one.**
+  - the ghosting `hide` (before every capture) it MUST inherit, or the captured frame teaches
+    Claude the step number the directive is supposed to tell it.
+  - **The repair is cheap and must be a DECISION rather than an accident:** inherit `hide` only,
+    and rely on an idempotent redraw at the end of each pass — the pattern the badge already uses.
+  **The mode indicator is the project's FIRST overlay element whose lifetime exceeds a turn**, which
+  is why an inheritance that has been free three times is not free a fourth.
+
+---
