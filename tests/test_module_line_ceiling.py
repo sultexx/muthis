@@ -102,6 +102,13 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # `broker/docs/service.py` was in when it crossed the law in silence.
     ("overlay/sidekick_window.py", 296),
     ("composition.py", 298),
+    # NEWLY under pressure at T4 (DEC-78's Navigator servicing): 271 -> 293 as
+    # the mode-verb detection arm landed. Pinned HERE, in T5's first commit, by
+    # Sultan's ruling — and the reason is precedent, not tidiness: an UNPINNED
+    # file at 293 is exactly the state `broker/docs/service.py` was in when it
+    # crossed the law in silence. Declaring it is the fix; extracting is a
+    # separate decision if a later task needs the room.
+    ("kernel/turn_pass.py", 293),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.
