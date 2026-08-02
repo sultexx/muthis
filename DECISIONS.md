@@ -6145,3 +6145,42 @@ path, Option-A sync, `HighlightGate`, caption pacing and the `VoiceOut` chokepoi
 touched.
 
 ---
+
+## T2 CONSTRAINT — CORRECTION RECORDED AGAINST IT (2026-08-02, Sultan): the MEASURED version is the one that binds, and BOTH of us skipped the measurement
+
+- **Status:** the T2 BINDING CONSTRAINT above **stands in its CORRECTED, WEAKER form**. This block
+  exists so a future reader reaches the **measured** version and not the **reasoned** one — the
+  block above already carries the correction, and this records **how it got there**, which is the
+  part that generalises.
+
+### THE TWO FAILURES, and the second is the governance one
+
+1. **MINE — a plausible inference presented as a mechanism.** I extended DEC-31's TRUE premise
+   (`DIRECTIVE_OPEN_AR` is not a substring of `INTERRUPTED_NOTE_AR`) into its **converse**, and
+   claimed the outer form would not be stripped. `DIRECTIVE_MARKER_AR` **is** a substring of
+   `DIRECTIVE_OPEN_AR`. **One direction of a containment is not the other.**
+2. **SULTAN'S, recorded in his own words:** *"I accepted a well-reasoned claim and made it a
+   binding constraint without measuring it — the exact standard I have imposed on you a dozen
+   times."* A correction arrived wearing the shape of rigour — it cited a real decision, a real
+   constant and a real mechanism — **and that shape is exactly what makes a claim skip the check.**
+
+### WHAT BINDS, RESTATED SO NO READER HAS TO RECONSTRUCT IT
+
+- **The mode directive must CARRY THE FAMILY MARKER.** `DIRECTIVE_OPEN_AR` already satisfies this.
+- **The failure is case B — a line with no family marker at all** — and it is a **FALSE NEGATIVE**:
+  a genuine approval stops matching under whole-utterance isolation. **Friction, never a bypass.**
+- T2 asserts case A with **case B as the positive control**.
+
+### THE RULE THIS EARNS — the twin of DEC-56
+
+**DEC-56:** *a named seam plus an ESTIMATE is not a plan.* **Its twin, earned here:** **A CITED
+MECHANISM PLUS A PLAUSIBLE INFERENCE IS NOT A MECHANISM — RUN IT.** The check costs one probe
+against the real functions; skipping it produced a binding constraint that was **wrong in its
+operative clause**, signed by both of us, on the first day of the milestone it governs.
+
+**And the obligation is SYMMETRIC.** DEC-63's standing rule put the duty on the executing agent to
+check an instruction against a signed law. This adds the other half: **a ruling that ELEVATES a
+claim inherits the duty to measure it.** Neither seniority nor good reasoning substitutes for the
+probe.
+
+---
