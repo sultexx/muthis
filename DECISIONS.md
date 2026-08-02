@@ -6445,3 +6445,42 @@ model and the corpus. **Sultan's live check: press F9 during a zone-2 ingestion.
 every number above is a line count, not a latency.
 
 ---
+
+## DEC-69 — LIVE-VERIFIED (2026-08-02, Sultan's hardware): the GIL question is CLOSED and the honest limit is RETIRED
+
+- **Status:** DEC-69's remaining open half is **CLOSED BY LIVE MEASUREMENT.** The entry recorded
+  that the fix was proven only against fakes, because `to_thread` frees the loop **only while the
+  native libraries release the GIL** — `tokenizers` in Rust, `onnxruntime` in C++ — and verifying
+  that needed the pinned model and a real corpus. **It has now been run.**
+
+### THE RUN
+
+A **228-page PDF**, reaching **`zone=index`**: **134,983 tokens · 267 chunks · encoder loaded in
+1,035 ms · index built.** Sultan pressed **F9 three times during the session**, and **every one
+interrupted immediately, with no wait.**
+
+- **THE HONEST LIMIT IS RETIRED, not softened.** The libraries do release the GIL, `to_thread`
+  genuinely frees the loop, and the ~100 ms barge-in guarantee holds **during a real zone-2
+  ingestion**. Three presses is not one lucky press.
+- **The encoder load — 1,035 ms — matches P0's measured ~1,010 ms**, so the artifact and the path
+  are the ones the milestone was designed around.
+
+### THE SECOND CONSEQUENCE, AND IT RE-PRIORITISES OWED WORK
+
+**The long silence Sultan reported at ~20 s was a BLOCKED LOOP, not slow encoding.** With the loop
+free, the app stays responsive throughout — the user can interrupt, and the application is not
+hung, it is working.
+
+- **This MATERIALLY LOWERS the priority of the ingestion announcement** (voice-surface item 3).
+  Its whole justification was that *a multi-second silence in a voice turn is indistinguishable
+  from a hang*. **That is no longer true**: the interrupt now answers, which is the difference
+  between silence and a hang. The announcement remains a real UX improvement and is no longer a
+  defect standing in for one.
+- **Recorded because it changes what a future gate should schedule**, not merely what it knows: the
+  item's ranking against the rest of the voice work moves down, and the carrier ruling it was
+  waiting on is no longer urgent for THIS reason (it is still needed for item 4).
+- **It also retires the last of DEC-64 ruling 3's framing.** That ruling assigned the announcement
+  to Phase 3 "with the other owed voice surfaces" on the strength of the silence being a UX limit.
+  The silence was a defect; the defect is fixed; what remains is the UX limit it was mistaken for.
+
+---
