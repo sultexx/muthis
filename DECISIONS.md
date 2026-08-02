@@ -7741,132 +7741,377 @@ the positive control.
 
 ---
 
+
+
+## DEC-76 (2026-08-02) — T2 EXECUTED: the SINGLE TRANSITION AUTHORITY, and the carrier split 2 created made design C cheaper than it was measured — EXECUTED
+
+
+
+- **Item:** the second BUILD task of Phase 3. DEC-65's transition authority, its three
+
+  exits, and the per-turn mode directive under the BINDING CONSTRAINT of 2026-07-31.
+
+- **Scope held:** the draw path, Option-A sync, the unified draw gate, `HighlightGate`,
+
+  caption pacing and the `VoiceOut` chokepoint are git-untouched. **F9 is untouched too** —
+
+  `activation.py` is byte-identical and nothing built here is wired to it, so the gesture
+
+  keeps its one meaning.
+
+
+
+### THE FINDING — DESIGN C'S CARRIER WAS SUPERSEDED BY THE SPLIT PERFORMED FOR IT
+
+
+
+**`orchestrator.py`, `turn_pass.py` and `tool_router.py` are ALL BYTE-IDENTICAL through
+
+T2.** The brief reserved a ruling for an orchestrator line and none was needed.
+
+
+
+DEC-73 measured design C with the mode reaching `TurnPass` through `new_turn_voice()` (the
+
+lazy expiry) and `consume()` (the raw transcript), and priced turn_pass at ~22 lines on the
+
+post-split baseline. **That measurement was taken when `turn_prelude.py` DID NOT EXIST.**
+
+Split 2 then created a module that is called ONCE per turn, at the turn's start, holding
+
+the RAW transcript — which is *both* things design C needed two hooks to reach. So the two
+
+exits and the directive line all land in `begin_turn`, and the mode reaches neither the
+
+orchestrator nor `turn_pass` at all.
+
+
+
+**This is not a deviation from the ruling; it is the ruling's own record being followed.**
+
+`turn_prelude.py`'s docstring, written IN split 2 and therefore AFTER design C was measured,
+
+already stated: *"this is where it lands … and `begin_turn` is the ONE call site it will
+
+join."* The preparatory split re-homed the mode frame, and T2 landed where the split said.
+
+
+
+### THE MEASUREMENT
+
+
+
+| file | before | after |
+
+|---|---|---|
+
+| `kernel/orchestrator.py` | 298 | **298** — byte-identical, two lines of headroom untouched |
+
+| `kernel/turn_pass.py` | 271 | **271** — byte-identical |
+
+| `kernel/tool_router.py` | 300 | **300** — byte-identical; DEC-38's funnel split still reserved |
+
+| `kernel/turn_prelude.py` | 99 | 152 |
+
+| `kernel/mode_transition.py` | — | **263** (new) |
+
+| `kernel/mode_surfaces.py` | — | **209** (new) |
+
+
+
+### RECORDED READING — DEC-65's "`RouteImpact` SHAPE" IS A SHAPE, NOT THAT FILE
+
+
+
+DEC-65 names the home of the transition conditions as *"the `RouteImpact` shape
+
+(`src/muthis/trust/high_impact.py`)"*, which reads two ways. **The SHAPE is taken and the
+
+FILE is not**, and the reading is recorded rather than applied silently:
+
+
+
+- `trust/high_impact.py` classifies **TOOL CALLS** for spoken approval. Conversational
+
+  transition preconditions are a different concern, and placing them there would be the
+
+  placement-by-convenience DEC-73 rejected for design D.
+
+- **It would also break that module's OWN pinned guards.** `test_high_impact.py` fixes its
+
+  imports as stdlib-only and pins its public surface. **A ruling does not break its own
+
+  guards**, which is the decisive evidence that the file was cited as an exemplar.
+
+
+
+`TransitionConditions` is therefore a frozen record of kernel-owned facts with a predicate
+
+over them and no behaviour — `RouteImpact`'s shape exactly — living in the kernel beside the
+
+state it gates. **Cheap to overturn if this reading is wrong: it is a 20-line move.**
+
+
+
+### WHAT WAS BUILT
+
+
+
+- **ONE EVALUATION POINT, ENFORCED BY SHAPE.** `request()` is `ModeAuthority`'s ONLY public
+
+  method — there is no `advance()` or `exit_now()` to reach for — and an AST guard asserts
+
+  that **no module in `src/` outside `mode_transition.py` calls the mode's mutators at all**,
+
+  with a positive control that the authority itself does. Enter, leave, advance, back, jump,
+
+  plan-edit, the exit word and expiry all cross the same line. An unrecognised kind is
+
+  REFUSED rather than falling through to the nearest branch.
+
+- **THE CONDITIONS ARE NAMED AND STUBBED.** `confirmation_pending` (DEC-16) and
+
+  `sandbox_running` (DEC-3) exist, default False, and **nothing sets them yet**; the seam is
+
+  a callable so T4/T5 wire the real facts without this file changing.
+
+- **CONTROL REQUESTS ARE NEVER REFUSED, AND THE ASYMMETRY IS A SECURITY PROPERTY.**
+
+  Conditions gate MODEL-initiated transitions only. **If a pending condition could block the
+
+  user's exit word, a model could TRAP the user in a mode by keeping one pending** — exactly
+
+  what DEC-65's model-independent exit 1 exists to make impossible. The guard drives the
+
+  discriminating pair: the SAME always-blocking conditions object refuses an `ADVANCE` and
+
+  lets the exit word through in the same breath, so the exemption cannot be a dead seam.
+
+- **NO NESTING, OBSERVED NOT ARGUED.** A recording frame proves the mode passes through
+
+  `["navigator", "review"]` with no `None` between — the intermediate state nobody owns
+
+  (DEC-24) — plus a structural twin asserting no function calls both `enter` and `leave`.
+
+- **THE THREE EXITS.** (1) A deterministic detector on the RAW transcript with the model
+
+  never consulted; (2) model-signalled completion as an ordinary request; (3) an IDLE-time
+
+  timeout evaluated LAZILY in `begin_turn`, with a **positive control that time passing alone
+
+  does NOTHING** — if the mode ended without a turn, something was ticking, and a timer is a
+
+  lifecycle outside the kernel (Law 11; DEC-47 rejected that shape).
+
+- **THE EXIT WORD'S FALSE-POSITIVE DIRECTION IS THE OPPOSITE OF DEC-16's, AND THE SET IS
+
+  SIZED ACCORDINGLY.** For approval a false positive is a BYPASS; here it merely ends a mode,
+
+  while a false NEGATIVE is the trap. That is DEC-62's classification by ROLE, and it is why
+
+  «خلاص» is admitted here although a word that common never would be there. A guard asserts
+
+  the three detectors' sets **do not overlap**, against the REAL constants.
+
+- **ORDER IS A CONTRACT WITH THREE CLAUSES**, asserted STRUCTURALLY against `begin_turn`'s
+
+  AST rather than through its output — because the detector also runs DEC-31's strip, so the
+
+  outcome alone cannot distinguish the two orders. **That is precisely the hole split 2's own
+
+  order guard fell into (DEC-73), and mutation M2 confirms the structural form catches what
+
+  the behavioural form cannot.**
+
+
+
+### THE BINDING CONSTRAINT, WITH CASE B AS THE POSITIVE CONTROL
+
+
+
+The directive line is built from `DIRECTIVE_OPEN_AR`, which CONTAINS the family core, and is
+
+ONE line by construction (the line-wise strip needs it). **Case A:** a real composed
+
+directive plus «أوافق» through the REAL `strip_directive_lines` leaves exactly the bare
+
+transcript and `detect_confirmation` returns APPROVE. **Case B:** the same line with every
+
+family marker removed SURVIVES the strip and the approval is LOST. Without B the case-A
+
+assertion is satisfiable by a strip that removes everything. All three directive sources —
+
+verbosity, the barge-in note, the mode frame — are additionally stacked together and the
+
+approval still lands.
+
+
+
+### 20 MUTATIONS, ALL APPLIED, 20/20 RED — AND ONE SURVIVOR EXPLAINED, NOT DELETED
+
+
+
+**M13 survived the first run:** dropping `mode.active` from `is_idle_expired`. **MECHANISM,
+
+MEASURED:** the real `SessionMode.idle_seconds()` already returns 0.0 when inactive, so the
+
+conjunct is redundant ON THAT PATH. **Per the standing rule the code is NOT deleted:** the
+
+redundancy sits at a LAYER BOUNDARY, and a predicate must not rest on a collaborator's
+
+internal invariant — deleting it withdraws the guarantee from every caller that path does not
+
+exercise (the `doc_rag` M15 reasoning in a new place). Closed by adding the caller that
+
+exercises it: a mode-shaped stub that is inactive while reporting idle time. M13 is now RED.
+
+
+
+**AND THE NOTE-LAW GUARD CAUGHT A REAL DEFECT IN THE CODE.** `_UNKNOWN_STEP_AR` used doubled
+
+braces in a segment that was not an f-string, so the model would have been shown a literal
+
+«{current} من {total}» instead of its position. It was caught because the three obligations
+
+are asserted as a PROPERTY over the whole reason set rather than by reading the constants —
+
+DEC-41's distinction, paying for itself.
+
+
+
+**Guard: 1341 + 27 → 1408 + 27 green on `.venv`** (67 new). `tool_router.py` 300,
+
+`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED.
+
+`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
+
+
+
+**Next is T3 — the kernel-drawn mode indicator**, carrying DEC-73's recorded caveat: the
+
+badge's per-turn lifetime is free because `clear_caption` fires at end of turn, but a mode
+
+indicator must SURVIVE ACROSS TURNS, so it needs a redraw after every capture and
+
+**inheriting the caption's lifecycle is no longer free for the third element.**
+
+
+
+---
+
 
-## DEC-76 (2026-08-02) — T2 EXECUTED: the SINGLE TRANSITION AUTHORITY, and the carrier split 2 created made design C cheaper than it was measured — EXECUTED
+## DEC-77 (2026-08-02) — T3 EXECUTED: the kernel-drawn mode indicator, and the cross-turn cost DEC-73 warned about, paid explicitly — EXECUTED
 
-- **Item:** the second BUILD task of Phase 3. DEC-65's transition authority, its three
-  exits, and the per-turn mode directive under the BINDING CONSTRAINT of 2026-07-31.
-- **Scope held:** the draw path, Option-A sync, the unified draw gate, `HighlightGate`,
-  caption pacing and the `VoiceOut` chokepoint are git-untouched. **F9 is untouched too** —
-  `activation.py` is byte-identical and nothing built here is wired to it, so the gesture
-  keeps its one meaning.
+- **Item:** the third BUILD task of Phase 3. DEC-65's visible mode indicator, drawn by the
+  kernel from its own state, under DEC-68 D-3's architectural constraints.
+- **Scope held:** `orchestrator.py` (298) and `tool_router.py` (300) are **byte-identical** —
+  no ruling was needed. Option-A sync, `turn_voice.py`, the `VoiceOut` chokepoint,
+  `caption_bar.py`, `draw_dispatch.py` and `HighlightGate` are all git-untouched, and a guard
+  asserts each of them does not know the indicator exists.
 
-### THE FINDING — DESIGN C'S CARRIER WAS SUPERSEDED BY THE SPLIT PERFORMED FOR IT
+### THE CARRIED WARNING WAS THE TASK, AND IT WAS PAID RATHER THAN ASSUMED
 
-**`orchestrator.py`, `turn_pass.py` and `tool_router.py` are ALL BYTE-IDENTICAL through
-T2.** The brief reserved a ruling for an orchestrator line and none was needed.
+DEC-73 recorded that **the badge's per-turn lifetime is free BECAUSE `clear_caption` fires at
+end of turn, and that a mode indicator must SURVIVE ACROSS TURNS.** The arrangement therefore
+does NOT transfer, and the lifecycle is split in two:
 
-DEC-73 measured design C with the mode reaching `TurnPass` through `new_turn_voice()` (the
-lazy expiry) and `consume()` (the raw transcript), and priced turn_pass at ~22 lines on the
-post-split baseline. **That measurement was taken when `turn_prelude.py` DID NOT EXIST.**
-Split 2 then created a module that is called ONCE per turn, at the turn's start, holding
-the RAW transcript — which is *both* things design C needed two hooks to reach. So the two
-exits and the directive line all land in `begin_turn`, and the mode reaches neither the
-orchestrator nor `turn_pass` at all.
+- **GHOSTING still applies** — `hide()` erases the chip, because a capture must never show
+  Claude our own overlay;
+- **but the TEXT IS REMEMBERED**, and `restore()` redraws it after the grab;
+- **`clear_caption` does NOT touch it** — written as an EXPLICIT NON-BRANCH in
+  `window_commands.dispatch_command` so a reader meets a decision rather than an omission;
+- **an empty text FORGETS**, so an ended mode cannot be resurrected by a later restore.
 
-**This is not a deviation from the ruling; it is the ruling's own record being followed.**
-`turn_prelude.py`'s docstring, written IN split 2 and therefore AFTER design C was measured,
-already stated: *"this is where it lands … and `begin_turn` is the ONE call site it will
-join."* The preparatory split re-homed the mode frame, and T2 landed where the split said.
+**THE REDRAW COSTS ONE CALL, IN A METHOD WHOSE JOB THAT ALREADY IS.** `FrameCapture.capture`
+already relights the status dot after every grab; the indicator's restore sits on the line
+below it. So the second persistent element survives a capture for the same reason and at the
+same instant as the first, and **no second lifecycle exists.**
 
-### THE MEASUREMENT
+### THE SEAM: DEC-37's SHAPE, WHICH IS WHY THE KERNEL PAID ZERO LINES
+
+`SessionMode` gained an **OPAQUE `on_change` observer** fired after every state change. The
+module never learns what it does — it names no overlay, no canvas and no draw — and the
+COMPOSITION ROOT is the one place that knows both sides. That is `turn_hooks` (DEC-37) in a
+new place, and it is what let the indicator reach the screen without `orchestrator.py`,
+`turn_pass.py` or `tool_router.py` being touched at all.
+
+**Firing from the FRAME rather than the AUTHORITY is deliberate:** T2 proved by AST that the
+authority is the only caller of the mutators, so the two are equivalent in reachability — but
+firing at the mutation itself means **no future path can change state without redrawing**,
+and it is what makes a mid-turn advance update the chip immediately. A backstop that lagged
+its own state would not be one.
+
+**THE ROOT'S CALLABLE IS THE ONE THAT MUST NEVER RAISE.** `SessionMode` has no logger by
+design (a `Plan` holds model-authored step text), so it cannot be the thing that swallows and
+reports a failure; the guard lives in `composition.py` on the `turn_hooks` discipline —
+logged, never allowed to kill a turn — and a test drives an exploding overlay through it.
+
+### NEVER MODEL-AUTHORED, PROVEN THREE WAYS
+
+1. **SIGNATURE.** `mode_indicator_text(mode)` takes exactly ONE argument and it is the
+   kernel's own state object — a caller cannot pass it a claim, only the frame.
+2. **ATTRIBUTE SCAN.** Inside that function the only attributes read off the frame are
+   `active`, `name`, `total_steps`, `current_step`. Reading the plan's steps — or a step's
+   text — fails the guard.
+3. **SOURCE SCAN.** The widget package names no `ToolCall`, `TurnComplete`, `TextDelta`,
+   transcript or reasoner symbol, and the root's seam is asserted to hand `show(...)` nothing
+   but the composer's own output.
+
+**THE STEP TEXT IS DELIBERATELY ABSENT FROM THE CHIP.** It belongs in the directive line the
+model reads, not on the persistent element the user watches — so **no model-authored
+character reaches this surface at all**, which is a stronger guarantee than sanitising one
+would be.
+
+### D-3, SATISFIED ARCHITECTURALLY AND NOT FROZEN
+
+Anchored **TOP**-left while the caption chip is bottom-centre, the domain badge bottom-left
+and the status dot bottom-right by default: every other persistent element is bottom-anchored,
+so a top anchor **cannot collide however the caption wraps or the font changes** — the badge's
+own reasoning, one edge up, collision-free BY CONSTRUCTION rather than by an offset that
+drifts. It consumes NONE of the caption's 2×60 budget because it is a separate tag-scoped
+element that never reaches the caption at all. **The exact position is NOT frozen:** the two
+margins are the prototype, no test pins a pixel, and placement remains Sultan's UX call.
+
+The indicator is **METADATA, not a visual intent** — it never touches `HighlightGate` or
+`next_draw`, so a step that points still gets its one pointing (DEC-67's per-turn resource is
+untouched), asserted behaviourally and by source scan.
+
+### 15 MUTATIONS, ALL APPLIED, 15/15 RED — AND THE SURVIVOR WAS THE FAMILY AGAIN
+
+**M12 survived the first run: the composition root never wiring the seam at all.** Every test
+built its OWN `on_change`, so deleting the production wiring stayed GREEN. **That is DEC-40's
+defect, reintroduced by me at T3 one task after T1 closed it preventively** — which is the
+useful part of the record: the fixture that builds its own graph is not a mistake made once
+and learned, it is a default that has to be actively refused every time. Closed the same way
+T1 did: a test drives the REAL `_build_orchestrator` with a recording overlay and asserts the
+composed frame actually arrives.
+
+### MEASURED, AND TWO FILES DECLARED INTO PRESSURE
 
 | file | before | after |
 |---|---|---|
-| `kernel/orchestrator.py` | 298 | **298** — byte-identical, two lines of headroom untouched |
-| `kernel/turn_pass.py` | 271 | **271** — byte-identical |
-| `kernel/tool_router.py` | 300 | **300** — byte-identical; DEC-38's funnel split still reserved |
-| `kernel/turn_prelude.py` | 99 | 152 |
-| `kernel/mode_transition.py` | — | **263** (new) |
-| `kernel/mode_surfaces.py` | — | **209** (new) |
+| `kernel/orchestrator.py` | 298 | **298** — byte-identical |
+| `kernel/tool_router.py` | 300 | **300** — byte-identical |
+| `overlay/mode_indicator.py` | — | **131** (new) |
+| `overlay/sidekick_window.py` | 280 | **296** — newly pinned |
+| `composition.py` | 274 | **298** — newly pinned |
+| `overlay/window_commands.py` | 122 | 138 |
+| `kernel/frame_capture.py` | 61 | 70 |
+| `kernel/session_mode.py` | 195 | 211 |
+| `kernel/mode_surfaces.py` | 209 | 244 |
 
-### RECORDED READING — DEC-65's "`RouteImpact` SHAPE" IS A SHAPE, NOT THAT FILE
+**`sidekick_window.py` and `composition.py` had NO declared number before this commit** — the
+exact state `broker/docs/service.py` was in when it crossed the law in silence — so both are
+now pinned in `test_module_line_ceiling.py`. **`composition.py` at 298/300 is CEILING DEBT
+carried into T4:** the Navigator's wiring lands at the root, and two lines is not room. The
+seam to extract is named but NOT taken here, because naming it is planning and taking it is a
+refactor on the way to something else (DEC-52/DEC-56: re-measure at execution).
 
-DEC-65 names the home of the transition conditions as *"the `RouteImpact` shape
-(`src/muthis/trust/high_impact.py`)"*, which reads two ways. **The SHAPE is taken and the
-FILE is not**, and the reading is recorded rather than applied silently:
+**Guard: 1408 + 27 → 1433 + 27 green on `.venv`** (25 new). `tool_router.py` 300,
+`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED. `AGENTS.md` /
+`PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
 
-- `trust/high_impact.py` classifies **TOOL CALLS** for spoken approval. Conversational
-  transition preconditions are a different concern, and placing them there would be the
-  placement-by-convenience DEC-73 rejected for design D.
-- **It would also break that module's OWN pinned guards.** `test_high_impact.py` fixes its
-  imports as stdlib-only and pins its public surface. **A ruling does not break its own
-  guards**, which is the decisive evidence that the file was cited as an exemplar.
-
-`TransitionConditions` is therefore a frozen record of kernel-owned facts with a predicate
-over them and no behaviour — `RouteImpact`'s shape exactly — living in the kernel beside the
-state it gates. **Cheap to overturn if this reading is wrong: it is a 20-line move.**
-
-### WHAT WAS BUILT
-
-- **ONE EVALUATION POINT, ENFORCED BY SHAPE.** `request()` is `ModeAuthority`'s ONLY public
-  method — there is no `advance()` or `exit_now()` to reach for — and an AST guard asserts
-  that **no module in `src/` outside `mode_transition.py` calls the mode's mutators at all**,
-  with a positive control that the authority itself does. Enter, leave, advance, back, jump,
-  plan-edit, the exit word and expiry all cross the same line. An unrecognised kind is
-  REFUSED rather than falling through to the nearest branch.
-- **THE CONDITIONS ARE NAMED AND STUBBED.** `confirmation_pending` (DEC-16) and
-  `sandbox_running` (DEC-3) exist, default False, and **nothing sets them yet**; the seam is
-  a callable so T4/T5 wire the real facts without this file changing.
-- **CONTROL REQUESTS ARE NEVER REFUSED, AND THE ASYMMETRY IS A SECURITY PROPERTY.**
-  Conditions gate MODEL-initiated transitions only. **If a pending condition could block the
-  user's exit word, a model could TRAP the user in a mode by keeping one pending** — exactly
-  what DEC-65's model-independent exit 1 exists to make impossible. The guard drives the
-  discriminating pair: the SAME always-blocking conditions object refuses an `ADVANCE` and
-  lets the exit word through in the same breath, so the exemption cannot be a dead seam.
-- **NO NESTING, OBSERVED NOT ARGUED.** A recording frame proves the mode passes through
-  `["navigator", "review"]` with no `None` between — the intermediate state nobody owns
-  (DEC-24) — plus a structural twin asserting no function calls both `enter` and `leave`.
-- **THE THREE EXITS.** (1) A deterministic detector on the RAW transcript with the model
-  never consulted; (2) model-signalled completion as an ordinary request; (3) an IDLE-time
-  timeout evaluated LAZILY in `begin_turn`, with a **positive control that time passing alone
-  does NOTHING** — if the mode ended without a turn, something was ticking, and a timer is a
-  lifecycle outside the kernel (Law 11; DEC-47 rejected that shape).
-- **THE EXIT WORD'S FALSE-POSITIVE DIRECTION IS THE OPPOSITE OF DEC-16's, AND THE SET IS
-  SIZED ACCORDINGLY.** For approval a false positive is a BYPASS; here it merely ends a mode,
-  while a false NEGATIVE is the trap. That is DEC-62's classification by ROLE, and it is why
-  «خلاص» is admitted here although a word that common never would be there. A guard asserts
-  the three detectors' sets **do not overlap**, against the REAL constants.
-- **ORDER IS A CONTRACT WITH THREE CLAUSES**, asserted STRUCTURALLY against `begin_turn`'s
-  AST rather than through its output — because the detector also runs DEC-31's strip, so the
-  outcome alone cannot distinguish the two orders. **That is precisely the hole split 2's own
-  order guard fell into (DEC-73), and mutation M2 confirms the structural form catches what
-  the behavioural form cannot.**
-
-### THE BINDING CONSTRAINT, WITH CASE B AS THE POSITIVE CONTROL
-
-The directive line is built from `DIRECTIVE_OPEN_AR`, which CONTAINS the family core, and is
-ONE line by construction (the line-wise strip needs it). **Case A:** a real composed
-directive plus «أوافق» through the REAL `strip_directive_lines` leaves exactly the bare
-transcript and `detect_confirmation` returns APPROVE. **Case B:** the same line with every
-family marker removed SURVIVES the strip and the approval is LOST. Without B the case-A
-assertion is satisfiable by a strip that removes everything. All three directive sources —
-verbosity, the barge-in note, the mode frame — are additionally stacked together and the
-approval still lands.
-
-### 20 MUTATIONS, ALL APPLIED, 20/20 RED — AND ONE SURVIVOR EXPLAINED, NOT DELETED
-
-**M13 survived the first run:** dropping `mode.active` from `is_idle_expired`. **MECHANISM,
-MEASURED:** the real `SessionMode.idle_seconds()` already returns 0.0 when inactive, so the
-conjunct is redundant ON THAT PATH. **Per the standing rule the code is NOT deleted:** the
-redundancy sits at a LAYER BOUNDARY, and a predicate must not rest on a collaborator's
-internal invariant — deleting it withdraws the guarantee from every caller that path does not
-exercise (the `doc_rag` M15 reasoning in a new place). Closed by adding the caller that
-exercises it: a mode-shaped stub that is inactive while reporting idle time. M13 is now RED.
-
-**AND THE NOTE-LAW GUARD CAUGHT A REAL DEFECT IN THE CODE.** `_UNKNOWN_STEP_AR` used doubled
-braces in a segment that was not an f-string, so the model would have been shown a literal
-«{current} من {total}» instead of its position. It was caught because the three obligations
-are asserted as a PROPERTY over the whole reason set rather than by reading the constants —
-DEC-41's distinction, paying for itself.
-
-**Guard: 1341 + 27 → 1408 + 27 green on `.venv`** (67 new). `tool_router.py` 300,
-`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED.
-`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
-
-**Next is T3 — the kernel-drawn mode indicator**, carrying DEC-73's recorded caveat: the
-badge's per-turn lifetime is free because `clear_caption` fires at end of turn, but a mode
-indicator must SURVIVE ACROSS TURNS, so it needs a redraw after every capture and
-**inheriting the caption's lifecycle is no longer free for the third element.**
+**Next is T4 — Navigator v1**, with NO visual verification (DEC-68; v2 waits on D-1's
+numbers), and with `composition.py`'s two remaining lines as its first measurement.
 
 ---

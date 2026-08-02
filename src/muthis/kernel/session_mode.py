@@ -84,6 +84,11 @@ from typing import Callable, Optional
 from .plan import Plan
 
 
+def _ignore_change(mode: "SessionMode") -> None:
+    """The default observer: a real callable, never None, so `SessionMode` has
+    exactly one notification path rather than one plus an absence check."""
+
+
 @dataclasses.dataclass(frozen=True)
 class ModeFrame:
     """The kernel's frame for ONE active mode — a VALUE, replaced whole.
@@ -103,10 +108,18 @@ class SessionMode:
     that outlived the process would be a persisted conversational state nobody
     consented to, and a mode rebuilt per turn could not span turns at all."""
 
-    def __init__(self, *, clock: Callable[[], float] = time.monotonic) -> None:
+    def __init__(self, *, clock: Callable[[], float] = time.monotonic,
+                 on_change: Optional[Callable[["SessionMode"], None]] = None) -> None:
         # Injected so idle time is DRIVEN in tests rather than slept for, and
         # monotonic by default so a clock change cannot age a mode.
         self._clock = clock
+        # T3: an OPAQUE observer, fired after every state change. This module
+        # never learns what it does — the DEC-37 `turn_hooks` shape exactly, and
+        # the reason the indicator can be drawn without this file naming an
+        # overlay, a canvas or a draw. The composition root is the one place
+        # that knows both sides, and it is the root's callable that must never
+        # raise; a real no-op default means no consumer branches on absence.
+        self._on_change = on_change or _ignore_change
         # ONE SLOT — the whole no-nesting property, in one line.
         self._frame: Optional[ModeFrame] = None
 
@@ -171,11 +184,13 @@ class SessionMode:
         than merely discouraged."""
         self._frame = ModeFrame(
             name=name, plan=plan, last_progress_at=self._clock())
+        self._on_change(self)
 
     def leave(self) -> None:
         """Empty the slot. Idempotent — leaving twice is not an error, and a
         mode that already expired is simply not there."""
         self._frame = None
+        self._on_change(self)
 
     def record_progress(self, *, plan: Optional[Plan] = None) -> None:
         """Re-stamp the idle clock, and store the plan the caller computed.
@@ -190,6 +205,7 @@ class SessionMode:
             self._frame,
             plan=self._frame.plan if plan is None else plan,
             last_progress_at=self._clock())
+        self._on_change(self)
 
 
 __all__ = ["ModeFrame", "SessionMode"]

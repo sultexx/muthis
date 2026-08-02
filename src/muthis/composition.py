@@ -37,6 +37,7 @@ from .kernel.budget import Budget
 from .kernel.frame_capture import FrameCapture
 from .kernel.core_router import build_core_router
 from .kernel.orchestrator import Orchestrator
+from .kernel.mode_surfaces import mode_indicator_text
 from .kernel.session_mode import SessionMode
 from .kernel.session_taint import SessionTaint
 from .kernel.tool_router import ToolRouter
@@ -242,6 +243,29 @@ def _log_docker_fallback_decision() -> None:
                        "section 2.7 fallback engine is deferred (not built)")
 
 
+def _mode_indicator_seam(overlay):
+    """DEC-65 (T3): the OPAQUE observer the kernel fires, wired to the overlay.
+
+    THE DEC-37 SHAPE, in a new place: `session_mode.py` carries a callable and
+    never learns what it does, and THIS root is the only place that knows both
+    sides — so the state primitive names no overlay, no canvas and no draw, and
+    a guard can still prove the indicator is fed from kernel state alone.
+
+    THE ROOT'S CALLABLE IS THE ONE THAT MUST NEVER RAISE. `SessionMode` has no
+    logger by design (a `Plan` holds model-authored step text), so it cannot be
+    the thing that swallows and reports a failure — the guard belongs here, on
+    the `turn_hooks` discipline: a raise is logged, never allowed to kill a turn.
+    Duck-typed, so a stub overlay is simply a no-op."""
+    def redraw(mode) -> None:
+        try:
+            show = getattr(overlay, "show_mode_indicator", None)
+            if show is not None:
+                show(mode_indicator_text(mode))
+        except Exception:  # noqa: BLE001 — an indicator must never kill a turn
+            logger.warning("[main] the mode indicator seam raised — ignored")
+    return redraw
+
+
 def _build_orchestrator(
     agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay, mic_seam,
     router: ToolRouter, sandbox: SandboxService,
@@ -258,7 +282,7 @@ def _build_orchestrator(
     turn). It reaches `TurnPrelude` through the orchestrator, which pays only for
     the injection and holds no mode logic at all — design C as ruled in DEC-73,
     on the room split 2 bought."""
-    session_mode = SessionMode()
+    session_mode = SessionMode(on_change=_mode_indicator_seam(overlay))
     return Orchestrator(
         reasoner=agent,
         budget=budget,

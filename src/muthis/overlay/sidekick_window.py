@@ -137,6 +137,17 @@ class SidekickOverlay:
         URL — and cleared by clear_caption()/hide(), the inherited lifecycle."""
         self._enqueue(("show_domain_badge", tuple(domains)))
 
+    def show_mode_indicator(self, text: str) -> None:
+        """DEC-65 (T3): the kernel's mode frame (SYNC fire-and-forget enqueue,
+        the set_state pattern). An EMPTY text clears it AND forgets it, so an
+        ended mode cannot be resurrected by the restore below."""
+        self._enqueue(("show_mode_indicator", text))
+
+    def restore_mode_indicator(self) -> None:
+        """Redraw the indicator the ghosting hide erased — sent from the ONE
+        capture chokepoint, which is what carries it ACROSS turns."""
+        self._enqueue(("restore_mode_indicator",))
+
     def clear_caption(self) -> None:
         """Drop the caption bar (audio finished). The hide() path also clears
         it (ghosting), so a capture can never see Mut'his reading itself."""
@@ -176,6 +187,7 @@ class SidekickOverlay:
 
             from .caption_bar import CaptionBar
             from .domain_badge import DomainBadge
+            from .mode_indicator import ModeIndicator
             from .focus_dimmer import (build_focus_dimmer, focus_dim_enabled,
                                        whiteboard_enabled)
             from .pointer_animator import PointerAnimator
@@ -215,6 +227,9 @@ class SidekickOverlay:
             # DEC-20 attribution backstop: the SAME shared canvas, its own tag,
             # bottom-LEFT so it can never eat a line of the caption's budget.
             badge = DomainBadge(rect.canvas, screen_size, style=style)
+            # DEC-65 (T3): the kernel's own frame, top-LEFT — every other
+            # persistent element is bottom-anchored, so it cannot collide.
+            mode = ModeIndicator(rect.canvas, style=style)
             apply_click_through(root)
             # Cinematic spotlight (v6 D) + WHITEBOARD (v7 Phase 2): its OWN
             # dim Toplevel (alpha on the neon window would dim the neon
@@ -240,7 +255,8 @@ class SidekickOverlay:
                     if not dispatch_command(
                         command, rect=rect, pointer=pointer, animator=animator,
                         shapes=shapes_widget, status=status, caption=caption,
-                        dimmer=dimmer, badge=badge, spotlight_on=spotlight,
+                        dimmer=dimmer, badge=badge, mode=mode,
+                        spotlight_on=spotlight,
                     ):
                         root.destroy()
                         return

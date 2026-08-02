@@ -120,6 +120,41 @@ def mode_directive_line(name: str, current: int, total: int,
         step=_one_line(step_text or ""))
 
 
+# ─── The kernel-drawn indicator's TEXT (DEC-65, T3) ──────────────────────────
+
+# Arabic-Indic on a USER-FACING surface, matching the step badges the whiteboard
+# already draws. `normalize_ar` maps these the other way for MATCHING; this is
+# the render direction and the two never meet.
+_ARABIC_INDIC = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+
+MAX_MODE_NAME_CHARS = 24
+
+
+def mode_indicator_text(mode) -> str:
+    """What the kernel draws about ITSELF — or "" when no mode is running.
+
+    ONE ARGUMENT, AND IT IS THE KERNEL'S OWN STATE OBJECT. There is no parameter
+    here that could carry model output, which is what makes "never
+    model-authored" a property of the SIGNATURE rather than of the call sites: a
+    caller cannot pass this function a claim, only the frame.
+
+    IT SHOWS THE NAME AND THE NUMBERS AND NOTHING ELSE. The step TEXT is
+    model-authored and is deliberately absent — it belongs in the directive line
+    the model reads, not on the persistent element the user watches. So no
+    model-authored character ever reaches this surface at all, which is a
+    stronger guarantee than sanitising one would be.
+
+    An inactive mode renders NOTHING — never an empty chip, the `format_badge`
+    rule: "no mode" must look like nothing, not like a mode with no steps."""
+    if not mode.active:
+        return ""
+    name = _one_line(mode.name or "")[:MAX_MODE_NAME_CHARS]
+    if mode.total_steps <= 0 or mode.current_step <= 0:
+        return name
+    numbers = f"الخطوة {mode.current_step} من {mode.total_steps}".translate(_ARABIC_INDIC)
+    return f"{name} · {numbers}" if name else numbers
+
+
 # ─── Refusal reasons and their notes (the standing note law) ─────────────────
 
 NO_MODE = "no_mode"

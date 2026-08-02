@@ -90,6 +90,13 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     ("kernel/orchestrator.py", 298),
     ("turn_voice.py", 300),
     ("persona.py", 209),
+    # NEWLY under pressure at T3 (DEC-65's indicator), and pinned for that
+    # reason: 280 -> 296 as the overlay gained its third persistent element, and
+    # 274 -> 298 as the composition root gained the DEC-37-shaped seam that
+    # feeds it. Neither had a declared number before, which is exactly the state
+    # `broker/docs/service.py` was in when it crossed the law in silence.
+    ("overlay/sidekick_window.py", 296),
+    ("composition.py", 298),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.

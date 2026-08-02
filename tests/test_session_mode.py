@@ -322,9 +322,12 @@ def test_the_primitives_call_nothing_but_their_own_methods(path):
     defined = {node.name for node in ast.walk(tree)
                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
     # `dataclasses.dataclass` declares the record, `dataclasses.replace` is how
-    # a frozen one is edited, and `_clock` is the injected time seam. Three
-    # names, written out, and they are the whole exception list.
-    permitted = defined | {"dataclass", "replace", "_clock"}
+    # a frozen one is edited, `_clock` is the injected time seam, and
+    # `_on_change` is T3's OPAQUE observer — the DEC-37 shape, a callable this
+    # module fires without ever learning what it does. Four names, written out,
+    # and they are the whole exception list: this guard is what forced the
+    # fourth to be DECLARED rather than slipped in beside the others.
+    permitted = defined | {"dataclass", "replace", "_clock", "_on_change"}
     called = {node.func.attr for node in ast.walk(tree)
               if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
     assert len(called) > 2, (
