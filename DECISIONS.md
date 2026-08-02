@@ -8535,3 +8535,99 @@ PASSED by an agent**, no milestone-close commit and no merge — Sultan runs it 
 and signs off personally.
 
 ---
+
+
+## DEC-80 (2026-08-03) — T6 EXECUTED: the Phase-3 live SOP script, BUILD ONLY — RULED (Sultan), EXECUTED
+
+- **Item:** the sixth and last BUILD task of Phase 3. `scripts/diag_navigator.py` — the live SOP
+  for the Navigator, the mode frame and evidence pointing. **BUILD ONLY. NOT RUN AS ACCEPTANCE.**
+- **Scope held:** **`src/` is git-untouched by this task.** Every check is driven through
+  production's own composition helpers, in production's order, with two transparent proxies added
+  in the SCRIPT. No production code was changed to accommodate a check, and none needed to be.
+
+### RULING 1 — THE LINE PROJECTION WAS STATED FIRST, AND IT WAS MISSED
+
+**Projected ≤ 450 (a 435 breakdown by section), recorded in the scratchpad BEFORE the file was
+written. Actual: 524.** Over by 74. Recorded as a miss rather than presented as a target met,
+because a projection that is quietly revised afterwards is worth nothing as an instrument.
+
+**Where the overrun went, measured:** ~24 lines are the three defects found and fixed AFTER the
+projection (below); the remaining ~50 is underestimation of the OBSERVED phases (95 against 70)
+and of the result registers (50 against 35). **The estimate was wrong in the same direction as
+every estimate this project has measured** — which is the DEC-56 lesson arriving in a new place:
+a named section plus a number is not a measurement.
+
+**Against the comparators:** `diag_sandbox.py` **308** (4 check groups, no observation register),
+`diag_web_research.py` **1,156**, `diag_doc_rag.py` **2,297** — the counter-example the law was
+written from. This file carries 8 deterministic checks, 3 observation phases and a live graph
+builder.
+
+### RULING 2 — THE LAW'S QUESTION WAS ASKED OF ALL SEVEN CHECKS BEFORE A LINE WAS WRITTEN
+
+The law is not "keep it small", it is **"keep it the ONLY place that could hold it"** — so the
+question was *which of these could pytest have run?*, asked of each named check:
+
+| named check | what pytest ALREADY owns | the live-only residue that was BUILT |
+|---|---|---|
+| the mode indicator across turns | `test_mode_indicator.py` — survival across THREE turns, the restore AFTER the grab, the FORGET at mode end, `clear_caption` leaving it alone | the seam reaching a **REAL Tk window** without raising on its own thread, and the **frame actually sent to the provider, saved to disk** so its absence is checkable by eye |
+| the three exits | `test_mode_exits.py` — the exit word with near-miss negatives, idle expiry as a start-of-turn evaluation, the directive↔approval-detector interaction in both directions | each exit ending the mode on the **real graph with the real overlay attached**; the exit word on a **REAL STT transcript** needs the microphone, so it is a printed MANUAL step, not a scripted check |
+| the pass economy | `test_navigator_servicing.py` — TWO passes for advance+point, THREE for advance alone | the pass count a **REAL model** produces, asserted only against the cap |
+
+**ONE CHECK WAS ADDED** for being live-only with a failure class that has already bitten:
+**catalog v6 accepted by the real API.** DEC-11 was a live 400 on a tool name every offline test
+had passed. Eleven tools now, and only a real call can prove the catalog is accepted.
+
+**THE TENSION IS RECORDED RATHER THAN RESOLVED SILENTLY.** E1-E3 are the one group whose LOGIC
+pytest fully owns; they were kept because the brief named them, and the live addition is only that
+the real overlay responds. If Sultan would rather cut them, that is ~25 lines and the pytest
+coverage is complete without them.
+
+### RULING 3 — THE TWO REGISTERS ARE SEPARATE OBJECTS, NOT A CONVENTION
+
+`Checks` (PASS / FAIL / SKIP) and `Observations` (printed, no verdict) are distinct classes, and
+`observe()` is handed the observation register and **never** the check register — so a model's
+spoken reply cannot reach a verdict even by accident. Conflating them is what produced M1's false
+negative and cost a full run.
+
+**O-1 is the load-bearing observation:** does the model reach for the Navigator verbs UNPROMPTED?
+Its question describes a multi-step task and **never says "step", "plan" or "walk me through"**,
+because naming them would answer the question the observation exists to ask. Its printed note
+carries the T4 ruling verbatim: if the model does not reach for the verbs, **a persona law is a
+RULING to request, never a patch to make quietly.**
+
+### THREE DEFECTS IN MY OWN SCRIPT, FOUND BEFORE IT WAS COMMITTED
+
+1. **A summary promising a file that was never written.** `FRAME_DUMP` was named in the manual
+   steps and no frame was ever saved — an instrument telling its operator to inspect something
+   that does not exist. Fixed by driving the orchestrator's OWN `FrameCapture`, which both writes
+   the real sent frame and makes the D3 restore assertion real.
+2. **Repo-root pollution.** The `read_local_file` sample was written to `.` — a diagnostic that
+   leaves artefacts in the working tree is one `git status` away from being committed by accident.
+   Moved to a temp directory.
+3. **A dead return value and a misleading parameter name** — `router` returned and never used, and
+   the doc PLUGIN received through a parameter named `doc_service`. Both would have cost a future
+   reader real time.
+
+### WHAT THIS SCRIPT DOES NOT DO, STATED PLAINLY
+
+**It never declares T6 passed.** Its summary prints *"THIS IS NOT AN ACCEPTANCE VERDICT"* and
+*"T6 IS NEVER DECLARED PASSED BY AN AGENT"* in its own output, so a green run pasted out of
+context still carries the disclaimer. **It was not run here**: a full run makes real paid API
+calls and opens a real overlay, and the live SOP is Sultan's to run on his own hardware. Verified
+statically instead — the module imports clean, and every production surface it touches
+(`add_interrupt_hook`, `_prelude`, `_frames.capture`, `show_mode_indicator`,
+`restore_mode_indicator`, `warm_up_tls`, both `aclose` coroutines, `Plan.build`,
+`MAX_AGENTIC_ITERATIONS`) was asserted to exist.
+
+**The corpus discipline holds:** the document and its question arrive as `--doc` / `--question`,
+Sultan's own files, never in the repo — the D-1 screenshot rule applied again. Without them the
+document phases SKIP with a stated reason rather than silently passing.
+
+**Guard: 1498 + 27 green on `.venv`, UNCHANGED** — a script adds no tests and must not.
+
+**Next is T7 — Sultan's live run.** Nothing else is open in Phase 3. The three questions it
+settles: whether the model reaches for the verbs unprompted (the persona-law ruling), whether
+pointing holds on continuous PROSE (DEC-75's condition on path ②), and whether the loose-box limit
+DEC-74 recorded is visible in a Navigator step.
+
+---
