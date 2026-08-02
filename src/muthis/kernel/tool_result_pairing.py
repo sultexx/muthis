@@ -30,6 +30,7 @@ from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
 from ..file_reader import FILE_ALREADY_READ_AR, FILE_READ_ERROR_AR, READ_FILE_TOOL
+from .evidence_pointing import with_evidence_directive
 from .pass_servicing import PassServiced
 from .highlight_gate import HighlightGate, draw_result_text
 
@@ -152,9 +153,21 @@ def build_tool_result_message(
             # room (see the seam noted below `__all__`).
             if tool_use_id in serviced:
                 content = serviced[tool_use_id]
+                if block.get("name") == DOC_QUERY_TOOL:
+                    # T5 (DEC-67 ② / ③): the kernel's evidence directive, on the
+                    # ONE result that carries retrieved passages and their
+                    # locations. APPENDED — outside the DEC-14 wrap, never
+                    # inside it (see `evidence_pointing`). `docs__open` is
+                    # excluded: its zone-1 text carries no per-claim location to
+                    # redirect to, so the same directive there could not satisfy
+                    # obligation 3 and would be a note weaker than its own rule.
+                    content = with_evidence_directive(content)
             else:
                 # The note reports the state ACHIEVED, not only the deferral —
-                # see `doc_deferral_note` and the standing note law.
+                # see `doc_deferral_note` and the standing note law. NO evidence
+                # directive here: nothing was retrieved, so there is no passage
+                # to point at and telling the model to point at one is how an
+                # invented position gets invited.
                 content = doc_deferral_note(last_serviced)
             results.append({
                 "type": "tool_result",

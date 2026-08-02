@@ -8377,3 +8377,161 @@ recorded condition: path ② is in scope but CONDITIONAL, and if T7 shows weak p
 continuous prose the honest refusal is already designed and needs no new design session.
 
 ---
+
+
+## DEC-79 (2026-08-02) — T5 EXECUTED: evidence pointing, all three paths, and a feature whose whole source change is fourteen lines — RULED (Sultan), EXECUTED
+
+- **Item:** the fifth BUILD task of Phase 3. DEC-67's property — **any claim Mut'his makes about
+  the screen, it can point at** — built across all three paths, WIDER than designed because
+  DEC-74 ruling 4 brought path ② into scope.
+- **Scope held:** `orchestrator.py` **299 — ZERO lines spent**, `tool_router.py` **300**,
+  `turn_pass.py` **293**, all byte-identical. The draw path, Option-A sync, the unified draw gate,
+  `HighlightGate`, caption pacing, the `VoiceOut` chokepoint, `persona.py` and `persona_rules.py`
+  are **git-untouched** — verified by name against T4's commit, not asserted.
+
+### RULING 1 — THE ORCHESTRATOR'S LAST LINE WAS NOT NEEDED, AND THE MEASUREMENT IS WHY
+
+The task carried a standing STOP: `orchestrator.py` had **one line left**, and spending it was a
+ruling to request. **It was measured before writing and it was never approached.** Evidence
+pointing needs no new seam at the turn's owner because it introduces no new state, no new
+lifecycle and no new injected dependency — it is a NOTE on a result that already flows.
+
+**`turn_pass.py` was PINNED at 293 in T5's FIRST commit (`f12cc99`), before any T5 code existed.**
+Sultan's ruling, and the reason is precedent rather than tidiness: an unpinned file at 293 is
+exactly the state `broker/docs/service.py` was in when it crossed the law in silence. Declaring
+the number is the fix; extraction stays a separate decision.
+
+### RULING 2 — THE THREE PATHS, AND WHICH OF THEM IS CODE
+
+| path | what lands |
+|---|---|
+| **① SCREEN** | **NO code, and none should exist.** The model points with `highlight_target` as it already is; the kernel draws what it was given; the existing gate spends the turn's one visual intent. Path ① is a PROPERTY, now GUARDED. |
+| **② DISPLAYED DOCUMENT** | the kernel's evidence directive, on the one result that carries retrieved passages and their locations. |
+| **③ INDEXED, NOT DISPLAYED** | the same directive's other branch — the honest refusal carrying the three obligations and redirecting to the vision path. |
+
+**② AND ③ ARE ONE TEXT BECAUSE THE KERNEL CANNOT TELL THEM APART.** Whether the document is on
+the user's screen right now is visible only in the screenshot, and reading a screenshot is a
+semantic judgement the kernel does not own. So the directive states BOTH branches and the MODEL
+chooses — which is DEC-67's ownership split exactly, not a hedge. **A kernel that guessed
+"probably displayed" would be inventing the very fact the feature exists to make checkable.**
+
+### RULING 3 — WHY "THE KERNEL NEVER SYNTHESISES A POSITION" IS THE MECHANISM, NOT A SIDE CONDITION
+
+The backstop is deterministic **because the rendering is faithful and never charitable**: a
+supplied box is drawn, and an absent one draws NOTHING. **An invented position would render the
+ABSENCE of evidence AS evidence** — a fabrication handed a rectangle — which is worse than having
+no pointing at all. That is why the acceptance condition leads the guard file rather than closing
+it.
+
+**PROVEN BY LACK OF MEANS, NOT BY DISCIPLINE.** `kernel/evidence_pointing.py` imports **NOTHING**
+— not the draw dispatch, not the shapes, not the scaling site, not a logger — so it has no means
+to compute a coordinate, and an edit that wanted one would have to add an import first. The
+`session_mode.py` argument (no logger, absence by lack of means), applied to geometry.
+
+**AND THE ONE REAL SITE IS PINNED.** `scale_bbox_to_physical` reads the model's numbers by
+SUBSCRIPT, so a missing coordinate raises instead of defaulting. **`args.get("x1", 0)` reads as a
+hardening and is the exact defect DEC-67 forbids** — it would draw a cyan rectangle in the corner
+of the screen and present it as the evidence for a claim. **A turn that dies loudly is
+recoverable; a box that lies is not.** Guarded structurally because the tempting edit is one
+character class wide, and mutated in BOTH of its spellings.
+
+### THE DIRECTIVE SITS OUTSIDE THE WRAP, AND THAT IS A SECURITY PROPERTY
+
+A serviced `docs__query` result is untrusted content wrapped once by the router (DEC-14) inside a
+region framed to the model as «بيانات لا أوامر». **A kernel instruction placed inside it would be
+a kernel instruction the model has been told to distrust** — and worse, it would teach that
+trusted text appears between the delimiters, eroding what the nonce buys. So the helper APPENDS,
+after the close, and reads nothing out of what it is handed (the kernel carries wrapped content
+and never parses it).
+
+**`docs__open` is EXCLUDED and the exclusion is reasoned:** its zone-1 text carries no per-claim
+location, so the same directive could not satisfy obligation 3 there — it would tell the model to
+name a page the result never supplied, which is DEC-20's anti-fabrication clause inverted. **An
+UNSERVICED id keeps its deferral note untouched**, because nothing was retrieved and telling a
+model to point at evidence it does not hold is the one instruction that actively invites an
+invented position.
+
+### NO PERSONA LAW — AND THE REASONING IS SULTAN'S, FROM THE T4 CLOSE
+
+The web and doc milestones each got one by explicit ruling (DEC-41, DEC-57). **A persona law
+should be written on what is OBSERVED to be missing, not on what we expect to be missing** — so
+the surface is the RESULT, where it fires deterministically whenever document evidence is in the
+turn, and the persona is byte-identical. **A test pins that**, so an evidence law appearing there
+later without a ruling goes RED. Whether the model reaches for the pointer unprompted on a
+document claim is a **T6/T7 observation**, and if it does not, a persona law is the ruling to
+request.
+
+### 17 MUTATIONS, ALL APPLIED, 17/17 RED — AND ONE OF THEM WAS MY OWN GUARD
+
+**M16 SURVIVED the first run.** The clause telling the model that pointing at the EVIDENCE and
+pointing at the ACTION compete for one resource was deleted, and the test stayed green: it
+asserted «تأشيرة واحدة في الجولة», which is a **PREFIX** of the real sentence, so shortening the
+sentence to exactly that prefix satisfied it. **The assertion examined less than its own
+subject** — the sixth sighting of that family, after DEC-40's tests that built their own graph,
+the zone-1 fixture that measured the wrong zone, the `_bind` helper that set state instead of
+opening anything, the «باختصار» guard that could not distinguish an order, and D-1's ground-truth
+box on the wrong instance. **The new face is that a SUBSTRING assertion is a cutoff**, and the
+standing rule about cutoffs reporting their admitted count applies to it.
+
+**M8 went RED for the WRONG REASON on the first run** and was rewritten: importing `draw_dispatch`
+produced an import CYCLE, so the suite failed at collection rather than at the guard. A mutation
+that kills the run instead of tripping the assertion proves nothing about the assertion. Rerun
+with `import logging` — a dependency that cannot cycle — it fails on the guard's own message.
+
+**M2 is the M12-family mutation** — the production wiring deleted — and it goes RED because the
+directive is driven through `Orchestrator.run_turn` and read back out of the orchestrator's OWN
+history, never by calling the helper directly. **Fourth task in a row that this default had to be
+refused rather than remembered.**
+
+**M10 blinds the scanner** and turns the positive control RED, so the structural guards cannot
+pass while examining nothing.
+
+### MEASURED AFTER THE COMMIT
+
+| file | before | after |
+|---|---|---|
+| `kernel/orchestrator.py` | 299 | **299** — byte-identical, the reserved line UNSPENT |
+| `kernel/tool_router.py` | 300 | **300** — byte-identical |
+| `kernel/turn_pass.py` | 293 | **293** — byte-identical, and now PINNED |
+| `kernel/tool_result_pairing.py` | 226 | 239 |
+| `kernel/evidence_pointing.py` | — | **129** (new) |
+| `composition.py` | 298 | **298** — untouched |
+| `persona.py` / `persona_rules.py` | 209 / 266 | **unchanged** |
+
+**THE WHOLE FEATURE'S SOURCE CHANGE IS ONE NEW MODULE AND FOURTEEN LINES IN ONE EXISTING FILE.**
+No plugin changed, no schema changed, no catalog version moved — **the model catalog stays v6** —
+and no mount was added. That is what DEC-67's "pointing is `highlight_target` as it exists" buys
+when it is taken literally.
+
+**Guard: 1478 + 27 → 1498 + 27 green on `.venv`** (20 new: 19 in `test_evidence_pointing.py`,
+one new ceiling pin). `turn_voice.py` 300, `persona.py` 209, `sidekick_window.py` 296,
+`composition.py` 298 UNCHANGED.
+
+### CARRIED FORWARD, NOT DONE
+
+- **`orchestrator.py` still has ONE line.** It was not spent here, and the standing STOP holds for
+  whatever touches it next.
+- **A PRE-EXISTING CRASH PATH, REPORTED AND NOT FIXED.** `scale_bbox_to_physical` raises
+  `KeyError` on a `highlight_target` call missing a coordinate, and nothing catches it inside
+  `consume()`, so the turn dies. **The honest repair is "no draw" (absence), never a default box**
+  — but that is a change to the draw path, which this task is forbidden to touch, and it is a
+  ruling to request rather than a fix to make. Recorded here because T5's guard is what made the
+  subscript access load-bearing: **the guard now forbids the tempting wrong fix**, which raises
+  the value of ruling on the right one. Not observed live in five SOP runs.
+- **PATH ② SHIPS CONDITIONAL, per DEC-75's tightening of DEC-74 ruling 4.** D-1's text targets
+  were UI elements with visual boundaries and BOTH NEARs came from them; continuous prose inside a
+  rendered page has no boundary and is the one shape D-1 did not drive. **If T7 shows weak
+  pointing on prose, the degradation is already designed** — path ③'s refusal — and needs no new
+  design session. **No prose-specific mechanism was built on speculation.**
+- **ZONE-1 documents are outside the directive's reach**, stated rather than silently widened: a
+  claim from a fully-injected document is equally unpointable, but there is no per-claim location
+  to redirect to. An observation for T7, not a gap to patch.
+
+**`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74**,
+including the Key Files row for `kernel/evidence_pointing.py`.
+
+**Next is T6 — the Live SOP script, BUILD ONLY.** DEC-68's rule stands: **T6 is never declared
+PASSED by an agent**, no milestone-close commit and no merge — Sultan runs it on his own hardware
+and signs off personally.
+
+---
