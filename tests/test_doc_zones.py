@@ -32,8 +32,9 @@ from muthis.broker.docs.token_estimate import (
 )
 from muthis.broker.docs.zones import (
     DEFAULT_INJECT_LIMIT_TOKENS, ENV_INGEST_BUDGET, ENV_INJECT_LIMIT,
-    MEAN_CHUNK_TOKENS, PER_CHUNK_ENCODE_MS, DocZone, ZoneConfigurationError,
-    ZoneDecision, ZonePolicy, assert_zone_invariant,
+    MEAN_CHUNK_TOKENS, PER_CHUNK_ENCODE_MS, SUPERSEDED_BENCH_PER_CHUNK_MS,
+    DocZone, ZoneConfigurationError, ZoneDecision, ZonePolicy,
+    assert_zone_invariant,
 )
 
 # The P0 corpus, as MEASURED DIMENSIONS (report §5 and §7). chars -> the zone the
@@ -57,16 +58,80 @@ BGE_M3_PER_CHUNK_MS = 558.4
 def test_the_maximum_is_derived_from_the_measured_encode_time():
     policy = ZonePolicy()
 
-    # floor(60_000 ms / 30.2 ms) = 1_986 chunks, x 380 tokens = 754_680.
-    assert policy.max_chunks == int(60_000 // PER_CHUNK_ENCODE_MS) == 1_986
-    assert policy.max_tokens == policy.max_chunks * MEAN_CHUNK_TOKENS == 754_680
+    # floor(60_000 ms / 67.4 ms) = 890 chunks, x 380 tokens = 338_200.
+    assert policy.max_chunks == int(60_000 // PER_CHUNK_ENCODE_MS) == 890
+    assert policy.max_tokens == policy.max_chunks * MEAN_CHUNK_TOKENS == 338_200
 
 
 def test_the_chunk_count_is_FLOORED_because_a_partial_chunk_cannot_be_encoded():
     # 100 chunks' worth of budget plus a sliver buys 100 chunks, never 101.
-    policy = ZonePolicy(budget_seconds=(100 * 30.2 + 15.0) / 1000.0, per_chunk_ms=30.2)
+    # Derived from the constant rather than a literal, so this stays a test of the
+    # FLOOR and never quietly becomes a second copy of the encode time.
+    per = PER_CHUNK_ENCODE_MS
+    policy = ZonePolicy(budget_seconds=(100 * per + per / 2) / 1000.0, per_chunk_ms=per)
 
     assert policy.max_chunks == 100
+
+
+# ---------------------------------------------------------------------------
+# THE CEILING'S PROVENANCE — DEC-72, and the defect it closed
+# ---------------------------------------------------------------------------
+
+def test_the_ceiling_is_derived_from_the_PRODUCTION_figure_not_the_BENCH_one():
+    """DEC-72. The bench figure derived a ceiling that ACCEPTED documents the
+    budget could not COMPLETE: 754,680 tokens is ~134 s of encoding against a 60 s
+    budget, so the capability it protected was admitted by wrong arithmetic.
+
+    THE DISCRIMINATING ASSERTION is the second one. "The maximum is 338,200" is
+    satisfiable by any constant that happens to produce it; what must not come back
+    is the BENCH figure driving a zone boundary — which is exactly the edit a future
+    reader makes after finding the P0 bench report and seeing a faster number."""
+    policy = ZonePolicy()
+
+    assert policy.per_chunk_ms == PER_CHUNK_ENCODE_MS == 67.4
+    assert PER_CHUNK_ENCODE_MS != SUPERSEDED_BENCH_PER_CHUNK_MS
+    # The superseded figure DERIVES NOTHING: it is not the default of any field.
+    defaults = {f.name: f.default for f in dataclasses.fields(ZonePolicy)}
+    assert SUPERSEDED_BENCH_PER_CHUNK_MS not in defaults.values()
+
+
+def test_the_ceiling_in_force_is_one_the_BUDGET_CAN_ACTUALLY_COMPLETE():
+    """The property the old constant violated, stated as arithmetic rather than as
+    a number — so it holds for any future re-derivation too.
+
+    A maximum that cannot be encoded inside the budget is not a capability, it is
+    an acceptance that ends in an overrun (DEC-47: estimate the refusal UP FRONT)."""
+    policy = ZonePolicy()
+
+    encode_ms = policy.max_chunks * policy.per_chunk_ms
+
+    assert encode_ms <= policy.budget_seconds * 1000.0
+    # And the SUPERSEDED figure fails it, which is what made it a defect: driving
+    # the ceiling at 30.2 buys 1,986 chunks that then cost 67.4 ms each.
+    bench = dataclasses.replace(policy, per_chunk_ms=SUPERSEDED_BENCH_PER_CHUNK_MS)
+    assert bench.max_chunks * PER_CHUNK_ENCODE_MS > policy.budget_seconds * 1000.0
+
+
+def test_the_CAPABILITY_REDUCTION_is_driven_rather_than_only_recorded():
+    """Sultan's ruling required the reduction be recorded EXPLICITLY. Recording it
+    in prose leaves nothing that fails if it is reverted, so it is driven here.
+
+    The affected band is 338,200-754,680 tokens — roughly 900 to 2,000 pages. A
+    document there used to INDEX and now REFUSES. The band's lower neighbour still
+    indexes and zone 1 is untouched, so this is not satisfied by a policy that
+    refuses everything."""
+    policy = ZonePolicy()
+    bench_max = dataclasses.replace(
+        policy, per_chunk_ms=SUPERSEDED_BENCH_PER_CHUNK_MS).max_tokens
+
+    assert (policy.max_tokens, bench_max) == (338_200, 754_680)
+    # The whole band moved INDEX -> REFUSE...
+    for tokens in (338_201, 500_000, bench_max):
+        assert policy.zone_for_tokens(tokens) is DocZone.REFUSE
+    # ...and nothing below it moved: zone 2 and zone 1 are exactly as they were.
+    assert policy.zone_for_tokens(338_200) is DocZone.INDEX
+    assert policy.zone_for_tokens(50_000) is DocZone.INJECT
+    assert policy.inject_limit == DEFAULT_INJECT_LIMIT_TOKENS == 50_000
 
 
 def test_a_nonsensical_encode_time_derives_ZERO_rather_than_dividing_by_zero():
@@ -88,7 +153,26 @@ def test_the_shipped_configuration_satisfies_the_invariant(caplog):
     assert policy.max_tokens > policy.inject_limit
     # The healthy path LOGS the derived numbers, which is half the point: a
     # relation nobody can see is a relation nobody notices changing (DEC-49).
-    assert "754680" in caplog.text and "50000" in caplog.text
+    assert "338200" in caplog.text and "50000" in caplog.text
+
+
+def test_the_startup_log_states_the_ceilings_PROVENANCE_and_the_figure_it_replaced(
+        caplog):
+    """DEC-72's log half. The old second line reported the GAP between a
+    bench-derived boundary and the operating figure; that gap is closed, so the line
+    now has to earn its place by reporting something else — WHERE the number came
+    from, and what the superseded one would have admitted.
+
+    The superseded figure is reported by its CONSEQUENCE (754,680 tokens), not by
+    itself: "30.2 ms" tells an operator nothing about what was wrong."""
+    with caplog.at_level("INFO", logger="muthis.broker.docs"):
+        assert_zone_invariant(ZonePolicy())
+
+    assert "PRODUCTION measurement" in caplog.text
+    assert "754680" in caplog.text          # the superseded consequence, named
+    assert f"{SUPERSEDED_BENCH_PER_CHUNK_MS:g} ms bench" in caplog.text
+    # The re-derivation rule reaches the operator, not just the source comment.
+    assert "production run" in caplog.text
 
 
 def test_the_REJECTED_encoders_measured_time_EMPTIES_zone_2_and_FAILS_STARTUP():
@@ -119,7 +203,7 @@ def test_the_invariant_also_fails_when_the_BUDGET_is_what_broke():
 
 def test_an_EQUAL_maximum_still_fails_because_zone_2_would_be_a_single_point():
     # max == limit leaves a band of width zero. "Exceeds" means exceeds.
-    equal = ZonePolicy(inject_limit=754_680)
+    equal = ZonePolicy(inject_limit=338_200)
 
     assert equal.max_tokens == equal.inject_limit
     with pytest.raises(ZoneConfigurationError):
@@ -177,8 +261,8 @@ def test_main_CALLS_the_invariant_before_the_event_loop_opens():
     (49_999, DocZone.INJECT),
     (50_000, DocZone.INJECT),          # AT the limit is injected — inclusive
     (50_001, DocZone.INDEX),
-    (754_680, DocZone.INDEX),          # AT the maximum is still indexable
-    (754_681, DocZone.REFUSE),
+    (338_200, DocZone.INDEX),          # AT the maximum is still indexable
+    (338_201, DocZone.REFUSE),
 ])
 def test_each_boundary_is_inclusive_of_the_CHEAPER_zone(tokens, expected):
     assert ZonePolicy().zone_for_tokens(tokens) is expected
@@ -277,7 +361,7 @@ def test_the_exact_gate_counts_CHUNKS_not_tokens():
 def test_a_decision_states_both_cutoffs_and_its_admitted_count():
     line = ZonePolicy().decide(2_788).describe()
 
-    assert "inject_limit=50000" in line and "max_tokens=754680" in line
+    assert "inject_limit=50000" in line and "max_tokens=338200" in line
     assert "admitted=1" in line
     assert f"{TOKENS_PER_CHAR_CEILING:g}tok/char" in line     # HOW it was sized
 

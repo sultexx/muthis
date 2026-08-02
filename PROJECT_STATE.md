@@ -483,16 +483,20 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
 - **I/O**: `mic.py`, `stt.py`, `hotkey.py`, `earcons.py`, `budget.py`,
   `activation.py`, `main.py` (composition root), `persona.py`.
 - **Vision**: `vision/screen_capture.py`, `vision/downscale.py`.
-- **Docs / RAG** (`broker/docs/`, V2 Phase-2 M3): `service.py` 281 (the two verbs
-  `open`/`query`; owns the encoder LIFETIME, ranks nothing), `zones.py` 294 (the
-  three size zones + `assert_zone_invariant`), `ingest.py` 274, `extract.py` 239
-  (pypdf), `chunking.py` 222 (token-sized, structural), `encoder.py` 187
-  (e5-small int8 / ONNX), `model_pin.py` 169 (artifact pinned BY FINGERPRINT),
-  `blocks.py` 164, `notes.py` 133 (DEC-35's type-accurate refusals), `index.py`
-  132 (RAM-only, dies with the process), `__init__.py` 87, `records.py` 70
+- **Docs / RAG** (`broker/docs/`, V2 Phase-2 M3; counts MEASURED 2026-08-02):
+  `service.py` **300 — AT the ceiling** (the two verbs `open`/`query`; owns the
+  encoder LIFETIME, ranks nothing), `zones.py` 298 (the three size zones +
+  `assert_zone_invariant`; per-chunk = the PRODUCTION 67.4 ms — DEC-72),
+  `ingest.py` 298, `extract.py` 239 (pypdf), `chunking.py` 222 (token-sized,
+  structural), `encoder.py` 187 (e5-small int8 / ONNX), `model_pin.py` 169
+  (artifact pinned BY FINGERPRINT), `notes.py` 176 (DEC-35's type-accurate
+  refusals + DEC-72's three obligations), `blocks.py` 164, `index.py` 121
+  (RAM-only, dies with the process), `__init__.py` 87, `records.py` 70
   (`Passage`/`OpenedDocument` — the cross-boundary contract), `token_estimate.py`
-  68. Plugin half: `muthis_plugins/doc_rag/plugin.py` 182, `delivery.py` 136
-  (dedupe by parent, relevance order, cap), `schema.py` 104.
+  68. **Three of these are effectively full**, which is why the auto-download
+  task is deferred behind P0's D-2. Plugin half:
+  `muthis_plugins/doc_rag/plugin.py` 185, `delivery.py` 136 (dedupe by parent,
+  relevance order, cap), `schema.py` 104.
 - **Caching** (`cloud/`, M3): `pricing.py` 105, `cache_control.py` 70 — the
   ledger cannot lie about a cached turn (DEC-60).
 - **Overlay** (`overlay/`): `sidekick_window.py`, `window_commands.py`,

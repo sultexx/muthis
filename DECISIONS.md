@@ -6900,3 +6900,93 @@ those two figures change zone: from INDEX (zone 2) to REFUSE (zone 3).**
   stops resembling the budget the ceiling implies.
 
 ---
+
+## DEC-72 (2026-08-02) — the zone ceiling is CORRECTED to the production figure: 67.4 ms, and ~900-2,000-page documents move from INDEX to refusal — RULED (Sultan), EXECUTED
+
+- **Item:** Observation (a), reclassified a defect and then ruled. `PER_CHUNK_ENCODE_MS` becomes
+  **67.4 ms** — the figure the live SOP measured — and therefore DERIVES the zone-2/zone-3
+  boundary. `max_tokens` falls from **754,680 to 338,200**.
+- **THE RULING'S REASONING, recorded as Sultan's:** the old figure **ACCEPTED what it could not
+  COMPLETE.** A document in the 338,200-754,680 band begins ingestion and then EXCEEDS the 60 s
+  budget, so the capability it protected was a **paper capability, admitted by wrong arithmetic**.
+  The real trade is an honest up-front refusal against an acceptance that ends in a budget
+  overrun — and **DEC-47 had already settled that shape**: the refusal is ESTIMATED UP FRONT,
+  never after the budget is spent.
+- **THE COUNTER-ARGUMENT WAS HEARD AND DOES NOT CARRY.** The band is real capability today: a
+  1,200-page document currently indexes and answers. Stating it is what made the ruling informed;
+  it loses because the capability is not one the budget can honour.
+
+### THE CAPABILITY REDUCTION, RECORDED EXPLICITLY
+
+| | per-chunk | `max_chunks` | `max_tokens` |
+|---|---|---|---|
+| **in force (production-measured)** | **67.4 ms** | **890** | **338,200** |
+| superseded bench figure — derives nothing | 30.2 ms | 1,986 | 754,680 |
+
+- **Documents of roughly 900 to 2,000 pages move from INDEX to the zone-3 refusal.** They now
+  receive the honest refusal designed for them, which names three paths, the strongest being
+  *open it on screen and I will point at it* — so the re-routing sends exactly the documents that
+  would blow the budget into DEC-47's intended destination.
+- **ONLY THE UPPER BOUNDARY MOVES.** The injection limit is a separate constant and is untouched,
+  so nothing moves between zones 1 and 2. Sultan's 228-page book (134,983 tokens) is unaffected.
+- **DEC-49 ruling 4's invariant still holds by a wide margin** (338,200 against 50,000), which is
+  why nothing was broken before this fix and nothing is broken by it.
+
+### THE RE-DERIVATION RULE, WHICH IS THE DURABLE PART
+
+**If a faster encoder ever lands, the constant is re-derived from a PRODUCTION measurement — a
+real ingestion on the real machine with the app running — and NEVER from a bench.** This is
+DEC-56 (*a named seam plus an ESTIMATE is not a plan: RE-MEASURE at execution time*), and this
+defect is how it was earned here: 30.2 ms came from a warm isolated bench, P0's harness read
+30.6 ms for the same model on the same hardware, and **the two agreeing is exactly why it was
+trusted.** Agreeing benches still do not measure production. The corroboration that settled it:
+Sultan's run indexed 267 chunks — **8.1 s predicted at bench, 18.0 s at live, ~20 s measured.**
+
+### WHAT WAS BUILT
+
+1. **The constant, and the bench figure kept BESIDE it as `SUPERSEDED_BENCH_PER_CHUNK_MS`** —
+   deleting it invites its return, since a future reader who finds the P0 bench report sees a
+   faster number and no record of why it was rejected. It derives nothing, and a test asserts
+   that it is the default of no field.
+2. **The startup log's second line changed SUBJECT.** It used to report the GAP between a
+   bench-derived boundary and the operating figure; the gap is closed, so it now reports
+   **PROVENANCE** — that the figure in force is a PRODUCTION measurement, what the superseded one
+   would have admitted (754,680 tokens, stated by its CONSEQUENCE rather than as a bare "30.2 ms",
+   which tells an operator nothing), and the re-derivation rule.
+3. **`DOC_TOO_LARGE_AR` now carries the three obligations** (the standing rule of 2026-07-30).
+   It had only the third. This became load-bearing WITH the ruling: a larger refused band means
+   more documents depending on the note not producing the retry loop DEC-35 measured at four
+   provider calls and ~$0.10. **Worded to be TRUE AT BOTH CALL SITES** — the up-front estimate and
+   the exact second gate, which has already chunked and loaded the encoder — so it claims only
+   read, sized, and not one vector computed. **A note is not exempt from the accuracy it demands.**
+
+### THE GUARDS, AND THE ONE THAT IS NOT A NUMBER
+
+- The arithmetic is pinned, but "the maximum is 338,200" is satisfiable by any constant that
+  happens to produce it. Two guards do the real work: **the ceiling in force must be one the
+  budget CAN COMPLETE** (`max_chunks x per_chunk_ms <= budget`, stated as arithmetic so it holds
+  for any future re-derivation, with the superseded figure driven through it and FAILING), and
+  **the bench figure must derive nothing** — which is the exact edit a future reader makes.
+- **The capability reduction is DRIVEN, not merely recorded:** the whole 338,201-754,680 band is
+  asserted REFUSE while 338,200 still indexes and zone 1 is untouched, so it cannot be satisfied
+  by a policy that refuses everything.
+- **8 mutations, all RED, all APPLIED, `PYTHONDONTWRITEBYTECODE=1`.** Three of the first five
+  reported **NOT APPLIED** rather than passing quietly — the search strings crossed the source's
+  line breaks inside a multi-line Arabic literal. That is the assert doing its job, and the
+  harness was rebuilt to rewrite the WHOLE literal, with a self-check that it reconstructs the
+  SHIPPED note before any variant is trusted (a harness whose text had drifted would make every
+  mutation a different edit than the one named).
+
+### DRIFT CORRECTED WHILE HERE
+
+`broker/docs` line counts in `AGENTS.md` and `PROJECT_STATE.md` were stale by up to 19 lines
+(`service.py` 281 -> **300**, `ingest.py` 274 -> **298**, `notes.py` 133 -> **176**, `index.py`
+132 -> **121**, `zones.py` 294 -> **298**). All **MEASURED**, none inherited. Drift is the state
+that precedes a breach, which is the argument `tests/test_module_line_ceiling.py` was built on.
+`zones.py` landed at 298 rather than 300 deliberately: three files in this package are effectively
+full and the deferred auto-download task needs one of them.
+
+**Guard: 1268 + 27 -> 1273 + 27 green on `.venv`.** `tool_router.py` 300, `orchestrator.py` 299,
+`turn_voice.py` 300, `persona.py` 209 — all UNCHANGED.
+
+---

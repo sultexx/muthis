@@ -28,10 +28,9 @@ THE DERIVED MAXIMUM IS MEASURED, NOT CHOSEN (DEC-47 / DEC-49 ruling 4):
     max_chunks = ingestion budget / per-chunk encode time
     max_tokens = max_chunks * mean tokens per chunk
 
-Every input is a P0 output. The per-chunk figure is a BENCH measurement and T6
-measured the operating one at more than double it — see `PER_CHUNK_ENCODE_MS`
-below for the numbers, why the constant is deliberately not changed, and why the
-startup log prints both.
+Every input is a MEASUREMENT. The per-chunk figure is the PRODUCTION one and must
+stay production-derived — see `PER_CHUNK_ENCODE_MS` below for the numbers, for the
+bench figure it replaced, and for the rule that governs re-deriving it.
 
 THE INVARIANT, AND WHY IT IS A STARTUP ASSERTION RATHER THAN A COMMENT: the
 derived maximum MUST EXCEED the injection limit, or zone 2 is EMPTY — every
@@ -71,28 +70,30 @@ DEFAULT_INJECT_LIMIT_TOKENS = 50_000
 # 60 s is the row DEC-49 ruling 4 states the invariant against.
 DEFAULT_INGESTION_BUDGET_SECONDS = 60.0
 
-# Per-chunk encode time. 30.2 ms was measured at T2 through this repo's encoder
-# path on a warm, isolated bench; P0's harness reported 30.6 ms for the same model
-# on the same hardware, and the two agreeing is why the figure was trusted.
+# Per-chunk encode time — the PRODUCTION figure, measured by the live SOP: 18.00 s
+# to ingest a 267-chunk document on a machine also running the overlay, the voice
+# line and a live turn. It DERIVES `max_tokens`, and therefore the zone-2/zone-3
+# boundary.
 #
-# T6 CORRECTION — THE BENCH FIGURE IS NOT THE OPERATING ONE. The first real live
-# SOP measured 18.00 s to ingest a 267-chunk document: 67.4 ms per chunk, MORE
-# THAN DOUBLE this constant, on a machine also running the overlay, the voice
-# line and a live turn. So the derived maximum below is roughly HALF in
-# production (~338,000 tokens rather than ~754,680).
+# THIS WAS THE BENCH FIGURE BELOW, AND THAT WAS A DEFECT (DEC-72). The ceiling it
+# derived, 754,680 tokens, ACCEPTED documents it could not COMPLETE — one admitted
+# at that maximum needs ~134 s against a 60 s budget — and DEC-47 had already
+# settled that trade: the refusal is ESTIMATED UP FRONT, never discovered after the
+# budget is spent. IT COST A REAL CAPABILITY, recorded and not glossed: documents of
+# roughly 900-2,000 pages move from INDEX to the zone-3 refusal. Only the UPPER
+# boundary moved — the injection limit is separate and zone 1 is untouched.
 #
-# THE CONSTANT IS DELIBERATELY NOT CHANGED HERE. It feeds `max_tokens`, which is
-# a ZONE BOUNDARY — moving it re-routes documents, and that is a design decision
-# needing a ruling, not a reaction to one measurement. DEC-49 ruling 4's
-# invariant holds either way and by a wide margin (338,000 against a 50,000
-# injection limit), so nothing is broken. What IS fixed is the startup log, which
-# used to print the bench-derived figure as though it were the operating one —
-# the DEC-56 lesson landing in the one place an operator actually reads.
-PER_CHUNK_ENCODE_MS = 30.2
+# RE-DERIVATION RULE (DEC-56, earned by this very defect): if a faster encoder
+# lands, re-derive from a PRODUCTION run on the real machine, NEVER from a bench.
+PER_CHUNK_ENCODE_MS = 67.4
 
-# The live-measured figure, kept BESIDE the constant it qualifies so the two can
-# never drift apart in a reader's head. Reported at startup; it derives nothing.
-MEASURED_LIVE_PER_CHUNK_MS = 67.4
+# The SUPERSEDED bench figure, kept because deleting it invites its return. It
+# DERIVES NOTHING. 30.2 ms came from a warm isolated bench and P0's harness read
+# 30.6 ms for the same model on the same hardware — the two agreeing is exactly why
+# it was trusted, and agreeing benches still do not measure production. What settled
+# it: Sultan's run indexed 267 chunks — 8.1 s predicted here, 18.0 s above, ~20 s
+# MEASURED.
+SUPERSEDED_BENCH_PER_CHUNK_MS = 30.2
 
 # The mean chunk the maximum is expressed in, from the P0 zone arithmetic.
 MEAN_CHUNK_TOKENS = 380
@@ -268,26 +269,29 @@ def assert_zone_invariant(policy: ZonePolicy | None = None) -> ZonePolicy:
     # console that is cp1256 here, at startup, BEFORE any stdout reconfigure has a
     # chance to matter in a traceback — an em dash would turn the one message an
     # operator needs into mojibake. The same cp1256 armor the MCP wire needed.
-    # BOTH figures. Printing only the derived one states a maximum production does
-    # not reproduce; printing only the live one would hide the boundary actually in
-    # force. The operator needs to see the GAP, not a number swapped underneath them.
-    live_max = int(policy.max_tokens * policy.per_chunk_ms / MEASURED_LIVE_PER_CHUNK_MS)
+    # The boundary in force, and WHERE ITS NUMBER CAME FROM. The second line used to
+    # report the GAP between a bench-derived boundary and the operating figure; that
+    # gap is closed, so it reports PROVENANCE instead — the defect was never a number
+    # an operator could see was wrong, it was a right-looking one of unknown origin.
     logger.info("[doc_rag] zones: inject<=%d tokens, index<=%d tokens "
-                "(%d chunks at %.1f ms/chunk BENCH within a %.0fs budget), refuse above",
+                "(%d chunks at %.1f ms/chunk within a %.0fs budget), refuse above",
                 policy.inject_limit, policy.max_tokens, policy.max_chunks,
                 policy.per_chunk_ms, policy.budget_seconds)
-    logger.info("[doc_rag] zones: that %.1f ms/chunk is a BENCH figure; the live SOP "
-                "measured %.1f, so the OPERATING maximum is nearer %d tokens. The "
-                "invariant holds either way (%d > %d).",
-                policy.per_chunk_ms, MEASURED_LIVE_PER_CHUNK_MS, live_max,
-                live_max, policy.inject_limit)
+    # The superseded figure is reported by its CONSEQUENCE, not by itself: "30.2"
+    # means nothing to an operator; "would have admitted 754,680" is what was wrong.
+    bench = dataclasses.replace(policy, per_chunk_ms=SUPERSEDED_BENCH_PER_CHUNK_MS)
+    logger.info("[doc_rag] zones: that %.1f ms/chunk is a PRODUCTION measurement, "
+                "not a bench one (a %.1f ms bench derived %d tokens, a maximum this "
+                "machine cannot ingest inside the budget). Re-derive it only from "
+                "another production run.",
+                policy.per_chunk_ms, SUPERSEDED_BENCH_PER_CHUNK_MS, bench.max_tokens)
     return policy
 
 
 __all__ = [
     "DEFAULT_INGESTION_BUDGET_SECONDS", "DEFAULT_INJECT_LIMIT_TOKENS",
     "ENV_INGEST_BUDGET", "ENV_INJECT_LIMIT", "MEAN_CHUNK_TOKENS",
-    "MEASURED_LIVE_PER_CHUNK_MS", "PER_CHUNK_ENCODE_MS",
+    "PER_CHUNK_ENCODE_MS", "SUPERSEDED_BENCH_PER_CHUNK_MS",
     "TOKENS_PER_CHAR_CEILING", "DocZone",
     "ZoneConfigurationError", "ZoneDecision", "ZonePolicy",
     "assert_zone_invariant", "estimate_tokens",

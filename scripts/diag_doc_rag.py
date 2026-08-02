@@ -129,6 +129,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import dataclasses
 import json
 import logging
 import math
@@ -164,7 +165,7 @@ from muthis.broker.docs.service import (                                 # noqa:
 )
 from muthis.broker.docs.token_estimate import TOKENS_PER_CHAR_CEILING    # noqa: E402
 from muthis.broker.docs.zones import (                                   # noqa: E402
-    MEASURED_LIVE_PER_CHUNK_MS, DocZone, ZonePolicy, assert_zone_invariant,
+    SUPERSEDED_BENCH_PER_CHUNK_MS, DocZone, ZonePolicy, assert_zone_invariant,
 )
 from muthis.broker.net.transport import TIMEOUT_S, USER_AGENT            # noqa: E402
 from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete      # noqa: E402
@@ -684,35 +685,41 @@ def _blank_pdf(path: pathlib.Path, pages: int = 3) -> pathlib.Path:
 
 def check_startup_log(checks: Checks, tap: LogTap, policy: ZonePolicy
                       ) -> "dict[str, Any]":
-    """The startup log must let an operator SEE THE GAP between the boundary in
-    force and what production actually achieves.
+    """The startup log must state the boundary in force AND where its number came
+    from (DEC-72).
 
-    `PER_CHUNK_ENCODE_MS` is a BENCH figure and the live SOP measured more than
-    double it, so the derived maximum the log prints is roughly twice what this
-    machine can really ingest inside the budget. The constant is deliberately not
-    changed — it is a zone boundary — so the LOG is the whole of that fix, and
-    without a check the fix can be reverted in silence.
+    This check used to assert a GAP: the ceiling was derived from a BENCH figure the
+    live SOP had already measured at more than double, so the log printed both and
+    the discriminating assertion was that they DIFFER. DEC-72 closed the gap by
+    correcting the constant, so the gap can no longer be the subject — what the
+    second line owes an operator now is PROVENANCE, and the consequence of the
+    figure it replaced.
 
-    THE DISCRIMINATING ASSERTION is that the two figures DIFFER. A mutation that
-    aliases the live constant back to the bench one still prints two tidy lines;
-    what it destroys is the gap, which is the only thing the second line is for."""
+    THE DISCRIMINATING ASSERTION is that the superseded figure appears BY ITS
+    CONSEQUENCE (754,680 tokens) rather than as a bare "30.2 ms", which is the only
+    form that tells a reader what was wrong. The deterministic half of this belongs
+    in `pytest` and is now asserted there too (`test_doc_zones.py`); this stays as
+    the END-TO-END observation that the real startup path emits it."""
     logs = tap.text()
-    live_max = int(policy.max_tokens * policy.per_chunk_ms / MEASURED_LIVE_PER_CHUNK_MS)
-    in_force = f"index<={policy.max_tokens} tokens" in logs and "BENCH" in logs
-    operating = f"nearer {live_max} tokens" in logs
+    bench_max = dataclasses.replace(
+        policy, per_chunk_ms=SUPERSEDED_BENCH_PER_CHUNK_MS).max_tokens
+    in_force = (f"index<={policy.max_tokens} tokens" in logs
+                and f"{policy.per_chunk_ms:.1f} ms/chunk" in logs)
+    provenance = "PRODUCTION measurement" in logs and f"{bench_max} tokens" in logs
     evidence = {
-        "in-force boundary line present (labelled BENCH)": in_force,
-        "operating-estimate line present": operating,
-        "bench vs live per-chunk": f"{policy.per_chunk_ms:g} ms vs "
-                                   f"{MEASURED_LIVE_PER_CHUNK_MS:g} ms",
-        "in-force vs operating maximum": f"{policy.max_tokens} vs {live_max} tokens",
+        "in-force boundary line present": in_force,
+        "provenance line present (named PRODUCTION)": provenance,
+        "in-force per-chunk / maximum": f"{policy.per_chunk_ms:g} ms -> "
+                                        f"{policy.max_tokens} tokens",
+        "superseded bench figure / what it would have admitted":
+            f"{SUPERSEDED_BENCH_PER_CHUNK_MS:g} ms -> {bench_max} tokens",
     }
-    checks.record("G7 the startup log reports BOTH the in-force BENCH boundary and "
-                  "the LIVE-measured operating estimate, and they DIFFER "
-                  "(the operator can see the gap)",
-                  in_force and operating
-                  and MEASURED_LIVE_PER_CHUNK_MS != policy.per_chunk_ms
-                  and live_max != policy.max_tokens)
+    checks.record("G7 the startup log states the in-force boundary AND that its "
+                  "per-chunk figure is a PRODUCTION measurement, naming what the "
+                  "superseded bench figure would have admitted (DEC-72)",
+                  in_force and provenance
+                  and SUPERSEDED_BENCH_PER_CHUNK_MS != policy.per_chunk_ms
+                  and bench_max != policy.max_tokens)
     return evidence
 
 

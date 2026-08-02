@@ -46,14 +46,29 @@ BAN: the output surface is TTS and a captions bar, never a renderer).
 from __future__ import annotations
 
 # ── Zone 3: too large to index. The refusal DEC-47 designed. ─────────────────
-# States the size honestly, then the three paths, strongest last so it is the one
-# the model most likely repeats.
+# THE THREE OBLIGATIONS (the standing rule of 2026-07-30), each earned here:
+#   1. WHAT WAS ACCOMPLISHED — the file WAS opened and its text read, and NOTHING
+#      was indexed. Without this the model cannot tell a refusal from a crash, and
+#      "ask about a section" reads as a fresh start rather than as the next step on
+#      a document already open. WORDED TO BE TRUE AT BOTH CALL SITES: the up-front
+#      estimate and the exact second gate. The second one has already chunked and
+#      loaded the encoder, so this claims only what holds for both — read, sized,
+#      not one vector computed. A note is not exempt from the accuracy it demands.
+#   2. TERMINAL OR TRANSIENT — terminal FOR THIS FILE WHOLE, and transient for
+#      everything else: re-sending the same file gets the same answer, so the note
+#      says not to. This became load-bearing at DEC-72, which lowered the ceiling
+#      and moved ~900-2,000-page documents into this note; a bigger refused band
+#      means more chances for the retry loop DEC-35 measured at ~$0.10 a go.
+#   3. THE VALID NEXT STEP — the three paths, strongest last so it is the one the
+#      model most likely repeats. The size is stated because a refusal the user
+#      cannot check is a refusal the user cannot trust.
 DOC_TOO_LARGE_AR = (
-    "المستند أكبر من طاقتي على الفهرسة — قدّرته بحوالي {tokens} توكن والحد عندي "
-    "{limit} توكن، وفهرسته كاملة تتجاوز الوقت المتاح. عندك ثلاث طرق: اسألني عن "
-    "قسم محدد أو فصل معيّن وأنا أقرأه لك، أو قسّم الملف لملفات أصغر وافتح واحد "
-    "منها، أو — وهذي أقواها — افتح الملف على الشاشة وأنا أشرح لك منه وأشير على "
-    "السطر نفسه بينما تقرأ."
+    "فتحت المستند وقرأت نصه وحسبت حجمه: حوالي {tokens} توكن والحد عندي {limit} "
+    "توكن، وفهرسته كاملة تتجاوز الوقت المتاح — فما فهرست منه شي، ووقفت قبل ما "
+    "أبدأ. هذا الحد ثابت لهذا الملف كامل، فلا ترسله مرة أخرى كما هو لأن النتيجة "
+    "بتكون نفسها. عندك ثلاث طرق تشتغل الآن: اسألني عن قسم محدد أو فصل معيّن وأنا "
+    "أقرأه لك، أو قسّم الملف لملفات أصغر وافتح واحد منها، أو — وهذي أقواها — "
+    "افتح الملف على الشاشة وأنا أشرح لك منه وأشير على السطر نفسه بينما تقرأ."
 )
 
 # ── The two PDF/format conditions DEC-35 requires to differ ──────────────────
