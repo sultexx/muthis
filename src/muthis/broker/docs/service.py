@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from . import notes
 from .blocks import Chunk
@@ -87,8 +87,18 @@ class DocumentService:
 
     def __init__(self, *, model_dir: pathlib.Path, policy: Optional[ZonePolicy] = None,
                  registry: Optional[IndexRegistry] = None,
+                 observe_doc_id: Optional[Callable[[str, str], None]] = None,
                  encoder: Optional[Any] = None) -> None:
         self._model_dir = pathlib.Path(model_dir)
+        # TASK-1 DIAGNOSTIC INSTRUMENT, opt-in and OFF by default. The RECOVERED
+        # MISMATCH log carries SHAPE ONLY (DEC-61: a doc_id IS the file's own
+        # name), which is correct for a durable record and insufficient for the
+        # one question left open — WHAT the model actually sent. This seam hands
+        # the two VERBATIM values to a caller that PRINTS and never logs, so the
+        # DEC-63 split is preserved by construction: `LogTap` is a logging handler,
+        # and `print` is outside it. Default None = production prints nothing.
+        # TEMPORARY: delete it with whatever removes the round-trip.
+        self._observe_doc_id = observe_doc_id
         self._policy = policy or ZonePolicy.from_env()
         self._registry = registry or IndexRegistry()
         # T6: path -> (doc_id, pages), so re-opening the SAME document is
@@ -211,6 +221,11 @@ class DocumentService:
                 "the registry key (received len=%d, key len=%d, differ_only_by_"
                 "wrapping=%s) — exactly ONE document is open, so it was used",
                 len(doc_id), len(sole), _normalize_doc_id(sole) == doc_id)
+            if self._observe_doc_id is not None:
+                try:
+                    self._observe_doc_id(doc_id, sole)   # PRINTS, never logs
+                except Exception:  # noqa: BLE001 — an instrument may not kill a turn
+                    logger.warning("[doc_rag] doc_id observer raised — ignored")
             doc_id, index = sole, self._registry.get(sole)
         try:
             encoder = self._encoder_once()

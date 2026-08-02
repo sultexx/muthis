@@ -6484,3 +6484,118 @@ hung, it is working.
   The silence was a defect; the defect is fixed; what remains is the UX limit it was mistaken for.
 
 ---
+
+## TRUNCATION DIAGNOSIS (2026-08-02) — the THIRD face of the DEC-63 family: measured, options presented, NOTHING CHOSEN
+
+- **Item:** TASK 1. Three occurrences in one live session:
+  `RECOVERED MISMATCH: received len=16, key len=23, differ_only_by_wrapping=False`.
+- **Status:** **DIAGNOSIS ONLY.** No fix is implemented. One opt-in diagnostic instrument was
+  added and is described below. **The architectural choice is Sultan's.**
+
+### THE THREE CANDIDATE CAUSES, CHECKED AGAINST THE REAL CODE
+
+| # | cause | verdict |
+|---|---|---|
+| 1 | a **max-length in the schema** | **RULED OUT** — `open.path`, `query.doc_id` and `query.question` each carry exactly `{type, description}`. No `maxLength`, no `pattern`, no `format` anywhere in `schema.py`. |
+| 2 | the **open note renders the id truncated** | **RULED OUT** — a 23-char probe through `INDEXED_AR.format(...)` comes back **23 chars, identical**, and `_normalize_doc_id` round-trips it losslessly. |
+| 3 | **the model shortens it** | **THE RESIDUE BY ELIMINATION.** Nothing between the registry key and the model's context truncates anything. |
+
+### THE MEASUREMENT THAT MATTERS MOST: NO CLEAN RULE PRODUCES 16
+
+Six plausible manglings were run against 23-code-point document names. **NONE lands on 16.**
+
+| shape | result on a 23-char Arabic name |
+|---|---|
+| drop the extension `.pdf` | **19** |
+| NFD → NFC (combining-mark fold) | 23 |
+| strip Arabic tashkeel | 23 |
+| first word only | 4 |
+| drop the last word | 11–13 |
+| drop extension **and** tashkeel | 19 |
+
+**A 16-character PREFIX of the key reproduces the live log line EXACTLY** — same three figures,
+including `differ_only_by_wrapping=False` — but so would many other 16-char strings, and the log
+cannot distinguish them.
+
+- **THE CONCLUSION THAT FOLLOWS, and it is the important one:** the model is **not applying a
+  transformation, it is RECONSTRUCTING the name.** No rule-shaped hypothesis fits. **That is why
+  normalizing a fourth shape cannot work** — there is no fourth shape, there is a paraphrase.
+- **The family reads as a progression only in hindsight:** quotes/guillemets → percent-encoding →
+  truncation. Each time one shape was normalized and a new one appeared. **The pattern is not "we
+  missed a case"; it is that a machine identifier is being carried through natural language**, and
+  DEC-16's rule already governs it — *a machine identifier must never depend on the model's
+  paraphrasing.*
+
+### THE RISK THE RECOVERY MASKED, DRIVEN ON THE REAL SERVICE
+
+| open documents | result of the same truncated id |
+|---|---|
+| **ONE** (Sultan's session) | 3 passages — **RECOVERED, the defect is invisible** |
+| **TWO** | 0 passages, `DOC_NOT_OPEN_AR` — **every one of the three queries FAILS** |
+| TWO, exact key (control) | 3 passages — the registry is fine |
+
+**DEC-63 layer 3 behaves correctly in the two-document case** — the ambiguity is real and guessing
+would answer about the wrong document with no observable difference. **That correctness is exactly
+what makes the defect a hard failure the moment a second document is open.**
+
+### THE INSTRUMENT ADDED (opt-in, OFF by default)
+
+`DocumentService(observe_doc_id=…)` hands the two **VERBATIM** values to a caller that **PRINTS and
+never logs**; the composition root builds one only when `MUTHIS_DOC_ID_OBSERVE` is set.
+
+- **The DEC-63 split is preserved BY CONSTRUCTION, not by promise:** `LogTap` is a
+  `logging.Handler` on the ROOT logger, so `print` is outside it. The durable log keeps SHAPE ONLY
+  (DEC-61 — a `doc_id` IS the file's own name); the value goes to a surface that does not persist.
+- **Default `None` means production emits nothing**, so the privacy law is untouched by its
+  presence.
+- **TEMPORARY, and it says so in both files:** it dies with whatever removes the round-trip.
+- **It is worth its 13 lines for ONE reason beyond curiosity:** if the next run shows a FIXED
+  truncation length, an opaque handle short enough to survive it is provably safe. If it shows a
+  paraphrase, option A below is the only one that closes it. **The measurement discriminates
+  between the options rather than merely satisfying interest.**
+
+### THE OPTIONS — each REMOVES the round-trip rather than normalizing a fourth shape
+
+**(A) THE MODEL CARRIES NO IDENTIFIER AT ALL — `doc_id` leaves the schema.**
+`docs__query` takes only `question`; the kernel/broker binds the query to the document the session
+last opened. **`docs__open` is ALREADY the select-a-document verb and is ALREADY idempotent**
+(DEC-58: re-opening a path returns the same id and reuses the index at essentially zero cost), so
+switching documents is "open the other path" — a verb that exists, costs nothing, and cannot be
+paraphrased into a wrong value because it carries a PATH the user supplied rather than an id we
+minted.
+- **It is the only option that removes the round-trip rather than shrinking it**, and it is the
+  DEC-65 frame/content split applied one layer down: the kernel owns the structural fact, the
+  model owns the question.
+- **COST, named honestly:** a model-visible schema change → **catalog v5** and a new byte-pinned
+  snapshot. And the "which document" question moves from the model to the kernel, which needs its
+  own ruling for the two-open case.
+
+**(B) AN OPAQUE SHORT HANDLE** — the open note returns `d1` / `d2`, and `query` echoes it.
+- Cheap, no schema change, and short enough that truncation and paraphrase have almost nothing to
+  damage.
+- **It contradicts a recorded design argument** and the contradiction should be faced rather than
+  quietly overridden: `_register`'s docstring chose a speakable id precisely because *"the model
+  repeats this id back, and Mut'his may say it aloud."* **The counter-argument is that the id no
+  longer has to be the SPOKEN name** — the persona can name the FILE while the tool carries the
+  handle, which is the same frame/content split as (A). **That is a ruling, not an implementation
+  detail.**
+- **It shrinks the round-trip; it does not remove it.** A model that reconstructs a 23-char name
+  can still mistype `d2` as `d1`, and that failure is SILENT and answers about the wrong document.
+
+**(C) A POSITIONAL / ORDINAL REFERENCE** — `doc_id` becomes an integer, 1..N.
+- Cheapest schema change of the three, and integers survive paraphrase better than Arabic titles.
+- **Same silent-wrong-document failure as (B)**, and it adds an ordering the user never sees.
+  Recorded for completeness; **not recommended**.
+
+### RECOMMENDATION — and it is a recommendation, not a choice
+
+**(A), with (B) as the interim if a catalog change is too expensive right now.** The measurement is
+what decides it: **no rule-shaped mangling fits, so the model is paraphrasing, and every option
+that leaves an identifier in the model's hands is a bet on how well it paraphrases.** (A) is the
+only one that stops betting. **Sultan rules.**
+
+**A CONSTRAINT ON WHICHEVER IS CHOSEN:** DEC-63's layer 3 must survive. Whatever replaces the id,
+**a genuinely ambiguous case must still REFUSE rather than guess** — that clause is what keeps a
+wrong-document answer from being indistinguishable from a right one.
+
+---
