@@ -7123,3 +7123,115 @@ NOT frozen here** — this records only that room EXISTS and which anchor surviv
   is why an inheritance that has been free three times is not free a fourth.
 
 ---
+
+## DEC-73 (2026-08-02) — DESIGN C: the mode reaches the kernel through the DEC-16 hooks; design D REJECTED on the category argument; and the orchestrator ceiling has been shaping architecture for three milestones — RULED (Sultan), BOTH SPLITS EXECUTED
+
+- **Item:** where `SessionMode` lives, and the two kernel splits that make room for it. Ruled from
+  the P0 D-2 measurement, which compared four designs against the real files rather than an estimate.
+
+### THE RULING
+
+**DESIGN C.** The mode reaches `TurnPass` through the two hooks DEC-16 already established —
+`new_turn_voice()` for the lazy idle expiry (DEC-19 forbids a second turn-boundary mechanism) and
+`consume()` for the raw transcript, which is where the kernel already hands it over. The orchestrator
+pays only for injection.
+
+**DESIGN D IS REJECTED, despite a byte-identical orchestrator.** It would carry the mode on the
+ToolRouter alongside `confirm_gate`, `turn_hooks`, `fetched_domains` and `session_taint`. **The router
+is TOOL DISPATCH, and conversational mode state is not a tool concern** — the category error DEC-27
+named when it refused `web.search` a slot in the capability enum. Accepting it would place state in
+the wrong home because a ceiling is tight, **which inverts the principle this project fixed
+explicitly: placement is decided ARCHITECTURALLY, never by line count.** We paid for an extraction
+rather than use `ServiceOutcome.extras` for the badge (DEC-36); the same standard applies here.
+
+### THE FINDING THAT CHANGED WHAT THE QUESTION WAS
+
+**This was never a `SessionMode` problem.** In design C the orchestrator's entire change is one
+import, one constructor parameter and one pass-through — **no mode logic at all** — and it still
+measured **302**. The minimum cost of ANY new injected seam there is **three lines against ONE of
+headroom**. The file could not absorb the next arrival whatever it turned out to be.
+
+**AND THE EVIDENCE THAT IT HAS BEEN SHAPING ARCHITECTURE FOR THREE MILESTONES:** `confirm_gate`
+(DEC-16), `turn_hooks` (DEC-37), `fetched_domains` (DEC-36) and `session_taint` (DEC-15) **all ride
+the ToolRouter — not because it owns them, but because the orchestrator had no room.** Four seams,
+three milestones, one unstated cause. **That is a governance finding, not a line count**, and it is
+recorded here because the next person to add a seam will otherwise reach for the router a fifth time
+and read it as precedent rather than as pressure.
+
+### THE FOUR DESIGNS, AS MEASURED AT P0
+
+| design | orchestrator | turn_pass | tool_router |
+|---|---|---|---|
+| shipped baseline | 299 | 286 | 300 |
+| A — mode wired inline in the orchestrator | 318 ✗ | 322 ✗ | 300 ok |
+| B — A + `TurnPrelude` + `pass_servicing` | 301 ✗ | 298 ok | 300 ok |
+| **C — mode on the DEC-16 hooks + `PassServiced`** | **302 ✗** | 308 ✗ | 300 ok |
+| D — C, but the mode rides the ROUTER | 299 = | 308 ✗ | **311 ✗** |
+
+### DEC-38's DISPATCH-FUNNEL SPLIT REMAINS RESERVED AND UNTOUCHED
+
+**Neither of the two splits below is it.** DEC-38's is `_execute_route`'s dispatch inside
+`tool_router.py`, reserved since M2 and directed to be tested at Phase-3 planning. It was tested and
+it is **not needed**: the mode verbs are KERNEL-SERVICED (the `request_screen_refresh` pattern — a
+plugin declares the schema, the kernel owns the effect), because the state they change is the
+kernel's and a plugin holding it would make "step 3 of 5" a plugin's CLAIM. **`tool_router.py` takes
+ZERO lines in designs A, B and C.** Only design D would have triggered the split — and it is
+rejected, so **the reserved budget is still unspent.**
+
+### SPLIT 1 — `turn_pass.py` → `kernel/pass_servicing.py` (286 → 271, new module 102)
+
+- **The seam:** `consume()` did two jobs — DRAIN the provider stream, and SERVICE what the stream
+  asked for. The Option-A sync point already marked the line between them, in the code and in the
+  comments. Draining is about events arriving; servicing is about calls being answered.
+- **The record is separately justified:** the return tuple was a 4-tuple heading for a 5-tuple, where
+  each new tool category cost **SIX edits** — a local, a dispatch branch, a servicing block, a tuple
+  slot, the orchestrator's unpack position and a `build_tool_result_message` parameter. **A funnel of
+  its own.** `PassServiced` makes the last three cost NOTHING. It is DEC-66's argument about a list of
+  strings applied to the kernel's own return type.
+- **BEHAVIOUR-IDENTICAL REFACTOR, not a byte-identical move**, so it is proven by the INVARIANT'S
+  SHAPE (the `mount()` precedent) rather than by diff: the record is compared FIELD BY FIELD against
+  the tuple rebuilt from the same inputs, its field LIST is asserted exactly (every other test reads
+  fields by name and would never notice a missing one), the precondition-before-read ORDER is driven
+  against the module directly, and a positive control (a read ALONE is still serviced) stops a loop
+  that skipped the read from satisfying the ordering assertion. The end-to-end ordering test in
+  `test_doc_servicing.py` runs through the new path with its assertion unchanged.
+- **5 mutations RED, all APPLIED.** One reported NOT APPLIED first — an indentation mismatch — rather
+  than passing quietly.
+
+### SPLIT 2 — `orchestrator.py` → `kernel/turn_prelude.py` (299 → 296, new module 81)
+
+- **RE-MEASURED BEFORE WRITING, as ruled.** The 301 figure was the orchestrator WITH the mode wired;
+  the preparatory extraction alone lands at **296**, four lines of headroom. Taken from the file, not
+  from the argument — the estimate had already been wrong once in exactly this place.
+- **The seam:** verbosity (v5) and the barge-in note (v7 Phase 3) accumulated one at a time across
+  three milestones with no shared name, so each looked like a small local addition rather than the
+  next member of a family. They are ONE job: take the user's words and hand back what the provider
+  should see. DEC-65's mode frame is the third source; its home is NAMED and not built (stub-first).
+- **ORDER IS NOW A CONTRACT.** Verbosity scans the RAW transcript, so a note prepended first sits
+  inside the text it scans and a standalone command stops being detected for exactly the turns after
+  an interruption — a FALSE NEGATIVE that reads as the user mis-speaking.
+- **THE GUARD'S OWN HOLE, FOUND BY MUTATION.** The first version asserted the order with an ANYWHERE
+  phrase, which matches as a substring wherever it sits — **so the order-inverting mutation SURVIVED
+  it.** Only a `_STANDALONE_WORDS` entry, which must be the whole utterance, distinguishes the two
+  orders. Rewritten, with the anywhere-phrase case kept as an explicit companion test so the choice
+  is not undone by a later simplification. **Fourth sighting this session of a check examining less
+  than it claimed.**
+- **4 mutations RED, all APPLIED.** The order mutation was applied by LINE MOVE after two string
+  anchors reported NOT APPLIED.
+- The ceiling pin moved **299 → 296 in the same commit**, declared with its reason.
+
+### D-3 ACCEPTED, WITH THE CAVEAT AS THE LOAD-BEARING HALF
+
+The caption occupies the bottom edge and the badge sits bottom-left, so a third persistent element is
+architecturally safe only in a corner; `MUTHIS_STATUS_CORNER` defaults safely and **placement stays
+Sultan's UX call after a prototype** — the architecture/UX split as ruled. **The caveat is the half
+that must be carried, not assumed:** the badge's per-turn lifetime is free *because* `clear_caption`
+fires at end of turn, but a **mode indicator must SURVIVE ACROSS TURNS**, so it needs a redraw after
+every capture and **inheriting the caption's lifecycle is no longer free for the third element.**
+That is a real cost the design must budget.
+
+**Guard: 1273 + 27 → 1289 + 27 green on `.venv`.** `tool_router.py` 300, `turn_voice.py` 300,
+`persona.py` 209 UNCHANGED. Draw path, Option-A sync, HighlightGate, caption pacing and the VoiceOut
+chokepoint git-untouched across both commits.
+
+---
