@@ -6357,3 +6357,91 @@ Guard **1241 + 27**, unchanged by the move (a pure move adds no tests). `tool_ro
 `orchestrator.py` 299, `turn_voice.py` 300, `persona.py` 209 — all UNCHANGED.
 
 ---
+
+## CARRIER RE-MEASUREMENT (2026-08-02) — Blocker A re-measured against a FREE loop: one candidate survives, and item 3's stated premise measures FALSE — MEASUREMENT ONLY, NOTHING CHOSEN, NOTHING BUILT
+
+- **Item:** Ruling 2. The three carriers for a broker-side event reaching the turn's voice were
+  measured **under a blocked loop**, so their constraints derived from the defect DEC-69 removed.
+  **Sultan declined to rule on a path measured in a vanishing condition** and ordered a re-measure.
+- **Status:** **MEASUREMENT ONLY. No carrier is selected, no line of carrier code exists.**
+
+### WHAT THE FREE LOOP CHANGED — and it is not what any of the three candidates predicted
+
+**THE ANNOUNCE POINT MOVED FROM IMPOSSIBLE TO NATURAL.** With `_index` offloaded, the zone decision
+at `ingest.py:179` and the offload at `ingest.py:213` are **34 lines apart and BOTH ON THE LOOP**.
+So an ingestion announcement can now be **awaited on a free loop immediately before the ~20 s of
+work begins** — which is precisely the position it needed and could not have. Before DEC-69 the
+same line would have been sent and then not HEARD.
+
+**A THREAD-CONTEXT SPLIT APPEARED that did not exist before.** Anything now running inside `_index`
+runs on a **WORKER thread**, so a seam invoked from there would need a thread→loop hop, while the
+MCP eviction (`host._strike`, async I/O) stays **on the loop**. **The two blocked items no longer
+share one thread context** — which was the premise of treating them as one carrier problem.
+
+### THE STATED PREMISE OF ITEM 3 MEASURES FALSE — `ensure_model` HAS NO PRODUCTION CALLER
+
+The brief read: *"the seam already exists — `model_pin.FIRST_DOWNLOAD_AR` is wired to the LOGGER,
+not the voice line. Wire it to the voice line for zone-2 ingestion."* **The seam exists. It is not
+on any production path.**
+
+| reference | caller |
+|---|---|
+| `model_pin.ensure_model` | `scripts/diag_doc_rag.py:2163` · `tests/test_doc_encoder.py:164` (with `allow_download=False`) |
+| production `src/` | **NONE** |
+
+`E5Encoder.load()` reads the artifacts straight off disk and raises `EncoderUnavailable` if they
+are absent — **it never calls `ensure_model`**, so `hf_hub_download` never runs in the app and
+**`FIRST_DOWNLOAD_AR` can never fire in a real turn.** The model is pre-fetched by running the diag
+script.
+
+- **CONSEQUENCE FOR ITEM 3:** wiring that seam to the voice line would wire **a seam nothing
+  calls**. The ~20 s announcement needs its **own** announce point — the free-loop one above — and
+  a **new** Arabic constant (`broker/docs/notes.py`, 133 lines, ample room).
+- **A SEPARATE QUESTION THIS RAISES, and it is not mine to answer:** if the artifacts are missing
+  on a fresh machine, the user gets `EncoderUnavailable` rather than a download. **Whether the app
+  should fetch its own model at first use is a product decision**, and it is the one `ensure_model`
+  was written for. Recorded, not acted on.
+
+### THE THREE CANDIDATES, RE-MEASURED
+
+| candidate | verdict now | why |
+|---|---|---|
+| **1 — the bound announcer** | **THE ONLY SURVIVOR** | works on a free loop; both announce points are inside `async` callers already |
+| **2 — a queue drained after the service call** | **STILL FATAL for item 3** | the loop being free does not change WHEN the queue drains: still after the ~20 s it exists to explain. Viable for item 4 alone |
+| **3 — `call_soon_threadsafe` + `create_task`** | **DISQUALIFIED** | Sultan's ruling, independent of measurement: Law 11 forbids a lifecycle outside the kernel and DEC-47 already rejected this exact shape |
+
+**CANDIDATE 1, COUNTED FROM A REAL PROTOTYPE** (written to scratchpad, not estimated):
+
+| file | today | after | headroom |
+|---|---|---|---|
+| **NEW** `kernel/announcer.py` | — | **64** | no ceiling pressure |
+| `kernel/turn_pass.py` | 286 | **291** | **9 — TIGHT** |
+| `broker/docs/ingest.py` | 291 | **297** | **3 — TIGHT** |
+| `broker/mcp/host.py` | 248 | 250 | 50 |
+| `composition.py` | 259 | 263 | 37 |
+
+**+17 lines across four existing files, plus one 64-line new module.** Both announce seams are
+already inside `async` callers, so `McpHost._strike` and `DocumentIngestor.ingest` need no new
+concurrency — only `async` signatures.
+
+- **THE SHAPE IS DEC-37's, with ONE difference that is exactly what needs a ruling:** the router's
+  `turn_hooks` carry **RESET CALLABLES**; this would carry a **LIVE VALUE with a TURN lifetime**.
+  It binds on the same per-turn hook every other consumer already rides (`new_turn_voice`), so
+  DEC-19's "no second turn boundary" is satisfied.
+- **TWO TIGHT FILES ARE THE REAL COST, and they are the honest warning.** `ingest.py` at **297/300**
+  leaves three lines. **That is a ceiling problem arriving with the carrier**, and it should be
+  ruled on together with it rather than discovered at implementation — the EIGHTH MEASUREMENT GAP's
+  lesson, where a re-measure moved a carrier from +13 to +15 and killed the plan it was in.
+- **ITEM 4 IS NOW CHEAP AND SEPARABLE:** `host.py` 248 → 250 with 50 lines of headroom, on the loop,
+  no new note needed. **It no longer has to wait for item 3**, and decoupling them is now a real
+  option that did not exist when they shared a blocked loop.
+
+### WHAT IS STILL NOT MEASURED, AND CANNOT BE HERE
+
+**Whether the loop is genuinely free during a REAL ingestion.** The production encode is native
+(`tokenizers` in Rust, `onnxruntime` in C++) and `to_thread` frees the loop only while those
+release the GIL. They do — but that is not verified on this machine, because it needs the pinned
+model and the corpus. **Sultan's live check: press F9 during a zone-2 ingestion.** Until then
+every number above is a line count, not a latency.
+
+---
