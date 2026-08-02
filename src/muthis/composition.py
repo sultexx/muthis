@@ -37,6 +37,7 @@ from .kernel.budget import Budget
 from .kernel.frame_capture import FrameCapture
 from .kernel.core_router import build_core_router
 from .kernel.orchestrator import Orchestrator
+from .kernel.session_mode import SessionMode
 from .kernel.session_taint import SessionTaint
 from .kernel.tool_router import ToolRouter
 from .trust.confirm_gate import ConfirmGate
@@ -248,7 +249,16 @@ def _build_orchestrator(
     """Wire the FULL production graph through the existing DI seams. Tests inject
     fakes through these very same seams — production just passes the real ones.
     `mic_seam` is Mic().stop: the turn ENDS the hold and gets the audio as its
-    first step (the hotkey already started the stream on key-down)."""
+    first step (the hotkey already started the stream on key-down).
+
+    V3 Phase 3 (T1, DEC-65): the `SessionMode` is built HERE — at the root, once
+    per process — and INJECTED, the `SessionTaint` shape and for the same reason:
+    building it at the root is what makes its LIFETIME legible as the PROCESS's
+    rather than a per-turn object's (contrast `HighlightGate`, rebuilt every
+    turn). It reaches `TurnPrelude` through the orchestrator, which pays only for
+    the injection and holds no mode logic at all — design C as ruled in DEC-73,
+    on the room split 2 bought."""
+    session_mode = SessionMode()
     return Orchestrator(
         reasoner=agent,
         budget=budget,
@@ -260,4 +270,5 @@ def _build_orchestrator(
         overlay=overlay,                         # REAL overlay (hidden before each capture)
         router=router,                           # V2 Phase 1: the ONE injected seam
         sandbox=sandbox,                         # V2 Phase 2 (T5): the run_code servicer
+        session_mode=session_mode,               # V3 Phase 3 (T1, DEC-65): the mode frame
     )

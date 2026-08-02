@@ -19,10 +19,15 @@ next arrival whatever it was; `SessionMode` was merely next in the queue. This
 seam is the room, and it is opened once, for a real responsibility, rather than
 shaved to fit.
 
-THE MODE FRAME IS THE THIRD SOURCE, AND ITS HOME IS NAMED HERE (DEC-65/DEC-66).
-It is NOT built — T1 builds it — but this is where it lands, beside the two that
-already exist, and `begin_turn` is the ONE call site it will join. Stub-first, the
-AGENTS.md law: the fields are not built now, the shape that can receive them is.
+THE MODE FRAME IS THE THIRD SOURCE, AND IT HAS LANDED (DEC-65/DEC-66, T1). The
+`SessionMode` is built at the composition root and INJECTED through here, beside
+the two sources that already existed. **It is HELD, not yet COMPOSED:** T1 gives
+the frame a home and an owner; T2 turns it into the per-turn internal directive
+line and joins `begin_turn`, under the BINDING CONSTRAINT of 2026-07-31 — that
+line MUST carry `DIRECTIVE_MARKER_AR`, or the mode's step text flows into the
+DEC-16 approval detector's input and a genuine «وافق» stops matching. Stated
+plainly rather than implied, because a seam documented as active while actually
+inert is the inverse error: at T1 nothing here reads the mode.
 
 ORDER IS PART OF THE CONTRACT. Verbosity detects a voice command in the RAW
 transcript, so anything prepended BEFORE it would be inside the text it scans.
@@ -39,6 +44,7 @@ from __future__ import annotations
 from typing import Optional
 
 from .highlight_gate import INTERRUPTED_NOTE_AR
+from .session_mode import SessionMode
 from .verbosity import VerbosityController
 
 
@@ -46,16 +52,28 @@ class TurnPrelude:
     """The turn's directive assembly. Built once by the Orchestrator, held ACROSS
     turns because verbosity's SHORT/DETAILED is sticky."""
 
-    def __init__(self, *, verbosity: Optional[VerbosityController] = None) -> None:
+    def __init__(self, *, verbosity: Optional[VerbosityController] = None,
+                 session_mode: Optional[SessionMode] = None) -> None:
         # Verbosity state lives ACROSS turns (sticky SHORT/DETAILED) — a real
         # default like the other seams, so main.py needs no wiring (v5 B3).
         self._verbosity = verbosity or VerbosityController()
+        # DEC-65 (T1): the mode frame's third source. A REAL default, never
+        # None, for the reason `SessionTaint` defaults to a real instance and
+        # `PassServiced` to an empty record — a consumer must never have to
+        # branch on absence, because that branch is where the two worlds drift.
+        self._session_mode = session_mode or SessionMode()
 
     @property
     def verbosity(self) -> VerbosityController:
         """The controller itself, for callers that need the state rather than the
         assembly — kept read-only so the ONE mutation path stays `begin_turn`."""
         return self._verbosity
+
+    @property
+    def session_mode(self) -> SessionMode:
+        """The injected mode, read-only. T3's indicator and T2's authority read
+        the FRAME from here; nothing in this file reads it yet."""
+        return self._session_mode
 
     def begin_turn(self, user_text: str, *, interrupted: bool = False) -> str:
         """The RAW transcript in, the provider's user text out.

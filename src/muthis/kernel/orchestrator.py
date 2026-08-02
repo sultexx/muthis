@@ -45,6 +45,7 @@ from .turn import (
     TurnResult, build_tool_result_message, strip_images_from_history,
 )
 from ..overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .session_mode import SessionMode
 from .turn_prelude import TurnPrelude
 from .verbosity import VerbosityController
 from ..voice_out import VoiceOut
@@ -91,6 +92,7 @@ class Orchestrator:
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
+        session_mode: Optional[SessionMode] = None,
         stream_tts: Optional[bool] = None,
         speech_session_factory: Optional[Callable[[], object]] = None,
     ) -> None:
@@ -103,10 +105,10 @@ class Orchestrator:
         # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
         self._voice = VoiceOut(tts, overlay)
         # Every kernel-owned directive that decorates the raw transcript lives
-        # in ONE object (DEC-73 split 2): verbosity, the barge-in note, and — at
-        # T1 — DEC-65's mode frame. Held ACROSS turns; the rationale moved WITH
-        # the code rather than being compressed out of it (DEC-30).
-        self._prelude = TurnPrelude(verbosity=verbosity)
+        # in ONE object (DEC-73 split 2): verbosity, the barge-in note, and — as
+        # of T1 — DEC-65's injected mode frame. Held ACROSS turns; the rationale
+        # moved WITH the code rather than being compressed out of it (DEC-30).
+        self._prelude = TurnPrelude(verbosity=verbosity, session_mode=session_mode)
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
         # The hide→settle→capture chokepoint lives in frame_capture.py — the

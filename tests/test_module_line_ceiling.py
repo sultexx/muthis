@@ -82,7 +82,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # the minimum cost of ANY new injected seam here is three lines against ONE
     # of headroom, so the file could not absorb the next arrival whatever it was.
     # `TurnPrelude` is the room, bought once for a real responsibility.
-    ("kernel/orchestrator.py", 296),
+    # 296 -> 298, DECLARED (T1, DEC-65): the SessionMode injection — one import
+    # and one constructor parameter. The third line DEC-73 projected was an EDIT
+    # of the existing `TurnPrelude(...)` call, so design C cost 2 rather than 3
+    # and the file keeps two lines of headroom. Measured after the write, not
+    # before: the projection was checked against the file, per the ruling.
+    ("kernel/orchestrator.py", 298),
     ("turn_voice.py", 300),
     ("persona.py", 209),
 ])
