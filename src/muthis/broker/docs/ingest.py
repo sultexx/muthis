@@ -47,6 +47,7 @@ choose full injection for a hostile 200-page document.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import pathlib
 from typing import Any, Callable, Optional
@@ -193,7 +194,23 @@ class DocumentIngestor:
             return IngestOutcome(DocZone.INJECT, decision=decision, extract=report,
                                  text=_assemble(blocks))
 
-        return self._index(blocks, decision, report)
+        # OFF THE EVENT LOOP. This line RESTORES A GUARANTEE rather than adding a
+        # feature, which is why it lands inside a signed, merged milestone.
+        # `_index` used to be called SYNCHRONOUSLY from this async function, so
+        # chunk + load + encode ran ON the loop thread and BLOCKED it for ~20 s —
+        # and a blocked loop cannot run the F9 barge-in, which arrives through
+        # `loop.call_soon_threadsafe`. The silence was the SYMPTOM; the defect was
+        # that stop did nothing for twenty seconds, which a user reads as a HANG.
+        # DEC-64 ruling 3's measurement stands; its CAUSE was misdiagnosed.
+        # Full argument: DECISIONS.md, "the ~20 s was a BLOCKED LOOP".
+        #
+        # `extract.py` already offloads its parse this way — this is that line's
+        # sibling. `_index` stays SYNC (CPU work, no lifecycle): `to_thread` is a
+        # bounded offload of ONE call, never the background task DEC-47 rejected.
+        # ACCEPTED: a cancelled turn no longer waits for the encode (the worker
+        # finishes and its index is discarded — the user gets their interrupt), and
+        # concurrency becomes expressible though it stays unreachable (see the DEC).
+        return await asyncio.to_thread(self._index, blocks, decision, report)
 
     # ── extraction, with each failure named as itself (DEC-35) ────────────────
     async def _extract_blocks(self, path: pathlib.Path):

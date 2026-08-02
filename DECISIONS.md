@@ -6184,3 +6184,93 @@ claim inherits the duty to measure it.** Neither seniority nor good reasoning su
 probe.
 
 ---
+
+## DEC-69 (2026-08-02) — the `doc_rag` ~20 s was a BLOCKED EVENT LOOP, not a quiet one: zone-2 indexing moves OFF the loop — APPROVED (Sultan), EXECUTED
+
+- **Item:** `ingest.py` called `_index` **synchronously from an `async` function**, so chunking,
+  the encoder load and encoding all ran on the event-loop thread. Found while locating the
+  announce point for the voice-surface pass; **ruled a KERNEL CONCURRENCY DEFECT, not a voice
+  item** (Sultan) — *"silence wearing a disguise"*.
+- **Reason it outranks the announcement it was found under:** **the F9 barge-in reaches the kernel
+  through `loop.call_soon_threadsafe`.** A blocked loop cannot run it. So for the measured ~20 s a
+  user pressing **stop got nothing** — against the **~100 ms** interrupt (`Pa_AbortStream`,
+  measured at v7 Phase 3) that is the oldest guarantee in the voice line. **A user who presses stop
+  and sees nothing does not perceive silence; they perceive a HANG.**
+
+### DEC-64 RULING 3 — THE MEASUREMENT STANDS, THE CAUSE WAS MISDIAGNOSED
+
+DEC-64 ruling 3 measured **20.03 s cold vs 25.79 s warm**, correctly attributed the difference to
+**thermal derating**, and **refuted** the accumulating-structure hypothesis. **All of that holds.**
+What it got wrong is the NATURE of the interval: it was recorded as an *ingestion silence* — a UX
+limit owed to the voice work — and ACCEPTED on that basis. **It is a blocked loop.** The
+acceptance was therefore made about the wrong object: not "the user hears nothing for 20 s" but
+**"the application answers nothing for 20 s, including stop."**
+
+- **This also explains why the announcement could never have worked**, which was the finding that
+  led here: the TTS reader task lives on that loop, so audio fed immediately before the block would
+  not be HEARD until after the silence it exists to explain. **Two symptoms, one cause.**
+- **Recorded as a correction rather than a reversal:** a measurement can be right about its number
+  and wrong about what the number IS. DEC-64's figure needed no re-run; its diagnosis did.
+
+### THE FIX — one line, and it RESTORES a guarantee rather than adding a feature
+
+`return self._index(...)` → `return await asyncio.to_thread(self._index, blocks, decision, report)`
+
+- **The shape was already in the same package.** `extract.py:233` offloads the parse this way (a
+  228-page PDF measured ~2.6 s at P0). This is that line's sibling; nothing was invented.
+- **`_index` stays SYNC.** It is CPU work and owns no lifecycle (Law 11). `to_thread` is a
+  **bounded offload of ONE call**, never a background task — the shape **DEC-47 rejected** for
+  background ingestion, and the distinction is why this is legal where that was not.
+- **Why it lands inside a signed, merged milestone:** it restores a guarantee that already
+  existed. That is the narrow ground, and it does not generalise to feature work.
+
+**TWO ACCEPTED CONSEQUENCES, recorded rather than discovered later:**
+
+1. **A cancelled turn no longer waits for the encode.** The await is cancelled; the worker finishes
+   and its index is discarded. Wasted work, and the correct trade — the user gets their interrupt.
+2. **Concurrency becomes EXPRESSIBLE where it was not.** It is **not reachable today**
+   (`is_processing` bars overlapping turns; `TurnPass` awaits its routed calls in sequence), so
+   **no lock was added** — a lock here would be a lifecycle this layer may not own. If a second
+   concurrent ingestion ever becomes reachable, **the encoder factory's lazy build is the race.**
+
+### THE GUARDS, AND THE SURVIVOR THAT TURNED OUT TO BE A REAL GAP
+
+`tests/test_doc_ingest_offloop.py` — thread IDENTITY (the encode does not run on the loop thread);
+**the ACCEPTANCE** (a coroutine scheduled during the ingestion runs strictly BETWEEN the encode's
+entry and exit — an ORDERING, so it depends on no duration); **a POSITIVE CONTROL** proving the
+probe can detect a blocked loop; the **cancellation** property; and that the outcome and the
+zone-1 encoder bypass are unchanged.
+
+**M6 SURVIVED THE FIRST RUN — moving `extract_blocks_async` back on-loop changed nothing.** Under
+the standing survivor rule the mechanism was MEASURED: every test here injects a fake `extract`
+coroutine, so the real function is never called. **But closing also requires a control showing the
+property is tested somewhere, and a sweep found NOTHING anywhere asserting extraction runs
+off-loop.** So the survivor was **not "unobservable" — it was UNGUARDED**, and it mattered
+directly: the new comment cites that call as its precedent, and **a precedent whose own property
+nothing checks is a precedent that can quietly stop being true.** A guard was added; **M6 then went
+RED. 6/6 RED, all APPLIED, `PYTHONDONTWRITEBYTECODE=1`.**
+
+### WALL-CLOCK, BEFORE AND AFTER
+
+Same inputs through the same `_index`, real chunking, instant encoder, n=9 medians — so the figure
+is **dispatch overhead**, isolated:
+
+| dispatch | median | min | max |
+|---|---|---|---|
+| BEFORE — inline, on the loop | **6.2 ms** | 6.1 | 6.3 |
+| AFTER — `to_thread`, off-loop | **6.6 ms** | 6.2 | 7.5 |
+
+**+0.4 ms.** Against a production body of ~20,000 ms that is **~0.002%** — invisible, and recorded
+so a future regression has a baseline.
+
+**WHAT THIS DOES NOT PROVE, and it is the live half:** the production encode is NATIVE code
+(`tokenizers` in Rust, `onnxruntime` in C++). `to_thread` frees the loop **only while those
+libraries release the GIL.** They do — but that is not verified here, because it needs the pinned
+model and the corpus. **THE LIVE CHECK IS SULTAN'S: press F9 during a zone-2 ingestion and confirm
+the interrupt lands.** Until then the guarantee is restored *in shape*, and measured only against
+fakes.
+
+- `ingest.py` 274 → **291/300**. `tool_router.py` 300, `orchestrator.py` 299, `turn_voice.py` 300,
+  `persona.py` 209 — all UNCHANGED. Guard **1234 + 27 → 1241 + 27**, measured on `.venv`.
+
+---
