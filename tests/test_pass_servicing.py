@@ -91,8 +91,16 @@ def test_the_record_holds_the_SAME_two_values_the_tuple_held():
     assert serviced.run_result == old_run_result
     # ...and NOTHING ELSE is in the record, so a field cannot be added without a
     # deliberate edit to this assertion (the shape is the contract).
+    #
+    # T4 ADDED `nav_result` AND THIS LINE IS WHERE IT WAS DECLARED. That is the
+    # record doing exactly what DEC-73 built it for: a new tool category costs
+    # the producer, the orchestrator's unpack and `build_tool_result_message`
+    # NOTHING, and costs this assertion one word — which is the only place the
+    # addition is allowed to be invisible-free. The two original fields keep
+    # their order, so the tuple equivalence above still compares like with like.
     assert [f.name for f in dataclasses.fields(PassServiced)] == [
-        "read_results", "run_result"]
+        "read_results", "run_result", "nav_result"]
+    assert serviced.nav_result is None, "a pass that asked for no mode verb"
 
 
 def test_a_pass_that_serviced_NOTHING_returns_the_empty_record_not_None():

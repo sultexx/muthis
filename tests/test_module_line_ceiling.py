@@ -87,7 +87,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # of the existing `TurnPrelude(...)` call, so design C cost 2 rather than 3
     # and the file keeps two lines of headroom. Measured after the write, not
     # before: the projection was checked against the file, per the ruling.
-    ("kernel/orchestrator.py", 298),
+    # 298 -> 299, DECLARED (T4, DEC-66): ONE line — the prelude passed into
+    # `TurnPass`, so a mode verb can reach the ONE evaluation point. A +0 form
+    # existed (packing two kwargs onto one 76-char line) and was REFUSED: a pin
+    # that reads 298 because a line was stuffed is a lie in the pin, and the law
+    # says split, never compress. ONE line of headroom remains.
+    ("kernel/orchestrator.py", 299),
     ("turn_voice.py", 300),
     ("persona.py", 209),
     # NEWLY under pressure at T3 (DEC-65's indicator), and pinned for that

@@ -117,4 +117,39 @@ def mount_doc_rag(router: ToolRouter, plugin) -> None:
     )
 
 
-__all__ = ["mount_doc_rag", "mount_web_research"]
+def mount_navigator(router: ToolRouter, plugin) -> None:
+    """Mount `navigator__plan` / `navigator__step` — the project's FIFTH
+    model-visible change and catalog **v6**, byte-pinned. Mounted AFTER the doc
+    mount so v6 is v5 with two tools APPENDED and the diff stays additive.
+
+    THE TWO FLAGS ARE THE POINT, and both are the OPPOSITE of `doc_rag`'s —
+    which is what makes this line the place DEC-65's invariant is SPENT rather
+    than merely asserted:
+
+      * **`taint=False`.** A mode verb ingests NOTHING. Its arguments are the
+        model's own words, already in the context; no page, no document and no
+        external byte crosses this route. `doc_rag` needed `taint=True` because
+        a document is by definition too large to have been inspected — there is
+        no analogous quantity here to be unable to inspect.
+      * **NO CAPABILITY.** A mode grants no privilege, EVER. With nothing for
+        `high_impact`'s capability arm to read, a mode change can never demand
+        spoken approval — which matters, because a confirmation in front of
+        "next step" would make the walkthrough unusable. `read_only_hint=True`
+        states the KERNEL's own read of the route, exactly as DEC-51 does.
+
+    `kernel_serviced=True` on the descriptors is why the router never executes
+    these: the plugin declares the schema and the KERNEL owns the effect,
+    because the state they change is the kernel's (DEC-73). The servicing branch
+    and the answer-by-name arm landed BEFORE this line — DEC-39's requirement,
+    not a preference."""
+    router.mount(
+        plugin,
+        ctx=PluginContext(),
+        namespace="navigator",
+        provenance="navigator",
+        taint=False,
+        impact=RouteImpact(read_only_hint=True),
+    )
+
+
+__all__ = ["mount_doc_rag", "mount_navigator", "mount_web_research"]

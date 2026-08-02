@@ -43,7 +43,7 @@ from .highlight_gate import HighlightGate, loop_tool_choice
 from .core_router import build_core_router
 from .pass_servicing import PassServiced, service_pass_calls
 from .tool_router import ToolRouter
-from .tool_result_pairing import PRECONDITION_TOOLS
+from .tool_result_pairing import NAV_TOOLS, PRECONDITION_TOOLS
 from .turn import ROUTER_SERVICED_TOOLS, RUN_CODE_TOOL, TurnResult
 from ..turn_voice import TurnVoice
 
@@ -73,6 +73,7 @@ class TurnPass:
         read_file: Optional[ReadFileFn] = None,
         router: Optional[ToolRouter] = None,
         sandbox: Optional[Any] = None,
+        prelude: Optional[Any] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -98,6 +99,12 @@ class TurnPass:
         # T5: the plugin-domain sandbox servicer (gate + runner + kill), injected
         # at composition. None → run_code is unavailable (never offered anyway).
         self._sandbox = sandbox
+        # T4 (DEC-73, design C): the turn's directive assembly, injected so a
+        # MODE verb can reach the ONE evaluation point. ONE object rather than
+        # two, because the authority is built OVER the frame — so "the two
+        # disagree about which mode" is not a state that exists. None keeps the
+        # arm inert (stub-first), never absent.
+        self._prelude = prelude
 
     def new_turn_voice(self) -> TurnVoice:
         """A fresh per-turn voice (built by run_turn like the HighlightGate):
@@ -157,6 +164,7 @@ class TurnPass:
         read_call: Optional[ToolCall] = None
         precondition_call: Optional[ToolCall] = None
         run_call: Optional[ToolCall] = None  # T5: the pass's run_code (first wins)
+        nav_call: Optional[ToolCall] = None  # T4: the pass's mode verb (first wins)
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
         tool_choice = loop_tool_choice(gate)
@@ -204,6 +212,19 @@ class TurnPass:
                             precondition_call = event
                     elif read_call is None:
                         read_call = event
+                elif event.name in NAV_TOOLS:
+                    # T4: a MODE verb — KERNEL-serviced (DEC-73), answered after
+                    # the sync point like a read and NEVER touching the draw
+                    # gate, so a step that also points still gets its one
+                    # pointing (DEC-67's per-turn resource is untouched).
+                    # Without this branch it would fall to the LOOK-only `else`
+                    # below, take the POINTER ack and hard-terminate the turn —
+                    # the DEC-39 failure, which is why this arm landed BEFORE
+                    # the mount. First navigator call of the pass wins; any
+                    # other id is answered BY NAME in tool_result_pairing.
+                    result.tool_calls.append(event)
+                    if nav_call is None:
+                        nav_call = event
                 elif self._sandbox is not None and event.name == RUN_CODE_TOOL:
                     # T5: an EXECUTION tool, serviced after the sync point like a
                     # read — it NEVER gates the draw. First run of the pass wins.
@@ -250,7 +271,8 @@ class TurnPass:
         # precondition-before-read ORDER lives there with its reason.
         serviced = await service_pass_calls(
             router=self._router, sandbox=self._sandbox, result=result,
-            precondition=precondition_call, read=read_call, run=run_call)
+            precondition=precondition_call, read=read_call, run=run_call,
+            nav=nav_call, prelude=self._prelude)
         # DEC-20/36: the badge, drawn by the KERNEL from the broker's own record.
         # HERE, at the very end of the pass: after the Option-A sync point and
         # after servicing, so it can neither reorder draw→speak nor delay the

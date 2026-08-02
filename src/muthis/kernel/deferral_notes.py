@@ -153,8 +153,35 @@ ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS | DOC_TOOLS
 # its tool here, with NO family table to maintain.
 PRECONDITION_TOOLS = frozenset({DOC_OPEN_TOOL})
 
+# T4: the two MODE verbs. **KERNEL-SERVICED** (DEC-73), so they are deliberately
+# NOT in `ROUTER_SERVICED_TOOLS` — no router, no plugin and no capability is
+# involved in their effect. But they MUST be answered BY NAME for exactly the
+# reason every routed family above is: an id nobody answers falls through to the
+# LOOK-only `else`, receives the POINTER ack, flips the per-turn draw gate and
+# hard-terminates the turn. That is DEC-39, and it is the M2 bug this ordering
+# rule was written from — which is why this constant and the arm that reads it
+# land BEFORE the mount that makes the tools reachable.
+NAV_PLAN_TOOL = namespaced_name("navigator", "plan")
+NAV_STEP_TOOL = namespaced_name("navigator", "step")
+NAV_TOOLS = frozenset({NAV_PLAN_TOOL, NAV_STEP_TOOL})
+
+# ONE note for both verbs and every unserviced id: the state achieved is
+# identical (nothing moved, nothing broke) and the valid next move is identical,
+# so two wordings would be a distinction without a difference — DEC-70's
+# reasoning rather than DEC-58's, and the test is which of those two applies,
+# never the count of notes.
+NAV_ONE_PER_PASS_AR = (
+    "توجيه داخلي (لا يراه المستخدم): أخدم حركة مسار واحدة في كل خطوة تفكير، "
+    "وهذه الحركة ما نُفِّذت وما تغيّر شي ولا صار خطأ. "
+    "اطلبها مرة أخرى في الخطوة التالية كما هي."
+)
+
 __all__ = [
     "DOC_ONE_PER_PASS_AR",
+    "NAV_ONE_PER_PASS_AR",
+    "NAV_PLAN_TOOL",
+    "NAV_STEP_TOOL",
+    "NAV_TOOLS",
     "DOC_OPENED_ASK_NEXT_AR",
     "DOC_OPEN_TOOL",
     "DOC_QUERY_TOOL",

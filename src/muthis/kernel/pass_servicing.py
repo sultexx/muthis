@@ -39,6 +39,7 @@ import logging
 from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
+from .navigator_service import service_navigator_call
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -56,6 +57,7 @@ class PassServiced:
 
     read_results: tuple[tuple[ToolCall, str], ...] = ()
     run_result: Optional[tuple[ToolCall, str]] = None
+    nav_result: Optional[tuple[ToolCall, str]] = None
 
 
 async def service_pass_calls(
@@ -66,6 +68,8 @@ async def service_pass_calls(
     precondition: Optional[ToolCall],
     read: Optional[ToolCall],
     run: Optional[ToolCall],
+    nav: Optional[ToolCall] = None,
+    prelude: Any = None,
 ) -> PassServiced:
     """Service the pass's calls AFTER the sync point, in the ONE right order.
 
@@ -96,7 +100,18 @@ async def service_pass_calls(
     run_result: Optional[tuple[ToolCall, str]] = None
     if run is not None and sandbox is not None:
         run_result = (run, await sandbox.run(run.args))
-    return PassServiced(read_results=tuple(read_results), run_result=run_result)
+    # T4: the MODE verb, serviced AFTER the sync point like the two above.
+    # The KERNEL owns the effect (DEC-73), so no router, no plugin and no
+    # capability is involved — and the draw gate is never touched, which is
+    # what leaves a step's one pointing intact. A None prelude keeps this
+    # arm INERT rather than absent: the stub-first shape every seam here
+    # already uses, so an unwired build degrades quietly instead of raising.
+    nav_result: Optional[tuple[ToolCall, str]] = None
+    if nav is not None and prelude is not None:
+        nav_result = (nav, service_navigator_call(
+            nav, authority=prelude.authority, mode=prelude.session_mode))
+    return PassServiced(read_results=tuple(read_results),
+                        run_result=run_result, nav_result=nav_result)
 
 
 __all__ = ["PassServiced", "service_pass_calls"]

@@ -58,8 +58,9 @@ def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) ->
 
 from .deferral_notes import (
     DOC_ONE_PER_PASS_AR, DOC_OPENED_ASK_NEXT_AR, DOC_OPEN_TOOL, DOC_QUERY_TOOL,
-    DOC_TOOLS, PRECONDITION_TOOLS, ROUTER_SERVICED_TOOLS, RUN_CODE_ALREADY_AR,
-    RUN_CODE_TOOL, RUN_CODE_UNAVAILABLE_AR, WEB_FETCH_TOOL, WEB_ONE_PER_PASS_AR,
+    DOC_TOOLS, NAV_ONE_PER_PASS_AR, NAV_TOOLS, PRECONDITION_TOOLS,
+    ROUTER_SERVICED_TOOLS, RUN_CODE_ALREADY_AR, RUN_CODE_TOOL,
+    RUN_CODE_UNAVAILABLE_AR, WEB_FETCH_TOOL, WEB_ONE_PER_PASS_AR,
     WEB_SEARCH_TOOL, WEB_TOOLS, doc_deferral_note,
 )
 
@@ -112,6 +113,8 @@ def build_tool_result_message(
     routed_names = {call.name for call, _ in (read_results or ())}
     last_serviced = read_results[-1][0] if read_results else None
     run_id = run_result[0].tool_use_id if run_result else None
+    nav_result = serviced_calls.nav_result
+    nav_id = nav_result[0].tool_use_id if nav_result else None
     results: list[dict[str, Any]] = []
     for block in assistant_content:
         if block.get("type") != "tool_use":
@@ -158,6 +161,21 @@ def build_tool_result_message(
                 "tool_use_id": tool_use_id,
                 "content": content,
             })
+        elif block.get("name") in NAV_TOOLS:
+            # BY NAME, like every serviced family above — never the draw branch.
+            # An unanswered MODE verb would receive the POINTER ack, flip the
+            # per-turn gate and hard-terminate the turn: DEC-39, and the M2 bug
+            # that ordering rule was written from. This arm and the `turn_pass`
+            # detection landed BEFORE the mount, not after it.
+            if tool_use_id is not None and tool_use_id == nav_id:
+                content = nav_result[1]
+            else:
+                content = NAV_ONE_PER_PASS_AR
+            results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_use_id,
+                "content": content,
+            })
         elif block.get("name") == RUN_CODE_TOOL:
             # T5: answered BY NAME (like read) so a run can NEVER hit the draw
             # branch. The serviced run gets its Arabic output; a second run_code
@@ -184,6 +202,7 @@ def build_tool_result_message(
 
 __all__ = [
     "NO_SCREENSHOT_TOOL_RESULT_AR",
+    "NAV_TOOLS", "NAV_ONE_PER_PASS_AR",
     "RUN_CODE_TOOL", "RUN_CODE_ALREADY_AR", "RUN_CODE_UNAVAILABLE_AR",
     "WEB_SEARCH_TOOL", "WEB_FETCH_TOOL", "WEB_TOOLS", "WEB_ONE_PER_PASS_AR",
     "DOC_OPEN_TOOL", "DOC_QUERY_TOOL", "DOC_TOOLS", "DOC_ONE_PER_PASS_AR",

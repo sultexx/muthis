@@ -124,6 +124,7 @@ class Orchestrator:
             read_file=read_file,  # v7 Phase 4: the read_local_file seam
             router=router,  # V2 Phase 1: the ONE injected seam (roadmap §1)
             sandbox=sandbox,  # V2 Phase 2 (T5): the run_code servicer
+            prelude=self._prelude,  # T4: the mode frame + its ONE authority
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None

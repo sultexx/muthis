@@ -7999,119 +7999,381 @@ indicator must SURVIVE ACROSS TURNS, so it needs a redraw after every capture an
 
 ---
 
+
+
+## DEC-77 (2026-08-02) — T3 EXECUTED: the kernel-drawn mode indicator, and the cross-turn cost DEC-73 warned about, paid explicitly — EXECUTED
+
+
+
+- **Item:** the third BUILD task of Phase 3. DEC-65's visible mode indicator, drawn by the
+
+  kernel from its own state, under DEC-68 D-3's architectural constraints.
+
+- **Scope held:** `orchestrator.py` (298) and `tool_router.py` (300) are **byte-identical** —
+
+  no ruling was needed. Option-A sync, `turn_voice.py`, the `VoiceOut` chokepoint,
+
+  `caption_bar.py`, `draw_dispatch.py` and `HighlightGate` are all git-untouched, and a guard
+
+  asserts each of them does not know the indicator exists.
+
+
+
+### THE CARRIED WARNING WAS THE TASK, AND IT WAS PAID RATHER THAN ASSUMED
+
+
+
+DEC-73 recorded that **the badge's per-turn lifetime is free BECAUSE `clear_caption` fires at
+
+end of turn, and that a mode indicator must SURVIVE ACROSS TURNS.** The arrangement therefore
+
+does NOT transfer, and the lifecycle is split in two:
+
+
+
+- **GHOSTING still applies** — `hide()` erases the chip, because a capture must never show
+
+  Claude our own overlay;
+
+- **but the TEXT IS REMEMBERED**, and `restore()` redraws it after the grab;
+
+- **`clear_caption` does NOT touch it** — written as an EXPLICIT NON-BRANCH in
+
+  `window_commands.dispatch_command` so a reader meets a decision rather than an omission;
+
+- **an empty text FORGETS**, so an ended mode cannot be resurrected by a later restore.
+
+
+
+**THE REDRAW COSTS ONE CALL, IN A METHOD WHOSE JOB THAT ALREADY IS.** `FrameCapture.capture`
+
+already relights the status dot after every grab; the indicator's restore sits on the line
+
+below it. So the second persistent element survives a capture for the same reason and at the
+
+same instant as the first, and **no second lifecycle exists.**
+
+
+
+### THE SEAM: DEC-37's SHAPE, WHICH IS WHY THE KERNEL PAID ZERO LINES
+
+
+
+`SessionMode` gained an **OPAQUE `on_change` observer** fired after every state change. The
+
+module never learns what it does — it names no overlay, no canvas and no draw — and the
+
+COMPOSITION ROOT is the one place that knows both sides. That is `turn_hooks` (DEC-37) in a
+
+new place, and it is what let the indicator reach the screen without `orchestrator.py`,
+
+`turn_pass.py` or `tool_router.py` being touched at all.
+
+
+
+**Firing from the FRAME rather than the AUTHORITY is deliberate:** T2 proved by AST that the
+
+authority is the only caller of the mutators, so the two are equivalent in reachability — but
+
+firing at the mutation itself means **no future path can change state without redrawing**,
+
+and it is what makes a mid-turn advance update the chip immediately. A backstop that lagged
+
+its own state would not be one.
+
+
+
+**THE ROOT'S CALLABLE IS THE ONE THAT MUST NEVER RAISE.** `SessionMode` has no logger by
+
+design (a `Plan` holds model-authored step text), so it cannot be the thing that swallows and
+
+reports a failure; the guard lives in `composition.py` on the `turn_hooks` discipline —
+
+logged, never allowed to kill a turn — and a test drives an exploding overlay through it.
+
+
+
+### NEVER MODEL-AUTHORED, PROVEN THREE WAYS
+
+
+
+1. **SIGNATURE.** `mode_indicator_text(mode)` takes exactly ONE argument and it is the
+
+   kernel's own state object — a caller cannot pass it a claim, only the frame.
+
+2. **ATTRIBUTE SCAN.** Inside that function the only attributes read off the frame are
+
+   `active`, `name`, `total_steps`, `current_step`. Reading the plan's steps — or a step's
+
+   text — fails the guard.
+
+3. **SOURCE SCAN.** The widget package names no `ToolCall`, `TurnComplete`, `TextDelta`,
+
+   transcript or reasoner symbol, and the root's seam is asserted to hand `show(...)` nothing
+
+   but the composer's own output.
+
+
+
+**THE STEP TEXT IS DELIBERATELY ABSENT FROM THE CHIP.** It belongs in the directive line the
+
+model reads, not on the persistent element the user watches — so **no model-authored
+
+character reaches this surface at all**, which is a stronger guarantee than sanitising one
+
+would be.
+
+
+
+### D-3, SATISFIED ARCHITECTURALLY AND NOT FROZEN
+
+
+
+Anchored **TOP**-left while the caption chip is bottom-centre, the domain badge bottom-left
+
+and the status dot bottom-right by default: every other persistent element is bottom-anchored,
+
+so a top anchor **cannot collide however the caption wraps or the font changes** — the badge's
+
+own reasoning, one edge up, collision-free BY CONSTRUCTION rather than by an offset that
+
+drifts. It consumes NONE of the caption's 2×60 budget because it is a separate tag-scoped
+
+element that never reaches the caption at all. **The exact position is NOT frozen:** the two
+
+margins are the prototype, no test pins a pixel, and placement remains Sultan's UX call.
+
+
+
+The indicator is **METADATA, not a visual intent** — it never touches `HighlightGate` or
+
+`next_draw`, so a step that points still gets its one pointing (DEC-67's per-turn resource is
+
+untouched), asserted behaviourally and by source scan.
+
+
+
+### 15 MUTATIONS, ALL APPLIED, 15/15 RED — AND THE SURVIVOR WAS THE FAMILY AGAIN
+
+
+
+**M12 survived the first run: the composition root never wiring the seam at all.** Every test
+
+built its OWN `on_change`, so deleting the production wiring stayed GREEN. **That is DEC-40's
+
+defect, reintroduced by me at T3 one task after T1 closed it preventively** — which is the
+
+useful part of the record: the fixture that builds its own graph is not a mistake made once
+
+and learned, it is a default that has to be actively refused every time. Closed the same way
+
+T1 did: a test drives the REAL `_build_orchestrator` with a recording overlay and asserts the
+
+composed frame actually arrives.
+
+
+
+### MEASURED, AND TWO FILES DECLARED INTO PRESSURE
+
+
+
+| file | before | after |
+
+|---|---|---|
+
+| `kernel/orchestrator.py` | 298 | **298** — byte-identical |
+
+| `kernel/tool_router.py` | 300 | **300** — byte-identical |
+
+| `overlay/mode_indicator.py` | — | **131** (new) |
+
+| `overlay/sidekick_window.py` | 280 | **296** — newly pinned |
+
+| `composition.py` | 274 | **298** — newly pinned |
+
+| `overlay/window_commands.py` | 122 | 138 |
+
+| `kernel/frame_capture.py` | 61 | 70 |
+
+| `kernel/session_mode.py` | 195 | 211 |
+
+| `kernel/mode_surfaces.py` | 209 | 244 |
+
+
+
+**`sidekick_window.py` and `composition.py` had NO declared number before this commit** — the
+
+exact state `broker/docs/service.py` was in when it crossed the law in silence — so both are
+
+now pinned in `test_module_line_ceiling.py`. **`composition.py` at 298/300 is CEILING DEBT
+
+carried into T4:** the Navigator's wiring lands at the root, and two lines is not room. The
+
+seam to extract is named but NOT taken here, because naming it is planning and taking it is a
+
+refactor on the way to something else (DEC-52/DEC-56: re-measure at execution).
+
+
+
+**Guard: 1408 + 27 → 1433 + 27 green on `.venv`** (25 new). `tool_router.py` 300,
+
+`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED. `AGENTS.md` /
+
+`PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
+
+
+
+**Next is T4 — Navigator v1**, with NO visual verification (DEC-68; v2 waits on D-1's
+
+numbers), and with `composition.py`'s two remaining lines as its first measurement.
+
+
+
+---
+
 
-## DEC-77 (2026-08-02) — T3 EXECUTED: the kernel-drawn mode indicator, and the cross-turn cost DEC-73 warned about, paid explicitly — EXECUTED
+## DEC-78 (2026-08-02) — T4 EXECUTED: Navigator v1, catalog v6, and the orchestrator's last-but-one line spent honestly — RULED (Sultan), EXECUTED
 
-- **Item:** the third BUILD task of Phase 3. DEC-65's visible mode indicator, drawn by the
-  kernel from its own state, under DEC-68 D-3's architectural constraints.
-- **Scope held:** `orchestrator.py` (298) and `tool_router.py` (300) are **byte-identical** —
-  no ruling was needed. Option-A sync, `turn_voice.py`, the `VoiceOut` chokepoint,
-  `caption_bar.py`, `draw_dispatch.py` and `HighlightGate` are all git-untouched, and a guard
-  asserts each of them does not know the indicator exists.
+- **Item:** the fourth BUILD task of Phase 3. Navigator v1 per DEC-66 — plan creation, step
+  directives, pointing, user-driven advance. **NO visual verification** (Sultan's ruling;
+  v2 waits on T7).
+- **Scope held:** `tool_router.py` **300, byte-identical**. The draw path, Option-A sync, the
+  unified draw gate, `HighlightGate`, caption pacing, the `VoiceOut` chokepoint, `persona.py`
+  and `persona_rules.py` are all git-untouched. **The Navigator adds ZERO draw code.**
 
-### THE CARRIED WARNING WAS THE TASK, AND IT WAS PAID RATHER THAN ASSUMED
+### RULING 1 — THE ORCHESTRATOR LINE, AND WHY THE +0 FORM WAS REFUSED
 
-DEC-73 recorded that **the badge's per-turn lifetime is free BECAUSE `clear_caption` fires at
-end of turn, and that a mode indicator must SURVIVE ACROSS TURNS.** The arrangement therefore
-does NOT transfer, and the lifecycle is split in two:
+**`orchestrator.py` 298 → 299**, measured after the write. Design N-1b: ONE line passing the
+`TurnPrelude` into `TurnPass`, so a mode verb can reach the ONE evaluation point. One object
+rather than two, because the authority is built OVER the frame — so "the two disagree about
+which mode" is not a state that exists.
 
-- **GHOSTING still applies** — `hide()` erases the chip, because a capture must never show
-  Claude our own overlay;
-- **but the TEXT IS REMEMBERED**, and `restore()` redraws it after the grab;
-- **`clear_caption` does NOT touch it** — written as an EXPLICIT NON-BRANCH in
-  `window_commands.dispatch_command` so a reader meets a decision rather than an omission;
-- **an empty text FORGETS**, so an ended mode cannot be resurrected by a later restore.
+**A +0 form existed and was REFUSED**, and Sultan ruled the refusal the part worth recording:
+packing two kwargs with separate comments onto one 76-char line to dodge a declared ceiling
+move is COMPRESSION, and the law says split, never compress. **A pin that reads 298 because a
+line was stuffed is a lie in the pin.**
 
-**THE REDRAW COSTS ONE CALL, IN A METHOD WHOSE JOB THAT ALREADY IS.** `FrameCapture.capture`
-already relights the status dot after every grab; the indicator's restore sits on the line
-below it. So the second persistent element survives a capture for the same reason and at the
-same instant as the first, and **no second lifecycle exists.**
+**THE DISTINCTION THAT MAKES THIS NOT PEDANTRY**, because the same commit does the opposite
+elsewhere: `composition.py`'s existing one-line import of two mount names took a third name
+and stayed one line at 96 chars — **298 → 298, +0**. Adding a name to an import list is that
+statement's natural form; merging two independent keyword arguments and their comments is
+not. The test is whether the line was already carrying a list.
 
-### THE SEAM: DEC-37's SHAPE, WHICH IS WHY THE KERNEL PAID ZERO LINES
+N-2 was rejected on the merits: a state transition inside `build_tool_result_message` services
+at HISTORY-BUILD time rather than at the sync point, breaking the shape every other serviced
+family holds.
 
-`SessionMode` gained an **OPAQUE `on_change` observer** fired after every state change. The
-module never learns what it does — it names no overlay, no canvas and no draw — and the
-COMPOSITION ROOT is the one place that knows both sides. That is `turn_hooks` (DEC-37) in a
-new place, and it is what let the indicator reach the screen without `orchestrator.py`,
-`turn_pass.py` or `tool_router.py` being touched at all.
+### RULING 2 — CATALOG v6, AND IT EXTENDS
 
-**Firing from the FRAME rather than the AUTHORITY is deliberate:** T2 proved by AST that the
-authority is the only caller of the mutators, so the two are equivalent in reachability — but
-firing at the mutation itself means **no future path can change state without redrawing**,
-and it is what makes a mid-turn advance update the chip immediately. A backstop that lagged
-its own state would not be one.
+`navigator__plan` + `navigator__step`, byte-pinned to `look_tools_v6.json`, built through the
+REAL production mounts. **Eleven tools against a cap of 24.** v6 is v5 with two tools
+APPENDED and every earlier schema byte-identical, so **the additive guard shape RETURNS**
+after v5's revision and DEC-71's blast-radius pin is untouched in its own file.
 
-**THE ROOT'S CALLABLE IS THE ONE THAT MUST NEVER RAISE.** `SessionMode` has no logger by
-design (a `Plan` holds model-authored step text), so it cannot be the thing that swallows and
-reports a failure; the guard lives in `composition.py` on the `turn_hooks` discipline —
-logged, never allowed to kill a turn — and a test drives an exploding overlay through it.
+KERNEL-SERVICED, the `request_screen_refresh` pattern: the plugin declares two schemas and
+holds no state, no transition and no note. A plugin holding the plan would make "step 3 of 5"
+a PLUGIN'S CLAIM — which is the thing DEC-65 exists to have removed. `muthis plugin test` →
+**ADMISSIBLE, 8 checks, 0 skipped.**
 
-### NEVER MODEL-AUTHORED, PROVEN THREE WAYS
+### `jump` TAKES THE STEP NUMBER AND NEVER THE ID — DEC-71 PAID FORWARD
 
-1. **SIGNATURE.** `mode_indicator_text(mode)` takes exactly ONE argument and it is the
-   kernel's own state object — a caller cannot pass it a claim, only the frame.
-2. **ATTRIBUTE SCAN.** Inside that function the only attributes read off the frame are
-   `active`, `name`, `total_steps`, `current_step`. Reading the plan's steps — or a step's
-   text — fails the guard.
-3. **SOURCE SCAN.** The widget package names no `ToolCall`, `TurnComplete`, `TextDelta`,
-   transcript or reasoner symbol, and the root's seam is asserted to hand `show(...)` nothing
-   but the composer's own output.
+The user and the model both already say *"go back to step two"*, so the verb takes the 1-BASED
+NUMBER and the KERNEL maps it to that step's stable id, against the plan AS IT IS NOW. **An
+identifier that never crosses the boundary cannot fail the round trip it is put through.**
 
-**THE STEP TEXT IS DELIBERATELY ABSENT FROM THE CHIP.** It belongs in the directive line the
-model reads, not on the persistent element the user watches — so **no model-authored
-character reaches this surface at all**, which is a stronger guarantee than sanitising one
-would be.
+Sultan's ruling records why this entry matters beyond the feature: **DEC-71's lesson was paid
+for over three rounds of live failure, and this is the first time it has been applied BY
+DESIGN rather than after the fact.** The discriminating guard is a jump AFTER a delete: a
+design storing the position would land on a different step with no observable difference,
+which is the DEC-63 defect in a new place. Mutations M4 and M5 are exactly that, and both go
+RED.
 
-### D-3, SATISFIED ARCHITECTURALLY AND NOT FROZEN
+### THE MOUNT SPENDS DEC-65's INVARIANT RATHER THAN ASSERTING IT
 
-Anchored **TOP**-left while the caption chip is bottom-centre, the domain badge bottom-left
-and the status dot bottom-right by default: every other persistent element is bottom-anchored,
-so a top anchor **cannot collide however the caption wraps or the font changes** — the badge's
-own reasoning, one edge up, collision-free BY CONSTRUCTION rather than by an offset that
-drifts. It consumes NONE of the caption's 2×60 budget because it is a separate tag-scoped
-element that never reaches the caption at all. **The exact position is NOT frozen:** the two
-margins are the prototype, no test pins a pixel, and placement remains Sultan's UX call.
+`taint=False` and NO CAPABILITY — both the OPPOSITE of `doc_rag`'s, for opposite reasons. A
+mode verb ingests NOTHING: its arguments are the model's own words, already in the context,
+and no page, document or external byte crosses this route. With no capability there is
+nothing for `high_impact`'s arm to read, so a mode change can never demand spoken approval —
+which matters, because a confirmation in front of «next step» would make a walkthrough
+unusable. Driven with the taint ALREADY RAISED, since that is the state a confirmation would
+fire in.
 
-The indicator is **METADATA, not a visual intent** — it never touches `HighlightGate` or
-`next_draw`, so a step that points still gets its one pointing (DEC-67's per-turn resource is
-untouched), asserted behaviourally and by source scan.
+### DEC-39 HELD AS A REQUIREMENT: SERVICING LANDED BEFORE THE MOUNT
 
-### 15 MUTATIONS, ALL APPLIED, 15/15 RED — AND THE SURVIVOR WAS THE FAMILY AGAIN
+The `turn_pass` detection arm and the `tool_result_pairing` answer-by-name arm landed and were
+GUARDED before the catalog line existed. **The four negatives are asserted by name, in one
+drive**, because each is a distinct failure of the SAME defect — an id nobody answered — and
+asserting one would leave the other three free:
 
-**M12 survived the first run: the composition root never wiring the seam at all.** Every test
-built its OWN `on_change`, so deleting the production wiring stayed GREEN. **That is DEC-40's
-defect, reintroduced by me at T3 one task after T1 closed it preventively** — which is the
-useful part of the record: the fixture that builds its own graph is not a mistake made once
-and learned, it is a default that has to be actively refused every time. Closed the same way
-T1 did: a test drives the REAL `_build_orchestrator` with a recording overlay and asserts the
-composed frame actually arrives.
+1. the tool_result is NOT the pointer ack · 2. the mode actually MOVED · 3. `gate.drawn` stays
+False and `loop_tool_choice` stays `"auto"` · 4. no LOOK-only violation was logged.
 
-### MEASURED, AND TWO FILES DECLARED INTO PRESSURE
+### THE PASS ECONOMY IS ASSERTED, NOT ASSUMED
+
+Advance + point in ONE pass completes in **TWO** (`auto` → `none`): the advance is serviced
+after the sync point like a read and never touches the gate; the draw is buffered to the
+Option-A sync point and flips it. Advance WITHOUT pointing leaves the gate unflipped and
+`auto` surviving, completing in **THREE**. Both are inside `MAX_AGENTIC_ITERATIONS` = 4 — a
+turn that exceeded the cap would be a defect, not a slow path.
+
+**Pointing differs from `highlight_target` NOT AT ALL.** The Navigator adds no draw code: a
+step that points is the model calling the tool that already exists, and DEC-67's one visual
+intent per turn is enforced by the gate that is already there.
+
+### THE ASYMMETRY, RECORDED AS A PROPERTY RATHER THAN A SIDE EFFECT
+
+**`ModeAuthority`'s public surface is exactly `request`, so the servicer holds NO MUTATOR and
+therefore cannot bypass the evaluation point even by accident.** It reads the FRAME directly —
+a read surface that cannot change state — and every WRITE goes through the authority. That
+came out of MEASURING T4 rather than out of designing T2, and it is stronger than what T2 set
+out to build. Both halves are pinned, because a later "convenience" accessor on the authority
+would quietly undo it.
+
+### 16 MUTATIONS, ALL APPLIED, 16/16 RED — AND A HOLE FOUND BEFORE THE RUN
+
+**M12 (the orchestrator never passing the prelude) would have SURVIVED**, because the test
+harness assigned `_pass._prelude` by hand. Caught while writing the mutation list, and fixed
+by letting the ORCHESTRATOR build the prelude and reaching it the way production does.
+
+**That is the third sighting of the self-built graph in three tasks** — closed preventively at
+T1, reappeared at T3 in the fixtures, and now caught pre-run at T4. Sultan's framing, recorded
+verbatim: **the self-built graph is not a lesson learned once — it is a DEFAULT that must be
+refused every time.**
+
+### MEASURED AFTER THE COMMIT
 
 | file | before | after |
 |---|---|---|
-| `kernel/orchestrator.py` | 298 | **298** — byte-identical |
+| `kernel/orchestrator.py` | 298 | **299** — pin moved in this commit with its reason |
 | `kernel/tool_router.py` | 300 | **300** — byte-identical |
-| `overlay/mode_indicator.py` | — | **131** (new) |
-| `overlay/sidekick_window.py` | 280 | **296** — newly pinned |
-| `composition.py` | 274 | **298** — newly pinned |
-| `overlay/window_commands.py` | 122 | 138 |
-| `kernel/frame_capture.py` | 61 | 70 |
-| `kernel/session_mode.py` | 195 | 211 |
-| `kernel/mode_surfaces.py` | 209 | 244 |
+| `composition.py` | 298 | **298** — +0, as measured at planning |
+| `kernel/turn_pass.py` | 271 | 293 |
+| `kernel/tool_result_pairing.py` | 207 | 226 |
+| `kernel/deferral_notes.py` | 172 | 199 |
+| `kernel/pass_servicing.py` | 102 | 117 |
+| `composition_mounts.py` | 120 | 155 |
+| `main.py` | 215 | 223 |
+| `kernel/navigator_service.py` | — | **162** (new) |
+| `muthis_plugins/navigator/` | — | 71 / 40 / 6 (+ manifest) |
 
-**`sidekick_window.py` and `composition.py` had NO declared number before this commit** — the
-exact state `broker/docs/service.py` was in when it crossed the law in silence — so both are
-now pinned in `test_module_line_ceiling.py`. **`composition.py` at 298/300 is CEILING DEBT
-carried into T4:** the Navigator's wiring lands at the root, and two lines is not room. The
-seam to extract is named but NOT taken here, because naming it is planning and taking it is a
-refactor on the way to something else (DEC-52/DEC-56: re-measure at execution).
+**Guard: 1433 + 27 → 1478 + 27 green on `.venv`** (45 new). `turn_voice.py` 300,
+`persona.py` 209, `sidekick_window.py` 296 UNCHANGED.
 
-**Guard: 1408 + 27 → 1433 + 27 green on `.venv`** (25 new). `tool_router.py` 300,
-`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED. `AGENTS.md` /
-`PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
+### CARRIED FORWARD, NOT DONE
 
-**Next is T4 — Navigator v1**, with NO visual verification (DEC-68; v2 waits on D-1's
-numbers), and with `composition.py`'s two remaining lines as its first measurement.
+- **`orchestrator.py` has ONE line left.** T5's evidence pointing must measure before writing.
+- **`turn_pass.py` 293/300** is newly under pressure and is NOT pinned yet — the next milestone
+  to touch it should declare it, or extract.
+- **NO PERSONA LAW WAS ADDED.** The web and doc milestones each got one by explicit ruling
+  (DEC-41, DEC-57); no such ruling exists for the Navigator, so inventing one here would be a
+  model-facing change nobody signed. **Whether the model reaches for the verbs unprompted is a
+  T6/T7 observation**, and if it does not, a persona law is the ruling to ask for — not a
+  patch to make quietly.
+
+**`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.**
+
+**Next is T5 — evidence pointing, SCREEN ONLY** (DEC-67 path ①), under DEC-74 ruling 4's
+recorded condition: path ② is in scope but CONDITIONAL, and if T7 shows weak pointing on
+continuous prose the honest refusal is already designed and needs no new design session.
 
 ---

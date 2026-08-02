@@ -1,0 +1,26 @@
+# Navigator v1 as a core native plugin (Phase 3 T4, kernel-serviced).
+# The two verbs DECLARE a schema and nothing else: the state they change is the
+# KERNEL'S (DEC-73), so a plugin holding it would make "step 3 of 5" a plugin's
+# CLAIM — which is exactly what DEC-65 removed.
+
+[plugin]
+name    = "navigator"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.navigator.plugin:NavigatorPlugin"
+
+[descriptions]
+ar = "يقود المستخدم خطوة بخطوة في مهمة متعددة الخطوات — النواة هي التي ترقّم الخطوات وتعرضها"
+en = "Guides the user step by step through a multi-step task — the kernel numbers the steps and draws them"
+
+# NONE. A mode grants no privilege, ever (DEC-65's hard invariant): it changes
+# conversational behaviour only, ingests nothing and reaches nothing.
+[capabilities]
+required = []
+
+[tools.plan]
+read_only = true
+
+[tools.step]
+read_only = true
