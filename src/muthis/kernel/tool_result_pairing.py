@@ -12,9 +12,15 @@ The highest-traffic kernel seam: it pairs EVERY assistant tool_use with a
 tool_result (Option B) — an orphan tool_use 400s the NEXT turn. Answered by
 name: draw tools (gate-aware draw_result_text), request_screen_refresh (fresh
 screenshot / the NO_SCREENSHOT note), read_local_file, and sandbox__run_code.
-A LEAF module (imports highlight_gate / tool_router / file_reader / protocol,
+A LEAF module (imports highlight_gate / deferral_notes / file_reader / protocol,
 never turn) so there is no import cycle. No behavior change — the DEC-21
 serviced-results container is FEATURE work for a later commit, not this move.
+
+SECOND EXTRACTION (2026-08-02): the routed-family NAMES, the deferral NOTES and
+their selectors moved to `deferral_notes.py` and are RE-EXPORTED from here, so no
+importer changed. This file kept the DISPATCH; the module that grows every
+milestone is now the one that exists to hold it. See that module's docstring for
+why the T4-named table seam was measured and NOT the shape taken.
 """
 
 from __future__ import annotations
@@ -25,7 +31,6 @@ from typing import Any, Optional
 from ..cloud.protocol import ToolCall
 from ..file_reader import FILE_ALREADY_READ_AR, FILE_READ_ERROR_AR, READ_FILE_TOOL
 from .highlight_gate import HighlightGate, draw_result_text
-from .tool_router import namespaced_name
 
 NO_SCREENSHOT_TOOL_RESULT_AR = "تعذّر التقاط لقطة شاشة جديدة."
 
@@ -50,117 +55,12 @@ def _refresh_tool_result_block(tool_use_id: str, screenshot: Optional[bytes]) ->
     return {"type": "tool_result", "tool_use_id": tool_use_id, "content": inner}
 
 
-RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not scattered
-# Second / unserviced run_code ids in a pass keep Option-B pairing API-valid.
-RUN_CODE_ALREADY_AR = "شغّلتَ الكود قبل قليل في هذه الجولة — استخدم نتيجته وأكمل."
-RUN_CODE_UNAVAILABLE_AR = "التنفيذ المعزول غير متاح في هذه الجلسة."
-
-# T6b: the web tools, derived from the ONE separator like run_code above. They are
-# answered BY NAME for the reason `read_local_file` is — so a web call can NEVER
-# fall through to the draw branch, where it would receive the pointer ack and flip
-# the per-turn draw gate, silently terminating the agentic loop.
-WEB_SEARCH_TOOL = namespaced_name("web", "search")
-WEB_FETCH_TOOL = namespaced_name("web", "fetch")
-WEB_TOOLS = frozenset({WEB_SEARCH_TOOL, WEB_FETCH_TOOL})
-
-# ONE note covers both "a second web call this pass" and "a read was serviced
-# instead": the model's next move is identical either way, so two wordings would
-# be a distinction without a difference.
-WEB_ONE_PER_PASS_AR = (
-    "توجيه داخلي (لا يراه المستخدم): أخدم طلب ويب واحدًا في كل خطوة تفكير. "
-    "اطلبه مرة أخرى في الخطوة التالية."
+from .deferral_notes import (
+    DOC_ONE_PER_PASS_AR, DOC_OPENED_ASK_NEXT_AR, DOC_OPEN_TOOL, DOC_QUERY_TOOL,
+    DOC_TOOLS, PRECONDITION_TOOLS, ROUTER_SERVICED_TOOLS, RUN_CODE_ALREADY_AR,
+    RUN_CODE_TOOL, RUN_CODE_UNAVAILABLE_AR, WEB_FETCH_TOOL, WEB_ONE_PER_PASS_AR,
+    WEB_SEARCH_TOOL, WEB_TOOLS, doc_deferral_note,
 )
-
-# T4: the doc tools, derived from the ONE separator like every namespaced name
-# above. Answered BY NAME for the same reason, and DEC-39 makes the ORDER of that
-# work a requirement rather than a preference: this branch and the servicing
-# condition below land BEFORE the tools reach the catalog, because a
-# MOUNTED-BUT-UNSERVICED tool bypasses every boundary (no DEC-14 wrap, no DEC-15
-# taint raise, no DEC-16 confirm gate), then falls to the draw branch where it
-# receives the POINTER ack, flips the per-turn draw gate and hard-terminates the
-# turn. That is not a hypothetical: it is the M2 bug this ordering rule came from.
-DOC_OPEN_TOOL = namespaced_name("docs", "open")
-DOC_QUERY_TOOL = namespaced_name("docs", "query")
-DOC_TOOLS = frozenset({DOC_OPEN_TOOL, DOC_QUERY_TOOL})
-
-# Its OWN wording, not the web note reused. DEC-35's lesson is that a refusal
-# misreporting its reason turns a terminal condition into a retryable one, and
-# telling the model "I serve one WEB request per step" after it asked for a
-# DOCUMENT is a smaller version of the same lie — the model would look for a web
-# call it never made.
-#
-# T6 BLOCKING FIX — THE NOTE, NEVER THE SLOT. The one-serviced-call-per-pass
-# bound STAYS: it protects the Phase-4 read bound and widening it is a design
-# decision, not a reaction to a bug. What was broken was this note. `doc_rag` is
-# the FIRST capability whose two tools form a MANDATORY SEQUENCE — you cannot
-# query what you have not opened — so a model that plans BOTH in one message is
-# behaving correctly. The old text said only "ask again in the next step" and
-# said NOTHING about the open having succeeded, so a competent agent re-issued
-# its WHOLE plan, open first: a full re-ingestion (18 s of silence, another index
-# in RAM) per retry until the agentic cap fired. Measured live.
-#
-# So there are TWO notes, because the STATE ACHIEVED differs and the standing
-# note law (AGENTS.md) requires each note to report the state it actually
-# reached. One text claiming "the document was opened" when the serviced call was
-# a QUERY would be a fresh instance of the very defect this fix closes.
-DOC_OPENED_ASK_NEXT_AR = (
-    "توجيه داخلي (لا يراه المستخدم): فُتح المستند بنجاح وهو جاهز الآن — "
-    "لا تفتحه مرة أخرى، فإعادة الفتح تعيد الفهرسة كاملة بلا فائدة. "
-    "أخدم طلب مستند واحدًا في كل خطوة تفكير، فأرسل استعلامك في الخطوة التالية "
-    "مستخدماً المعرّف الذي أعطيتك إياه."
-)
-
-# The serviced doc call was NOT an open (a second query in the same step, or a
-# read/web call took the step's one slot). Nothing was opened, so nothing claims
-# it — the note states what DID happen, that the condition is TRANSIENT, and the
-# one valid next move.
-DOC_ONE_PER_PASS_AR = (
-    "توجيه داخلي (لا يراه المستخدم): خدمت طلب مستند واحدًا في هذه الخطوة، "
-    "وهذا الطلب لم يُنفَّذ بعد — ما صار فيه خطأ ولا تغيّر شي. "
-    "أرسله مرة أخرى في الخطوة التالية كما هو."
-)
-
-
-def doc_deferral_note(serviced: Optional[ToolCall]) -> str:
-    """WHICH deferral note an unserviced doc id receives, from what was SERVICED.
-
-    The kernel already holds this fact — `read_result` carries the serviced call
-    — so reporting it costs nothing and withholding it cost a full re-ingestion
-    per retry. Fails SAFE: an unknown or absent serviced call gets the note that
-    claims nothing."""
-    if serviced is not None and serviced.name == DOC_OPEN_TOOL:
-        return DOC_OPENED_ASK_NEXT_AR
-    return DOC_ONE_PER_PASS_AR
-
-# EVERY tool the kernel services THROUGH THE ROUTER, as one name for one idea.
-# `TurnPass` used to spell this as an or-chain (`== READ_FILE_TOOL or in
-# WEB_TOOLS`) that each milestone lengthened by hand. The set is not a tidy-up:
-# a routed tool MISSING from it falls through to the LOOK-only `else`, which
-# means never serviced — so the DEC-14 wrap, the DEC-15 taint raise and the
-# DEC-16 confirm gate are all bypassed — and then paired with the POINTER ack,
-# flipping the draw gate and killing the turn (DEC-39). Naming the set puts that
-# whole class of mistake in ONE place a test can pin, and makes the next routed
-# tool cost `turn_pass.py` zero lines.
-# T4 adds DOC_TOOLS here and NOWHERE ELSE: because `TurnPass` tests membership in
-# this one set, the new routed family costs `turn_pass.py` exactly ZERO lines —
-# which is what naming the set bought (measured at P0b, and now spent).
-ROUTER_SERVICED_TOOLS = frozenset({READ_FILE_TOOL}) | WEB_TOOLS | DOC_TOOLS
-
-# A PRECONDITION returns a CONFIRMATION, never content, so it CANNOT break the
-# one-payload-bearing-result-per-pass invariant — and therefore does not consume
-# the pass's slot (ruled 2026-07-31, after the loop bit LIVE three times).
-#
-# WHAT THE PHASE-4 BOUND ACTUALLY PROTECTED, corrected by measurement: a
-# `read_local_file` and a `docs__query` each deliver up to 16,000 chars, while
-# `docs__open` delivers 110-320. Expressing the bound as a CALL COUNT guarded the
-# wrong quantity by ~100x; it was written that way only because every routed tool
-# was payload-bearing at the time. Classifying by ROLE restores the invariant to
-# what it always was.
-#
-# Role-scoped, not family-scoped, on purpose: a future capability with a prepare
-# step (Phase 3's Navigator may carry sequences too) inherits this by declaring
-# its tool here, with NO family table to maintain.
-PRECONDITION_TOOLS = frozenset({DOC_OPEN_TOOL})
 
 
 def build_tool_result_message(
@@ -287,12 +187,16 @@ __all__ = [
     "build_tool_result_message",
 ]
 
-# SEAM NAMED AT PLANNING TIME (the DEC-23 / DEC-52 posture, so a future
-# contributor does not discover it mid-task): the web and doc arms of
-# `build_tool_result_message` are now structurally IDENTICAL — serviced id gets the
-# content, every other id gets that family's one-per-pass note. A FOURTH routed
-# family should replace both with a single arm reading a `{tool_name: busy_note}`
-# table, which then costs each later family one dict entry instead of eight lines.
-# NOT done now, and the reason is the same one that made the `ROUTER_SERVICED_TOOLS`
-# replacement land ALONE and BEFORE any doc_rag wiring: a refactor of two working
-# security branches does not belong inside the feature commit that needed neither.
+# THE SEAM NAMED HERE AT PLANNING TIME IS SPENT — and it was NOT the shape taken,
+# which is the part worth keeping. It named a `{tool_name: busy_note}` TABLE
+# replacing the two structurally identical routed arms. Its premise was that both
+# arms are UNCONDITIONAL; DEC-58 had already made the doc arm conditional, and the
+# pending web-note fix makes the web arm conditional the same way, so a flat table
+# expresses NEITHER. RE-MEASURED at execution as DEC-52 / DEC-56 require: the named
+# seam saves ~8 lines of a 30-line breach, because the cost is in the NOTES and a
+# table does not move them. The notes moved instead (`deferral_notes.py`, 2026-08-02),
+# and this file went 298 → 193. A named seam is a hypothesis, not a plan.
+#
+# STILL TRUE, and it is why that extraction landed ALONE and mechanically: a
+# refactor of two working security branches does not belong inside the feature
+# commit that needed neither (the `ROUTER_SERVICED_TOOLS` precedent).

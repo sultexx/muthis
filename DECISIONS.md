@@ -6274,3 +6274,86 @@ fakes.
   `persona.py` 209 — all UNCHANGED. Guard **1234 + 27 → 1241 + 27**, measured on `.venv`.
 
 ---
+
+## DEC-70 (2026-08-02) — the routed deferral NOTES leave `tool_result_pairing.py`: the T4-named seam was RE-MEASURED and NOT the shape taken — APPROVED (Sultan), EXECUTED
+
+- **Item:** where `tool_result_pairing.py` splits, after Finding C measured the pending
+  `WEB_ONE_PER_PASS_AR` fix at **298 → 330/300**.
+- **Status:** **EXECUTED as a PURE MOVE, alone and mechanically** (Sultan's ordering). **The web
+  note fix itself is NOT in this commit** — the extraction buys the room; the fix is a separate
+  decision about a model-facing note, and landing a refactor of two working security branches
+  inside it is what the `ROUTER_SERVICED_TOOLS` precedent forbids.
+
+### THE NAMED SEAM WAS A HYPOTHESIS, AND MEASUREMENT REFUTED IT
+
+*T4 SEAM NAMED (2026-07-30)* named the extraction as **a `{tool_name: busy_note}` TABLE** replacing
+the two structurally identical routed arms, and set its own trigger: *"any milestone whose addition
+would breach 300."* **The trigger fired. The SHAPE did not survive it.**
+
+- **The table's premise was that both routed arms are UNCONDITIONAL** — serviced id gets the
+  content, every other id gets *that family's one note*. **DEC-58 had already made the doc arm
+  CONDITIONAL** (`doc_deferral_note` picks by what was actually serviced), and the pending web fix
+  makes the web arm conditional the same way. **A flat table expresses NEITHER.**
+- **Measured, not argued:** a selector table still merges the arms and saves **~8 lines of the
+  30-line breach** (the arms are 11 + 17; one table-driven arm plus the table is ~20). **330 →
+  ~322 — still a breach.** The seam was sized against the ARMS; **the cost is in the NOTES.**
+- **This is DEC-52 and DEC-56 working exactly as written:** the seam is NAMED at planning time and
+  **RE-MEASURED at execution**, and the entry itself said the method decides at execution time. Its
+  own warning — *"the naive saving is ~10 lines; that number is a WARNING, not an authorisation"* —
+  came true. **A named seam is a hypothesis, not a plan.**
+
+### THE SPLIT THAT IS ACTUALLY THERE
+
+`kernel/deferral_notes.py` holds **WHAT THE ROUTED FAMILIES ARE and WHAT AN UNSERVICED ID IS
+TOLD** — the namespaced tool names, `ROUTER_SERVICED_TOOLS`, `PRECONDITION_TOOLS`, every deferral
+note, and `doc_deferral_note`. `tool_result_pairing.py` keeps **DISPATCH**.
+
+- **The responsibilities differ in their GROWTH, which is the honest test of a seam:** the notes
+  grow **+33 per capability milestone** (measured: 138 → 171 → 234), while the pairing loop has
+  been stable since it was written. **The growth now lives in a module that exists to hold it.**
+- **RE-EXPORTED from `tool_result_pairing.py`, so NO importer changed** — 11 call sites across
+  `turn.py`, `turn_pass.py`, six test modules and two diag scripts. The dependency runs
+  pairing → notes, so nothing cycles (the `router_surfaces.py` precedent; contrast `core_router.py`,
+  which could not be re-exported because its dependency ran the other way).
+
+### PROVEN A PURE MOVE BY VALUE, NOT BY A GREEN SUITE
+
+The 111-line block was **SLICED**, not retyped, so it is byte-identical by construction — and
+`diff` against `HEAD` confirms it. Equivalence was then proven by **dumping every public symbol,
+every `turn.py` re-export IDENTITY, `doc_deferral_note`'s whole truth table, and every branch of
+`build_tool_result_message` (nine cases incl. the serviced/deferred pairs) before and after**:
+**SHA256 `b35aab1f…`, identical.**
+
+- **ONE INTENTIONAL DELTA, found by the snapshot rather than assumed:** `namespaced_name` no longer
+  appears in `dir(tool_result_pairing)` — it was an incidental re-export of a now-unused import.
+  **Verified dead**: every consumer imports it from `muthis.kernel.tool_router` directly. The
+  snapshot is what turned "probably harmless" into a checked fact.
+- **6 mutations, all APPLIED, all RED**, `PYTHONDONTWRITEBYTECODE=1`: each of two re-exports
+  dropped, and each moved constant / selector broken in its NEW home — the latter proving the
+  module is genuinely live rather than shadowed by a stale copy.
+
+### MEASURED RESULT, AND A CORRECTION TO THE RULING'S OWN FIGURE
+
+| file | before | after |
+|---|---|---|
+| `tool_result_pairing.py` | 298 / 300 | **202** |
+| `kernel/deferral_notes.py` | — | **172** |
+| `turn_pass.py` | 286 | **286 — UNTOUCHED** |
+
+**THE RULING NAMED THE WRONG FILE, and the side benefit it claimed does not follow.** It read
+*"the extraction drops `turn_pass.py` from 298 to ~250, and `turn_pass.py` is one of P0's candidate
+carriers for SessionMode."* The file at 298 is **`tool_result_pairing.py`**; `turn_pass.py` is at
+286 and **this extraction does not touch it**. So **D-2's picture of `turn_pass.py` is unchanged by
+this commit** — the stated benefit was real in shape but attached to the wrong module.
+
+- **The extraction stands on Finding C's own measurement**, which is what it was approved on, so
+  the correction changes nothing about the ruling.
+- **It does change what P0 may assume.** `turn_pass.py` still has **14 lines** of headroom, not
+  ~50, and **D-2 must measure it rather than inherit a number from here.**
+- Recorded because an unstated correction to a figure is how a stale premise reaches the next
+  gate — the DEC-63 undercount lesson, one file over.
+
+Guard **1241 + 27**, unchanged by the move (a pure move adds no tests). `tool_router.py` 300,
+`orchestrator.py` 299, `turn_voice.py` 300, `persona.py` 209 — all UNCHANGED.
+
+---
