@@ -78,7 +78,11 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
 
 @pytest.mark.parametrize("name,ceiling", [
     ("kernel/tool_router.py", 300),
-    ("kernel/orchestrator.py", 299),
+    # 299 -> 296, DECLARED (DEC-73 split 2). The P0 D-2 measurement found that
+    # the minimum cost of ANY new injected seam here is three lines against ONE
+    # of headroom, so the file could not absorb the next arrival whatever it was.
+    # `TurnPrelude` is the room, bought once for a real responsibility.
+    ("kernel/orchestrator.py", 296),
     ("turn_voice.py", 300),
     ("persona.py", 209),
 ])

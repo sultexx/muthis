@@ -35,7 +35,7 @@ from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
                      stub_screen_capture, stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .frame_capture import FrameCapture
-from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .highlight_gate import HighlightGate
 from .interrupt_hooks import InterruptHooks
 from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
@@ -45,6 +45,7 @@ from .turn import (
     TurnResult, build_tool_result_message, strip_images_from_history,
 )
 from ..overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .turn_prelude import TurnPrelude
 from .verbosity import VerbosityController
 from ..voice_out import VoiceOut
 
@@ -101,9 +102,11 @@ class Orchestrator:
         # The spoken surfaces (privacy boundary + status choreography + budget
         # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
         self._voice = VoiceOut(tts, overlay)
-        # Verbosity state lives ACROSS turns (sticky SHORT/DETAILED) — a real
-        # default like the other seams, so main.py needs no wiring (v5 B3).
-        self._verbosity = verbosity or VerbosityController()
+        # Every kernel-owned directive that decorates the raw transcript lives
+        # in ONE object (DEC-73 split 2): verbosity, the barge-in note, and — at
+        # T1 — DEC-65's mode frame. Held ACROSS turns; the rationale moved WITH
+        # the code rather than being compressed out of it (DEC-30).
+        self._prelude = TurnPrelude(verbosity=verbosity)
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
         # The hide→settle→capture chokepoint lives in frame_capture.py — the
@@ -180,13 +183,9 @@ class Orchestrator:
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
         TurnResult reports what happened. Cancellation propagates normally."""
-        # Verbosity (option A): detect a voice command in the RAW transcript,
-        # then attach the internal directive ONCE per utterance — never on the
-        # agentic loop's continuations or the refresh follow-up.
-        user_text = self._verbosity.begin_turn(user_text)
-        if self._interrupted_last_turn:  # barge-in context (v7 Phase 3)
-            self._interrupted_last_turn = False
-            user_text = f"{INTERRUPTED_NOTE_AR}\n{user_text}"
+        user_text = self._prelude.begin_turn(
+            user_text, interrupted=self._interrupted_last_turn)
+        self._interrupted_last_turn = False
         result = TurnResult()
         # Per-turn state (fresh by construction): the draw gate and the ONE
         # continuous speech generation every pass feeds into (v7). The gate is
@@ -227,9 +226,7 @@ class Orchestrator:
             finally:
                 self._active_turn_voice = None  # the barge-in window closes here
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
-        # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
-        # any earlier would strip it before the tool_choice="none" explain pass.
-        self._verbosity.end_turn()
+        self._prelude.end_turn()   # decay whatever is one-shot (B4)
         return result
 
     # ───────────────────────── Turn pipeline ─────────────────────────
