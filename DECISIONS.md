@@ -7439,154 +7439,434 @@ sends the task.**
 `AGENTS.md` / `PROJECT_STATE.md` refresh is deferred to milestone close, the M2 precedent.
 
 ---
+
+
+## DEC-75 (2026-08-02) — T1 EXECUTED: the `SessionMode` and `Plan`/`Step` primitives, on design C's carriers — RULED (Sultan), EXECUTED
+
+
+
+- **Item:** the first BUILD task of Phase 3. DEC-65's mode frame and DEC-66's plan
+
+  primitives, built and wired in the design-C shape DEC-73's two splits prepared.
+
+- **Scope held:** no transitions, no indicator, no Navigator (T2/T3/T4). Nothing in the
+
+  draw path, Option-A sync, the unified draw gate, `HighlightGate`, caption pacing or the
+
+  `VoiceOut` chokepoint was touched — git-verified across the whole commit.
+
+
+
+### RULING — THE BRIEF'S STOP-CLAUSE CONTRADICTED THE PLAN IT WAS PROTECTING
+
+
+
+The task brief carried *"orchestrator.py is at 296 with four lines of headroom … if this
+
+task needs a line in either, STOP and report; that is a ruling, not a judgement call."*
+
+That was **raised before any file was written and ruled by Sultan: SPEND THE TWO LINES.**
+
+
+
+**Why the clause was wrong here, in his words:** DEC-73 priced design C at one import,
+
+one constructor parameter and one pass-through, and **split 2 was executed specifically
+
+to buy that room** (299 → 296, four lines against design C's three). A blanket "stop if
+
+the orchestrator needs a line" contradicts the plan it was meant to protect. **The clause
+
+exists to stop UNPLANNED growth, not to block the seam the split was performed for.
+
+Reserving room and then refusing to use it makes the split pointless.**
+
+
+
+**And the acceptance criterion decides it independently.** *"The primitives driven through
+
+the REAL composition root, not a self-built graph"* is unprovable without those lines.
+
+Deferring the injection would ship two modules proven only by tests that build them
+
+themselves — **the defect that has already cost this project two rounds**: five of six
+
+mutations surviving in `doc_rag` because every test built its own router (DEC-40), and
+
+DEC-71 shipping a `TypeError` on every production start with 1268 tests green.
+
+
+
+**Two conditions attached, both met:** (1) the AST guard asserting the composition root
+
+really builds and injects lands WITH the injection, not after it; (2) the count is
+
+reported MEASURED after the commit, not projected.
+
+
+
+### THE MEASUREMENT, AND IT CAME IN UNDER THE PROJECTION
+
+
+
+| file | before | after |
+
+|---|---|---|
+
+| `kernel/orchestrator.py` | 296 | **298** — measured, two lines of headroom left |
+
+| `kernel/tool_router.py` | 300 | **300** — ZERO, as D-2 predicted; DEC-38's funnel split stays reserved |
+
+| `kernel/turn_pass.py` | 271 | 271 — untouched; its two hooks are T2's |
+
+| `kernel/turn_prelude.py` | 81 | 99 |
+
+| `composition.py` | 263 | 274 |
+
+| `kernel/plan.py` | — | **223** (new) |
+
+| `kernel/session_mode.py` | — | **195** (new) |
+
+
+
+**Design C cost TWO lines, not the projected three:** the pass-through is an EDIT of the
+
+existing `TurnPrelude(...)` call rather than an addition. The projection was checked
+
+against the file after the write, per the ruling — it did not surprise, and the ceiling
+
+pin moved 296 → 298 in this same commit with its reason declared.
+
+
+
+### WHAT WAS BUILT
+
+
+
+- **`SessionMode`** holds ONE frame — `active` · name · current step · total ·
+
+  last-progress time — built at the composition root, injected through the orchestrator
+
+  into `TurnPrelude`, and alive for the PROCESS (the `SessionTaint` shape).
+
+  **Step and total are DERIVED from the plan on every read, never stored beside it**
+
+  (DEC-15: a second copy of one fact is how two views drift, and here the two views are
+
+  the number Mut'his SPEAKS and the number T3 will DRAW).
+
+- **`Plan` / `Step`** are frozen records. Every reference is BY STABLE ID; every edit
+
+  returns a NEW plan; a refused edit returns `None` rather than raising, because a bound
+
+  is not an exception on the turn path (Law 11). Turning that `None` into a note that
+
+  states what was achieved, terminal-or-transient, and the next step is T2's.
+
+- **INERT, AND SAID SO.** `enter` / `leave` / `record_progress` are STORAGE. Nothing
+
+  evaluates, refuses or reads a transcript. The precedent is exact — `raise_taint` shipped
+
+  inert at M2's T4 and its gate arrived at T5 — and the module docstring states the
+
+  inertness plainly, because **a seam documented as active while actually inert is the
+
+  inverse error and has bitten this project.**
+
+
+
+### THE FOUR INVARIANTS, ASSERTED AS AN ABSENCE OF MEANS
+
+
+
+Every scan is over the **AST, never the raw text**, because the docstrings name "taint",
+
+"capability" and "privilege" ON PURPOSE — a text scan would fail on the very sentences
+
+recording why the symbols are absent (the `test_high_impact.py` precedent).
+
+
+
+1. **NO PRIVILEGE.** Neither module names a capability, grant, taint or route-impact
+
+   symbol. **If the module cannot EXPRESS a privilege change, it cannot REGRESS into
+
+   one** — the `FetchedDomains` argument. Recorded because it looks obvious today and
+
+   becomes tempting after three modes: *"in Debug mode, give the sandbox network"* is a
+
+   constitutional change (DEC-3) and must read as one when someone proposes it.
+
+2. **NESTING UNREPRESENTABLE.** One slot; `enter` REPLACES in a single assignment
+
+   (DEC-65's exit-and-enter as ONE decision, never two — the undefined THIRD state DEC-24
+
+   closed at `broker.py:92`). No collection literal exists in any function body, so
+
+   "pop back to the previous mode" cannot be reached for without first building the means.
+
+3. **NO TEXT INTERPRETATION.** `Step.text` is written at construction and returned whole;
+
+   **any `.text` access at all is the violation**, and an ALLOW-LIST (DEC-21-E, never a
+
+   deny-list) permits only the methods the modules define plus `dataclass`, `replace` and
+
+   the injected `_clock` — so `text.lower()` or `json.dumps()` fails the build the moment
+
+   it is written, with zero maintenance.
+
+4. **NO PERSISTENCE AND NO LOGGER.** Imports are pinned to exactly
+
+   `{dataclasses, time, typing, plan}` and `{dataclasses, typing}`. The no-logger clause is
+
+   **sharper here than it was for `FetchedDomains`**: a `Plan` holds MODEL-AUTHORED step
+
+   text that may echo whatever was on the user's screen, so absence of means is the
+
+   guarantee.
+
+
+
+### THE WIRING IS DRIVEN END TO END, WITH A MARKER THAT MAKES IT DISCRIMINATE
+
+
+
+A test asserting merely *"the prelude holds a `SessionMode`"* would stay **GREEN with the
+
+entire production wiring deleted**, because the fail-safe default builds one. So the
+
+end-to-end guard drives the REAL `_build_orchestrator` with the root's `SessionMode`
+
+monkeypatched to a MARKER subclass: delete the build, the argument, or the orchestrator's
+
+pass-through and the prelude falls back to a mode that is real but **not that one**.
+
+Mutations M1, M2 and M3 are the three deletions, and all three go RED.
+
+
+
+### 16 MUTATIONS, ALL APPLIED — AND THE ONE THAT SURVIVED WAS MINE
+
+
+
+**15/16 on the first run. M5 SURVIVED, and it was a hole in the GUARD, not the code.**
+
+The mutation derived a step id from the plan's CURRENT LENGTH instead of the carried
+
+counter. The test deleted a MIDDLE step and asserted only that the next insert did not
+
+reuse the RETIRED id — which a length-derived counter satisfies **while colliding with a
+
+step that is still alive.** It checked one INSTANCE of the property instead of the
+
+property. Rewritten to drive both failure shapes — middle-delete → uniqueness, last-delete
+
+→ re-issue — after which M5 goes RED and the set is **16/16 RED, all APPLIED.**
+
+
+
+**SIXTH SIGHTING THIS MILESTONE of a check examining something other than its subject**
+
+(DEC-40's tests that built their own graph · the zone-1 fixture · the `_bind` helper · the
+
+«باختصار» ordering guard · D-1's ground-truth box on the wrong instance · this). The new
+
+face: the previous five were caught by a human looking; **this one was caught by the
+
+mutation run, which is the instrument doing exactly the job the standing rule assigns it.**
+
+
+
+### FOUR IMPLEMENTATION DECISIONS RATIFIED (Sultan), NOT RE-DECIDED
+
+
+
+1. **Step and total DERIVED, not copied** — DEC-15's reasoning, on point.
+
+2. **A plan-local monotonic counter, NOT `secrets`** — the id never crosses a trust
+
+   boundary, so there is nothing to forge, while determinism makes the
+
+   insert/delete/reorder guard EXACT rather than probabilistic. **The deliberate contrast
+
+   with DEC-14's nonce, which needs `secrets` precisely because it DOES face untrusted
+
+   content — same project, opposite requirement.** The id is also a STRING (`"s4"`), so
+
+   `plan.steps[step.id]` is a `TypeError` rather than a plausible wrong answer.
+
+3. **`enter` / `leave` as storage only**, with the inertness stated in the docstring and here.
+
+4. **No logger at all** — absence proven by lack of means, not by discipline.
+
+
+
+### DEC-74 RULING 4 — THE EVIDENCE-REACH NOTE IS UPHELD AND TIGHTENED INTO A CONDITION
+
+
+
+Recorded here at Sultan's instruction, against DEC-74 ruling 4. **DEC-67 path ② stays IN
+
+SCOPE, but CONDITIONAL.** D-1's text-line targets are UI elements with VISUAL BOUNDARIES —
+
+a menu row, a nav tab, a tab label, a gutter number — while **continuous prose inside a
+
+rendered page has none, and BOTH NEARs came from text targets.** So: if T7 shows weak
+
+pointing on prose, **the degradation is already designed** — case 3's honest refusal
+
+redirecting to the vision path (the DEC-47 robots pattern) — and **needs no new design
+
+session.** This is a condition to check at T7, not a reservation on the ruling.
+
+
+
+**Guard: 1289 + 27 → 1341 + 27 green on `.venv`** (52 new). `tool_router.py` 300,
+
+`turn_voice.py` 300, `persona.py` 209 UNCHANGED. `AGENTS.md` / `PROJECT_STATE.md` refresh
+
+stays deferred to milestone close per DEC-74, including the Key Files rows for the two new
+
+modules.
+
+
+
+**Next is T2 — the transition authority**, under the BINDING CONSTRAINT of 2026-07-31:
+
+the mode directive line MUST carry `DIRECTIVE_MARKER_AR`, proven by case A with case B as
+
+the positive control.
+
+
+
+---
+
 
-## DEC-75 (2026-08-02) — T1 EXECUTED: the `SessionMode` and `Plan`/`Step` primitives, on design C's carriers — RULED (Sultan), EXECUTED
+## DEC-76 (2026-08-02) — T2 EXECUTED: the SINGLE TRANSITION AUTHORITY, and the carrier split 2 created made design C cheaper than it was measured — EXECUTED
 
-- **Item:** the first BUILD task of Phase 3. DEC-65's mode frame and DEC-66's plan
-  primitives, built and wired in the design-C shape DEC-73's two splits prepared.
-- **Scope held:** no transitions, no indicator, no Navigator (T2/T3/T4). Nothing in the
-  draw path, Option-A sync, the unified draw gate, `HighlightGate`, caption pacing or the
-  `VoiceOut` chokepoint was touched — git-verified across the whole commit.
+- **Item:** the second BUILD task of Phase 3. DEC-65's transition authority, its three
+  exits, and the per-turn mode directive under the BINDING CONSTRAINT of 2026-07-31.
+- **Scope held:** the draw path, Option-A sync, the unified draw gate, `HighlightGate`,
+  caption pacing and the `VoiceOut` chokepoint are git-untouched. **F9 is untouched too** —
+  `activation.py` is byte-identical and nothing built here is wired to it, so the gesture
+  keeps its one meaning.
 
-### RULING — THE BRIEF'S STOP-CLAUSE CONTRADICTED THE PLAN IT WAS PROTECTING
+### THE FINDING — DESIGN C'S CARRIER WAS SUPERSEDED BY THE SPLIT PERFORMED FOR IT
 
-The task brief carried *"orchestrator.py is at 296 with four lines of headroom … if this
-task needs a line in either, STOP and report; that is a ruling, not a judgement call."*
-That was **raised before any file was written and ruled by Sultan: SPEND THE TWO LINES.**
+**`orchestrator.py`, `turn_pass.py` and `tool_router.py` are ALL BYTE-IDENTICAL through
+T2.** The brief reserved a ruling for an orchestrator line and none was needed.
 
-**Why the clause was wrong here, in his words:** DEC-73 priced design C at one import,
-one constructor parameter and one pass-through, and **split 2 was executed specifically
-to buy that room** (299 → 296, four lines against design C's three). A blanket "stop if
-the orchestrator needs a line" contradicts the plan it was meant to protect. **The clause
-exists to stop UNPLANNED growth, not to block the seam the split was performed for.
-Reserving room and then refusing to use it makes the split pointless.**
+DEC-73 measured design C with the mode reaching `TurnPass` through `new_turn_voice()` (the
+lazy expiry) and `consume()` (the raw transcript), and priced turn_pass at ~22 lines on the
+post-split baseline. **That measurement was taken when `turn_prelude.py` DID NOT EXIST.**
+Split 2 then created a module that is called ONCE per turn, at the turn's start, holding
+the RAW transcript — which is *both* things design C needed two hooks to reach. So the two
+exits and the directive line all land in `begin_turn`, and the mode reaches neither the
+orchestrator nor `turn_pass` at all.
 
-**And the acceptance criterion decides it independently.** *"The primitives driven through
-the REAL composition root, not a self-built graph"* is unprovable without those lines.
-Deferring the injection would ship two modules proven only by tests that build them
-themselves — **the defect that has already cost this project two rounds**: five of six
-mutations surviving in `doc_rag` because every test built its own router (DEC-40), and
-DEC-71 shipping a `TypeError` on every production start with 1268 tests green.
+**This is not a deviation from the ruling; it is the ruling's own record being followed.**
+`turn_prelude.py`'s docstring, written IN split 2 and therefore AFTER design C was measured,
+already stated: *"this is where it lands … and `begin_turn` is the ONE call site it will
+join."* The preparatory split re-homed the mode frame, and T2 landed where the split said.
 
-**Two conditions attached, both met:** (1) the AST guard asserting the composition root
-really builds and injects lands WITH the injection, not after it; (2) the count is
-reported MEASURED after the commit, not projected.
-
-### THE MEASUREMENT, AND IT CAME IN UNDER THE PROJECTION
+### THE MEASUREMENT
 
 | file | before | after |
 |---|---|---|
-| `kernel/orchestrator.py` | 296 | **298** — measured, two lines of headroom left |
-| `kernel/tool_router.py` | 300 | **300** — ZERO, as D-2 predicted; DEC-38's funnel split stays reserved |
-| `kernel/turn_pass.py` | 271 | 271 — untouched; its two hooks are T2's |
-| `kernel/turn_prelude.py` | 81 | 99 |
-| `composition.py` | 263 | 274 |
-| `kernel/plan.py` | — | **223** (new) |
-| `kernel/session_mode.py` | — | **195** (new) |
+| `kernel/orchestrator.py` | 298 | **298** — byte-identical, two lines of headroom untouched |
+| `kernel/turn_pass.py` | 271 | **271** — byte-identical |
+| `kernel/tool_router.py` | 300 | **300** — byte-identical; DEC-38's funnel split still reserved |
+| `kernel/turn_prelude.py` | 99 | 152 |
+| `kernel/mode_transition.py` | — | **263** (new) |
+| `kernel/mode_surfaces.py` | — | **209** (new) |
 
-**Design C cost TWO lines, not the projected three:** the pass-through is an EDIT of the
-existing `TurnPrelude(...)` call rather than an addition. The projection was checked
-against the file after the write, per the ruling — it did not surprise, and the ceiling
-pin moved 296 → 298 in this same commit with its reason declared.
+### RECORDED READING — DEC-65's "`RouteImpact` SHAPE" IS A SHAPE, NOT THAT FILE
+
+DEC-65 names the home of the transition conditions as *"the `RouteImpact` shape
+(`src/muthis/trust/high_impact.py`)"*, which reads two ways. **The SHAPE is taken and the
+FILE is not**, and the reading is recorded rather than applied silently:
+
+- `trust/high_impact.py` classifies **TOOL CALLS** for spoken approval. Conversational
+  transition preconditions are a different concern, and placing them there would be the
+  placement-by-convenience DEC-73 rejected for design D.
+- **It would also break that module's OWN pinned guards.** `test_high_impact.py` fixes its
+  imports as stdlib-only and pins its public surface. **A ruling does not break its own
+  guards**, which is the decisive evidence that the file was cited as an exemplar.
+
+`TransitionConditions` is therefore a frozen record of kernel-owned facts with a predicate
+over them and no behaviour — `RouteImpact`'s shape exactly — living in the kernel beside the
+state it gates. **Cheap to overturn if this reading is wrong: it is a 20-line move.**
 
 ### WHAT WAS BUILT
 
-- **`SessionMode`** holds ONE frame — `active` · name · current step · total ·
-  last-progress time — built at the composition root, injected through the orchestrator
-  into `TurnPrelude`, and alive for the PROCESS (the `SessionTaint` shape).
-  **Step and total are DERIVED from the plan on every read, never stored beside it**
-  (DEC-15: a second copy of one fact is how two views drift, and here the two views are
-  the number Mut'his SPEAKS and the number T3 will DRAW).
-- **`Plan` / `Step`** are frozen records. Every reference is BY STABLE ID; every edit
-  returns a NEW plan; a refused edit returns `None` rather than raising, because a bound
-  is not an exception on the turn path (Law 11). Turning that `None` into a note that
-  states what was achieved, terminal-or-transient, and the next step is T2's.
-- **INERT, AND SAID SO.** `enter` / `leave` / `record_progress` are STORAGE. Nothing
-  evaluates, refuses or reads a transcript. The precedent is exact — `raise_taint` shipped
-  inert at M2's T4 and its gate arrived at T5 — and the module docstring states the
-  inertness plainly, because **a seam documented as active while actually inert is the
-  inverse error and has bitten this project.**
+- **ONE EVALUATION POINT, ENFORCED BY SHAPE.** `request()` is `ModeAuthority`'s ONLY public
+  method — there is no `advance()` or `exit_now()` to reach for — and an AST guard asserts
+  that **no module in `src/` outside `mode_transition.py` calls the mode's mutators at all**,
+  with a positive control that the authority itself does. Enter, leave, advance, back, jump,
+  plan-edit, the exit word and expiry all cross the same line. An unrecognised kind is
+  REFUSED rather than falling through to the nearest branch.
+- **THE CONDITIONS ARE NAMED AND STUBBED.** `confirmation_pending` (DEC-16) and
+  `sandbox_running` (DEC-3) exist, default False, and **nothing sets them yet**; the seam is
+  a callable so T4/T5 wire the real facts without this file changing.
+- **CONTROL REQUESTS ARE NEVER REFUSED, AND THE ASYMMETRY IS A SECURITY PROPERTY.**
+  Conditions gate MODEL-initiated transitions only. **If a pending condition could block the
+  user's exit word, a model could TRAP the user in a mode by keeping one pending** — exactly
+  what DEC-65's model-independent exit 1 exists to make impossible. The guard drives the
+  discriminating pair: the SAME always-blocking conditions object refuses an `ADVANCE` and
+  lets the exit word through in the same breath, so the exemption cannot be a dead seam.
+- **NO NESTING, OBSERVED NOT ARGUED.** A recording frame proves the mode passes through
+  `["navigator", "review"]` with no `None` between — the intermediate state nobody owns
+  (DEC-24) — plus a structural twin asserting no function calls both `enter` and `leave`.
+- **THE THREE EXITS.** (1) A deterministic detector on the RAW transcript with the model
+  never consulted; (2) model-signalled completion as an ordinary request; (3) an IDLE-time
+  timeout evaluated LAZILY in `begin_turn`, with a **positive control that time passing alone
+  does NOTHING** — if the mode ended without a turn, something was ticking, and a timer is a
+  lifecycle outside the kernel (Law 11; DEC-47 rejected that shape).
+- **THE EXIT WORD'S FALSE-POSITIVE DIRECTION IS THE OPPOSITE OF DEC-16's, AND THE SET IS
+  SIZED ACCORDINGLY.** For approval a false positive is a BYPASS; here it merely ends a mode,
+  while a false NEGATIVE is the trap. That is DEC-62's classification by ROLE, and it is why
+  «خلاص» is admitted here although a word that common never would be there. A guard asserts
+  the three detectors' sets **do not overlap**, against the REAL constants.
+- **ORDER IS A CONTRACT WITH THREE CLAUSES**, asserted STRUCTURALLY against `begin_turn`'s
+  AST rather than through its output — because the detector also runs DEC-31's strip, so the
+  outcome alone cannot distinguish the two orders. **That is precisely the hole split 2's own
+  order guard fell into (DEC-73), and mutation M2 confirms the structural form catches what
+  the behavioural form cannot.**
 
-### THE FOUR INVARIANTS, ASSERTED AS AN ABSENCE OF MEANS
+### THE BINDING CONSTRAINT, WITH CASE B AS THE POSITIVE CONTROL
 
-Every scan is over the **AST, never the raw text**, because the docstrings name "taint",
-"capability" and "privilege" ON PURPOSE — a text scan would fail on the very sentences
-recording why the symbols are absent (the `test_high_impact.py` precedent).
+The directive line is built from `DIRECTIVE_OPEN_AR`, which CONTAINS the family core, and is
+ONE line by construction (the line-wise strip needs it). **Case A:** a real composed
+directive plus «أوافق» through the REAL `strip_directive_lines` leaves exactly the bare
+transcript and `detect_confirmation` returns APPROVE. **Case B:** the same line with every
+family marker removed SURVIVES the strip and the approval is LOST. Without B the case-A
+assertion is satisfiable by a strip that removes everything. All three directive sources —
+verbosity, the barge-in note, the mode frame — are additionally stacked together and the
+approval still lands.
 
-1. **NO PRIVILEGE.** Neither module names a capability, grant, taint or route-impact
-   symbol. **If the module cannot EXPRESS a privilege change, it cannot REGRESS into
-   one** — the `FetchedDomains` argument. Recorded because it looks obvious today and
-   becomes tempting after three modes: *"in Debug mode, give the sandbox network"* is a
-   constitutional change (DEC-3) and must read as one when someone proposes it.
-2. **NESTING UNREPRESENTABLE.** One slot; `enter` REPLACES in a single assignment
-   (DEC-65's exit-and-enter as ONE decision, never two — the undefined THIRD state DEC-24
-   closed at `broker.py:92`). No collection literal exists in any function body, so
-   "pop back to the previous mode" cannot be reached for without first building the means.
-3. **NO TEXT INTERPRETATION.** `Step.text` is written at construction and returned whole;
-   **any `.text` access at all is the violation**, and an ALLOW-LIST (DEC-21-E, never a
-   deny-list) permits only the methods the modules define plus `dataclass`, `replace` and
-   the injected `_clock` — so `text.lower()` or `json.dumps()` fails the build the moment
-   it is written, with zero maintenance.
-4. **NO PERSISTENCE AND NO LOGGER.** Imports are pinned to exactly
-   `{dataclasses, time, typing, plan}` and `{dataclasses, typing}`. The no-logger clause is
-   **sharper here than it was for `FetchedDomains`**: a `Plan` holds MODEL-AUTHORED step
-   text that may echo whatever was on the user's screen, so absence of means is the
-   guarantee.
+### 20 MUTATIONS, ALL APPLIED, 20/20 RED — AND ONE SURVIVOR EXPLAINED, NOT DELETED
 
-### THE WIRING IS DRIVEN END TO END, WITH A MARKER THAT MAKES IT DISCRIMINATE
+**M13 survived the first run:** dropping `mode.active` from `is_idle_expired`. **MECHANISM,
+MEASURED:** the real `SessionMode.idle_seconds()` already returns 0.0 when inactive, so the
+conjunct is redundant ON THAT PATH. **Per the standing rule the code is NOT deleted:** the
+redundancy sits at a LAYER BOUNDARY, and a predicate must not rest on a collaborator's
+internal invariant — deleting it withdraws the guarantee from every caller that path does not
+exercise (the `doc_rag` M15 reasoning in a new place). Closed by adding the caller that
+exercises it: a mode-shaped stub that is inactive while reporting idle time. M13 is now RED.
 
-A test asserting merely *"the prelude holds a `SessionMode`"* would stay **GREEN with the
-entire production wiring deleted**, because the fail-safe default builds one. So the
-end-to-end guard drives the REAL `_build_orchestrator` with the root's `SessionMode`
-monkeypatched to a MARKER subclass: delete the build, the argument, or the orchestrator's
-pass-through and the prelude falls back to a mode that is real but **not that one**.
-Mutations M1, M2 and M3 are the three deletions, and all three go RED.
+**AND THE NOTE-LAW GUARD CAUGHT A REAL DEFECT IN THE CODE.** `_UNKNOWN_STEP_AR` used doubled
+braces in a segment that was not an f-string, so the model would have been shown a literal
+«{current} من {total}» instead of its position. It was caught because the three obligations
+are asserted as a PROPERTY over the whole reason set rather than by reading the constants —
+DEC-41's distinction, paying for itself.
 
-### 16 MUTATIONS, ALL APPLIED — AND THE ONE THAT SURVIVED WAS MINE
+**Guard: 1341 + 27 → 1408 + 27 green on `.venv`** (67 new). `tool_router.py` 300,
+`turn_voice.py` 300, `persona.py` 209, `orchestrator.py` 298 UNCHANGED.
+`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.
 
-**15/16 on the first run. M5 SURVIVED, and it was a hole in the GUARD, not the code.**
-The mutation derived a step id from the plan's CURRENT LENGTH instead of the carried
-counter. The test deleted a MIDDLE step and asserted only that the next insert did not
-reuse the RETIRED id — which a length-derived counter satisfies **while colliding with a
-step that is still alive.** It checked one INSTANCE of the property instead of the
-property. Rewritten to drive both failure shapes — middle-delete → uniqueness, last-delete
-→ re-issue — after which M5 goes RED and the set is **16/16 RED, all APPLIED.**
-
-**SIXTH SIGHTING THIS MILESTONE of a check examining something other than its subject**
-(DEC-40's tests that built their own graph · the zone-1 fixture · the `_bind` helper · the
-«باختصار» ordering guard · D-1's ground-truth box on the wrong instance · this). The new
-face: the previous five were caught by a human looking; **this one was caught by the
-mutation run, which is the instrument doing exactly the job the standing rule assigns it.**
-
-### FOUR IMPLEMENTATION DECISIONS RATIFIED (Sultan), NOT RE-DECIDED
-
-1. **Step and total DERIVED, not copied** — DEC-15's reasoning, on point.
-2. **A plan-local monotonic counter, NOT `secrets`** — the id never crosses a trust
-   boundary, so there is nothing to forge, while determinism makes the
-   insert/delete/reorder guard EXACT rather than probabilistic. **The deliberate contrast
-   with DEC-14's nonce, which needs `secrets` precisely because it DOES face untrusted
-   content — same project, opposite requirement.** The id is also a STRING (`"s4"`), so
-   `plan.steps[step.id]` is a `TypeError` rather than a plausible wrong answer.
-3. **`enter` / `leave` as storage only**, with the inertness stated in the docstring and here.
-4. **No logger at all** — absence proven by lack of means, not by discipline.
-
-### DEC-74 RULING 4 — THE EVIDENCE-REACH NOTE IS UPHELD AND TIGHTENED INTO A CONDITION
-
-Recorded here at Sultan's instruction, against DEC-74 ruling 4. **DEC-67 path ② stays IN
-SCOPE, but CONDITIONAL.** D-1's text-line targets are UI elements with VISUAL BOUNDARIES —
-a menu row, a nav tab, a tab label, a gutter number — while **continuous prose inside a
-rendered page has none, and BOTH NEARs came from text targets.** So: if T7 shows weak
-pointing on prose, **the degradation is already designed** — case 3's honest refusal
-redirecting to the vision path (the DEC-47 robots pattern) — and **needs no new design
-session.** This is a condition to check at T7, not a reservation on the ruling.
-
-**Guard: 1289 + 27 → 1341 + 27 green on `.venv`** (52 new). `tool_router.py` 300,
-`turn_voice.py` 300, `persona.py` 209 UNCHANGED. `AGENTS.md` / `PROJECT_STATE.md` refresh
-stays deferred to milestone close per DEC-74, including the Key Files rows for the two new
-modules.
-
-**Next is T2 — the transition authority**, under the BINDING CONSTRAINT of 2026-07-31:
-the mode directive line MUST carry `DIRECTIVE_MARKER_AR`, proven by case A with case B as
-the positive control.
+**Next is T3 — the kernel-drawn mode indicator**, carrying DEC-73's recorded caveat: the
+badge's per-turn lifetime is free because `clear_caption` fires at end of turn, but a mode
+indicator must SURVIVE ACROSS TURNS, so it needs a redraw after every capture and
+**inheriting the caption's lifecycle is no longer free for the third element.**
 
 ---
