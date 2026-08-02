@@ -59,6 +59,7 @@ from .encoder import EncoderUnavailable
 from .extract import (
     NoTextLayer, SUPPORTED_SUFFIXES, UnsupportedDocument, extract_blocks_async,
 )
+from .paths import resolve_document_path
 from .index import SessionIndex
 from .zones import DocZone, ZoneDecision, ZonePolicy
 
@@ -160,7 +161,11 @@ class DocumentIngestor:
         SIZE dictates. Never raises: every failure is an Arabic note, because a
         refusal that arrives as an exception ends the turn instead of continuing
         it (the `FileReader` precedent, and the Law-11 wall)."""
-        path = pathlib.Path(path)
+        # RAW wins when it exists; a percent-encoded path is retried decoded, and
+        # `url_encoded` lets the refusal NAME the cause. Why decoding is a
+        # FALLBACK and never a rewrite: `paths.py`.
+        resolved = resolve_document_path(pathlib.Path(path))
+        path = resolved.path
         suffix = path.suffix.lower()
         # Cheapest refusal first, and it opens NO file: an unsupported format is
         # knowable from the name alone.
@@ -168,7 +173,7 @@ class DocumentIngestor:
             logger.info("[doc_rag] refused unsupported format: %s", suffix or "(none)")
             return IngestOutcome(DocZone.REFUSE, note_ar=notes.unsupported(suffix))
 
-        blocks, report, note = await self._extract_blocks(path)
+        blocks, report, note = await self._extract_blocks(path, resolved.url_encoded)
         if note is not None:
             return IngestOutcome(DocZone.REFUSE, note_ar=note, extract=report)
 
@@ -213,7 +218,7 @@ class DocumentIngestor:
         return await asyncio.to_thread(self._index, blocks, decision, report)
 
     # ── extraction, with each failure named as itself (DEC-35) ────────────────
-    async def _extract_blocks(self, path: pathlib.Path):
+    async def _extract_blocks(self, path: pathlib.Path, url_encoded: bool = False):
         try:
             blocks, report = await self._extract(path)
         except NoTextLayer as exc:
@@ -225,9 +230,11 @@ class DocumentIngestor:
             logger.info("[doc_rag] refused unsupported document: %s", exc)
             return [], None, notes.unsupported(str(exc))
         except OSError as exc:
-            logger.warning("[doc_rag] extraction failed (%s: %s)",
-                           type(exc).__name__, exc)
-            return [], None, notes.DOC_READ_FAILED_AR
+            # DEC-61: the exception TEXT is dropped, not shortened — OSError's
+            # __str__ embeds the offending path verbatim.
+            logger.warning("[doc_rag] extraction failed (%s, url_encoded=%s)",
+                           type(exc).__name__, url_encoded)
+            return [], None, notes.read_failed(url_encoded=url_encoded)
         if not report.ok:
             # Zero admitted is a FAILURE, never a pass (the standing cutoff rule).
             logger.info("[doc_rag] extraction admitted ZERO blocks — refusing")

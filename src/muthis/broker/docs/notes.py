@@ -109,6 +109,33 @@ DOC_READ_FAILED_AR = (
 )
 
 
+# The SAME failure, but with a cause we can NAME and an action that fixes it.
+# Live evidence: the model sent a percent-encoded path (`.../My%20Documents/...`),
+# nothing existed there, and it read the generic note above — which is true and
+# useless, because "check the path" does not tell a model that `%20` is a space.
+# The three obligations, each earned: what happened (BOTH forms tried, nothing
+# opened, no index), that repeating THIS spelling is terminal, and the one action
+# — ask the user for the path as the file explorer shows it.
+DOC_PATH_URL_ENCODED_AR = (
+    "ما قدرت أفتح المستند: المسار اللي وصلني مكتوب بترميز الروابط — فيه علامة "
+    "٪ ومعها رقمان، مثل 20% بدل المسافة. جرّبته كما وصلني، ثم جرّبته بعد فك "
+    "الترميز، وما فُتح شي في الحالتين وما صارت فهرسة ولا تغيّر شي. لا تعيد "
+    "إرسال نفس المسار بنفس الصيغة، فالنتيجة بتكون نفسها: اطلب من المستخدم "
+    "المسار كما يظهر له في مستكشف الملفات بمسافات عادية، أو خلّه يفتح الملف "
+    "على الشاشة وأنا أشرح لك منه وأشير على المكان اللي تسأل عنه."
+)
+
+
+def read_failed(*, url_encoded: bool = False) -> str:
+    """The open-failed refusal, NAMING the url-encoding when that is the cause.
+
+    Two notes rather than one for DEC-35's reason exactly: a refusal that
+    misreports its reason turns a fixable condition into a blind retry, and
+    "check the path" and "the path is url-encoded, ask for it unencoded" are
+    different instructions producing different next moves."""
+    return DOC_PATH_URL_ENCODED_AR if url_encoded else DOC_READ_FAILED_AR
+
+
 def too_large(tokens: int, limit: int) -> str:
     """The zone-3 refusal, carrying the two numbers that justify it.
 
@@ -128,6 +155,7 @@ def unsupported(suffix: str) -> str:
 
 __all__ = [
     "DOC_CHUNK_FAILED_AR", "DOC_EMPTY_AR", "DOC_ENCODER_UNAVAILABLE_AR",
-    "DOC_READ_FAILED_AR", "DOC_TOO_LARGE_AR", "DOC_UNSUPPORTED_AR",
-    "PDF_SCANNED_AR", "too_large", "unsupported",
+    "DOC_PATH_URL_ENCODED_AR", "DOC_READ_FAILED_AR", "DOC_TOO_LARGE_AR",
+    "DOC_UNSUPPORTED_AR", "PDF_SCANNED_AR", "read_failed", "too_large",
+    "unsupported",
 ]
