@@ -209,33 +209,12 @@ def _build_doc_rag() -> tuple[DocumentService, DocRagPlugin]:
     The ROOT keeps the service because it owns the teardown: the index is
     session-scoped and dies with the session (privacy law), so `clear()` belongs
     beside `agent.aclose()` in main's ordered shutdown, never inside a plugin."""
-    service = DocumentService(model_dir=_doc_model_dir(),
-                              observe_doc_id=_doc_id_observer())
+    # The TASK-1 doc_id observer is GONE with DEC-71, exactly as its own comment
+    # promised: there is no round-trip left to observe. The model no longer
+    # carries a document identifier, so the mismatch it instrumented is
+    # unreachable rather than merely unlikely.
+    service = DocumentService(model_dir=_doc_model_dir())
     return service, DocRagPlugin(service=service)
-
-
-def _doc_id_observer():
-    """TASK-1 INSTRUMENT, opt-in via `MUTHIS_DOC_ID_OBSERVE`, OFF by default.
-
-    The RECOVERED MISMATCH log records SHAPE ONLY, which DEC-61 requires of a
-    durable record and which cannot answer the one open question: WHAT the model
-    sent. Three live truncations were caught by single-document recovery; with two
-    documents open all three would have FAILED.
-
-    So the values go to `print` — outside every logging handler BY CONSTRUCTION
-    (`LogTap` attaches to the root LOGGER), which is the DEC-63 split reused rather
-    than re-argued. Returns None unless the flag is set, so a normal run emits
-    nothing and the privacy law is untouched. TEMPORARY: it dies with whatever
-    removes the natural-language round-trip."""
-    raw = os.getenv("MUTHIS_DOC_ID_OBSERVE")
-    if not raw or raw.strip().lower() in ("0", "false", "no", "off"):
-        return None
-
-    def observe(received: str, key: str) -> None:
-        print(f"[OBSERVATION doc_id] received={received!r} ({len(received)}) "
-              f"key={key!r} ({len(key)}) prefix={key.startswith(received)}")
-
-    return observe
 
 
 def _build_sandbox() -> SandboxService:

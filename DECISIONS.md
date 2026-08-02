@@ -6732,3 +6732,171 @@ against a 60 s budget.**
   a proposed change — a measured operating figure the next budget conversation should start from.
 
 ---
+
+## DEC-71 (2026-08-02) — the model carries NO document identifier: `doc_id` leaves the schema and the BROKER binds the query — APPROVED (Sultan), EXECUTED
+
+- **Item:** Option A of the truncation diagnosis. `docs__query` loses `doc_id`; the broker binds
+  the query to the document `open` last INDEXED; **`docs__open` is the select verb.**
+- **THE DECIDING ARGUMENT IS NOT COST (Sultan's ruling, recorded because it is the precedent):**
+  the identifier is a fact the **BROKER OWNS**, and routing it through the model makes the model
+  the carrier of a truth that is not its own. That is the pattern this project has now rejected
+  **eight times** — `is_error` gating wrapping (DEC-29), a declared `read_only` driving
+  classification (DEC-15/T5), a plugin wrapping its own output (DEC-14), a plugin-set number
+  feeding the sovereign ledger (DEC-34), the badge's provenance (DEC-36), the kernel owning
+  "step 3 of 5" (DEC-65), the plan's structure (DEC-66), and now the document's identity.
+- **AND THE MEASUREMENT IS WHY (B) AND (C) LOSE:** they SHRINK the round-trip. **A reconstructing
+  model is not bounded by making the string shorter.** (B) also contradicts `_register`'s recorded
+  reasoning that an opaque handle is worse in a voice product; (C) keeps the silent
+  wrong-document failure. **Only (A) removes the trip.**
+
+### WHAT WAS BUILT, in the ruled order
+
+1. **The schema + the binding.** `QUERY_SCHEMA` declares only `question`; `DocumentService.query`
+   became `query(question, doc_id=None)`; `_bind` decides which index answers. `open` sets the
+   binding on the fresh zone-2 path AND on the idempotent re-open path, so **re-opening is the
+   switch-back verb** — a verb carrying a PATH the user supplied rather than an id we minted.
+2. **Catalog v5, byte-pinned** (`tests/snapshots/look_tools_v5.json`), built through the REAL
+   production mounts.
+3. **The servicing negatives** — `tests/test_doc_binding.py`, plus the re-aimed doc suites.
+
+### v5 IS THE FIRST CATALOG CHANGE THAT REVISES RATHER THAN EXTENDS
+
+v2, v3 and v4 each APPENDED tools and left every earlier schema byte-identical, and each had a
+test asserting exactly that. **v5 cannot: DEC-71 REMOVES a field from an existing tool.**
+
+- **The guard changed SHAPE rather than being deleted.** It now pins the **BLAST RADIUS**: the
+  seven tools that predate `doc_rag` must still be byte-identical to v4, and the revision must be
+  confined to `docs__open` and `docs__query`. A schema edit that reached `highlight_target` or
+  `web__fetch` fails there. `test_v4_still_EXTENDS_v3_as_a_historical_anchor` keeps the older
+  relation frozen, so two anchors at different depths cannot both be re-based by accident.
+- **Tool COUNT is unchanged at nine**, so `MAX_TOOLS` and the DEC-11 name guard are untouched.
+
+### THE SUB-DECISION NOBODY RULED, RESOLVED IN THE DIRECTION THE RULING REQUIRES
+
+**What happens to the binding when the next `open` lands in ZONE 1** (whole text, no index)? It
+was not in the brief, and both answers are defensible in isolation.
+
+- **RESOLVED: a zone-1 open CLEARS the binding** (to an `_INJECTED` sentinel). Leaving the old
+  binding would let the next query answer from an EARLIER document while the user is looking at
+  this one — **the wrong-document failure with no observable difference, which is the exact class
+  DEC-71 exists to remove.** Resolving it the other way would have relocated the defect rather
+  than removing it.
+- The query then returns `DOC_ALREADY_IN_FULL_AR`: a **CATEGORY ERROR, not a failure** — nothing
+  is missing and nothing broke — carrying the three obligations, and closing the re-open the model
+  would otherwise reach for.
+- **Offered for overrule** (the DEC-63 standing rule: state the collision, resolve in the
+  direction the law requires, offer the overrule).
+
+### WHAT SURVIVES, AND WHAT DIED
+
+- **DEC-63 layer 3 SURVIVES**, as Sultan's constraint required: a residual caller that passes an
+  id and misses **REFUSES** — and specifically does NOT fall back to the binding, which would be
+  the same guess re-entering by the back door. A test drives exactly that direction.
+- **Layer 2 — the single-document recovery — is RETIRED.** It was a safety net UNDER the
+  round-trip; the binding replaces it. `IndexRegistry.sole_doc_id` and `EMPTY_DOC_ID_AR` are
+  deleted with it: both had exactly ONE consumer and it is gone. (Contrast the M15 rule — that
+  forbids deleting code because ONE PATH cannot see it; here there is no caller at all.)
+- **The TASK-1 observer is deleted**, exactly as its own comment promised.
+
+### A PRODUCTION-ONLY BREAKAGE THE SUITE COULD NOT SEE — DEC-40, AGAIN
+
+Removing `observe_doc_id` from `DocumentService` left **`composition.py` still passing it** — a
+`TypeError` on **every production start** — and the **entire suite stayed GREEN**, because every
+test builds its own service.
+
+- **That is DEC-40's defect verbatim:** *a test that builds its own graph proves nothing about
+  production.* Closed by a test that drives the REAL `_build_doc_rag`, importing `composition` and
+  never `muthis.main` (the standing credential rule).
+
+### THE MUTATION RUN, AND THE THREE SURVIVORS THAT WERE MY OWN TEST
+
+**First run: 6/9, with M2, M3 and M6 SURVIVING — all three the binding lines inside `open`.**
+The mechanism was measured, not guessed: **my helper set `service._bound` DIRECTLY instead of
+opening anything**, so the tests proved `_bind` and never touched the code that FEEDS it.
+
+- **Third sighting of one family in this session** (DEC-40 · DEC-69's M6 · TASK 2's M6): the two
+  ends were guarded and the line between them was not.
+- Rewritten to drive the REAL `open()` against real files on disk, asserting on the CONTENT that
+  comes back rather than on private state. **Then 8/9.**
+- **The last survivor, M3, was a BADLY-BUILT MUTATION rather than a hole** — it depended on a
+  registry attribute that does not exist, so it changed no behaviour. Recorded because the harness
+  called it SURVIVED when it should have been SUSPECT: **a mutation that cannot act is not
+  evidence.** Rewritten as `self._bound = self._bound or doc_id` — the precise "a second open does
+  not switch" defect. **9/9 RED, all APPLIED, `PYTHONDONTWRITEBYTECODE=1`.**
+- A second fixture defect found the same way: the "big" document measured **122,400 chars and
+  landed in ZONE 1**, so four tests were silently exercising the wrong zone. Zone 2 begins at
+  **139,665** chars (50,000 tokens ÷ 0.358). Fixed with the measured figure and a comment naming it.
+
+- `service.py` **300/300 — AT the ceiling**, and it is one of the three files TASK 3 needs.
+  `composition.py` 263, `plugin.py` 185, `schema.py` 104. `tool_router.py` 300,
+  `orchestrator.py` 299, `turn_voice.py` 300, `persona.py` 209 — all UNCHANGED.
+  Guard **1255 + 27 → 1268 + 27** on `.venv`.
+
+**STILL OPEN:** the live proof. Every check here is deterministic; that the model actually stops
+mis-carrying an identifier it can no longer send is **structurally true but unobserved**, and only
+Sultan's SOP run shows the whole sequence end to end.
+
+---
+
+## AUTO-DOWNLOAD — DEFERRED UNTIL AFTER P0 (2026-08-02, Sultan): sequencing, not a reversal
+
+- **Status:** Sultan's decision that the encoder model downloads automatically **STANDS**. Only its
+  TIMING moves.
+- **THE MEASURED REASON:** the on-loop existence check needs one of `service.py` (**now 300/300**),
+  `ingest.py` (298) or `zones.py` (294) — **the same files P0's D-2 must measure for
+  `SessionMode`** — and the announcement sits on the thread boundary DEC-69 created, where the
+  Ruling-2 announcer candidate does not work. **Fixing a carrier now would foreclose D-2's options
+  before it measures them**, and measurement has beaten estimate nine times in this project.
+- **NOTHING IS LOST BY WAITING, and that is measured too:** progress is **NOT obtainable**
+  (`hf_hub_download` has 18 parameters and no callback), so the announcement is a single up-front
+  statement — exactly the shape `FIRST_DOWNLOAD_AR` already has. There is no richer design being
+  delayed.
+- **The requirements report stands unchanged** (the entry above): the call's home is
+  `E5Encoder.load`, the off-loop shape is inherited from DEC-69, the fingerprint pin is already
+  fail-closed, and the three failure conditions need three distinct notes.
+
+---
+
+## OBSERVATION (a) — RECLASSIFIED AS A DEFECT (2026-08-02, Sultan): the shipped zone ceiling is 2.23x too generous
+
+- **Status:** a **DEFECT**, not a note. **Nothing is broken today.** Fixing the constant is a
+  DESIGN decision because it moves a zone boundary and re-routes documents — **Sultan rules, and
+  this entry reports the exact consequence and stops.**
+
+### THE NUMBERS
+
+| figure | per-chunk | `max_chunks` | `max_tokens` |
+|---|---|---|---|
+| `PER_CHUNK_ENCODE_MS = 30.2` (bench) — **derives the ceiling** | 30.2 ms | 1,986 | **754,680** |
+| `MEASURED_LIVE_PER_CHUNK_MS = 67.4` — **derives nothing** | 67.4 ms | 890 | 338,200 |
+
+**A document admitted at the shipped ceiling would take ~134 s against a 60 s budget.**
+
+- **THE LIVE FIGURE IS THE RIGHT ONE, corroborated:** Sultan's run indexed **267 chunks** —
+  predicted **8.1 s** at bench, **18.0 s** at live, **measured ≈ 20 s.**
+- **WHY NOTHING IS BROKEN TODAY:** DEC-49 ruling 4's invariant holds by a wide margin either way
+  (338,200 against a 50,000-token injection limit), so every document that reaches zone 2 today is
+  far below both ceilings.
+
+### THE EXACT RE-ROUTING CONSEQUENCE OF FIXING IT
+
+Changing the constant to 67.4 moves `max_tokens` from **754,680 to 338,200**. **Documents between
+those two figures change zone: from INDEX (zone 2) to REFUSE (zone 3).**
+
+- **Nothing moves between zone 1 and zone 2** — the injection limit is a separate constant and is
+  untouched. **Only the upper boundary moves.**
+- **The affected band is 338,200–754,680 tokens** — roughly a **900- to 2,000-page** document.
+  Sultan's 228-page book measured 134,983 tokens, so it stays comfortably in zone 2 either way.
+- **A document in that band would stop being indexed and start receiving the honest zone-3
+  refusal** — which names the three paths, the strongest being *open it on screen and I will point
+  at it.* **So the re-routing sends exactly the documents that would blow the budget into the
+  refusal designed for them, which is the behaviour DEC-47 intended.**
+- **THE COUNTER-ARGUMENT, stated so the ruling is informed:** the band is real capability today.
+  A 1,200-page document currently indexes and answers, and after the change it would be refused —
+  correctly by the budget's own arithmetic, but it IS a capability reduction, and it is the reason
+  this is a ruling rather than a bug fix.
+- **AND IT GETS WORSE WITH AUTO-DOWNLOAD**, which is why it is worth ruling before that lands: the
+  first zone-2 ingestion would also pay ~a minute of download, so the wall-clock a user waits
+  stops resembling the budget the ceiling implies.
+
+---

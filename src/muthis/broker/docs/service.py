@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from . import notes
 from .blocks import Chunk
@@ -74,6 +74,17 @@ DOC_NOT_OPEN_AR = (
     "ما فيه مستند مفتوح بهذا الاسم. افتح المستند أول بأداة فتح المستندات، "
     "بعدها اسألني عن اللي فيه."
 )
+# "The last open handed the whole document over": no index to query, and no
+# fallback to an EARLIER one.
+_INJECTED = "\x00injected"
+
+# DEC-71. A category error, not a failure — nothing is missing and nothing broke.
+DOC_ALREADY_IN_FULL_AR = (
+    "المستند اللي فتحته أخيراً وصلك كاملاً بنصّه، فما فيه فهرس أستعلم منه ولا "
+    "صار خطأ ولا ناقص شي. جاوب من النص اللي بين يديك مباشرة ولا تعيد فتحه. "
+    "وإذا كنت تقصد مستنداً ثانياً فافتحه أول بأداة الفتح، وبعدها اسأل عنه."
+)
+
 # The note law again: the document is STILL OPEN and nothing failed — only the
 # question was missing — so the note says so, or the model re-opens to "fix" it.
 EMPTY_QUESTION_AR = (
@@ -87,18 +98,10 @@ class DocumentService:
 
     def __init__(self, *, model_dir: pathlib.Path, policy: Optional[ZonePolicy] = None,
                  registry: Optional[IndexRegistry] = None,
-                 observe_doc_id: Optional[Callable[[str, str], None]] = None,
                  encoder: Optional[Any] = None) -> None:
         self._model_dir = pathlib.Path(model_dir)
-        # TASK-1 DIAGNOSTIC INSTRUMENT, opt-in and OFF by default. The RECOVERED
-        # MISMATCH log carries SHAPE ONLY (DEC-61: a doc_id IS the file's own
-        # name), which is correct for a durable record and insufficient for the
-        # one question left open — WHAT the model actually sent. This seam hands
-        # the two VERBATIM values to a caller that PRINTS and never logs, so the
-        # DEC-63 split is preserved by construction: `LogTap` is a logging handler,
-        # and `print` is outside it. Default None = production prints nothing.
-        # TEMPORARY: delete it with whatever removes the round-trip.
-        self._observe_doc_id = observe_doc_id
+        # DEC-71: which document a query runs against — the BROKER's own fact.
+        self._bound: Optional[str] = None
         self._policy = policy or ZonePolicy.from_env()
         self._registry = registry or IndexRegistry()
         # T6: path -> (doc_id, pages), so re-opening the SAME document is
@@ -147,6 +150,7 @@ class DocumentService:
             if index is not None:
                 logger.info("[doc_rag] reopen: already open, reusing the index "
                             "(chunks=%d) — no re-ingestion", len(index))
+                self._bound = doc_id      # re-opening SELECTS it (DEC-71)
                 return OpenedDocument(zone=DocZone.INDEX.value, doc_id=doc_id,
                                       pages=pages, chunks=len(index))
         outcome = await self._ingestor.ingest(path)
@@ -157,10 +161,15 @@ class DocumentService:
             # no index to query, so there is deliberately no doc_id either. An id
             # here would invite a `query` against a document that was never
             # indexed, and the honest answer to that is the text itself.
+            # DEC-71: it SELECTS itself too. Keeping the old binding would let a
+            # later query answer from an EARLIER document — the wrong-document
+            # failure with no observable difference, which is what this removes.
+            self._bound = _INJECTED
             return OpenedDocument(zone=outcome.zone.value, text=outcome.text,
                                   pages=_pages(outcome))
         doc_id = self._register(path, outcome.index)
         pages = _pages(outcome)
+        self._bound = doc_id              # the open IS the select verb (DEC-71)
         self._opened_paths[_path_key(path)] = (doc_id, pages)
         return OpenedDocument(zone=outcome.zone.value, doc_id=doc_id,
                               pages=pages, chunks=len(outcome.index))
@@ -182,8 +191,25 @@ class DocumentService:
         self._registry.put(doc_id, index)
         return doc_id
 
+    # -- which document a query runs against (DEC-71) -------------------------
+    def _bind(self, doc_id: Optional[str]) -> tuple[Optional[SessionIndex], Optional[str]]:
+        """THE BROKER OWNS THIS FACT; the model no longer carries it (DEC-71).
+
+        `doc_id=None` is the model's ONLY path since v5 — the query runs against
+        the last INDEXED open. A doc_id still ARRIVING (a test, a diag) keeps
+        DEC-63 layer 3: unmatched REFUSES. Layer 2's recovery is GONE."""
+        if doc_id is not None:
+            index = self._registry.get(_normalize_doc_id(doc_id))
+            return (index, None) if index is not None else (None, DOC_NOT_OPEN_AR)
+        if self._bound is None:
+            return None, DOC_NOT_OPEN_AR
+        if self._bound == _INJECTED:
+            return None, DOC_ALREADY_IN_FULL_AR
+        return self._registry.get(self._bound), None
+
     # -- query --------------------------------------------------------------
-    def query(self, doc_id: str, question: str) -> tuple[list[Passage], Optional[str]]:
+    def query(self, question: str, doc_id: Optional[str] = None
+              ) -> tuple[list[Passage], Optional[str]]:
         """The best CANDIDATES for one question, best first, or an Arabic note.
 
         Returns candidates rather than a final answer set: dedupe, ordering and
@@ -202,31 +228,9 @@ class DocumentService:
         is why T5 calls that law LOAD-BEARING rather than decorative."""
         if not isinstance(question, str) or not question.strip():
             return [], EMPTY_QUESTION_AR
-        doc_id = _normalize_doc_id(doc_id)
-        index = self._registry.get(doc_id)
+        index, note = self._bind(doc_id)
         if index is None:
-            sole = self._registry.sole_doc_id()
-            if sole is None:
-                # Zero open, or MORE THAN ONE: the ambiguity is real and the
-                # model must disambiguate. Guessing here would answer questions
-                # about the wrong document with no observable difference.
-                return [], DOC_NOT_OPEN_AR
-            # RECOVERED MISMATCH. Made VISIBLE rather than papered over — but the
-            # values are NOT logged: a doc_id IS the file's own name (`_register`),
-            # so printing it beside the key would re-open the I6 breach DEC-61
-            # closed. The SHAPE of what the model sent is captured by the live
-            # OBSERVATION line instead, which prints and never logs.
-            logger.warning(
-                "[doc_rag] RECOVERED MISMATCH: the doc_id received does not match "
-                "the registry key (received len=%d, key len=%d, differ_only_by_"
-                "wrapping=%s) — exactly ONE document is open, so it was used",
-                len(doc_id), len(sole), _normalize_doc_id(sole) == doc_id)
-            if self._observe_doc_id is not None:
-                try:
-                    self._observe_doc_id(doc_id, sole)   # PRINTS, never logs
-                except Exception:  # noqa: BLE001 — an instrument may not kill a turn
-                    logger.warning("[doc_rag] doc_id observer raised — ignored")
-            doc_id, index = sole, self._registry.get(sole)
+            return [], note or DOC_NOT_OPEN_AR
         try:
             encoder = self._encoder_once()
             vector = encoder.encode_queries([question.strip()])[0]

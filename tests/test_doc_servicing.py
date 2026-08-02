@@ -49,7 +49,8 @@ from muthis_plugins.doc_rag.plugin import DocRagPlugin
 from muthis_sdk import PluginContext
 
 OPEN_ARGS = {"path": "C:/Users/sultan/Documents/lecture.pdf"}
-QUERY_ARGS = {"doc_id": "lecture.pdf", "question": "ما هو الحد الأقصى للجهد؟"}
+# DEC-71: the model carries NO document identifier — only the question.
+QUERY_ARGS = {"question": "ما هو الحد الأقصى للجهد؟"}
 
 # A distinctive marker so a test can prove the DOCUMENT's own text reached the
 # model, rather than some note that merely looked successful.
@@ -90,7 +91,7 @@ class _Service:
         self.opened.append(path)
         return self._opened
 
-    def query(self, doc_id, question):
+    def query(self, question, doc_id=None):
         self.queried.append((doc_id, question))
         return ([], self._note) if self._note else (self._passages, None)
 

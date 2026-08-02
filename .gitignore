@@ -34,3 +34,6 @@ grants.json
 # plugins.d: real registrations are per-machine; samples/README are committed
 plugins.d/*.toml
 !plugins.d/*.toml.sample
+
+# Stray installers / large binaries (never source)
+*.exe

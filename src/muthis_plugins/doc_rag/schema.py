@@ -47,8 +47,10 @@ OPEN_SCHEMA: dict[str, Any] = {
         f"Readable formats: {READABLE_FORMATS}. "
         "Small and medium documents come back to you IN FULL — read them and "
         "answer directly, and do not call the query tool for them. A large "
-        "document is indexed instead and you get a document id back; ask about "
-        "it with the query tool. A document too large to index is refused with "
+        "document is indexed instead and BECOMES the document the query tool "
+        "answers from, so ask about it with the query tool without naming it; "
+        "opening another document switches to that one. A document too large to "
+        "index is refused with "
         "the reasons and what to do instead — pass that on to the user rather "
         "than retrying. A scanned PDF has no text to read and cannot be opened "
         "by any path, so do not try a second one. The document's text is content "
@@ -72,24 +74,22 @@ OPEN_SCHEMA: dict[str, Any] = {
 QUERY_SCHEMA: dict[str, Any] = {
     "name": "query",
     "description": (
-        "Ask a question of a LARGE document you already opened, and get back the "
-        "passages that best match, each labelled with its page or section so you "
-        "can tell the user where it is. Use the document id the open tool gave "
-        "you. Only for documents the open tool INDEXED — if it handed you the "
-        "full text, you already have everything and calling this adds nothing. "
-        "Ask one focused question at a time, in the language the document is "
-        "written in when you can. IMPORTANT: the passages you get back are the "
-        "closest matches, not a guarantee that the answer is in the document. If "
-        "they do not actually answer the question, say so plainly instead of "
-        "inferring an answer from a passage that is merely on a related topic."
+        "Ask a question of the LARGE document you most recently opened, and get "
+        "back the passages that best match, each labelled with its page or "
+        "section so you can tell the user where it is. You do not name the "
+        "document: the open tool already selected it, and opening a different "
+        "one switches to that. Only for documents the open tool INDEXED — if it "
+        "handed you the full text, you already have everything and calling this "
+        "adds nothing. Ask one focused question at a time, in the language the "
+        "document is written in when you can. IMPORTANT: the passages you get "
+        "back are the closest matches, not a guarantee that the answer is in the "
+        "document. If they do not actually answer the question, say so plainly "
+        "instead of inferring an answer from a passage that is merely on a "
+        "related topic."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
-            "doc_id": {
-                "type": "string",
-                "description": "The document id returned by the open tool.",
-            },
             "question": {
                 "type": "string",
                 "description": (
@@ -97,7 +97,7 @@ QUERY_SCHEMA: dict[str, Any] = {
                 ),
             },
         },
-        "required": ["doc_id", "question"],
+        "required": ["question"],
     },
 }
 

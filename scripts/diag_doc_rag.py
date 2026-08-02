@@ -1594,7 +1594,7 @@ async def check_absence_and_location(
     evidence["absence question kind"] = kind
 
     # ── A3 / A4 / A5: drive the REAL service, then the REAL delivery rules. ───
-    passages, note = service.query(doc_id, question)
+    passages, note = service.query(question, doc_id=doc_id)
     chosen, report = select(passages)
     delivered = render(chosen)
     evidence["ranking cutoff / candidates returned"] = (
@@ -1650,7 +1650,7 @@ def _pick_positive_hit(corpus: Corpus, service: DocumentService, doc_id: str,
         if corpus.resolve(str(question.get("doc"))) != doc_path:
             continue
         label = str(question.get("at") or "")
-        passages, note = service.query(doc_id, str(question["q"]))
+        passages, note = service.query(str(question["q"]), doc_id=doc_id)
         if note is not None:
             continue
         chosen, _report = select(passages)
@@ -1763,7 +1763,7 @@ async def check_index_lifetime(checks: Checks, workdir: pathlib.Path,
                   and before > 0)
     service.clear()
     after = service.open_documents
-    _passages, note = service.query(opened.doc_id or "any", "سؤال")
+    _passages, note = service.query("سؤال", doc_id=opened.doc_id or "any")
     checks.record("I9 clear() drops every open document",
                   before > 0 and after == 0)
     checks.record("I10 a query after teardown finds NOTHING (the index is really gone)",

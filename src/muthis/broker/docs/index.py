@@ -108,17 +108,6 @@ class IndexRegistry:
     def __contains__(self, doc_id: object) -> bool:
         return doc_id in self._open
 
-    def sole_doc_id(self) -> Optional[str]:
-        """The ONE open document's id, or None when zero or many are open.
-
-        Used by `query`'s mismatch recovery: with exactly one document open there
-        is no ambiguity to resolve, so an id the model mangled in transit can be
-        recovered. With two or more the ambiguity is REAL and the caller must
-        return the honest note instead of guessing."""
-        if len(self._open) == 1:
-            return next(iter(self._open))
-        return None
-
     def __len__(self) -> int:
         return len(self._open)
 
