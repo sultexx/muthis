@@ -6599,3 +6599,136 @@ only one that stops betting. **Sultan rules.**
 wrong-document answer from being indistinguishable from a right one.
 
 ---
+
+## AUTO-DOWNLOAD REQUIREMENTS (2026-08-02) — TASK 3: MEASURED, nothing built
+
+- **Item:** Sultan has RULED that the encoder model downloads automatically on first use, with a
+  clear spoken announcement, and on failure or no network an EXPLICIT spoken refusal naming the
+  cause — **never a silent hang.** This entry reports what that requires.
+- **Status:** **MEASUREMENT ONLY. Nothing implemented, and the announcer carrier is NOT chosen.**
+
+### 1. WHERE `ensure_model` WOULD BE CALLED FROM — and DEC-69 already paid for the hard part
+
+`E5Encoder.load()` reads the artifacts straight off disk and **does not call `ensure_model`**
+(source-checked). The encoder is constructed at **exactly one site**,
+`DocumentService._encoder_once`, which is reached from `DocumentIngestor._index` — and **since
+DEC-69 `_index` runs through `asyncio.to_thread`.**
+
+**SO THE OFF-LOOP SHAPE IS ALREADY SATISFIED, FOR FREE, PROVIDED THE CALL SITS INSIDE THAT CHAIN.**
+
+- **THE TRAP, named because it is the obvious placement:** calling `ensure_model` at STARTUP from
+  the composition root, or anywhere on the loop, **re-introduces exactly the defect DEC-69 just
+  fixed** — and worse, for ~a minute rather than ~20 s, with F9 dead throughout. **A blocking
+  download on the event loop is the same bug wearing a different hat.**
+- **The natural home is `E5Encoder.load()`** (`encoder.py`, **187/300, 113 lines of room**): it is
+  the thing that needs the artifacts, it already raises `EncoderUnavailable`, and putting the call
+  there costs `service.py` — which has **4 lines left** — exactly ZERO.
+
+### 2. THE FINGERPRINT PIN (DEC-3-D) — already correct, no new work
+
+`ensure_model` **verifies BEFORE** the download (that is how it learns what is missing) and
+**re-verifies AFTER**, raising `ModelFingerprintMismatch` on any mismatch. **Fail-closed already.**
+It also already carries `allow_download=False`, the offline posture that lets a caller prove it
+does not touch the network.
+
+### 3. NO-NETWORK AND FAILED-DOWNLOAD — the classes exist, the NOTES do not
+
+`huggingface_hub` **1.25.1** exposes, all confirmed present: `LocalEntryNotFoundError`,
+`OfflineModeIsEnabled`, `RepositoryNotFoundError`, `EntryNotFoundError`, `HfHubHTTPError`.
+
+**These are DIFFERENT CONDITIONS and DEC-35 requires different notes** — collapsing them is the
+defect that entry exists to close:
+
+| condition | terminal? | what the note must say |
+|---|---|---|
+| no network / offline | **TRANSIENT** | nothing downloaded, nothing broken; retry when connected |
+| repo or entry missing | **TERMINAL** | the pinned artifact is unreachable; do not retry, tell the user |
+| **fingerprint mismatch** | **TERMINAL, and it is a SECURITY condition** | refuse and say so — never "try again", which would invite re-fetching a substituted artifact |
+
+**Three new Arabic notes** in `notes.py` (**161/300, 139 lines of room**), each carrying the
+standing three obligations.
+
+### 4. PROGRESS — MEASURED, AND THE ANSWER IS NO
+
+`hf_hub_download` takes **18 parameters and NONE is a progress callback** (introspected:
+`local_dir`, `etag_timeout`, `token`, `local_files_only`, `force_download` are present;
+`resume_download` is gone in 1.x). The only progress surface is the **tqdm bar toggle**
+(`disable_progress_bars`), which writes to a terminal — useless to a voice product.
+
+- **CONSEQUENCE: the announcement must be a SINGLE up-front statement, not a percentage.**
+  `FIRST_DOWNLOAD_AR` — «أحمّل نموذج فهم المستندات لأول مرة — دقيقة تقريبًا.» — is already exactly
+  that shape, which is the one part of the seam that survives its own dead-code finding.
+- Obtaining real progress would mean **reimplementing the download** against the HTTP API. Not
+  recommended, and recorded so nobody re-derives it.
+
+### 5. THE BLOCKER IS THE ANNOUNCEMENT, NOT THE DOWNLOAD
+
+**The download fits comfortably. The SPOKEN part does not, and the reason is a thread boundary
+DEC-69 created.**
+
+Because the download would run inside `_index`, **it fires on a WORKER THREAD.** The Ruling-2
+carrier candidate 1 — the bound announcer awaited directly — **works only on the loop thread.**
+From a worker it needs `loop.call_soon_threadsafe`, which is **candidate 3, already disqualified**
+(Law 11, DEC-47).
+
+- **THE SHAPE THAT RESOLVES IT, reported not chosen: decide on the loop, download off it.** A cheap
+  **existence** check before the offload answers "will this download?"; the announcement is then
+  spoken on the loop, and the download happens inside `to_thread`.
+- **A full `verify()` must NOT be that check** — it sha256s a **118 MB** artifact, which is real
+  work to put back on the loop. Existence first, hashing off-loop.
+- **This is a genuine new constraint on the carrier ruling**, and it is why the carrier and this
+  task should be ruled together.
+
+### 6. LINE COST ON EVERY FILE IT TOUCHES — measured today
+
+| file | lines | headroom | verdict |
+|---|---|---|---|
+| `broker/docs/encoder.py` | 187 | 113 | **the call's natural home** |
+| `broker/docs/model_pin.py` | 169 | 131 | the exception→note mapping fits |
+| `broker/docs/notes.py` | 161 | 139 | three new notes fit |
+| `composition.py` | 284 | 16 | tight but workable |
+| `broker/docs/service.py` | **296** | **4** | **NO ROOM** — keep the call out of it |
+| `broker/docs/ingest.py` | **298** | **2** | **NO ROOM** — the on-loop decision cannot go here as-is |
+| `broker/docs/zones.py` | **294** | **6** | **NO ROOM** (see the observation below) |
+
+**THREE FILES IN THIS PACKAGE ARE EFFECTIVELY FULL**, and the on-loop announcement decision needs
+one of the two that have no room. **That is the collision, and it lands on the same files P0's D-2
+must measure for `SessionMode`.** Ruling them separately would spend headroom one task at a time
+without anyone seeing the total.
+
+---
+
+## OBSERVATION (2026-08-02) — (a) the zone ceiling is derived from the BENCH figure, and the LIVE one is 2.23x larger
+
+- **RECORDED, NO WORK.** Harmless today; **misleading once auto-download lands.**
+- `PER_CHUNK_ENCODE_MS = 30.2` (bench) feeds `max_chunks = budget_seconds × 1000 ÷ per_chunk_ms`.
+  `MEASURED_LIVE_PER_CHUNK_MS = 67.4` already sits beside it and **derives nothing** — deliberately,
+  because moving a zone boundary re-routes documents and is a ruling, not a reaction.
+
+| figure | per-chunk | `max_chunks` | `max_tokens` |
+|---|---|---|---|
+| bench (derives the ceiling) | 30.2 ms | 1,986 | **754,680** |
+| live (derives nothing) | 67.4 ms | 890 | 338,200 |
+
+**The ceiling is 2.23x too generous:** a document admitted at `max_tokens` would take **~134 s
+against a 60 s budget.**
+
+- **CORROBORATION that the live figure is the right one:** Sultan's run indexed **267 chunks**.
+  Predicted at bench = **8.1 s**; predicted at live = **18.0 s**; **measured ≈ 20 s.** The live
+  constant predicts reality and the bench constant does not.
+- **WHY AUTO-DOWNLOAD MAKES IT MISLEADING:** the first zone-2 ingestion would ALSO pay a ~1-minute
+  download, so the wall-clock a user waits stops resembling the budget the ceiling implies — and
+  the startup line reporting both figures becomes a line that states the right number beside the
+  one actually in force.
+
+## OBSERVATION (2026-08-02) — (b) measured operating cost with an indexed document
+
+- **RECORDED, NO WORK.** Sultan's session: **$0.516 total, ~$0.075 per turn**, against **~$0.034**
+  before.
+- **EXPECTED, and the mechanism is known:** every turn in a tainted session carries retrieved
+  passages, so input tokens rise for the whole session rather than for the querying turn alone.
+- **Worth having as a number** because Rule 10's daily budget defaults to **0.75 USD**: at ~$0.075
+  a turn that is **ten turns**, where the pre-document figure gave twenty-two. Not a defect and not
+  a proposed change — a measured operating figure the next budget conversation should start from.
+
+---
