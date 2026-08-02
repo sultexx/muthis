@@ -7309,3 +7309,133 @@ refinement by size / re-examine downscaling — and **that ruling is Sultan's on
 distribution.** The annotated copies are in the scratchpad for his eye.
 
 ---
+
+## DEC-74 (2026-08-02) — **P0 IS CLOSED.** Four rulings on the measurement gate, one known limit, and the fixture defect that would have bought us a mechanism we do not need — RULED (Sultan)
+
+- **Item:** the close of DEC-68's P0 gate. All three measurements executed, all three reported,
+  four rulings signed. **Nothing was implemented from D-1; the two splits D-2 forced were ruled
+  separately in DEC-73.**
+- **Scope discipline held throughout:** scratchpad only, zero `src/` change from any measurement,
+  and the grounding corpus never entered the repo or a log — targets are named by CLASS here.
+
+### THE THREE MEASUREMENTS, AS THEY LANDED
+
+| | outcome |
+|---|---|
+| **D-1** pointing accuracy by element size | **23 HIT · 2 NEAR · 0 MISS** over 25 targets; 25/25 returned a box |
+| **D-2** the `SessionMode` carrier | `tool_router.py` **ZERO lines** — DEC-38's funnel split NOT needed; `orchestrator.py` and `turn_pass.py` both breached, and **both splits are executed** (DEC-73) |
+| **D-3** overlay capacity | room EXISTS for a second persistent element; **requirement 3 does NOT hold as written** — the caption lifecycle is two halves and a cross-turn element needs only one |
+
+---
+
+### RULING 1 — **NO crop-and-zoom, NO second pass, NO refinement.** DEC-68's FIRST branch.
+
+DEC-68's table offers three branches: high accuracy at ALL sizes → build no crop-and-zoom; fails on
+SMALL only → conditional refinement by size; weak generally → re-examine downscaling. **The first
+branch is satisfied.**
+
+| bucket | n | HIT | NEAR | MISS |
+|---|---|---|---|---|
+| XL | 4 | 4 | 0 | **0** |
+| L | 8 | 8 | 0 | **0** |
+| M | 6 | 5 | 1 | **0** |
+| S | 4 | 4 | 0 | **0** |
+| XS | 3 | 2 | 1 | **0** |
+
+**ZERO MISS in every bucket**, including the smallest — a **9×9-pixel** contribution square and an
+**8×7-pixel** unsaved-file dot **in the SENT image**, after the 1.5× downscale.
+
+**THE TWO NEARs ARE NOT LOCALISATION FAILURES, and that is why they do not trigger branch two:**
+one pointed at the **ADJACENT** status-bar item — a wrong *choice*, not a wrong *position* — and the
+other covered the gutter line number **CORRECTLY** but ran ~29 px wide, putting its centre 1 px past
+the digit's edge: **a correct box with a loose boundary.** **We are not building a mechanism the
+measurement says we do not need.**
+
+### RULING 2 — **DOWNSCALING STAYS UNCHANGED.**
+
+`vision/downscale.py` was a candidate for re-examination **only** under the "weak generally" branch.
+That branch did not occur. The transform is confirmed sound in passing: 1920×1080 → **1280×720**,
+scale 1.5 exactly, **0.922 MP**, under both the ~1.15 MP and ~1568 px thresholds, so the provider
+performs **no second resize** and the sent space IS the space the model reasons in.
+
+### RULING 3 — **THE AMBIGUITY EXPECTATION IS OVERTURNED, and it was MINE (Sultan's).**
+
+Recorded as a refuted expectation rather than a confirmed one, because that is the more useful
+record. **I expected ambiguity to be a failure axis.** The approved target list deliberately included
+14 ambiguous-by-description targets for exactly that reason — one of **56** near-identical timeline
+items, one of ~**28** ribbon icons, one of ~**22** identical tree icons, one of ~**10** identical
+file icons.
+
+**They scored 13 HIT / 1 NEAR — indistinguishable from the 11 crisp targets (10 HIT / 1 NEAR) — and
+BOTH NEARs came from CRISP targets.** The research's description-consistency concern **does not
+manifest in this product's real usage.** Reporting ambiguous-versus-crisp WITHIN each bucket is what
+made this visible; aggregated, size and ambiguity would have confounded and the result could have
+decided nothing.
+
+### RULING 4 — **DEC-67's DEFERRED DOCUMENT PATH IS NOW IN SCOPE FOR PHASE 3.**
+
+DEC-67 ruled three cases and deferred the second **behind this exact measurement**:
+
+1. **SCREEN pointing** — Phase 3 builds it. **LANDS.**
+2. **Pointing at a DISPLAYED document** — deferred behind D-1, on the stated reasoning that it
+   *"requires matching a KNOWN PASSAGE to its SCREEN POSITION — precisely where vision models are
+   weakest (bounding-box precision, small elements)."* **THAT PREMISE IS REFUTED FOR OUR PATH.**
+   Pointing is strong at **every** size, including elements far smaller than a paragraph. **LANDS.**
+3. **INDEXED-but-not-displayed** — **KEEPS ITS HONEST REFUSAL**, unchanged. The redirect to the
+   vision path is a showcase, not an apology (the DEC-47 robots pattern), and D-1 makes the thing it
+   redirects *to* stronger, not weaker.
+
+**THE EVIDENCE'S EXACT REACH, recorded so the reversal is not read wider than it was measured.** D-1
+targeted UI elements named by description; the closest analogues to a prose passage are its
+TEXT-LINE targets, and they scored: a menu row among 7 similar → **HIT**; a nav tab → **HIT**; a tab
+label → **HIT**; a gutter line number among 37 identical → **NEAR** (correct box, loose boundary); a
+status-bar text item → **NEAR** (adjacent item chosen). **No MISS among them**, which is what carries
+the ruling — and matching a passage of continuous prose inside a rendered document page is the one
+shape D-1 did not drive directly. **T5 builds path ① and T7 measures both; this note is the
+condition to check, not a reservation on the ruling.**
+
+---
+
+### KNOWN LIMIT, RECORDED, **NO WORK NOW** — boxes can run LOOSE
+
+A correct box may extend somewhat past its element (the ~29-px box over a ~19-px digit). **Harmless
+for pointing** — a human reads a rectangle around the element correctly, which is the whole job of
+the cyan overlay. **Potentially visible in Navigator steps where the point is finer.** **Measured at
+T7, not fixed on speculation** — the DEC-42 discipline, and the direct application of this gate's own
+lesson that measurement beats estimate.
+
+### THE FIXTURE DEFECT, AND WHAT IT WOULD HAVE COST
+
+**The first D-1 run reported 2 MISSes. BOTH WERE THE MEASURING INSTRUMENT, NOT THE MODEL.** One truth
+box sat on the icon in the row **above** the one the Arabic request named — a different application
+entirely. The other sat on a tree row's icon **five rows** above the row named. **The model had boxed
+the requested element exactly in both cases.** The cause was one thing: a detection window aimed by
+hand at the **WRONG INSTANCE of a repeating structure.**
+
+**HAD THOSE MISSES BEEN RECORDED, THIS GATE WOULD HAVE RULED THE OTHER WAY** — 2 MISSes concentrated
+in the small buckets is branch two, and **we would have built crop-and-zoom to fix a defect in the
+measuring instrument.** That is the cost, stated plainly, and it is why the finding is recorded as a
+ruling-grade fact rather than a footnote.
+
+It surfaced only by **rendering the model's box and the ground truth together and LOOKING** — the
+step the method reserved for human judgement, doing precisely the work it was reserved for. All 25
+were re-verified visually before any number was recorded.
+
+**FIFTH SIGHTING THIS SESSION OF THE SAME FAMILY — a check examining something other than its
+subject:** DEC-40's tests that built their own graph · the zone-1 fixture that measured the wrong
+zone · the `_bind` helper that set state instead of opening anything · the «باختصار» ordering guard
+that could not distinguish an order · and now a ground-truth box on the wrong instance. **The new
+face is that the defect was in the MEASUREMENT, not in the code or the test** — and a measurement is
+the one artefact with no second guard behind it, which is exactly why the render-and-look step
+existed.
+
+---
+
+**P0 IS CLOSED.** Next is **T1** — the `SessionMode` and `Plan`/`Step` primitives per DEC-65 and
+DEC-66, in the **design-C shape**, on the carriers DEC-73's two splits prepared
+(`kernel/pass_servicing.py` + `PassServiced`, and `kernel/turn_prelude.py`). **NOT begun; Sultan
+sends the task.**
+
+`AGENTS.md` / `PROJECT_STATE.md` refresh is deferred to milestone close, the M2 precedent.
+
+---
