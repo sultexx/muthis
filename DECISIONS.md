@@ -7235,3 +7235,77 @@ That is a real cost the design must budget.
 chokepoint git-untouched across both commits.
 
 ---
+
+## P0 D-1 EXECUTED (2026-08-02) — pointing accuracy by element size, on the approved 25-target list. NUMBERS ONLY; the ruling is Sultan's.
+
+- **Corpus discipline held:** the screenshots were read from their own directory, annotated copies
+  were written to the scratchpad, and **nothing from the corpus enters this repo or any log** —
+  targets are described here by CLASS, never by the user's file names.
+- **The path was the PRODUCTION path:** the real `downscale_to_max_width` (1920×1080 → **1280×720**,
+  scale 1.5 exactly, 0.922 MP, no provider re-resize), the real `claude-sonnet-4-6`, the real
+  `HIGHLIGHT_TARGET_SCHEMA`, and the real Arabic persona built for the SENT dimensions.
+- **TWO DEVIATIONS, STATED:** (1) `tool_choice` was FORCED to `highlight_target` — production uses
+  "auto", but the question is *given that it points, how accurately*, so a refusal to point cannot
+  contaminate the accuracy numbers; a box-less pass would have been recorded `NO_BOX` and reported
+  apart, never as a MISS. **0 occurred.** (2) One pass per target, no history, no agentic loop.
+- **Cost: 228,923 input + 2,829 output tokens over 25 calls ≈ $0.73** at Sonnet list price.
+
+### THE RESULT — 25/25 returned a box (0 NO_BOX, 0 ERROR)
+
+| bucket | n | HIT | NEAR | MISS | ambiguous n/H/N/M | crisp n/H/N/M |
+|---|---|---|---|---|---|---|
+| XL | 4 | 4 | 0 | 0 | 0 / – | 4 / 4·0·0 |
+| L | 8 | 8 | 0 | 0 | 4 / 4·0·0 | 4 / 4·0·0 |
+| M | 6 | 5 | 1 | 0 | 5 / 5·0·0 | 1 / 0·1·0 |
+| S | 4 | 4 | 0 | 0 | 3 / 3·0·0 | 1 / 1·0·0 |
+| XS | 3 | 2 | 1 | 0 | 2 / 1·1·0 | 1 / 1·0·0 |
+| **all** | **25** | **23** | **2** | **0** | 14 / 13·1·0 | 11 / 10·1·0 |
+
+**The two NEARs, both with the centre just outside the true element and the box overlapping it:**
+a status-bar text item where the model boxed the **ADJACENT** status item, and an editor gutter line
+number where the box was correct but ran ~29 px wide, putting its centre 1 px past the digit's right
+edge. **No MISS at any size.**
+
+**AMBIGUITY DID NOT DOMINATE SIZE.** 14 of 25 targets were ambiguous by description — including one
+of 56 near-identical timeline items, one of ~28 ribbon icons, one of ~22 identical tree icons and one
+of ~10 identical file icons — and they scored **13 HIT / 1 NEAR**, indistinguishable from the crisp
+11 (**10 HIT / 1 NEAR**). Both NEARs came from CRISP targets.
+
+### THE CONVENTION SENSITIVITY, REPORTED RATHER THAN CHOSEN QUIETLY
+
+A desktop icon's true element can be the GLYPH or the glyph **+ its label** (the cell a user points
+at). The choice moves three targets between buckets, so both are reported:
+
+| convention | HIT | NEAR | MISS | bucket spread (XL/L/M/S/XS) |
+|---|---|---|---|---|
+| glyph + label (used above) | 23 | 2 | 0 | 4 / 8 / 6 / 4 / 3 |
+| glyph only (the approved list's estimate) | 22 | 3 | 0 | 4 / 5 / 9 / 4 / 3 |
+
+Under glyph-only, one desktop icon becomes NEAR because the model boxed glyph+label and the centre
+fell into the label. **The conclusion is unchanged either way: zero MISS at every size.**
+
+### THE FIXTURE HAD A 2-IN-25 ERROR RATE, AND ONLY DRAWING THE BOXES FOUND IT
+
+**The first run reported 2 MISSes. BOTH WERE MINE, NOT THE MODEL'S.**
+
+- One truth box sat on the icon in the **row above** the one the Arabic request named — a different
+  application entirely. The model had boxed the requested icon exactly.
+- One truth box sat on the tree row's eye icon **five rows above** the row the request named. Again
+  the model was correct.
+
+In both cases the detection window I chose landed on the wrong instance of a repeating structure —
+**a fixture that silently measured a different element than the request named.** It was caught by
+rendering the model's box and the ground truth together and LOOKING, which is exactly the step the
+method reserves for Sultan. **Fifth sighting this session of a check that examined something other
+than its subject** (DEC-40 · the zone-1 fixture · the `_bind` helper · the «باختصار» ordering guard ·
+this). The lesson repeats in a new form: **an automated ground truth is a fixture, and a fixture
+aimed by hand at a repeating structure will sometimes aim wrong — the render is the only thing that
+says so.** All 25 were re-verified visually before these numbers were recorded.
+
+### WHAT IS **NOT** IN THIS ENTRY
+
+**No recommendation.** DEC-68 assigns D-1 a decision table — no crop-and-zoom / conditional
+refinement by size / re-examine downscaling — and **that ruling is Sultan's once he sees the
+distribution.** The annotated copies are in the scratchpad for his eye.
+
+---
