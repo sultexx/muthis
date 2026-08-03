@@ -8631,3 +8631,133 @@ pointing holds on continuous PROSE (DEC-75's condition on path ②), and whether
 DEC-74 recorded is visible in a Navigator step.
 
 ---
+
+
+## DEC-81 (2026-08-03) — T7 RUN 1: the persona-law question is CLOSED, and the harness was answering the wrong question — RULED (Sultan), HARNESS FIXED
+
+- **Item:** the first live SOP run of Phase 3, on Sultan's hardware. **The decisive observation
+  settled. The run did not complete**, and it surfaced a defect in the instrument rather than in
+  the product.
+- **Scope of the fix:** **harness only. `src/` is git-untouched.** No production code was changed
+  to make an observation work, and none needed to be.
+
+### RULING 1 — **O-1 IS CLOSED: NO PERSONA LAW IS NEEDED FOR THE NAVIGATOR.**
+
+The question named no step, no plan and no walkthrough — «كيف أغيّر خلفية سطح المكتب في ويندوز؟» —
+and **the model called `navigator__plan` and then `navigator__step` unprompted.**
+
+The T4 rule applies exactly as written: **a persona law is written on an OBSERVED gap, and there
+is no gap.** DEC-78 recorded the alternative — "if it does not, a persona law is the ruling to
+ask for, not a patch to make quietly" — and that branch does not occur.
+
+**THE REPLY IS THE EVIDENCE, AND IT IS STRONGER THAN THE TOOL CALL.** It read the real screen,
+noticed the precondition was unmet (a PDF open, no desktop visible), and **corrected the route
+BEFORE step one.** A memorised list cannot do that. Recorded as Sultan's judgement: **that is
+guidance, not a list read aloud.**
+
+This closes the last open question DEC-78 carried forward, and it closes it in the direction that
+requires no model-facing change at all.
+
+### RULING 2 — DEC-80's OPEN QUESTION IS CLOSED: **E1–E3 STAY.**
+
+DEC-80 recorded a tension rather than resolving it — the three exit checks' LOGIC is fully owned
+by `test_mode_exits.py`, and the entry offered the cut at ~25 lines. **Sultan ruled KEEP, and the
+reason is stronger than the one that was offered:**
+
+**THE REAL OVERLAY IS PRECISELY WHAT THE SUITE CANNOT OWN, AND THIS PROJECT HAS BEEN BITTEN THERE
+SPECIFICALLY.** `Tcl_AsyncDelete` and hide-timing both **passed the units and failed live**. A
+check that opens a real Tk window and saves the frame actually sent to the provider buys something
+no unit test can, and that argument generalises past this milestone: **the line between "pytest
+owns this" and "only a live run owns this" runs through the Tk thread**, not through the logic.
+
+Recorded here because the ledger is append-only and DEC-80's question, left open, is exactly the
+drift a whole document was retired over (DEC-43).
+
+### THE RUN IS INCOMPLETE — BUDGET EXHAUSTION, NOT A DEFECT
+
+From the second «التالي» onward: **passes=0 · cost=0.000000 · reply empty**, four times. **O-2's
+pacing was never measured** (only the first advance produced speech) and **O-3 never ran at all.**
+Not a product defect — but the run does not settle what it was built to settle.
+
+**THE HARNESS'S SHARE OF THIS IS REAL AND IS FIXED.** It printed four empty observations that
+looked like data. `TurnResult.budget_blocked` is set by the Rule-10 gate before any provider call,
+so exhaustion is a FACT the harness can read rather than a pattern it must guess from an empty
+string. Now: the budget is **printed before anything is spent**, a starved turn is **announced**,
+and **CHECK H fails a starved run**, because a run that settles nothing must not look green.
+
+**AND THE PHASE ORDER IS INVERTED.** OBSERVED now runs BEFORE the regressions. The observations
+are what the run exists to settle and they are what a ceiling truncates; the regressions confirm
+capabilities that pytest and four previous live SOPs already cover. **T7 run 1 lost the wrong
+half.**
+
+### THE DEFECT — **STATE LEAKED BETWEEN OBSERVATIONS, AND EVERY CHECK STAYED GREEN**
+
+**F3 asked for ٢+٢ and the spoken reply was about the document on screen. O-2 asked about backups
+and the reply was «خلينا نكمّل خطوات تغيير الخلفية أولاً» — continuing O-1's plan.**
+
+**THE CHECKS PASSED BECAUSE THEY ASSERT THE TOOL WAS CALLED, AND IT WAS.** The spoken reply was
+answering a different question entirely. **That is the DEC-40 family again — a check examining
+something other than its subject — and its new face is that the SUBJECT was contaminated rather
+than the assertion being wrong.** The assertion was fine; what it examined had been altered by the
+phase before it.
+
+**THE CAUSE, DIAGNOSED:** ONE `Orchestrator` across every phase. `history` accumulates by design,
+and a mode O-1 opened is **still ACTIVE** when O-2 starts, so its directive line rides the next
+turn. **That is the Navigator working exactly as specified.** What failed is the harness, which
+never isolated its own experiment — and an observation contaminated by its predecessor cannot
+answer the question it exists to ask, **which is the same reason O-1's wording never names the
+verbs.**
+
+**THE FIX — `Session`, and the direction of its default is the point.** Every turn starts from a
+clean session: the mode is ended **through the REAL authority** (never by writing the frame — the
+one evaluation point stays the only writer even inside a diagnostic) and `history` is cleared.
+**`fresh=True` is the DEFAULT**; continuity is the exception and must be asked for at the call
+site, where a reader sees it. **Exactly one call site opts out** — the walkthrough's «التالي»
+turns, which must inherit the plan they are advancing.
+
+**THE RESET ALONE WOULD NOT HAVE BEEN ENOUGH.** A silent reset that stopped being called would
+restore the defect with every check green — the same family, one layer in, which is the M16 lesson
+from T5 arriving in new clothes. So `Session` **records what it FOUND to clear**, prints it, and
+**CHECK G2 is a POSITIVE CONTROL that FAILS if the isolation never had work to do.** G1 asserts
+the post-condition; G2 asserts the mechanism is live.
+
+**VERIFIED OFFLINE against the REAL `Orchestrator` / `TurnPrelude` / `ModeAuthority`** — no model,
+no key, no overlay — in both directions: a clean boundary carries nothing; a boundary after a
+live-shaped phase MEASURES two history blocks plus the active mode by name, clears both, and
+leaves nothing dirty; and a `Session` that never runs records nothing, so G2 goes RED.
+
+**WHAT IT CANNOT RESET, STATED RATHER THAN HIDDEN:** `SessionTaint` has **no clearing method BY
+DESIGN** (DEC-15 — a "clear the taint" verb would itself be a social-engineering channel), so a
+new PROCESS is its only reset. It does not distort these observations, because the Navigator holds
+no capability and no mode verb can ever be high-impact. **A future phase that turns on
+confirmation friction must start a new process, not call a method that deliberately does not
+exist.**
+
+### THE MULTI-PASS ACK, SIGHTED LIVE — RECORDED, NO WORK
+
+«أبشر، شوف.أبشر، شوف.» — the doubled spoken ack, against the item already recorded in DEC-55
+ruling 3's voice-surface pass. **First live sighting in Phase 3.** No work now, at Sultan's
+ruling; recorded so the next occurrence is a second data point rather than a first.
+
+### MEASURED
+
+| | |
+|---|---|
+| `scripts/diag_navigator.py` | 524 → **652** (+128: `Session` and its record, the starvation detection, G1/G2/H, and the call-site reasons) |
+| `src/` | **git-untouched** |
+| guard | **1498 + 27 green, UNCHANGED** — a harness fix adds no tests |
+
+### WHAT RUN 2 MUST SETTLE — none of it settled yet
+
+1. **step pacing across a FULL walkthrough** — five advances that actually speak;
+2. **evidence pointing on all three paths**, including path ③'s honest refusal redirecting to the
+   vision path;
+3. **DEC-75's condition: pointing on CONTINUOUS PROSE.** D-1 measured UI elements with visual
+   boundaries and both NEARs came from text targets; prose inside a rendered page is the one shape
+   it did not drive. If pointing is weak there, **the degradation is already designed** — path ③ —
+   and needs no new design session.
+
+**The run needs `--doc` and `--question` (Sultan's own files, never in the repo) and a budget set
+before it starts. T7 IS NEVER DECLARED PASSED BY AN AGENT.**
+
+---

@@ -50,6 +50,10 @@ DETERMINISTIC (driven and ASSERTED — these produce PASS / FAIL / SKIP)
   E  each exit ENDS the mode on the real graph, through the real authority
   F  regression — the V1 pointing turn, `read_local_file`, `sandbox__run_code`,
      `web__search`, `docs__query`: each SERVICED live, or SKIPPED with a reason
+  G  every independent turn started from a CLEAN session — plus the POSITIVE
+     CONTROL that the isolation found state to clear (T7 run 1's leak; see
+     `Session`)
+  H  the run was not BUDGET-STARVED, because a starved run settles nothing
 
 ────────────────────────────────────────────────────────────────────────────────
 OBSERVED (printed for Sultan; scored NEITHER pass NOR fail)
@@ -71,7 +75,13 @@ verdict list even by accident.
 ────────────────────────────────────────────────────────────────────────────────
 Needs in .env: ANTHROPIC_API_KEY, ELEVENLABS_API_KEY + ELEVENLABS_VOICE_ID (or
 GEMINI_API_KEY for the TTS fallback). TAVILY_API_KEY and Docker are optional —
-their regressions SKIP without them. Costs roughly a dozen real Claude turns.
+their regressions SKIP without them.
+
+**COSTS ~15 REAL CLAUDE TURNS. SET `MUTHIS_DAILY_BUDGET_USD` BEFORE STARTING** —
+T7's first run exhausted the budget partway and the OBSERVED phases, the half the
+run exists for, came back empty. The budget is printed before anything is spent,
+the observations now run BEFORE the regressions, and a starved turn is detected
+from `TurnResult.budget_blocked` and announced rather than printed as data.
 
 Run:  .venv\\Scripts\\python.exe scripts\\diag_navigator.py [--doc PATH --question "..."]
 """
@@ -222,6 +232,61 @@ class PassCounter:
         return getattr(self._real, name)
 
 
+class Session:
+    """The boundary between independent observations — and the LEAK IT MEASURES.
+
+    T7's FIRST RUN found this harness answering the wrong question. F3 asked for
+    ٢+٢ and the spoken reply was about the document on screen; O-2 asked about
+    backups and the reply was «خلينا نكمّل خطوات تغيير الخلفية أولاً», continuing
+    O-1's walkthrough. **Both checks PASSED**, because they assert the TOOL WAS
+    CALLED — and it was. The reply was answering something else entirely.
+
+    THE CAUSE: one Orchestrator across every phase. `history` accumulates by
+    design, and a mode O-1 opened is still ACTIVE when O-2 starts, so its
+    directive line rides the next turn. That is the Navigator working exactly as
+    specified; what failed is the HARNESS, which never isolated its own
+    experiment. An observation contaminated by its predecessor cannot answer the
+    question it exists to ask — the same reason O-1's wording never names the
+    verbs.
+
+    **THE RESET ALONE WOULD NOT BE ENOUGH.** A silent reset that stopped being
+    called would restore the defect with every check still green, which is the
+    DEC-40 family one layer in. So this records what it FOUND to clear — the leak,
+    measured, printed — and a check FAILS if it never found anything, because a
+    reset with no work to do is not what is keeping the observations clean.
+
+    WHAT IT CANNOT RESET, stated rather than hidden: `SessionTaint` has NO
+    clearing method BY DESIGN (DEC-15 — a "clear the taint" verb would itself be
+    a social-engineering channel), so a new PROCESS is its only reset. It does
+    not distort these observations — the Navigator holds no capability, so no
+    mode verb can ever be high-impact — but a future phase that turns on
+    confirmation friction must start a new process, not call a method that
+    deliberately does not exist. Sticky verbosity is the same shape; no phase
+    here issues a verbosity command."""
+
+    def __init__(self, orchestrator: Any) -> None:
+        self._orch = orchestrator
+        self.boundaries = 0
+        self.carried: "list[str]" = []
+        self.dirty_after: "list[str]" = []
+        self.starved: "list[str]" = []
+
+    def start(self, label: str) -> None:
+        prelude = self._orch._prelude
+        blocks, frame = len(self._orch.history), prelude.session_mode.frame
+        if blocks or frame is not None:
+            self.carried.append(
+                f"{label} inherited {blocks} history block(s)"
+                + (f" + the ACTIVE mode «{frame.name}»" if frame is not None else ""))
+        # Ended through the REAL authority, never by writing the frame: the ONE
+        # evaluation point stays the only writer even inside a diagnostic.
+        prelude.authority.request(TransitionRequest(kind=LEAVE))
+        self._orch.history.clear()
+        self.boundaries += 1
+        if self._orch.history or prelude.session_mode.frame is not None:
+            self.dirty_after.append(label)
+
+
 async def build_live_graph(budget: Budget, doc_plugin: Any):
     """The PRODUCTION graph, built by production's OWN helpers in production
     ORDER — so this script can never verify a composition it invented (DEC-40,
@@ -260,8 +325,22 @@ async def _no_mic() -> bytes:
     return b""
 
 
-async def drive(orchestrator, agent: PassCounter, label: str, question: str):
-    """One live turn, printed. Returns the TurnResult and the pass count."""
+async def drive(orchestrator, agent: PassCounter, session: Session, label: str,
+                question: str, fresh: bool = True):
+    """One live turn, printed. Returns the TurnResult and the pass count.
+
+    **`fresh=True` IS THE DEFAULT, AND THAT DIRECTION IS THE FIX.** Independence
+    is what an observation needs; continuity is the exception and has to be asked
+    for at the call site, where a reader can see it. The walkthrough's «التالي»
+    turns are the only callers that pass `fresh=False`, because a step that did
+    not inherit its own plan would be measuring nothing.
+
+    BUDGET STARVATION IS DETECTED, NOT INFERRED. `TurnResult.budget_blocked` is
+    set by the Rule-10 gate before any provider call, so an exhausted run is a
+    FACT the harness reads rather than a pattern it guesses from an empty reply.
+    T7's first run printed four empty observations that looked like data."""
+    if fresh:
+        session.start(label)
     print(f"\n──────── {label} ────────\nQ: {question}")
     agent.new_turn()
     start = time.perf_counter()
@@ -269,6 +348,11 @@ async def drive(orchestrator, agent: PassCounter, label: str, question: str):
     print(f"    tools={[c.name for c in result.tool_calls]}  passes={agent.passes}"
           f"  cost={result.cost_usd:.6f} USD  {(time.perf_counter() - start):.1f}s")
     print(f"    reply: {result.spoken_text.strip()[:400]}")
+    if getattr(result, "budget_blocked", False):
+        session.starved.append(label)
+        print("    >>> BUDGET GATE CLOSED — NO provider call was made. This turn and"
+              "\n    >>> every turn after it are EMPTY and SETTLE NOTHING. Raise"
+              "\n    >>> MUTHIS_DAILY_BUDGET_USD and start the run again.")
     return result, agent.passes
 
 
@@ -324,7 +408,8 @@ async def check_indicator_and_exits(checks: Checks, orchestrator,
 
 
 async def run_regressions(checks: Checks, orchestrator, agent: PassCounter,
-                          workdir: pathlib.Path, doc_path: Optional[str],
+                          session: Session, workdir: pathlib.Path,
+                          doc_path: Optional[str],
                           question: Optional[str]) -> "list[int]":
     """CHECK F — every shipped capability still serviced, one live turn each.
 
@@ -349,7 +434,9 @@ async def run_regressions(checks: Checks, orchestrator, agent: PassCounter,
                       f"افتح المستند {doc_path} وجاوبني منه: {question}",
                       "docs__query", False))
     for name, prompt, tool, required in cases:
-        result, count = await drive(orchestrator, agent, name, prompt)
+        # FRESH: each regression asks an unrelated question. T7's F3 asked for
+        # ٢+٢ and answered about the document F2 had just read.
+        result, count = await drive(orchestrator, agent, session, name, prompt)
         passes.append(count)
         called = any(c.name == tool for c in result.tool_calls)
         if called or required:
@@ -362,12 +449,16 @@ async def run_regressions(checks: Checks, orchestrator, agent: PassCounter,
 
 
 async def observe(observations: Observations, orchestrator, agent: PassCounter,
-                  doc_path: Optional[str], question: Optional[str],
-                  interactive: bool) -> "list[int]":
+                  session: Session, doc_path: Optional[str],
+                  question: Optional[str], interactive: bool) -> "list[int]":
     """O-1 … O-3. NOTHING here returns a verdict, by construction: this function
-    is handed the `Observations` register and never the `Checks` one."""
+    is handed the `Observations` register and never the `Checks` one.
+
+    EVERY observation starts FRESH (see `Session`). The only exception is the
+    walkthrough's advances, which must inherit the plan they are advancing and
+    say so explicitly at their call site."""
     passes: "list[int]" = []
-    result, count = await drive(orchestrator, agent,
+    result, count = await drive(orchestrator, agent, session,
                                 "O-1 does the model reach for the verbs UNPROMPTED?",
                                 Q_UNPROMPTED)
     passes.append(count)
@@ -382,13 +473,19 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
                           "RULING to request — never a patch to make quietly",
         })
 
-    result, count = await drive(orchestrator, agent,
+    # FRESH: O-1 left an ACTIVE mode. T7's first run opened this walkthrough
+    # inside it and the model answered «خلينا نكمّل خطوات تغيير الخلفية أولاً» —
+    # correct behaviour for the Navigator, and a measurement of nothing.
+    result, count = await drive(orchestrator, agent, session,
                                 "O-2 step pacing — the walkthrough opens", Q_WALKTHROUGH)
     passes.append(count)
     turns = [result.spoken_text.strip()[:300]]
     for index in range(4):
-        step, count = await drive(orchestrator, agent,
-                                  f"O-2 step pacing — advance {index + 1}", Q_ADVANCE)
+        # fresh=False — THE ONE PLACE CONTINUITY IS CORRECT: an advance that did
+        # not inherit its own plan would be advancing nothing.
+        step, count = await drive(orchestrator, agent, session,
+                                  f"O-2 step pacing — advance {index + 1}", Q_ADVANCE,
+                                  fresh=False)
         passes.append(count)
         turns.append(step.spoken_text.strip()[:300])
     observations.add("O-2 — step pacing and the spoken frame (ear, not score)", {
@@ -398,7 +495,7 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
                       "and did it call navigator__step 'done' at the end?",
     })
 
-    result, count = await drive(orchestrator, agent,
+    result, count = await drive(orchestrator, agent, session,
                                 "O-3 path ① — a claim about the SCREEN", Q_SCREEN_EVIDENCE)
     passes.append(count)
     observations.add("O-3 path ① — a SCREEN claim, evidence pointable", {
@@ -414,7 +511,8 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
         return passes
 
     input("\n  >>> OPEN the document on screen now, then press Enter (path ②) ")
-    result, count = await drive(orchestrator, agent, "O-3 path ② — the DISPLAYED document",
+    result, count = await drive(orchestrator, agent, session,
+                                "O-3 path ② — the DISPLAYED document",
                                 f"افتح المستند {doc_path} وجاوبني منه: {question} — وورّني وين قالها.")
     passes.append(count)
     observations.add("O-3 path ② — a passage pointed at where the user can SEE it", {
@@ -427,7 +525,8 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
     })
 
     input("\n  >>> MINIMISE the document now, then press Enter (path ③) ")
-    result, count = await drive(orchestrator, agent, "O-3 path ③ — INDEXED, not displayed",
+    result, count = await drive(orchestrator, agent, session,
+                                "O-3 path ③ — INDEXED, not displayed",
                                 f"جاوبني من نفس المستند: {question} — وورّني وين قالها.")
     passes.append(count)
     observations.add("O-3 path ③ — the honest refusal that redirects to the vision path", {
@@ -480,9 +579,19 @@ async def main() -> int:
     _doc_service, doc_plugin = _build_doc_rag()
     budget = Budget()
 
+    # THE BUDGET, STATED BEFORE ANYTHING IS SPENT. T7's first run exhausted it
+    # partway through and printed four EMPTY observations that looked like data;
+    # a full run is ~15 live turns and the decisive half is the last one.
+    print(f"\n  budget today: {budget.spent_today_usd():.4f} spent / "
+          f"{budget.daily_limit_usd:.2f} USD limit — "
+          f"{budget.remaining_usd():.4f} remaining")
+    print("  SULTAN: set MUTHIS_DAILY_BUDGET_USD high enough BEFORE starting. A run "
+          "that starves\n  settles nothing, and the phases that settle the most run LAST.")
+
     print("\n════ building the PRODUCTION graph (production helpers, production order) ════")
     orchestrator, overlay, agent, fetcher, search, tool_count = \
         await build_live_graph(budget, doc_plugin)
+    session = Session(orchestrator)
     # THE HARNESS'S OWN POSITIVE CONTROL, not a catalog test — `look_tools_v6.json`
     # is byte-pinned in pytest and needs no second guard. What this catches is a
     # mount MISSING FROM THIS SCRIPT, which would let every check below pass while
@@ -492,7 +601,7 @@ async def main() -> int:
 
     passes: "list[int]" = []
     try:
-        first, count = await drive(orchestrator, agent,
+        first, count = await drive(orchestrator, agent, session,
                                    "A the catalog is ACCEPTED by the real API", Q_POINT)
         passes.append(count)
         checks.record("A the real API accepted catalog v6 (the DEC-11 failure class)",
@@ -501,13 +610,18 @@ async def main() -> int:
         print("\n════ DETERMINISTIC — the mode frame end-to-end ════")
         await check_indicator_and_exits(checks, orchestrator, overlay)
 
-        print("\n════ DETERMINISTIC — regression across every shipped capability ════")
-        passes += await run_regressions(checks, orchestrator, agent, workdir,
-                                        args.doc, args.question)
-
+        # OBSERVED RUNS BEFORE THE REGRESSIONS, and the order is a decision.
+        # These three phases are what the run exists to settle and they are the
+        # ones a budget ceiling truncates; the regressions confirm shipped
+        # capabilities that pytest and four previous live SOPs already cover, so
+        # they are the cheaper thing to lose. T7's first run lost the wrong half.
         print("\n════ OBSERVED — printed for Sultan, scored neither PASS nor FAIL ════")
-        passes += await observe(observations, orchestrator, agent, args.doc,
-                                args.question, sys.stdin.isatty())
+        passes += await observe(observations, orchestrator, agent, session,
+                                args.doc, args.question, sys.stdin.isatty())
+
+        print("\n════ DETERMINISTIC — regression across every shipped capability ════")
+        passes += await run_regressions(checks, orchestrator, agent, session,
+                                        workdir, args.doc, args.question)
     finally:
         await fetcher.aclose()
         await search.aclose()
@@ -517,6 +631,20 @@ async def main() -> int:
                   f"pass counts: {passes}")
     checks.record("B no LOOK-only violation was logged in any live turn",
                   not any("LOOK-only violation" in line for line in tap.lines))
+    # G1 / G2 — the T7 leak, closed and PROVEN CLOSED. G2 is the positive
+    # control and it is the load-bearing one: a reset that never finds anything
+    # to clear is not what is keeping the observations independent, and without
+    # this the fix could rot into a no-op with every check still green.
+    checks.record("G1 every independent turn started from a CLEAN session",
+                  not session.dirty_after,
+                  f"{session.boundaries} boundaries; still dirty: {session.dirty_after}")
+    checks.record("G2 the isolation DID WORK (positive control — it found state to clear)",
+                  bool(session.carried),
+                  f"cleared at {len(session.carried)} of {session.boundaries} boundaries")
+    for line in session.carried:
+        print(f"      leak cleared — {line}")
+    checks.record("H the run was NOT budget-starved (a starved run settles nothing)",
+                  not session.starved, f"starved turns: {session.starved}")
     return summarise(checks, observations)
 
 
