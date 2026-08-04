@@ -1,17 +1,31 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-08-04, **V3 Phase 3 — the NAVIGATOR
-> COMPLETE**). **`AGENTS.md` remains the full source of truth**; this is the
-> compressed map. Branch `feature/v3-navigator`; app suite **1513 green** + 27 sdk
+> Token-saving snapshot (updated 2026-08-04, **V3 Phase 3 MERGED to `main`, and the
+> REPOSITORY AUDIT CLOSED — the repo is ready for its first push**). **`AGENTS.md`
+> remains the full source of truth**; this is the compressed map. `main` carries the
+> Phase-3 merge `fbe9185` plus the audit pass; app suite **1513 green** + 27 sdk
 > tests — run on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces
 > false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — V3 PHASE 3, THE NAVIGATOR COMPLETE (2026-08-04)
-**Phase 3 — the Navigator** is COMPLETE on `feature/v3-navigator`. **`main` untouched
-— not merged, not pushed, not tagged; the merge is Sultan's.** The branch is **37
-commits ahead of `main`** and also carries the tail of Phase 2 M3 (DEC-69..72, the
-voice-surface pass), because `main` has not been merged since M3.
+## CURRENT STATUS — PHASE 3 MERGED, REPOSITORY AUDIT CLOSED (2026-08-04)
+**Phase 3 — the Navigator** is COMPLETE and **MERGED to `main`**, tagged
+`v3-navigator-complete`. `feature/v3-navigator` is preserved.
+
+**THE REPOSITORY AUDIT IS CLOSED (DEC-87) — it no longer blocks anything.** Five
+scans at 100% object coverage found **no secret ever committed, `.env` never
+committed under any name, and zero images ever committed**; no key rotation was
+required. The author identity was rewritten across **all 281 commits and all 9 tag
+annotations** to a GitHub noreply address — identity only, with `main^{tree}` proven
+byte-identical before and after — so **every commit hash changed**. The Phase-3
+merge that was `651aabd` is now **`fbe9185`**; the old→new bridge for all 281 is
+committed at [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-2026-08.txt).
+**Commit SHAs cited in any document written before the rewrite are HISTORICAL, not
+wrong** — resolve them through that map (DEC-87 opens with this).
+The unreachable 638 MB installer went with the rewrite's repack: **`.git` 605 MB →
+~3 MB**. The repository now carries a **README**, an **Apache-2.0 LICENSE**
+(`Copyright 2026 Sultan Faisal Al-Anzi`) and a **`.env.example`** (55 variables, no
+values). **NO REMOTE EXISTS and nothing has been pushed — that is Sultan's.**
 
 Mut'his now walks a user through a task step by step — `navigator__plan` +
 `navigator__step`, **catalog v6, eleven tools, byte-pinned**. The KERNEL holds the
@@ -54,14 +68,14 @@ any draw. **A property held by circumstance rather than by construction.**
 
 Closure record: `docs/reports/phase3_navigator.md`; rulings DEC-65..DEC-86.
 
-**Next (Sultan's):** the merge to `main` (consider a tag). Still owed and NOT lost
-at this boundary: **DEC-82's caption discriminator** (free and visual, settled on
-the next voice run) - **the repository audit before ANY push**, still RESERVED with
-its own ruling owed, because the history contains a commit that once swept in a
-638 MB installer and after a push nothing can be removed from history - **Navigator
-v2 visual verification** (deferred at T4) - and the APPROVED `diag_doc_rag.py`
-reduction, which executes AFTER close and must PROMOTE K7, K0 and G7 to pytest
-before deleting anything.
+**Next (Sultan's):** **create the remote and push** (branches + the 9 tags). Still
+owed and NOT lost at this boundary: **DEC-82's caption discriminator** (free and
+visual, settled on the next voice run) - **Navigator v2 visual verification**
+(deferred at T4) - the APPROVED `diag_doc_rag.py` reduction, which executes AFTER
+close and must PROMOTE K7, K0 and G7 to pytest before deleting anything - and the
+**pre-rewrite mirror backup**, which still holds the 638 MB installer and is
+Sultan's to delete once he has seen the repo live. **The repository audit is CLOSED
+(DEC-87) and no longer blocks a push.**
 
 ## V2 PHASE 2 — M3 `doc_rag` (COMPLETE, live-signed 2026-07-31)
 Open a document, then ask it. Gates P0→T6, each STOP-gated.
@@ -378,12 +392,21 @@ Phase 4 — read-only perception) — NEVER click/type/press/clipboard. RTX 4060
 
 ## Non-negotiable rules
 - **≤300 lines/module**, single responsibility, importable in isolation. If a
-  module nears the limit, SPLIT (don't compress). At/near ceiling now (measured
-  2026-07-29): **`tool_router.py` 300 — AT the ceiling AND irreducible, any
-  addition needs a funnel-split RULING (DEC-38)**, `turn_voice.py` 300,
-  `orchestrator.py` 299 (byte-identical through M2), `tts.py` 296,
-  `sidekick_window.py` 280, `fetcher.py` 273, `confirm_gate.py` 269,
-  `turn_pass.py` 269.
+  module nears the limit, SPLIT (don't compress). At/near ceiling now (**re-measured
+  2026-08-04 against the real files — every count below is exact**): `tool_router.py`
+  **300 — AT the ceiling AND irreducible**, any addition needs a funnel-split RULING
+  (DEC-38); `turn_voice.py` **300**; `broker/docs/service.py` **300**;
+  `orchestrator.py` **299**; `broker/docs/ingest.py` **298**; `broker/docs/zones.py`
+  **298**; `tts.py` **296**; `sidekick_window.py` **296**; `turn_pass.py` **293**;
+  `fetcher.py` **273**; `confirm_gate.py` **269**.
+  **Two of these had DRIFTED in this file and were corrected at the DEC-87 audit:**
+  the stale entries read 269 for `turn_pass.py` (real 293) and 280 for
+  `sidekick_window.py` (real 296). Both sit in the near-ceiling list, which is
+  exactly where an understated
+  count is dangerous: it reports headroom that does not exist. `turn_pass.py` has
+  **7 lines left, not 31**. `tests/test_module_line_ceiling.py` enforces the law
+  itself and pins the four drift-critical files, but it does not read this prose —
+  so this list is kept honest by measurement, not by the guard.
 - **Language split**: user-facing strings Arabic; logs/comments/identifiers/commits English.
 - **Threading**: Tk lives on its own daemon thread; asyncio↔Tk only via
   `queue.Queue` commands. Keyboard→loop only via `loop.call_soon_threadsafe`.

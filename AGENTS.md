@@ -329,6 +329,10 @@ to plugins: wrappers own no lifecycles, locks, or events).
 | `tests/test_evidence_pointing.py` / `tests/test_ack_scope.py` / `tests/test_persona_ack_scoping.py` | 606 / 304 / 161 | **V3 Phase 3 (T5, DEC-84) — the two structural laws.** `test_evidence_pointing` asserts the kernel cannot synthesise a position, by LACK OF MEANS (the module imports nothing) and at the one real site: `scale_bbox_to_physical` reads coordinates by SUBSCRIPT, so a missing one RAISES instead of defaulting — `args.get("x1", 0)` reads as a hardening and IS the forbidden defect, since it would draw a cyan rectangle in the corner and present it as evidence for a claim. Both spellings are mutation-verified, and the scanner carries a POSITIVE CONTROL so it cannot pass while examining nothing. `test_ack_scope` asserts the LAW over a SCANNED COLLECTION rather than a substring on one constant (a substring assertion is a CUTOFF — the family M16 landed in), and drives a REAL MULTI-PASS turn, because a single-pass assertion cannot see the ack defect at all. `test_persona_ack_scoping` holds the DELTA PIN: applying exactly two clause swaps to a hash-pinned snapshot must rebuild the live prompt byte for byte. |
 | `scripts/diag_navigator.py` | 731 | **V3 Phase 3 (T6, DEC-68/DEC-80) — the live SOP, and NEVER an acceptance verdict.** Its own summary prints *"THIS IS NOT AN ACCEPTANCE VERDICT"* and *"T6 IS NEVER DECLARED PASSED BY AN AGENT"*, so a green run pasted out of context still carries the disclaimer. Built by asking the diagnostic law's question of every check BEFORE writing a line — *which of these could pytest have run?* — which cut three of the seven named checks to their live-only residue (the indicator's cross-turn logic, the three exits' logic and the pass-economy shape are all pytest's already). `Checks` and `Observations` are **SEPARATE OBJECTS** and the observation phase is handed only the latter, so a spoken reply cannot become a verdict even by accident — the conflation that produced M1's false negative. `--observations-only` skips exactly the checks that cost a live model turn, named in ONE constant so the skip list cannot drift, and **a skip prints its reason and the summary states that coverage came from a PREVIOUS run**. |
 | `ARCHITECTURE_v4_1.md` | — | **ARCHIVED — NOT AUTHORITATIVE, and not in this repository** (absent from the working tree, from `git ls-files`, and from the entire git history). It PREDATES the LOOK-only product decision and contains decisions since CANCELLED, Trust Modes among them (DEC-6). Kept in this table only so that whoever finds the archived file learns why it is history rather than law: it does not outrank this file on anything, and it must not be restored to authority (DEC-43). |
+| `README.md` | 138 | **The repository's public entry point, added at the DEC-87 audit** (there was none: a visitor landed on this file or on a 9,400-line ledger). Its load-bearing section argues LOOK-only rather than stating it — an assistant that clicks must be trusted with your session and every later feature is a negotiation over how much control to hand over, while one that only looks has nothing to negotiate. Frames the sandbox carve-out as PROVING that rule (the container is not the user's session), and states the «ما لقيت هذا في المستند» law as load-bearing. Status is deliberately honest: one-machine software, no installer, no support commitment. |
+| `LICENSE` | 202 | **Apache-2.0** (DEC-87 ruling 7) — canonical text, differing from upstream by exactly ONE line: `Copyright 2026 Sultan Faisal Al-Anzi`. Chosen over MIT because MIT is SILENT on patents while Apache grants them expressly (clause 3) and adds retaliation. **THE LAW A FUTURE READER MUST NOT MISREAD: no licence preserves LOOK-only.** Under any permissive licence a fork may add `real_click`, and copyleft could not preserve a BEHAVIOURAL boundary either. Apache's explicit trademark non-grant (clause 6) is the ONLY lever available — a fork that adds machine control **cannot call itself Mut'his**. The licence defends the NAME, never the boundary; the DEC-6 bans are what defend the boundary. |
+| `.env.example` | 198 | **The environment template: NAMES and EXPLANATIONS ONLY, never a value, not even a truncated one.** 55 real variables in nine sections, derived from `src/` rather than from documentation — 12 names that read like knobs are module constants and are deliberately ABSENT, because a template documenting a knob that does not exist is worse than no template. Two variables get their own section because their absence fails SILENTLY: `ELEVENLABS_VOICE_ID` (the default placeholder does not resolve and hard-fails to the Gemini fallback with nothing in the log saying why) and `MUTHIS_DAILY_BUDGET_USD` (its absence was not an error but an UNRAISABLE ceiling). |
+| `docs/reports/commit-map-2026-08.txt` | 282 | **The old→new commit bridge from the DEC-87 author rewrite** — 281 mappings, byte-identical to the rewrite tool's own output. **Every commit SHA cited in a document written before 2026-08-04 refers to PRE-REWRITE history and will not resolve**; `grep <old-sha>` here returns its current hash. Committed deliberately: the tool writes this map inside `.git`, where it is not version-controlled and would have vanished on the first fresh clone, taking with it the only thing that makes "historical rather than wrong" recoverable. |
 
 **THE STATUS LIGHT is wired at FOUR transition points, and the wiring is the contract** — not the widget.
 `set_state` fires: *listening* in `ActivationController.on_press` (AFTER the mic opens), *thinking* in
@@ -384,6 +388,9 @@ pip install -e sdk
 #   set PYTHONPATH=src && python scripts/diag_hello_plugin.py
 #   set PYTHONPATH=src && python scripts/diag_mcp_mount.py
 
+# .env — COPY `.env.example` AND FILL IT IN. The template lists all 55 variables with no values;
+#   `.env` itself is git-ignored and has never been committed under any name (DEC-87 verified this
+#   across every object in the database). Read the two entries under "learned the hard way" first.
 # .env (never committed): ANTHROPIC_API_KEY=...  GEMINI_API_KEY=... (PRIMARY TTS voice)
 #   ELEVENLABS_API_KEY=... (STT Scribe; its TTS path is PARKED — used only via the flag below)
 #   optional: MUTHIS_CLAUDE_MODEL, MUTHIS_ANTHROPIC_BASE_URL,
@@ -746,12 +753,22 @@ in DECISIONS.md (DEC-43).
 - Do not expose a non-read-only MCP tool to the model, bypass the broker for an external
   plugin capability, or hand an external plugin a kernel seam without a hash-current grant.
 - Do not commit `.env`, `budget.json`, `grants.json`, `plugins.d/*.toml` (samples excepted), `*.log`, or model files.
+- **Do not assume the Apache-2.0 LICENSE defends LOOK-only — it does not, and no licence could** (DEC-87
+  ruling 7). A fork may lawfully add `real_click` under any permissive licence, and copyleft cannot preserve a
+  BEHAVIOURAL boundary either. The licence's trademark non-grant only stops such a fork from calling itself
+  Mut'his. **The boundary is defended by the DEC-6 bans in the first bullet of this section and by nothing
+  else** — never weaken them on the theory that the licence has them covered.
 
 ## Git Workflow
 
 - Branch naming: `feature/description` or `fix/description`.
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`), imperative mood, explain the why.
 - Do not force-push to main.
+- **Commit SHAs cited in documents written before 2026-08-04 are HISTORICAL, not wrong** (DEC-87). The author
+  identity was rewritten across all 281 commits and all 9 tag annotations, so every hash changed — identity
+  only, with `main^{tree}` proven byte-identical before and after. Resolve any such SHA through
+  [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-2026-08.txt). Commit with the repo's
+  configured noreply identity; never restore a personal address to `user.email`.
 - **Phase/milestone reports are version-controlled** (convention set 2026-07-18): write each to
   `docs/reports/phaseN.md` — clean UTF-8 markdown, English, all-ASCII content so the bytes cannot
   reverse — inside that phase's closing commit. Never an external paste or PDF. Each report carries at
