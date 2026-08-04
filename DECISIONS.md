@@ -9161,3 +9161,111 @@ exactly** — which is a second, independent proof that the delta is exact.
 **Next is the MILESTONE CLOSE** — the closure report, the docs refresh, and the merge.
 
 ---
+
+
+## DEC-85 (2026-08-04) — the APPEND-ONLY persona invariant RETIRES, and it retires as a DECISION rather than as a consequence — RULED (Sultan)
+
+- **Item:** the standing property that persona changes must be **APPEND-ONLY**, enforced by four
+  guards at three prefix depths (6,799 / 8,518 / 9,786 chars). DEC-84 required the first **IN-PLACE
+  edit of a pre-existing persona rule**, and all three depths broke. Sultan ruled the retirement
+  **and dictated the reasoning**, so it is not restored by reflex later.
+
+### WHY IT SERVED, AND WHY IT STOPS SERVING
+
+**"Append-only" was a PROXY for the property that actually matters: NO EXISTING RULE IS EDITED
+SILENTLY.** It served well while every change genuinely was an addition — the web laws, the doc
+laws and the voice-surface pass were all appended, and the prefix hashes proved it cheaply.
+
+**This change could not be an addition.** The tension between the absolute at char 2,378 and its
+exception 7,410 characters later **cannot be resolved by APPENDING a third clause: a third
+addition makes the text MORE contradictory, not less.** A proxy that forbids the only correct fix
+has stopped standing in for its property.
+
+### WHAT REPLACED IT GUARDS MORE THAN IT DID
+
+The **DELTA PIN** proves the change is **exactly two clause swaps with everything else
+byte-identical**, over the WHOLE prompt rather than a prefix. So it catches an **in-place edit AND
+an undeclared addition** — where append-only caught only the latter. **It is strictly stronger,
+which is what makes this a retirement rather than a relaxation.**
+
+**PINNING THE BASELINE'S OWN HASH IS WHAT MAKES IT REAL.** Without it, a future edit could bring
+the snapshot into line with a changed prompt and the delta assertion would pass while proving
+nothing — **a guard whose reference can be edited is checking nothing**, which is the cutoff defect
+one layer earlier. That guard then proved itself in use within the same session: a mutation runner
+rewrote the snapshot's line endings and it went RED, and the file rebuilt from the INVERSE delta
+matched the pinned hash exactly — **a second, independent proof that the delta is exact.**
+
+### THE RE-BASELINE WAS BY PROOF, NOT BY RELAXING
+
+Each new prefix was **shown to be the old prefix with clause A swapped** rather than recomputed
+blindly, and **each still fails on any FURTHER persona edit.** Nothing was weakened going forward;
+what moved is the reference point, and it moved for a reason recorded here.
+
+### THE NEW FACE OF THE FAMILY — a guard that pinned the OPPOSITE of its own purpose
+
+`test_the_law_scopes_the_earlier_mandatory_ack_rule_rather_than_contradicting_it` asserted that
+**BOTH ack rules must be present**, on the reasoning that the later one scopes the earlier. **Its
+own docstring had already named the failure mode** — *"two rules that read as a conflict are
+resolved by the model unpredictably"* — **while believing the later clause removed it. It did
+not.** The pair was never a scoping; it was the conflict, and the guard was **holding it in
+place.**
+
+**Named precisely, at Sultan's instruction: this is NOT a check examining less than it claims. It
+is a check GUARDING THE OPPOSITE OF ITS OWN PURPOSE** — a distinct face, and the more dangerous
+one, because everything it asserted was literally true and it survived three milestones green.
+
+---
+
+## DEC-86 (2026-08-04) — **PHASE 3 IS CLOSED.** What was built, what is owed, and what crosses the boundary — RULED (Sultan)
+
+- **Item:** the close of V3 Phase 3, the Navigator. **COMPLETE, NOT MERGED, NOT TAGGED — the merge
+  is Sultan's.** Closure record: [`docs/reports/phase3_navigator.md`](docs/reports/phase3_navigator.md).
+- **State:** branch `feature/v3-navigator`, **37 commits ahead of `main`** (the branch also carries
+  the Phase-2 M3 tail, DEC-69..72 and the voice-surface pass, because `main` has not been merged
+  since M3). **Guard 1513 + 27 green on `.venv`.**
+
+### WHAT SHIPPED
+
+`navigator__plan` + `navigator__step` — **catalog v6, eleven tools against a cap of 24,
+byte-pinned, v6 = v5 with two tools APPENDED.** The kernel holds the plan, draws its own progress,
+points at each step, and leaves by three independent exits. **Evidence pointing shipped with it and
+added ZERO model-facing surface.** A mode grants **no privilege**; **LOOK-only does not move in any
+mode**; **F9 never means "exit".**
+
+### THE THREE PROPERTIES WORTH CARRYING INTO PHASE 4
+
+1. **Absence proven by LACK OF MEANS.** `evidence_pointing.py` and `ack_scope.py` import NOTHING —
+   the module that must never compute a position has no means to reach one.
+2. **A public surface that cannot be bypassed.** `ModeAuthority` exposes exactly `request`, so the
+   servicer holds no mutator. **That came out of MEASURING T4, not designing T2**, and is stronger
+   than what T2 set out to build.
+3. **A law written per ANSWER, never per tool family** (DEC-84), so the next capability inherits it
+   instead of re-earning it.
+
+### THE CARRIED-FORWARD REGISTER — nothing is lost at the boundary
+
+| owed | status |
+|---|---|
+| **DEC-82 — the caption halt** | **OPEN.** Two mechanisms fit; neither blocks the close. The buffered path is DESIGNED behaviour (a design ruling); the `_dead` fault is real but **PRE-DATES Phase 3**. **The discriminator is free and visual — was caption 2 a clean SENTENCE or a BLOCK ending in an ellipsis?** Settled on the NEXT VOICE RUN, never by inference. |
+| **The repository audit** | **RESERVED, with its own ruling still owed, and it BLOCKS ANY PUSH.** The history contains a commit that once swept in a **638 MB installer**, and **after a push nothing can be removed from history.** No history, remote or ignore-rule work has been done and none may be until that ruling exists. |
+| **Prose pointing (DEC-75's condition)** | **UNMEASURED.** D-1's text targets had visual boundaries and BOTH NEARs came from them; continuous prose is the one shape it did not drive. **The degradation is already designed** (path 3's refusal) and needs no new design session. |
+| **Navigator v2 — visual verification** | **DEFERRED** by Sultan's ruling at T4. v1 does not verify the user performed a step. |
+| **DEC-74's loose boxes** | Recorded, no work. Potentially visible where a step points at something fine. |
+| **`orchestrator.py`'s last line** | **UNSPENT.** The standing STOP holds for whatever touches it next. |
+| **The `diag_doc_rag.py` reduction** | APPROVED at the M3 close, executes AFTER it, and **must PROMOTE K7, K0 and G7 to pytest BEFORE deleting anything** (DEC-64 ruling 2). |
+| **The three older deviations** | Unchanged: spoken three-strikes eviction · `muthis/annotate` (Q-1.2) · the conformance-kit real-child boot check. |
+
+### THE GOVERNANCE RECORD
+
+DEC-65 `SessionMode` · DEC-66 Plan/Step · DEC-67 evidence pointing · DEC-68 the P0 gate ·
+DEC-73 design C + two splits · DEC-74 P0 CLOSED · DEC-75..80 T1..T6 · DEC-81 T7 run 1 ·
+DEC-82 the caption halt (OPEN) · DEC-83 T7 runs 1-3 · DEC-84 the ack fixed at symptom and cause ·
+DEC-85 the append-only retirement · **DEC-86 this close.**
+
+**`AGENTS.md` and `PROJECT_STATE.md` were refreshed at this close** (`f7f665d`) with every declared
+count SCANNED against the file it names: thirteen drifted cells corrected, **thirteen Phase-3
+modules that had NO ROW AT ALL** given one — the `broker/docs/service.py` condition — and the
+declared ceilings written into the law's own paragraph. **Re-scan after: 159 pairs checked, ZERO
+drifted.**
+
+---
