@@ -1,34 +1,67 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-07-31, V2 Phase 2 M3 `doc_rag`
-> COMPLETE). **`AGENTS.md` remains the full source of truth**; this is the
-> compressed map. Branch `feature/v2-phase2-doc-rag` (cut from `main` at
-> `b7654f7`, which already carries the M1 and M2 merges); app suite **1216 green**
-> (V1 474-oracle preserved) + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that
-> one lacks trafilatura and produces false failures).
+> Token-saving snapshot (updated 2026-08-04, **V3 Phase 3 — the NAVIGATOR
+> COMPLETE**). **`AGENTS.md` remains the full source of truth**; this is the
+> compressed map. Branch `feature/v3-navigator`; app suite **1513 green** + 27 sdk
+> tests — run on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces
+> false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — V2 PHASE 2, M3 `doc_rag` COMPLETE (live-signed 2026-07-31)
-**Phase 2, Milestone 3 — `doc_rag`** is COMPLETE on `feature/v2-phase2-doc-rag`
-(cut from `main` at `b7654f7`; **main untouched — not merged, not pushed, not
-tagged; the merge is Sultan's**). Mut'his opens the user's own document
-(`docs__open`) and answers questions from it (`docs__query`) — catalog **v4**,
-nine tools, byte-pinned — in Arabic, aloud, citing the page. Sultan ran the Live
-SOP on his hardware on the FIFTH attempt, 2026-07-31, and signed off personally:
-`query: candidates=` reached the live phase for the first time, the absence law
-fired correctly on a genuine miss (all three DEC-57(a) clauses), and the spoken
-page citation was CORRECT against ground truth.
-**What the milestone cost, and why it is worth recording:** four earlier live runs
-all failed with the SAME visible symptom — the model retrying — and THREE different
-causes (a note that reported no state achieved; a slot rule that deferred the
-payload-bearing call; a `doc_id` that could not survive a natural-language
-round-trip). **A retry loop is a symptom, not a diagnosis.** The milestone also
-produced the project's first automated guard for the ≤300-line LAW, after a real
-breach passed in silence because neither half of the enforcement existed.
-Closure record: `docs/reports/phase2_m3_doc_rag.md`; rulings DEC-44..DEC-63.
-**Next (Sultan's):** merge to `main` (consider a tag); then the APPROVED
-`diag_doc_rag.py` reduction, which executes AFTER close and must PROMOTE K7, K0
-and G7 to pytest before deleting anything.
+## CURRENT STATUS — V3 PHASE 3, THE NAVIGATOR COMPLETE (2026-08-04)
+**Phase 3 — the Navigator** is COMPLETE on `feature/v3-navigator`. **`main` untouched
+— not merged, not pushed, not tagged; the merge is Sultan's.** The branch is **37
+commits ahead of `main`** and also carries the tail of Phase 2 M3 (DEC-69..72, the
+voice-surface pass), because `main` has not been merged since M3.
+
+Mut'his now walks a user through a task step by step — `navigator__plan` +
+`navigator__step`, **catalog v6, eleven tools, byte-pinned**. The KERNEL holds the
+plan, draws its own progress in a top-left chip, and points at each step; the mode
+leaves by **three independent exits** (a deterministic exit word read from the RAW
+transcript with the model uninvolved · model-signalled completion · a lazily
+evaluated idle timeout, never a background timer). **A mode grants NO privilege and
+LOOK-only does not move in any mode; F9 never means "exit"** — it is barge-in and
+nothing else.
+
+**Evidence pointing shipped with it and added ZERO model-facing surface** — pointing
+is `highlight_target` as it already exists. A claim about the screen is pointable, a
+passage in a DISPLAYED document is pointed at where the user can see it, and an
+INDEXED-but-not-displayed passage gets an honest refusal redirecting to the vision
+path. The load-bearing property: **the kernel NEVER synthesises a position**, because
+the backstop is deterministic only while the rendering is faithful and never
+charitable.
+
+**What the P0 measurement gate bought — the milestone's best argument for measuring
+before building:** D-1 measured pointing at **23 HIT / 2 NEAR / ZERO MISS** across 25
+hand-marked targets at every size, including a 9x9-pixel target in the SENT image, so
+**crop-and-zoom was never built**, downscaling stayed unchanged, and the deferred
+document path came INTO scope. D-2 turned a line count into an architectural fact —
+the minimum cost of ANY new injected seam in `orchestrator.py` is three lines against
+ONE of headroom — and bought two splits; **DEC-38's reserved dispatch-funnel split
+measured ZERO and remains unspent.** D-3 answered the architectural half and REFUSED
+the UX half: placement is Sultan's eye, and no test pins a pixel.
+
+**T7 (three live runs, Sultan's hardware): no blocking issue in the product.** Every
+stop was outside Mut'his — an `EOFError` from the harness's own prompt and an
+exhausted API balance. **O-2 answered**: the advances acknowledge what the user
+accomplished, then give the next step and point at it — guidance, not a list read
+aloud, with the pointing landing on the correct element. **O-1 ruled — NO PERSONA
+LAW**: the model's reach for the verbs VARIED across runs, and the variance IS the
+answer (the T4 rule needs a STABLE observed gap; the genuinely guided path reaches the
+verbs reliably). **One real defect found and fixed at both symptom and cause** — the
+multi-pass spoken ack, which the Navigator EXPOSED rather than caused: the anti-ack
+directive rides the DRAW pairing and the Navigator inserts an ack-eligible pass BEFORE
+any draw. **A property held by circumstance rather than by construction.**
+
+Closure record: `docs/reports/phase3_navigator.md`; rulings DEC-65..DEC-86.
+
+**Next (Sultan's):** the merge to `main` (consider a tag). Still owed and NOT lost
+at this boundary: **DEC-82's caption discriminator** (free and visual, settled on
+the next voice run) - **the repository audit before ANY push**, still RESERVED with
+its own ruling owed, because the history contains a commit that once swept in a
+638 MB installer and after a push nothing can be removed from history - **Navigator
+v2 visual verification** (deferred at T4) - and the APPROVED `diag_doc_rag.py`
+reduction, which executes AFTER close and must PROMOTE K7, K0 and G7 to pytest
+before deleting anything.
 
 ## V2 PHASE 2 — M3 `doc_rag` (COMPLETE, live-signed 2026-07-31)
 Open a document, then ask it. Gates P0→T6, each STOP-gated.
@@ -472,6 +505,25 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
 `ELEVENLABS_VOICE_ID` (REQUIRED for the Arabic accent), `MUTHIS_GEMINI_VOICE` (Kore).
 
 ## Key module map (src/muthis/)
+- **Navigator / mode frame** (V3 Phase 3; counts MEASURED 2026-08-04):
+  `kernel/session_mode.py` 211 (the frame + an OPAQUE `on_change` the root wires to
+  the overlay), `kernel/plan.py` 223 (`Plan`/`Step`; a STABLE id that survives a
+  delete or insert -- a positional reference breaks SILENTLY), `kernel/mode_transition.py`
+  263 (`ModeAuthority`; its public surface is EXACTLY `request`, so a caller holds no
+  mutator), `kernel/mode_surfaces.py` 247 (the exit detector + the ONE-LINE directive,
+  which MUST carry `DIRECTIVE_MARKER_AR`), `kernel/turn_prelude.py` 152 (the turn's
+  directive assembly; ORDER is a contract), `kernel/navigator_service.py` 165 (one call
+  in, one Arabic note out; decides nothing), `overlay/mode_indicator.py` 131 (top-left,
+  collision-free BY CONSTRUCTION; carries NO model-authored character).
+- **Evidence pointing / the ack scope** (V3 Phase 3): `kernel/evidence_pointing.py` 129
+  and `kernel/ack_scope.py` 62. **Both import NOTHING** -- the first has no means to
+  compute a coordinate, the second no means to become logic. Absence proven by lack of
+  means rather than by discipline.
+- **Servicing / notes** (DEC-70/73): `kernel/pass_servicing.py` 117 (`PassServiced` --
+  a record, so a new tool category is additive at every call site) and
+  `kernel/deferral_notes.py` 201 (the routed-family names + `ROUTER_SERVICED_TOOLS`;
+  a routed tool MISSING from that set bypasses the wrap, the taint raise and the
+  confirm gate, then takes the pointer ack and kills the turn).
 - **Core**: `orchestrator.py` (heart: loop/history/interrupt_turn), `turn_pass.py`
   (one pass + sync point), `turn_voice.py`, `voice_out.py` (speak+caption+privacy),
   `turn.py` (TurnResult/Overlay proto/tool_result builder), `verbosity.py`,
