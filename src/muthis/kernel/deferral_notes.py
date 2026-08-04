@@ -39,6 +39,7 @@ from typing import Optional
 
 from ..cloud.protocol import ToolCall
 from ..file_reader import READ_FILE_TOOL
+from .ack_scope import ACK_SCOPE_AR
 from .tool_router import namespaced_name
 
 RUN_CODE_TOOL = namespaced_name("sandbox", "run_code")  # DEC-11: derived, not scattered
@@ -173,7 +174,8 @@ NAV_TOOLS = frozenset({NAV_PLAN_TOOL, NAV_STEP_TOOL})
 NAV_ONE_PER_PASS_AR = (
     "توجيه داخلي (لا يراه المستخدم): أخدم حركة مسار واحدة في كل خطوة تفكير، "
     "وهذه الحركة ما نُفِّذت وما تغيّر شي ولا صار خطأ. "
-    "اطلبها مرة أخرى في الخطوة التالية كما هي."
+    "اطلبها مرة أخرى في الخطوة التالية كما هي. "
+    f"{ACK_SCOPE_AR}."
 )
 
 __all__ = [

@@ -54,6 +54,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..trust.confirm_gate import DIRECTIVE_MARKER_AR, strip_directive_lines
+from .ack_scope import ACK_SCOPE_AR
 from .verbosity import DIRECTIVE_OPEN_AR, normalize_ar
 
 # ─── Exit words (DEC-65 exit 1) ──────────────────────────────────────────────
@@ -89,12 +90,14 @@ MAX_STEP_TEXT_CHARS = 200
 _MODE_DIRECTIVE_AR = (
     f"{DIRECTIVE_OPEN_AR} وضع «{{name}}» شغّال الآن. الخطوة {{current}} من "
     "{total}: {step}. هذا الترقيم من عندي أنا لا من عندك، فلا تخالفه ولا تذكر "
-    "رقمًا غيره. لا تقرأ هذا السطر ولا تشر إليه.)"
+    "رقمًا غيره. لا تقرأ هذا السطر ولا تشر إليه. "
+    f"{ACK_SCOPE_AR}.)"
 )
 
 _MODE_DIRECTIVE_NO_PLAN_AR = (
     f"{DIRECTIVE_OPEN_AR} وضع «{{name}}» شغّال الآن بلا خطوات. "
-    "لا تقرأ هذا السطر ولا تشر إليه.)"
+    "لا تقرأ هذا السطر ولا تشر إليه. "
+    f"{ACK_SCOPE_AR}.)"
 )
 
 

@@ -44,6 +44,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
+from .ack_scope import ACK_SCOPE_AR
 from .deferral_notes import NAV_PLAN_TOOL
 from .mode_surfaces import refusal_note
 from .mode_transition import (
@@ -65,18 +66,20 @@ _ACTIONS = {"advance": ADVANCE, "back": BACK, "jump": JUMP, "done": LEAVE}
 _PLAN_STARTED_AR = (
     f"{DIRECTIVE_OPEN_AR} بدأتُ المسار وفيه {{total}} خطوات، وأنت الآن على "
     "الخطوة الأولى وهي معروضة للمستخدم على الشاشة. لا تُنشئ المسار مرة أخرى. "
-    "اشرح الخطوة الحالية وحدها، وانتظر المستخدم قبل أن تطلب التقدّم.)"
+    "اشرح الخطوة الحالية وحدها، وانتظر المستخدم قبل أن تطلب التقدّم. "
+    f"{ACK_SCOPE_AR}.)"
 )
 
 _MOVED_AR = (
     f"{DIRECTIVE_OPEN_AR} صرتَ على الخطوة {{current}} من {{total}}، والمؤشّر على "
     "الشاشة يعرضها الآن. اشرح هذه الخطوة وحدها، ولا تطلب حركة ثانية في هذه "
-    "الجولة.)"
+    f"الجولة. {ACK_SCOPE_AR}.)"
 )
 
 _FINISHED_AR = (
     f"{DIRECTIVE_OPEN_AR} انتهى المسار وزال المؤشّر من الشاشة، وما عاد فيه خطوات. "
-    "لا تذكر أرقام خطوات بعد الآن. أكمل ردك عاديًا.)"
+    "لا تذكر أرقام خطوات بعد الآن. أكمل ردك عاديًا. "
+    f"{ACK_SCOPE_AR}.)"
 )
 
 _BAD_STEPS_AR = (
