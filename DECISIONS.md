@@ -9269,3 +9269,157 @@ declared ceilings written into the law's own paragraph. **Re-scan after: 159 pai
 drifted.**
 
 ---
+
+## DEC-87 (2026-08-04) — **THE REPOSITORY AUDIT.** Five scans, the author rewrite, and the seven rulings — RULED (Sultan), EXECUTED
+
+### READ THIS FIRST IF A COMMIT SHA IN A DOCUMENT DOES NOT RESOLVE
+
+**Every commit SHA cited in any document written before 2026-08-04 refers to PRE-REWRITE history and
+will not resolve in this repository.** The SHAs are not WRONG — they are HISTORICAL. They were
+correct when written, and they point at the history that existed before the author rewrite recorded
+below. **159 such citations exist**, across `docs/reports/*.md` (42 + 36 + 20 + 20 + 16 + 14),
+`DECISIONS.md` (27), `plan_v6.md` (13), `PROJECT_STATE.md` (7), `AGENTS.md` (5) and `plan_v5.md` (1).
+
+Three facts a reader needs before concluding anything from a dangling SHA:
+
+1. **The rewrite changed IDENTITY ONLY.** `main^{tree}` is `34f6a9ea0989ce7f3289915c2e61d083842c9700`
+   BEFORE and AFTER — byte-identical, proven by direct comparison, not asserted. The branch set (15),
+   the tag set (9), every author and committer timestamp (281), the commit-subject digest, and all
+   **271 `Co-Authored-By: Claude` trailers** are unchanged. **No content moved. Only the hashes did,
+   because the identity they hash over changed.**
+2. **A complete old→new map exists**, written by the rewrite tool: **281 mappings** at
+   `.git/filter-repo/commit-map`. Anchors: `651aabd`→`fbe9185` (the Phase-3 merge, `main` at audit
+   time) · `dcfa25f`→`ed48d13` (Phase-2 M1) · `1c59d60`→`626ef71` (Phase-2 M2) ·
+   `dbfec3a`→`502caee` (Phase 1). **CAVEAT, recorded because it is load-bearing: that path is inside
+   `.git`, so the map is NOT version-controlled and does NOT survive a fresh clone.** Preserving it
+   past the next clone requires a deliberate copy — an OPEN ITEM at the time of writing.
+3. **The 282nd commit was DISCARDED, not rewritten.** `3e41ea9` was an orphan, reachable only from
+   the reflog, and it carried the 638 MB installer. It appears nowhere in the commit-map. That is why
+   281 commits were rewritten and not 282.
+
+**Why the citations were not repaired.** Option (b) — rewriting the 159 SHAs in file content via the
+map — was REJECTED on the stronger ground: it means editing 159 places across documents whose law is
+APPEND-ONLY, `DECISIONS.md` among them. **Opening an append-only ledger to fix references would
+weaken the property DEC-85 defended, to solve something that is not an error.** Option (a) — say
+nothing — was rejected too, because **the silence is the defect, not the deadness.** This entry is
+option (c): the same treatment `plan_v6.md` received when it took a dated supersession note instead
+of a rewrite. **159 silent references become 159 documented ones.**
+
+### THE AUDIT — five scans, 100% object coverage
+
+Run read-only against `main` at `651aabd` (pre-rewrite). Coverage was PROVEN, not claimed: the scan
+set was **2,370 objects**, exactly equal to `git cat-file --batch-all-objects` (61 loose + 2,309
+packed), so every scan covered the ENTIRE object database, reachable or not.
+
+- **SCAN 1 — large objects.** `Docker Desktop Installer.exe`, **638,124,464 bytes**, blob
+  `26c3bf82`. Swept in by `git add -A` at `3e41ea9` (2026-08-02 07:52:03) and amended away 83 seconds
+  later by `37e8891`. Unreachable from every branch and tag; alive ONLY via the reflog. **A normal
+  push would not have carried it** (verified: zero hits in `git rev-list --objects main`) — it was
+  601.67 MiB of local disk, not an exposure.
+- **SCAN 2 — secrets. CLEAN. NO ROTATION REQUIRED.** Key shapes were derived from the live `.env`
+  rather than from memory, and reported shape-only per DEC-61. Zero full-value matches for all five
+  credentials across every blob; zero generic hardcoded-credential assignments; **`.env` never
+  committed under any name** (421 distinct paths in the ODB, none matching); commit messages and all
+  9 tag annotations scanned separately — a secret can hide where no blob exists — and clean; the
+  638 MB blob scanned separately and clean. The only hits were three revisions of a deliberate
+  32-character `tvly-` canary in `tests/test_search_provider.py`, whose whole purpose is to prove the
+  key never reaches a log, and which is a different string from the real 57-character key.
+- **SCAN 3 — personal data. CLEAN.** **ZERO images have ever been committed** — the sensitive class
+  is wholly absent. No `.pyc`, no logs, no `budget.json`, no `grants.json`, no PDFs. The bench corpus
+  and the grounding screenshots live OUTSIDE the repository. `sultb` appears in NO commit — and that
+  result is trustworthy because a POSITIVE CONTROL was run first: **a history-wide grep returning
+  nothing is indistinguishable from a broken grep.**
+- **SCAN 4 — ignore coverage.** The silent case was CLEAN (nothing tracked was shadowed by a rule
+  added later), but six real gaps existed. See ruling 3.
+- **SCAN 5 — public exposure.** No README, no LICENSE, and a personal email in all 282 commits and
+  all 9 tag annotations. **`DECISIONS.md` contains nothing personal**: its 320 "Sultan" mentions are
+  all decision attribution, and there are zero emails, zero private-life content, zero academic or
+  machine identifiers in any tracked file.
+
+### THE SEVEN RULINGS
+
+| # | Ruling | Outcome |
+|---|---|---|
+| **1 · F-15** | **REWRITE the author identity.** The only finding whose window closed on push — forks and clones keep the original. | **EXECUTED.** All 281 commits + all 9 tag annotations now `sultb <268901937+sultexx@users.noreply.github.com>`. Zero occurrences of the old address remain anywhere. |
+| **2 · F-16** | **KEEP the `Co-Authored-By: Claude` trailers.** Honest disclosure that the work was AI-assisted; the ledger's decision attributions establish authorship independently. Removing it would be the riskier choice. | **KEPT.** 271 before, 271 after. |
+| **3 · F-7..F-12** | **CLOSE every ignore gap.** | **EXECUTED** (`126baa4`). |
+| **4 · F-1** | Clean the installer LOCALLY, after the rewrite. Disk reclamation, not a security fix. | **FREE.** The rewrite's terminal repack dropped it: **601.67 MiB → 2.30 MiB**, `.git` 605 MB → 2.6 MB. |
+| **5** | Add `.env.example` — names and explanations, **no values**. | **EXECUTED** (`df5587f`). |
+| **6** | Draft a README. | **EXECUTED** (`492fbba`). |
+| **7** | **LICENSE: Apache-2.0.** | **EXECUTED** (`cf529b4`). |
+
+### RULING 1 — THE TOOL WAS CHOSEN BY MEASUREMENT, AND THE MEASUREMENT MATTERED
+
+Both candidates were driven on **isolated `--no-hardlinks` mirror clones** — verified to hold a
+different inode from the real pack, so nothing could couple back — before either touched this
+repository.
+
+| | commits | **tag annotations (9)** | time |
+|---|---|---|---|
+| `git filter-branch --env-filter --tag-name-filter cat` | rewritten | **ALL NINE left carrying the old address** | minutes |
+| `git filter-repo --mailmap` | rewritten | **all nine rewritten** | **1.15 s** |
+
+**The built-in route fails silently on exactly the half nobody checks.** `--tag-name-filter cat`
+re-points an annotated tag at its new commit but copies the tagger line verbatim. Had the tool been
+chosen by reputation rather than by test, the rewrite would have reported success and left the
+address in nine places. **This is the DEC-12 principle applied to tooling: drive the thing directly,
+never trust the report.**
+
+**`.git/config` was reset in the SAME operation** (`user.email`, `user.name`). The rewrite does not
+touch it, so the very next commit would have reintroduced the address and undone the work on contact.
+**`user.name` was deliberately PRESERVED as `sultb`** — the ruling was that attribution stays intact
+and the address does not, and the name IS the attribution.
+
+**Guard after the rewrite: 1513 + 27 GREEN**, identical to the pre-rewrite baseline. An author
+rewrite changes every commit hash and must change nothing else; a suite that moved would have meant
+something else moved with it.
+
+### RULING 3 — THE TWO TRAPS, AND WHY THEY ARE THE POINT
+
+The proposed rules were tested before landing, and **the test caught two defects in the proposal
+itself** — both instances of the exact silent case this audit exists to prevent:
+
+- A bare `diag_*` rule would have shadowed the **13 tracked `scripts/diag_*.py`** live-SOP scripts.
+- A bare `*.wav` rule would have shadowed the **2 tracked earcon assets**.
+
+Landed instead: extension-scoped `diag_*.{png,json,txt,log,wav}`, and no `*.wav` rule at all.
+Verified: **zero tracked files shadowed**, the stored blob's first 45 lines byte-identical so no
+existing rule's line number moves, and the diff a pure addition (74 insertions, 0 deletions).
+
+**A method note worth keeping.** Two checks disagreed about whether `.env.example` survived its own
+`.env.*` rule, because `git check-ignore -v` returns exit 0 on a NEGATION match too — **the tool
+answers a different question than the one asked.** It was settled by creating the real files and
+asking `git add -A` what it would stage: only `.gitignore` and `.env.example`. **Ground truth over a
+tool's exit code.**
+
+### RULING 7 — WHAT THE LICENCE DOES AND DOES NOT DEFEND
+
+Apache-2.0 over MIT for the patent grant: MIT is silent on patents, granting copyright permission
+only, so any patent grant is implied at best and untested. Apache writes it down (clause 3) and adds
+retaliation. A reviewer reading MIT sees an unanswered question; reading Apache, an answered one.
+
+**And the part a future reader must not misread: NO PERMISSIVE LICENCE PRESERVES LOOK-ONLY.** Under
+MIT or Apache alike, anyone may fork this project and add `real_click`. Copyleft would force
+derivatives to stay open and still could not preserve a BEHAVIOURAL boundary — **no licence can.**
+Apache-2.0's explicit trademark non-grant (clause 6) is therefore the ONLY lever available: a fork
+that adds control over the user's machine **cannot call itself Mut'his**. **This project treats
+LOOK-only as constitutional, and the licence defends the NAME, never the boundary.** Do not assume
+otherwise, and do not weaken the DEC-6 bans on the theory that the licence has them covered.
+
+### WHAT IS OWED
+
+| owed | status |
+|---|---|
+| **The commit-map's survival** | **OPEN.** 281 mappings at `.git/filter-repo/commit-map`, NOT version-controlled, lost on the next fresh clone. Preserving it is a deliberate copy and Sultan's call. |
+| **`PROJECT_STATE.md` / `AGENTS.md` refresh** | **OWED.** `PROJECT_STATE.md` still lists the repository audit as RESERVED and BLOCKING any push; that is now false. Not touched here, because the audit's scope was the repository and not the source of truth. |
+| **The pre-rewrite backup** | A full mirror was taken before the irreversible rewrite and still holds the 638 MB installer. **It must be deleted once Sultan has accepted the final state**, or the reclaimed 600 MB is not reclaimed. |
+| **The remote and the push** | **Sultan's, and still not done.** No remote exists. |
+
+### THE ONE-LINE LESSON
+
+**A clean scan result is only worth what its control is worth.** The audit's most useful habit was
+not any single query — it was running a POSITIVE CONTROL before believing a negative, on the
+history-wide grep, on the ignore rules, and on the rewrite tool itself. Each time, the control was
+what separated "nothing is there" from "nothing was looking."
+
+---
