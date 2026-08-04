@@ -9616,3 +9616,107 @@ nobody thought of.** The identity law's guard was green and mutation-verified 10
 non-disclosure — while the live prompt was answering with a flat denial.
 
 ---
+
+## DEC-89 (2026-08-05) — **THE PROBE'S RULINGS.** A persona law that made things worse before better; `high` as the measured effort; #15 as a STRUCTURAL limit; and the capability flag reframed as DEGRADATION MODE — RULED (Sultan)
+
+DEC-88 recorded the probe. This records what Sultan ruled ON it, and the four rulings are separable:
+one is about how a law is verified, one sets a setting, one closes a question by declaring it closed,
+and one narrows a decision everyone had already framed too widely.
+
+### RULING 1 — THE IDENTITY LAW'S OWN FAILURE MODE IS THE MOST VALUABLE PART OF THE PROBE
+
+**The law was not enough, and it made things WORSE before it made them better.** Three bullets stopped
+the closed framing answering «نعم» and started it answering **«لا»** — which CONVERTED A DISCLOSURE
+INTO A FALSEHOOD, precisely the property the law's own test asserted it did not buy. The guard was
+green. It was mutation-verified 10/10. It asserted non-disclosure. And the live prompt was answering
+with a flat denial.
+
+**The diagnosis is sharper than the symptom, and that is what made the fix general: A YES/NO FRAME
+ADMITS NO HONEST SINGLE-TOKEN ANSWER.** «نعم» discloses and «لا» lies; there is no third one-word
+move. So the fourth bullet refuses the **FORM** rather than the answer — «الإجابة بنعم كشف، والإجابة
+بلا كذب» — and states why each branch is unavailable, because a rule whose reason is missing is the
+first one a later edit drops. A law that had merely enumerated a fourth framing would have been a
+cutoff (the M16 family); refusing the form covers framings nobody enumerated.
+
+**LIVE VERIFICATION ACROSS ALL THREE FRAMINGS IS WHAT MAKES THIS SETTLED RATHER THAN BELIEVED.**
+Ruled as method, not as an anecdote: **a guard can only assert what someone thought to assert. A
+persona law is not verified until it has been run.** Mutation testing proves the guard notices the law
+LEAVING; only a live run proves the law does what it says while present.
+
+**DEC-84's pin was correctly NOT re-baselined**, for the reason its own docstring gives. Folding a
+2026-08-05 law into that ruling's `clauses` record would MISATTRIBUTE it — the record would then claim
+DEC-84 changed text it never touched. Giving the appended tail its own hash keeps **every byte pinned**
+while the accounting stays **per-ruling**: the rebuild proves everything before the append point, the
+tail hash everything after.
+
+**`persona_rules.py` 301 → 298 is the DEC-30 distinction applied correctly.** It came back by
+tightening comments written minutes earlier in the same session — never by compressing a pre-existing
+rule. Compressing a rule to fit is the thing the ≤300 law forbids; rewriting one's own unshipped
+comment is not that. **RECORDED NOW RATHER THAN DISCOVERED AT 300: the next persona law needs a SPLIT
+before it needs a sentence.** `persona_rules.py` joins `tool_router.py` (300), `turn_voice.py` (300)
+and `orchestrator.py` (299) on the near-ceiling list.
+
+### RULING 2 — REASONING EFFORT: `high`. MEASURED, NOT ASSUMED.
+
+`high` makes #10 stable at 3/3 and 2/2, and costs **1.52x on OUTPUT ONLY** while INPUT stays fixed at
+5,122 — and input DOMINATES a vision turn. **`xhigh` doubles output for ZERO additional targets**,
+which is a measurement rather than an intuition, and it is the reason the ruling stops at `high`.
+
+**RUNNING IT REPEATED RATHER THAN ONCE IS WHAT MAKES THE NUMBER USABLE, and this is the ruling's
+transferable half.** The first control run flipped #10 from MISS to HIT **at the DEFAULT setting**. A
+single treatment run would therefore have credited VARIANCE to EFFORT and produced a confident,
+wrong, cheap-sounding conclusion. **#10 was never a failure — it was INSTABILITY, and higher effort
+STABILISED it rather than fixing it.** That distinction changes what the number means: the same 3/3
+would have been read as "effort repairs pointing" instead of "effort reduces variance", and only the
+repetition separates them. Phase 3's T4 lesson — one run is not a behavioural measurement — arriving
+on a different milestone through a different door.
+
+### RULING 3 — #15 IS A STRUCTURAL LIMIT OF THIS PROVIDER, NOT A DELIBERATION GAP
+
+**Recorded as MEASURED, with the evidence that distinguishes it from noise.** Eight consecutive
+MISSes across three effort levels, and the predictions CLUSTER TIGHTLY: the vertical axis is exactly
+right on the status-bar row, and the horizontal is displaced **~220 px to the RIGHT every single
+time**. Rendering the box shows it framing the encoding / line-ending segment while «Ln 30, Col 33»
+sits to its left. **And MORE effort displaces it FURTHER right, never less.**
+
+That is a **fixed wrong belief about which segment is the line-and-column indicator** — not
+uncertainty, not acuity, not a coin-flip. **No amount of thinking corrects a confident wrong belief**,
+and the monotonic drift under increasing effort is the evidence: an uncertain model given more
+deliberation converges toward the truth, while this one converges harder on its error. The vertical
+precision is what rules out acuity: it finds the right ROW to the pixel and picks the wrong CELL.
+
+### RULING 4 — THE CAPABILITY FLAG STAYS REQUIRED, IN A NARROWER FORM THAN ANYONE ASSUMED
+
+The flag was framed as "is this provider weak at pointing". **The measurement refuses that framing.**
+23 HIT of 25. XS PERFECT — it hit the 9x9 contribution square where the BASELINE scored a NEAR. The
+failure is confined to neighbour discrimination inside ONE bucket.
+
+**THE FLAG'S REAL CONTENT IS THE DEGRADATION MODE, NOT THE HIT COUNT.** The two providers score the
+same 23 hits. What differs is where the other two land:
+
+- **Claude falls to NEAR** — the box misses the element but still lands on or beside it, and **a human
+  reads a rectangle near the right thing correctly.** The pointing still teaches.
+- **This provider falls to MISS** — a tight, confident box around **the wrong element**, indistinguish-
+  able on screen from a correct one.
+
+**IN TEACHING MODE A CONFIDENT WRONG POINT IS WORSE THAN NO POINT.** A NEAR degrades the lesson; a
+MISS actively teaches the wrong thing, and the user has no way to tell — the rectangle looks exactly
+as certain either way. This is the same property DEC-67 rests on for evidence pointing: the kernel
+never synthesises a position, **because an invented position would render the ABSENCE of evidence AS
+evidence.** A confidently misplaced box is that failure arriving from the model rather than the
+kernel.
+
+**So a capability decision weighs the SHAPE of the failure, never its rate.** A provider that fails
+loudly, visibly or approximately is a different product from one that fails invisibly at the same
+rate — the recurring argument of DEC-11 (a loud 400), DEC-60 (a ledger that lies), DEC-88 ① (a
+silently half-ported catalogue), and now this.
+
+### WHAT IS NOT RULED HERE
+
+`pricing.py` is untouched, no adapter exists, no second provider is wired, and no capability flag is
+built. DEC-88's binding precondition stands: a cost model is MEASURED, never inherited. The dollar
+comparison behind the whole motive is Sultan's, on real published prices — the token delta is
+measured (about 5,361 total tokens per pointing turn at `high` against about 9,269), and this project
+does not convert that to money from memory.
+
+---
