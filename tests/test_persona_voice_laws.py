@@ -46,16 +46,24 @@ from muthis.persona_rules import TOOL_AND_SAFETY_RULES
 SENT_W, SENT_H = 1280, 720
 
 # The composed prompt immediately BEFORE this clause — the additive baseline.
+# RE-BASELINED at DEC-84. The ack rules were rescoped from PER POINTING
+# PASS to PER ANSWER, which is an IN-PLACE edit of a pre-existing rule --
+# the first this persona has taken. The append-only property these
+# prefix hashes enforced is SUPERSEDED by the DELTA PIN in
+# test_persona_ack_scoping.py, which proves the change was EXACTLY two
+# clauses and every other byte identical. Each new prefix below was
+# proven to be the old prefix with clause A swapped, never recomputed
+# blindly. These still fail on any FURTHER persona edit.
 PROMPT_BEFORE_ONE_ACK_SHA256 = (
-    "49d44662f667534839e9330461a30eff929a881fff73dbec73beb78605f4e115")
-PROMPT_BEFORE_ONE_ACK_CHARS = 9786
+    "cb93c52e96dca7e610833678b3041a76203b265a95ab86820f9f8e39606b8d82")
+PROMPT_BEFORE_ONE_ACK_CHARS = 9837
 
 # The two deeper anchors, carried forward from DEC-57 / DEC-41 verbatim.
-PROMPT_AT_T4_SHA256 = "2901089b4511cd98e30fb1429a643cf21ee12db24436c84d72103f16670185bb"
-PROMPT_AT_T4_CHARS = 8518
+PROMPT_AT_T4_SHA256 = "b8a505568adb5e90282a069c2ca2c3f9e7b36aa179e55194816582ef1c7bace3"
+PROMPT_AT_T4_CHARS = 8569
 PROMPT_BEFORE_WEB_LAWS_SHA256 = (
-    "cda7fc4e91dbfd744d11eece158f19efd5a26d817e90c52fae993f8775b92f92")
-PROMPT_BEFORE_WEB_LAWS_CHARS = 6799
+    "783e14ab8bd24abad68c919291f401074c0028c7221d3ad443c20e18501665da")
+PROMPT_BEFORE_WEB_LAWS_CHARS = 6850
 
 # By VALUE on purpose (the DEC-57 posture): if the wrap guard's marker list ever
 # grows, this test is updated deliberately rather than drifting silently.
@@ -67,7 +75,7 @@ ONE_ACK_ANCHORS = (
     "كلمة التأكيد المنطوقة — واحدة في الإجابة كلها لا في كل دور",  # the header
     "تُقال مرة وحدة فقط في أول دور من الإجابة",                     # the RULE
     "خلنا نكمل",                                                    # a banned opener
-    "فأشّر أو ارسم بلا كلمة تأكيد جديدة إطلاقاً",                   # the SCOPING clause
+    "فأكمل بلا كلمة تأكيد جديدة إطلاقاً",                          # the SCOPING clause (DEC-84)
     "وكأنك بديت تجاوب على نفس السؤال من أوله مرة ثانية",            # the WHY
 )
 
@@ -152,15 +160,27 @@ def test_the_two_acks_measured_live_are_named_in_the_law() -> None:
 
 
 def test_the_law_scopes_the_earlier_mandatory_ack_rule_rather_than_contradicting_it() -> None:
-    """THE LOAD-BEARING ASSERTION. The earlier rule makes a spoken ack MANDATORY
-    in every pointing pass; this one allows exactly one per ANSWER. Both must be
-    present AND the scoping bullet must be present, because two rules that read as
-    a conflict are resolved by the model unpredictably — which is the failure this
-    clause exists to remove, not to relocate."""
+    """THE LOAD-BEARING ASSERTION — AND DEC-84 INVERTED IT.
+
+    THIS TEST USED TO PIN THE CONTRADICTION. It asserted that the earlier rule
+    («an ack is MANDATORY in every pointing pass») and this later one («one per
+    ANSWER») must BOTH be present, on the reasoning that the second scopes the
+    first. T7 measured what a model actually does with that pair: it reads
+    LINEARLY, the absolute comes 7,410 characters first, and the ack fired once
+    per PASS through a Navigator walkthrough.
+
+    So the pair was never a scoping — it was a conflict "resolved by the model
+    unpredictably", which is the exact failure this docstring already named. The
+    clause did not relocate the failure; it left it in place. DEC-84 removes it at
+    the source: the EARLIER rule is now itself ANSWER-scoped, and this test now
+    asserts the two rules AGREE rather than that both exist."""
     prompt = _prompt()
-    assert prompt.count("كلمة التأكيد المنطوقة إلزامية في كل دور تأشير") == 1
-    assert prompt.count("ممنوع دور تأشير صامت") == 1
-    assert prompt.count("فأشّر أو ارسم بلا كلمة تأكيد جديدة إطلاقاً") == 1
+    assert "كلمة التأكيد المنطوقة إلزامية في كل دور تأشير" not in prompt, (
+        "the unscoped per-pass mandate is back — it outranks any later exception "
+        "for a model reading linearly (DEC-83's measured live defect)")
+    assert prompt.count("إلزامية في أول دور من الإجابة") == 1, "the earlier rule"
+    assert prompt.count("تُقال مرة وحدة فقط في أول دور من الإجابة") == 1, "the later rule"
+    assert prompt.count("فأكمل بلا كلمة تأكيد جديدة إطلاقاً") == 1, "the scoping bullet"
 
 
 def test_the_law_carries_its_own_reason() -> None:

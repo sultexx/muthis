@@ -32,8 +32,16 @@ SENT_W, SENT_H = 1280, 720
 
 # The composed prompt as it stood at the commit BEFORE the laws landed — the
 # baseline for the additive proof. Regenerate ONLY with a deliberate re-approval.
-PROMPT_BEFORE_SHA256 = "cda7fc4e91dbfd744d11eece158f19efd5a26d817e90c52fae993f8775b92f92"
-PROMPT_BEFORE_CHARS = 6799
+# RE-BASELINED at DEC-84. The ack rules were rescoped from PER POINTING
+# PASS to PER ANSWER, which is an IN-PLACE edit of a pre-existing rule --
+# the first this persona has taken. The append-only property these
+# prefix hashes enforced is SUPERSEDED by the DELTA PIN in
+# test_persona_ack_scoping.py, which proves the change was EXACTLY two
+# clauses and every other byte identical. Each new prefix below was
+# proven to be the old prefix with clause A swapped, never recomputed
+# blindly. These still fail on any FURTHER persona edit.
+PROMPT_BEFORE_SHA256 = "783e14ab8bd24abad68c919291f401074c0028c7221d3ad443c20e18501665da"
+PROMPT_BEFORE_CHARS = 6850
 
 # The same substrings tests/test_untrusted_wrap_guard.py treats as proof that a
 # delimiter has been re-implemented. Imported by VALUE here on purpose: if that

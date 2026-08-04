@@ -78,11 +78,11 @@ PASS1_FORBIDDEN_NARRATION = ["أشوف شاشتك", "بأشّر على"]  # the 
 
 # v7.1 Fix E: the pass-1 spoken ack is MANDATORY — a silent pointing pass is
 # banned by name and the old permission ("or no words at all") must be GONE.
-PASS1_SILENT_FORBIDDEN = "ممنوع دور تأشير صامت"
+PASS1_SILENT_FORBIDDEN = "ممنوع أول دور صامت"        # DEC-84: scoped to the ANSWER
 PASS1_ACK_MANDATORY = "كلمة التأكيد المنطوقة إلزامية"
 REMOVED_SILENT_ACK_PERMISSION = "أو بدون أي كلام"
 SHAPES_NO_SILENT_PASS = "ولا دور صامت"                   # the draw_shapes twin of the ban
-ACK_SCOPED_TO_POINTING = "خاصة بدور التأشير وحده"        # the pass-2 bleed counterweight
+ACK_SCOPED_TO_POINTING = "خاصة بأول دور من الإجابة وحده"  # DEC-84: per ANSWER, not per tool
 
 # Anti-laziness: the explanation turn must never collapse to a bare ack.
 ANTI_LAZINESS_RULE = "ممنوع الكسل"

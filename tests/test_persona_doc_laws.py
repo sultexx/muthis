@@ -48,16 +48,24 @@ SENT_W, SENT_H = 1280, 720
 
 # The composed prompt as it stood at T4, BEFORE these two clauses — the baseline
 # for the additive proof. Regenerate ONLY with a deliberate re-approval.
-PROMPT_AT_T4_SHA256 = "2901089b4511cd98e30fb1429a643cf21ee12db24436c84d72103f16670185bb"
-PROMPT_AT_T4_CHARS = 8518
+# RE-BASELINED at DEC-84. The ack rules were rescoped from PER POINTING
+# PASS to PER ANSWER, which is an IN-PLACE edit of a pre-existing rule --
+# the first this persona has taken. The append-only property these
+# prefix hashes enforced is SUPERSEDED by the DELTA PIN in
+# test_persona_ack_scoping.py, which proves the change was EXACTLY two
+# clauses and every other byte identical. Each new prefix below was
+# proven to be the old prefix with clause A swapped, never recomputed
+# blindly. These still fail on any FURTHER persona edit.
+PROMPT_AT_T4_SHA256 = "b8a505568adb5e90282a069c2ca2c3f9e7b36aa179e55194816582ef1c7bace3"
+PROMPT_AT_T4_CHARS = 8569
 
 # The pin from DEC-41, kept here as a SECOND anchor further back in history: an
 # edit that mangled a web law would slip past the T4 baseline if the mangle were
 # itself included in it. Two anchors at different depths cannot both be re-based
 # by accident.
 PROMPT_BEFORE_WEB_LAWS_SHA256 = (
-    "cda7fc4e91dbfd744d11eece158f19efd5a26d817e90c52fae993f8775b92f92")
-PROMPT_BEFORE_WEB_LAWS_CHARS = 6799
+    "783e14ab8bd24abad68c919291f401074c0028c7221d3ad443c20e18501665da")
+PROMPT_BEFORE_WEB_LAWS_CHARS = 6850
 
 # The substrings tests/test_untrusted_wrap_guard.py treats as proof that a
 # delimiter has been re-implemented. By VALUE on purpose: if that guard's list

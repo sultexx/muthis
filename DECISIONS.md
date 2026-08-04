@@ -9039,3 +9039,125 @@ the prompt is the one part of the script carrying no measurement at all.**
 **The repository audit stays RESERVED** — no history, no remotes, no ignore rules touched.
 
 ---
+
+
+## DEC-84 (2026-08-04) — the multi-pass ack, CLOSED at both the symptom and the cause — RULED (Sultan), EXECUTED
+
+- **Item:** Sultan's two-part ruling on DEC-83's diagnosis, in two commits. **(1)** the ack scope
+  reaches the navigator and mode directives; **(2)** the persona's own contradiction is resolved.
+- **Framing, recorded in Sultan's words because it is the reusable part:** **the code did not
+  break — the Navigator EXPOSED a directive-coverage gap that was previously closed by
+  COINCIDENCE.** DEC-13's posture one layer up: **a property held by circumstance rather than by
+  construction.**
+
+### COMMIT 1 — THE SCOPE REACHES THE DIRECTIVES (`c03d871`)
+
+The directive that forbids a repeated ack rides the **DRAW pairing**. Before Phase 3 the first
+pass of an answer ACKED AND DREW, so it arrived at once and the only pass after it was the
+forced-text explain. **The Navigator inserts an ack-eligible pass BEFORE any draw** — T4's own
+passing test asserts `calls[1][1] == "auto"` — and all five navigator/mode directives were SILENT
+on acks while all four draw directives carried the clause.
+
+**THE SCOPE IS PER ANSWER, NEVER PER TOOL FAMILY.** A rule written per family would have to be
+**re-earned by every future capability that opens a new pass gap** — which is exactly how this gap
+arrived. Written per answer, with «مهما كانت الأدوات اللي يستدعيها» stated explicitly, a
+capability inherits it by existing.
+
+`kernel/ack_scope.py` (**62 lines, imports NOTHING**) holds the sentence and six directives read it
+from there. **DELIBERATELY NOT A PROHIBITION:** «never ack» would be wrong on the mode frame line,
+which rides the turn's FIRST user message, and would kill the mandatory opening ack that masks the
+pass-2 round-trip (v7.1 Fix E — a measured `chars=0` ack left the gap unmasked).
+
+### COMMIT 2 — THE CONTRADICTION IS REMOVED AT ITS SOURCE
+
+Sultan's ruling, and the half that must not be skipped: **fixing only commit 1 would close the
+SYMPTOM and leave the CAUSE** — a contradiction that detonates at the next feature opening a new
+pass gap.
+
+| | before | after |
+|---|---|---|
+| char **2,378** | «إلزامية في **كل دور تأشير** — ممنوع دور تأشير صامت» | «إلزامية في **أول دور من الإجابة** — ممنوع أول دور صامت … مهما كانت الأدوات» |
+| char **9,788** (7,410 later) | «ولزوم كلمة التأكيد **في دور التأشير أو الرسم**…» | «ولزوم كلمة التأكيد يخصّ أول دور من الإجابة وحده، **مهما كانت الأدوات**…» |
+
+**The model reads LINEARLY: the absolute came first and spoke to exactly the framing a Navigator
+turn presents.** Both rules are now ANSWER-scoped and tool-agnostic, and **the mandatory FIRST ack
+survives** — the fix SCOPES the mandate, never deletes it.
+
+### THE METHOD WAS DEC-41's, AND IT CAUGHT THINGS
+
+- **`persona.py` BYTE-IDENTICAL**, proven by `git diff`, not asserted.
+- **The composed prompt is SNAPSHOTTED and the DELTA is PINNED AS DATA**
+  (`persona_ack_scoping_delta.json`): applying **exactly two clause swaps** to the snapshot
+  **rebuilds the live prompt byte for byte**. That is how "every pre-existing rule is unchanged"
+  became a proof rather than a claim. 10,575 → 10,656 chars.
+- **The BASELINE's own hash is pinned**, because a guard whose reference can be edited is checking
+  nothing — the cutoff defect one layer earlier.
+- **Checked against the LIVE §3.2 constants**, so a future rewording of the delimiters re-runs the
+  comparison automatically.
+- **The LAW is asserted, not its words** — the collection is built from the rendered surfaces and
+  every member must carry the scope, with the count reported.
+- **MULTI-PASS, never single-pass:** the behavioural guard drives a REAL turn whose pass 2 is still
+  `auto` and reads the history production built, **because a single-pass assertion cannot see this
+  defect at all.**
+
+### THE APPEND-ONLY PERSONA INVARIANT IS SUPERSEDED — the largest collateral effect
+
+**Four standing guards, at three prefix depths (6,799 / 8,518 / 9,786 chars), asserted that persona
+changes are APPEND-ONLY:** every pre-existing rule byte-identical because laws are only appended.
+**This is the first IN-PLACE edit of a pre-existing persona rule**, so all three depths broke.
+
+They are **RE-BASELINED, not relaxed.** Each new prefix was **PROVEN to be the old prefix with
+clause A swapped** rather than recomputed blindly, each still fails on any FURTHER persona edit,
+and the property they used to carry is now carried more strongly by the delta pin — which covers
+the WHOLE prompt rather than a prefix. **Recorded prominently because it is a standing property
+being retired by consequence rather than by its own ruling**, and it is Sultan's to reverse.
+
+**Three guards additionally encoded the OLD wording**, including
+`test_the_law_scopes_the_earlier_mandatory_ack_rule_rather_than_contradicting_it`, which
+**PINNED THE CONTRADICTION** — it asserted both rules must be present, on the reasoning that the
+second scopes the first. T7 measured what a model does with that pair. **Its own docstring already
+named the failure** — "two rules that read as a conflict are resolved by the model unpredictably" —
+and believed the later clause removed it. It did not; it left it in place. The test now asserts the
+two rules AGREE.
+
+### 17 MUTATIONS ACROSS THE TWO COMMITS, ALL APPLIED, 17/17 RED
+
+**Commit 1 (10/10):** the clause deleted from each of four directives · the scope turned into a
+prohibition · re-scoped per tool family · copied a second time · reworded to resemble the §3.2
+delimiter · **the collection blinded (positive control)** · `ack_scope` growing an import.
+
+**Commit 2 (7/7):** **the unscoped absolute RESTORED** (the exact defect) · clause B returned to
+its per-family form · the mandatory first ack deleted outright (the over-correction) · a THIRD
+unrelated persona rule quietly edited · **the baseline snapshot tampered with** · a pinned delta
+clause widened · the rewritten clause made to resemble the delimiter.
+
+### TWO FLAWS FOUND IN MY OWN GUARDS BEFORE THEY LANDED
+
+1. **The copy-detection probe searched for the RENDERED sentence, which is never contiguous in
+   source** (implicit string concatenation) — so it found nothing and passed while examining
+   nothing. The M16 family again, in a new place.
+2. **`persona_rules.py` legitimately states the same law in its own words** — DEC-20's LAYERED
+   pressure, layer one — so it is a stated exclusion, not a copy.
+
+**And the baseline-hash guard proved itself in use:** the mutation runner restored the snapshot
+with `write_text`, which rewrote its line endings on Windows, and the guard went RED. The file was
+reconstructed by applying the INVERSE delta to the live prompt and **matched the pinned hash
+exactly** — which is a second, independent proof that the delta is exact.
+
+### MEASURED
+
+| | |
+|---|---|
+| `kernel/ack_scope.py` | **62** (new) |
+| `kernel/navigator_service.py` · `mode_surfaces.py` · `deferral_notes.py` | 162→165 · 244→247 · 199→201 |
+| `persona_rules.py` | 266 → **267** |
+| **`persona.py`** | **209 — BYTE-IDENTICAL** |
+| `orchestrator.py` · `tool_router.py` · `turn_pass.py` | **299 · 300 · 293 — all unchanged** |
+| draw path, Option-A sync, draw gate, `HighlightGate`, caption pacing, `VoiceOut` | **git-untouched** |
+| guard | **1498 + 27 → 1513 + 27** (15 new) |
+
+**The repository audit stays RESERVED.** No history, no remotes, no ignore rules touched.
+
+**Next is the MILESTONE CLOSE** — the closure report, the docs refresh, and the merge.
+
+---
