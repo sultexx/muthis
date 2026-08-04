@@ -9290,9 +9290,13 @@ Three facts a reader needs before concluding anything from a dangling SHA:
 2. **A complete old→new map exists**, written by the rewrite tool: **281 mappings** at
    `.git/filter-repo/commit-map`. Anchors: `651aabd`→`fbe9185` (the Phase-3 merge, `main` at audit
    time) · `dcfa25f`→`ed48d13` (Phase-2 M1) · `1c59d60`→`626ef71` (Phase-2 M2) ·
-   `dbfec3a`→`502caee` (Phase 1). **CAVEAT, recorded because it is load-bearing: that path is inside
-   `.git`, so the map is NOT version-controlled and does NOT survive a fresh clone.** Preserving it
-   past the next clone requires a deliberate copy — an OPEN ITEM at the time of writing.
+   `dbfec3a`→`502caee` (Phase 1). **THE MAP IS COMMITTED, and it is the bridge you want:**
+   [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-2026-08.txt) — byte-identical to
+   the rewrite tool's own output, so `grep <old-sha> docs/reports/commit-map-2026-08.txt` resolves
+   any citation in any document to its current hash. **It was landed deliberately:** the map is
+   written to `.git/filter-repo/commit-map`, inside `.git`, where it is NOT version-controlled and
+   would have vanished on the first fresh clone — taking with it the only bridge that makes
+   "historical rather than wrong" a RECOVERABLE claim instead of a bare assertion.
 3. **The 282nd commit was DISCARDED, not rewritten.** `3e41ea9` was an orphan, reachable only from
    the reflog, and it carried the 638 MB installer. It appears nowhere in the commit-map. That is why
    281 commits were rewritten and not 282.
@@ -9406,11 +9410,22 @@ that adds control over the user's machine **cannot call itself Mut'his**. **This
 LOOK-only as constitutional, and the licence defends the NAME, never the boundary.** Do not assume
 otherwise, and do not weaken the DEC-6 bans on the theory that the licence has them covered.
 
+### A RECORDED EXCEPTION — THE FIVE AUDIT COMMITS LANDED ON `main` DIRECTLY
+
+This project's convention is `feature/*` then a merge `--no-ff`, and the audit's five commits did
+NOT follow it — they were committed straight onto `main`. **Recorded here so the exception is
+documented rather than silent, with its reason:** the author rewrite had just rewritten every commit
+on every branch, the next action was to inspect the final state and push `main`, and work parked on
+a branch would have left `main` showing none of it. Relocating the five afterwards would have meant
+**rewriting history a second time, immediately after an irreversible operation, for a cosmetic
+gain.** RULED ACCEPTED (Sultan). **The exception covers this pass only** and sets no precedent: for
+feature work the branch-and-merge convention is unchanged.
+
 ### WHAT IS OWED
 
 | owed | status |
 |---|---|
-| **The commit-map's survival** | **OPEN.** 281 mappings at `.git/filter-repo/commit-map`, NOT version-controlled, lost on the next fresh clone. Preserving it is a deliberate copy and Sultan's call. |
+| **The commit-map's survival** | **CLOSED — Sultan's ruling.** Landed at [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-2026-08.txt), byte-identical to the tool's output, with the pointer in the READ-THIS-FIRST section above. The ruling's reason is the useful part: **DEC-87 rules the 159 citations HISTORICAL rather than wrong, and that ruling loses half its meaning if the map that resolves them is unrecoverable.** |
 | **`PROJECT_STATE.md` / `AGENTS.md` refresh** | **OWED.** `PROJECT_STATE.md` still lists the repository audit as RESERVED and BLOCKING any push; that is now false. Not touched here, because the audit's scope was the repository and not the source of truth. |
 | **The pre-rewrite backup** | A full mirror was taken before the irreversible rewrite and still holds the 638 MB installer. **It must be deleted once Sultan has accepted the final state**, or the reclaimed 600 MB is not reclaimed. |
 | **The remote and the push** | **Sultan's, and still not done.** No remote exists. |
