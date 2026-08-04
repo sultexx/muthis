@@ -43,3 +43,77 @@ plugins.d/*.toml
 # evidence for one run, never source -- and a screenshot of the real desktop
 # is exactly the thing the corpus discipline keeps out of the repo.
 diag_navigator_sent_frame.png
+
+# ============================================================================
+# Repository audit 2026-08-04 - gap closures F-7 .. F-12.
+# ============================================================================
+
+# SECRETS, THE WHOLE FAMILY. The bare `.env` rule above did not cover
+# `.env.bak` or `.env.local`, while file_reader.py's staging gate already
+# refuses the entire `.env.*` family as secret-bearing. These rules make the
+# repository agree with the code's own threat model.
+# `.env.example` is the ONE committed member: NAMES ONLY, never a value.
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+id_rsa*
+credentials*
+.netrc
+.npmrc
+
+# AGENT / EDITOR LOCAL STATE. Was protected ONLY by a machine-global ignore
+# file outside this repository, which travels with no clone.
+.claude/
+
+# EVERY VIRTUAL ENVIRONMENT, not just `.venv`. `.venv-v5` was protected ONLY
+# by the `*` ignore file Python's venv module writes inside itself.
+.venv*/
+env/
+ENV/
+
+# THE TWO SENSITIVE CLASSES: screenshots are pictures of the real desktop, and
+# documents are the user's own files that doc_rag opens. Both were protected by
+# discipline rather than by rule. Deliberately blanket - to commit one image on
+# purpose, add an explicit negation directly beneath this block.
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.tiff
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+
+# LIVE-SOP ARTEFACTS. EXTENSION-SCOPED ON PURPOSE: a bare `diag_*` would
+# shadow the 13 tracked `scripts/diag_*.py` SOP scripts - the silent case this
+# audit exists to prevent.
+diag_*.png
+diag_*.json
+diag_*.txt
+diag_*.log
+diag_*.wav
+
+# MODEL ARTEFACT CACHES. The pinned encoder downloads to the platform HF cache
+# outside the repo by default; these cover the case where it is redirected in.
+.cache/
+huggingface/
+hf_cache/
+transformers_cache/
+*.bin
+
+# STRAY INSTALLERS beyond the `*.exe` rule above.
+*.msi
+*.iso
+*.zip
+*.7z
+
+# LOCAL SCRATCH AREA, untracked by design.
+_archive/
