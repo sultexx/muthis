@@ -467,6 +467,29 @@ async def run_regressions(checks: Checks, orchestrator, agent: PassCounter,
     return passes
 
 
+def _ask(message: str) -> bool:
+    """A human prompt that can NEVER kill the run. True = the user answered.
+
+    RUN 3 DIED HERE. `sys.stdin.isatty()` reported a terminal and `input()` then
+    raised `EOFError`, which propagated out of `observe()` and ended the run —
+    losing the phases that had not executed yet. A diagnostic that dies at a
+    PROMPT destroys the evidence it exists to collect, and the prompt is the one
+    part of this script that carries no measurement at all.
+
+    So the guard is not "check isatty better" — isatty already said yes and was
+    wrong. It is: treat an unreadable console as a SKIP WITH A REASON, the same
+    way an absent Docker daemon or a missing search key is treated. The caller
+    records what the skip cost, because a phase that did not run must never look
+    like one that passed."""
+    try:
+        input(f"\n  >>> {message} ")
+        return True
+    except (EOFError, OSError, KeyboardInterrupt) as exc:
+        print(f"    >>> console unreadable ({type(exc).__name__}) — SKIPPING this "
+              "phase and continuing; nothing here is a product finding")
+        return False
+
+
 async def observe(observations: Observations, orchestrator, agent: PassCounter,
                   session: Session, doc_path: Optional[str],
                   question: Optional[str], interactive: bool) -> "list[int]":
@@ -529,7 +552,13 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
         })
         return passes
 
-    input("\n  >>> OPEN the document on screen now, then press Enter (path ②) ")
+    if not _ask("OPEN the document on screen now, then press Enter (path ②)"):
+        observations.add("O-3 paths ② and ③ — SKIPPED (no readable console)", {
+            "reason": "stdin reported a terminal but reached END OF INPUT — the "
+                      "run continues rather than dying on a prompt",
+            "what it cost": "paths ② and ③ are UNMEASURED; run 3 died here",
+        })
+        return passes
     result, count = await drive(orchestrator, agent, session,
                                 "O-3 path ② — the DISPLAYED document",
                                 f"افتح المستند {doc_path} وجاوبني منه: {question} — وورّني وين قالها.")
@@ -543,7 +572,11 @@ async def observe(observations: Observations, orchestrator, agent: PassCounter,
                       "elements with visual boundaries, never continuous prose",
     })
 
-    input("\n  >>> MINIMISE the document now, then press Enter (path ③) ")
+    if not _ask("MINIMISE the document now, then press Enter (path ③)"):
+        observations.add("O-3 path ③ — SKIPPED (no readable console)", {
+            "reason": "end of input at the second prompt; path ② above still counts",
+        })
+        return passes
     result, count = await drive(orchestrator, agent, session,
                                 "O-3 path ③ — INDEXED, not displayed",
                                 f"جاوبني من نفس المستند: {question} — وورّني وين قالها.")

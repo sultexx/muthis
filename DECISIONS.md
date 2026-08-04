@@ -8896,3 +8896,146 @@ DEC-75's condition on continuous prose), capture for the caption question:
    remainder as a separate call after the drain, so a gap there is the second mechanism's signature.
 
 ---
+
+
+## DEC-83 (2026-08-04) — T7 runs 1-3: O-2 ANSWERED, O-1 RULED, and the multi-pass ack DIAGNOSED — RULED (Sultan), DIAGNOSIS + HARNESS
+
+- **Item:** the close of T7's observation phase across three runs. **VERDICT: no blocking issue in
+  the product.** Every stop was OUTSIDE Mut'his — an `EOFError` from this harness's own prompt, and
+  an exhausted API balance.
+- **Scope:** **diagnosis and harness. `src/` is git-untouched**, including the persona and the voice
+  path where the one real defect lives. **The fix is a ruling.**
+
+### O-2 IS ANSWERED — **THE NAVIGATOR WORKS, AND IT IS GUIDANCE**
+
+The advances each ACKNOWLEDGE what the user accomplished, then give the next step and point at it:
+
+> «قائمة Start مفتوحة، افتح الآن Settings» → «زين، Settings مفتوحة. الحين انقر على النظام» →
+> «ممتاز، أنت الحين في صفحة النظام» → «زين، وصلت لصفحة التخزين»
+
+**That is guidance, not a list read aloud** — the question DEC-68 posed for T7, answered by ear as
+it was designed to be. **Sultan's decisive detail: the pointing LANDED ON THE CORRECT ELEMENT**; he
+simply could not click it before the balance ran out. Step pacing and the spoken frame are settled.
+
+### O-1 IS RULED — **NO PERSONA LAW, AND THE VARIANCE IS THE ANSWER**
+
+**Three runs, three results: `navigator__plan` called · then NOT called · then `draw_shapes`.**
+
+Run 2's reply carries the explanation: **«هذي ما لها علاقة بالشاشة اللي قدامنا»** — the SCREEN STATE
+DIFFERED between runs, and the model judged the question general rather than guided. **That is a
+reasonable judgement, not a failure.**
+
+**So the T4 rule does not apply.** It is written on a **stable OBSERVED gap**; what exists here is
+**behavioural variance on a question that legitimately admits a prose answer**, while **the
+genuinely guided path — O-2 — reaches the verbs reliably.** A law written against this would be a
+law against the model exercising judgement it exercised correctly.
+
+**RULING: no persona law.** **CONDITION FOR REVISITING, recorded so it is not re-argued from
+memory:** if Sultan's DAILY USE shows the verbs missed on **genuinely step-shaped requests**. Not
+on a question a reasonable assistant answers in prose.
+
+This supersedes DEC-81's reading of O-1, which rested on run 1 alone. **One run is not a
+behavioural measurement** — the same lesson as DEC-74's fixture defect, arriving from the opposite
+direction: there the instrument was wrong, here the sample was one.
+
+### DEC-82 STAYS **OPEN** — AND THAT DOES NOT BLOCK THE CLOSE
+
+The caption discriminator **cannot be settled**: no balance for a voice run. **Both branches are
+recorded and NEITHER blocks the milestone:**
+
+| branch | what it is | why it does not block |
+|---|---|---|
+| the **buffered path** (2 captions, the second a block ending «…») | **designed behaviour** | a DESIGN question — should that path chunk its captions for teaching? |
+| the **`_dead` fault** (a feed failure clears and orphans every pending caption) | a **real defect** | it **PRE-DATES Phase 3** — the caption path is git-identical across T1→T6, verified in every report |
+
+**IT IS SETTLED ON THE NEXT VOICE RUN, NOT BY INFERENCE.** The discriminator is free and visual:
+**was caption 2 a clean short SENTENCE (the `_dead` fault) or a long BLOCK ending in «…» (the
+buffered path)?** Plus the `speech session` log line and the audible SEAM where the remainder is
+re-spoken.
+
+### THE ONE REAL PRODUCT DEFECT — **THE MULTI-PASS ACK, DIAGNOSED**
+
+**Evidence:** «أبشر… أبشر» · «الحين… الحين» · «انقر… انقر», and in the log
+**«سم، شوف أول خطوة!أبشر، شوف شريط البحث!»** — two acks CONCATENATED WITHOUT A SPACE, which is the
+signature of two separate feeds joining ONE audio generation: **an ack per PASS, inside one
+answer.** DEC-55 ruling 3's fix landed, and the behaviour contradicts it.
+
+**Sultan's three hypotheses, each tested rather than argued:**
+
+**(b) "does the echo guard compare against the wrong prior line?" — REFUTED, with a positive
+control.** Driven on his OWN strings through the real functions: `strip_leading_repeat(«أبشر، شوف
+شريط البحث!», «سم، شوف أول خطوة!»)` returns the text **unchanged**, and `EchoGuard` likewise —
+while the control, a TRUE verbatim echo, IS stripped. **The guard compares the right line and works;
+it cannot match DIFFERENT WORDS.** DEC-55 ruling 3's own comment says exactly this: the deterministic
+guard suppresses a REPEATED IDENTICAL opening and "cannot be stretched" to a new ack.
+
+**(c) "is the clause reaching the model at all?" — REFUTED.** The composed prompt is **10,575
+chars**, is NOT the bare `LOOK_SYSTEM_PROMPT` fallback, and **contains both clauses**.
+
+**(a) "does the clause only cover the first pass while a step spans several?" — CLOSEST, AND THE
+MECHANISM IS SHARPER THAN THE QUESTION.** The persona clause is correctly scoped to the whole
+ANSWER. What fails is the **per-pass ENFORCEMENT**, and it fails structurally:
+
+> **THE DIRECTIVE THAT ACTUALLY FORBIDS AN ACK — the one that names «أبشر» and says «بدون أي مقدمة
+> أو تأكيد» — RIDES THE *DRAW* PAIRING. The Navigator inserts an ack-eligible pass BEFORE any draw.**
+
+Measured across every per-pass directive a Navigator turn carries:
+
+| directive | anti-ack clause? |
+|---|---|
+| highlight ack · highlight already-shown · shapes ack · shapes already-shown | **YES** (all four) |
+| `navigator__plan` started · `navigator__step` moved · finished · one-per-pass · **the mode directive line** | **NO — all five are SILENT on acks** |
+
+**And T4's OWN ALREADY-PASSING TEST supplies the second half:**
+`test_advance_WITHOUT_pointing_leaves_the_gate_unflipped` asserts **`reasoner.calls[1][1] ==
+"auto"`** — the SECOND pass is still tool-capable. So the live sequence is:
+
+1. pass 1 — ack + `navigator__plan`; its tool_result is **silent on acks**; the gate does **not**
+   flip, so `tool_choice` stays `"auto"`;
+2. pass 2 — **another ack-eligible pass**, which acks again and points;
+3. pass 3 — only NOW does the draw pairing deliver the anti-ack directive.
+
+**BEFORE PHASE 3 THIS GAP DID NOT EXIST:** the first pass acked AND drew, so the anti-ack directive
+arrived immediately and the next pass was the forced-text explain. **The Navigator opened a pass
+between the ack and the draw, and nothing in that gap tells the model not to ack again.**
+
+**A CONTRIBUTING FINDING, RECORDED BECAUSE IT SHAPES THE FIX:** the persona holds **two clauses in
+tension**. At char **2,378** — «كلمة التأكيد المنطوقة إلزامية في كل دور تأشير — ممنوع دور تأشير
+صامت» (an ack is MANDATORY in every pointing pass; a silent pointing pass is FORBIDDEN). At char
+**9,788**, **7,410 characters and 54 newlines later** — the scoping exception. **The ABSOLUTE comes
+first; the exception comes last.** On a Navigator turn the model sees two consecutive tool-capable
+passes that both look like pointing passes, and the earlier absolute is the one addressed to that
+framing.
+
+**WHY PHASE 3 MULTIPLIES IT, in Sultan's framing:** the Navigator explains step by step across
+multiple passes, so the defect fires **per STEP** rather than per answer — in the milestone's
+flagship feature.
+
+**NOT FIXED. The fix is a ruling**, and the measurement narrows it to a choice: put the anti-ack
+clause on the NAVIGATOR directives (where the DRAW directives already carry it), or resolve the
+persona's absolute/exception tension, or both. **Each is a model-facing change nobody has signed.**
+
+### THE HARNESS DEFECT — `input()` KILLED RUN 3
+
+`sys.stdin.isatty()` reported a terminal, `input()` then raised **`EOFError`**, and it propagated
+out of `observe()` and **ended the run**, losing the phases that had not executed. **A harness
+defect, not a product one.**
+
+**FIXED, and the guard is not "check isatty better" — isatty already said yes and was wrong.** An
+unreadable console is now a **SKIP WITH A STATED REASON**, exactly as an absent Docker daemon or a
+missing search key is, and the skip **records what it cost** so a phase that did not run can never
+read as one that passed. Verified in both directions: EOF returns False and continues; real input
+returns True. **A diagnostic that dies at a PROMPT destroys the evidence it exists to collect, and
+the prompt is the one part of the script carrying no measurement at all.**
+
+### MEASURED
+
+| | |
+|---|---|
+| `scripts/diag_navigator.py` | 698 → **731** (+33: `_ask` and the two skip records) |
+| `src/` | **git-untouched** |
+| guard | **1498 + 27 green, UNCHANGED** |
+
+**The repository audit stays RESERVED** — no history, no remotes, no ignore rules touched.
+
+---
