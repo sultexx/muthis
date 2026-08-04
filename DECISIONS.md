@@ -8761,3 +8761,138 @@ ruling; recorded so the next occurrence is a second data point rather than a fir
 before it starts. T7 IS NEVER DECLARED PASSED BY AN AGENT.**
 
 ---
+
+
+## DEC-82 (2026-08-04) — T7 run 1, part 2: the sandbox correction, `--observations-only`, and the caption halt DIAGNOSED (not fixed) — RULED (Sultan), HARNESS + DIAGNOSIS
+
+- **Item:** Sultan's correction to the run-1 report, the budget-preserving flag for run 2, and the
+  mechanism of the caption halt. **DIAGNOSIS ONLY — the caption path is NOT touched. The fix is a
+  ruling.**
+- **Scope:** **harness and diagnosis. `src/` is git-untouched.** No production code was changed to
+  make an observation work, and the caption path was not modified even where the defect was found.
+
+### CORRECTION — **`sandbox__run_code` DID EXECUTE. PRODUCTION IS NOT IMPLICATED.**
+
+Recorded as a correction because DEC-81 could be read as impugning the sandbox. **It ran the
+`add(a, b)` sample, explained it, and then looked at the screen and spoke about what it saw.** The
+production path worked end to end. **The contamination was in the SPOKEN REPLY only** — a
+conversation the harness never reset, so the model was answering in a context that still held the
+previous phase.
+
+**THE DEFECT IS THEREFORE NARROWER AND CLEANER THAN DEC-81 FRAMED IT:** one graph reused across
+phases, history and an active mode bleeding forward, and checks that pass because they assert the
+tool was CALLED. Nothing in `src/` is at fault, and the fix committed in `8c0dd16` is the whole
+repair.
+
+### `--observations-only` — NOT RE-BUYING A SETTLED RESULT
+
+Run 1 settled **every deterministic check** for **~$1.4**: catalog v6 against the real API, the
+three exits, the indicator on a real overlay, five capability regressions, the cap, zero LOOK-only
+violations. **~$1.5 remains, and the UNSETTLED half is the expensive half.**
+
+The flag skips exactly the checks that **cost a live model turn**, named in ONE constant
+(`PAID_CHECKS`) so the skip list and the run list cannot drift — **verified in both directions:
+no paid check escapes the flag, and no skipped name is one the script never records.**
+
+**THE FREE DETERMINISTIC CHECKS STILL RUN** — the indicator, the exits, the cap, the LOOK-only
+scan, the session guards. They drive no model, so skipping them would buy nothing, and **their
+failure would make the observations MISLEADING rather than merely unconfirmed.** Stated here
+because it is an interpretation of the instruction rather than its letter, and it is Sultan's to
+reverse.
+
+**A SKIP IS NEVER A QUIET PASS.** Each skipped check prints its reason inline, and the summary
+carries a dedicated block — *"SKIPPED — NOT RUN, NOT PROVEN BY THIS RUN"* — ending with **"Coverage
+for the above comes from RUN 1, not from this run."** A summary that renders a skip as a bare
+`SKIP` invites it to be read as *fine*, which is this project's recurring defect approached from
+the other side.
+
+### THE CAPTION HALT — **MECHANISM FOUND, MEASURED, AND NOT FIXED**
+
+**FIRST, THE PHASE-3 QUESTION IS SETTLED BY VERIFICATION RATHER THAN BY ASSERTION.**
+`turn_voice.py`, `voice_out.py`, `caption_bar.py` and `speech_stream.py` are **git-identical across
+the whole of Phase 3** (`main..HEAD`). **`window_commands.py` is NOT** — T3 added 17 lines to it,
+and it IS in the caption dispatch chain. It was read: the additions are two new `elif` arms on
+exact action names that cannot collide with `show_caption` / `show_caption_later` /
+`clear_caption`, plus a `mode.clear()` inside `hide` that runs AFTER the caption clear. **It cannot
+intercept a caption command.** Sultan's claim holds — after checking the one file it did not name.
+
+**THE CHAIN.** `TurnVoice._feed` computes `delay = fed_chars / ARABIC_TTS_CHARS_PER_SEC −
+played_seconds()` and calls `VoiceOut.show_caption(sentence, delay_s=…)`; the choke point routes a
+positive delay to `CaptionBar.show_text_later`, which schedules it on Tk's `after` **guarded by a
+GENERATION counter**. `CaptionBar.clear()` **increments that counter, orphaning every pending
+caption at once** — and that single fact is what turns any mid-turn clear into a permanent halt
+rather than a blink.
+
+**MEASUREMENT 1 — THE PACING HYPOTHESIS IS REFUTED, which is the useful half.** Driven against the
+REAL `TurnVoice`/`VoiceOut`/`CaptionBar` with only the session and Tk's clock faked, over a
+six-sentence Navigator-length reply: at the estimate's own rate **all 6 render**; at 15 cps **5 of
+6**; at 17 cps **5 of 6**. **Rate error costs the LAST caption, never the sequence.** Sultan's
+instinct was right for a reason the measurement now supplies: `ARABIC_TTS_CHARS_PER_SEC` cannot
+produce a halt after one or two.
+
+**MEASUREMENT 2 — ONE FAILED FEED REPRODUCES THE SYMPTOM EXACTLY.** `_feed`'s except arm does three
+things: logs, sets `_dead = True`, and calls `clear_caption()`. So a single WS hiccup **orphans
+every pending caption**, and every later sentence returns at `if self._dead:` **before the caption
+code is reached**. Measured: a failure on feed #2 or #3 renders **1 caption of 6**, while the audio
+already fed **plays on** and the remainder is re-spoken buffered at `finish()`. **"First caption,
+sometimes the second, then updates stop while the audio continues"** — the variability is whether
+sentence 2's timer fired before the failure.
+
+**MEASUREMENT 3 — AND A SECOND MECHANISM FITS JUST AS WELL, WITH NO DEFECT AT ALL.** On the
+BUFFERED path — `MUTHIS_STREAM_TTS` off, no key, or the open failing — there are no per-sentence
+captions by design: the ack, then **ONE truncated block** for the whole explanation, then nothing,
+while audio plays to the end. Measured: **exactly 2 captions**, the second ending in «…». That is
+the reported picture precisely, and this project has already measured
+`voice_id_does_not_exist → Gemini fallback` on this very machine.
+
+**THE DISCRIMINATOR IS FREE AND VISUAL, WHICH IS WHY IT IS THE FIRST THING TO CHECK:**
+
+| what the SECOND caption looked like | mechanism | is it a defect? |
+|---|---|---|
+| a long block ending in **«…»** | the BUFFERED path — streaming never opened | **NO** — designed behaviour; the question is whether it is ACCEPTABLE for teaching |
+| a clean short **sentence** | a mid-stream **feed failure** (`_dead`) | **YES** — a transient fault with a permanent caption cost |
+
+**And each leaves its own log line**, so the run log settles it outright: `speech session open
+failed (…) — buffered turn` for the first, `speech session feed failed (…) — buffering the rest`
+plus `died mid-turn — speaking the remainder buffered` for the second.
+
+**WHY IT IS NOT DEFERRABLE, IN SULTAN'S FRAMING:** the Navigator explains step by step, its replies
+are longer than a pointing turn, and a caption that stops after two sentences **hits the flagship
+feature of this milestone**, not a side path.
+
+**NOT FIXED, AND THE SHAPE OF EACH FIX IS A RULING:** if it is the buffered path, the question is
+whether that path should CHUNK its captions — a design change to a proven path. If it is `_dead`,
+the question is whether a feed failure should clear the caption at all, given that the audio it
+already queued keeps playing — the clear is what makes a transient fault permanent.
+
+### TWO LIVE SIGHTINGS, RECORDED, NO WORK
+
+1. **The multi-pass ack appeared live** — «أبشر، شوف.أبشر، شوف.» — against DEC-55 ruling 3's
+   voice-surface item. Recorded so the next occurrence is a second data point, not a first.
+2. **O-1 CLOSES THE PERSONA-LAW QUESTION** (recorded in DEC-81 and restated here as the ledger's
+   settled position): the model called `navigator__plan` then `navigator__step` **unprompted** from
+   a question naming no step and no plan, and corrected its route before step one after reading the
+   real screen. Per the T4 rule — **written on an OBSERVED gap, never an expected one** — **no
+   persona law is needed.**
+
+### MEASURED
+
+| | |
+|---|---|
+| `scripts/diag_navigator.py` | 652 → **698** (+46: the flag, `PAID_CHECKS`, the skip block) |
+| `src/` | **git-untouched** — including the caption path, where the defect lives |
+| guard | **1498 + 27 green, UNCHANGED** |
+
+### WHAT RUN 2 MUST CAPTURE
+
+Run with `--observations-only --doc … --question …`, **and keep the console log**. Beyond the three
+things run 1 never settled (full-walkthrough pacing · evidence pointing on all three paths ·
+DEC-75's condition on continuous prose), capture for the caption question:
+
+1. **whether the second caption is a SENTENCE or a truncated BLOCK ending in «…»** — this alone
+   separates the two mechanisms;
+2. **any line containing `speech session`** in the log;
+3. **whether the audio has a SEAM** where the captions stop — the `_dead` path re-speaks the
+   remainder as a separate call after the drain, so a gap there is the second mechanism's signature.
+
+---

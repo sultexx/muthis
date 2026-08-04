@@ -126,6 +126,25 @@ from muthis_plugins.sandbox_exec import SandboxExecPlugin                   # no
 CATALOG_V6_TOOLS = 11
 FRAME_DUMP = pathlib.Path("diag_navigator_sent_frame.png")
 
+# The checks that cost a LIVE MODEL TURN, named in ONE place so the skip list and
+# the run list can never drift apart. `--observations-only` skips exactly these:
+# run 1 (2026-08-03) settled every one of them for ~$1.4, and re-buying a settled
+# result with the budget that has to pay for the UNSETTLED half is the trade that
+# left run 1 with no O-2 pacing and no O-3 at all.
+#
+# THE FREE DETERMINISTIC CHECKS STILL RUN — A0, D, E, B, C, G, H drive no model
+# and cost nothing, and their failure would make the observations misleading
+# rather than merely unconfirmed. Skipping them would buy nothing and lose signal.
+PAID_CHECKS = (
+    "A the real API accepted catalog v6 (the DEC-11 failure class)",
+    "F1 V1 pointing (highlight_target)",
+    "F2 read_local_file",
+    "F3 sandbox__run_code",
+    "F4 web__search",
+    "F5 docs__query",
+)
+SETTLED_BY_RUN_1 = "settled by run 1 (2026-08-03) at ~$1.4 — NOT re-bought"
+
 # The Arabic the model actually hears. O-1's question is the load-bearing one: it
 # describes a MULTI-STEP TASK and never says "step", "plan" or "walk me through",
 # because naming them would answer the question the observation exists to ask.
@@ -546,6 +565,18 @@ def summarise(checks: Checks, observations: Observations) -> int:
     print("=" * 78)
     for name, ok in checks.results.items():
         print(f"  [{ {True: 'PASS', False: 'FAIL', None: 'SKIP'}[ok] }] {name}")
+    # WHAT WAS SKIPPED, AND WHY, SAID PLAINLY. A summary that lists a skip as a
+    # bare "SKIP" invites it to be read as "fine" — and a run whose coverage came
+    # from a PREVIOUS run must say so, or the next reader will believe this one
+    # proved more than it did.
+    skipped = [n for n, ok in checks.results.items() if ok is None]
+    if skipped:
+        print(f"\n  SKIPPED — NOT RUN, NOT PROVEN BY THIS RUN ({len(skipped)}):")
+        for name in skipped:
+            note = SETTLED_BY_RUN_1 if name in PAID_CHECKS else "dependency absent"
+            print(f"    · {name}\n        {note}")
+        if any(n in PAID_CHECKS for n in skipped):
+            print("    Coverage for the above comes from RUN 1, not from this run.")
     print(f"\n  observations recorded (NO verdict, Sultan judges): {len(observations.items)}")
     print("\n  MANUAL STEPS THIS SCRIPT CANNOT DRIVE — run `python -m muthis.main`:")
     print("    · hold F9 and SAY «خلاص» — the exit word must survive REAL STT,")
@@ -566,6 +597,10 @@ async def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 3 live SOP (diagnostic only)")
     parser.add_argument("--doc", help="a document of Sultan's own — never in the repo")
     parser.add_argument("--question", help="a question the document DOES answer")
+    parser.add_argument(
+        "--observations-only", action="store_true",
+        help="skip the checks that cost a live model turn and were already "
+             "settled by run 1, so the budget pays for the UNSETTLED half")
     args = parser.parse_args()
 
     tap = LogTap()
@@ -601,13 +636,23 @@ async def main() -> int:
 
     passes: "list[int]" = []
     try:
-        first, count = await drive(orchestrator, agent, session,
-                                   "A the catalog is ACCEPTED by the real API", Q_POINT)
-        passes.append(count)
-        checks.record("A the real API accepted catalog v6 (the DEC-11 failure class)",
-                      bool(first.spoken_text.strip()) or bool(first.tool_calls))
+        if args.observations_only:
+            # SKIPPED WITH A STATED REASON, never passed quietly: a skip that
+            # reads as a pass is the failure this project keeps meeting from the
+            # other side — a check reporting success having examined nothing.
+            print("\n════ PAID DETERMINISTIC CHECKS — SKIPPED (--observations-only) ════")
+            for name in PAID_CHECKS:
+                checks.record(name, None, SETTLED_BY_RUN_1)
+        else:
+            first, count = await drive(orchestrator, agent, session,
+                                       "A the catalog is ACCEPTED by the real API",
+                                       Q_POINT)
+            passes.append(count)
+            checks.record("A the real API accepted catalog v6 (the DEC-11 failure class)",
+                          bool(first.spoken_text.strip()) or bool(first.tool_calls))
 
-        print("\n════ DETERMINISTIC — the mode frame end-to-end ════")
+        # The FREE deterministic checks run in BOTH modes — they drive no model.
+        print("\n════ DETERMINISTIC — the mode frame end-to-end (free, always run) ════")
         await check_indicator_and_exits(checks, orchestrator, overlay)
 
         # OBSERVED RUNS BEFORE THE REGRESSIONS, and the order is a decision.
@@ -619,9 +664,10 @@ async def main() -> int:
         passes += await observe(observations, orchestrator, agent, session,
                                 args.doc, args.question, sys.stdin.isatty())
 
-        print("\n════ DETERMINISTIC — regression across every shipped capability ════")
-        passes += await run_regressions(checks, orchestrator, agent, session,
-                                        workdir, args.doc, args.question)
+        if not args.observations_only:
+            print("\n════ DETERMINISTIC — regression across every shipped capability ════")
+            passes += await run_regressions(checks, orchestrator, agent, session,
+                                            workdir, args.doc, args.question)
     finally:
         await fetcher.aclose()
         await search.aclose()
