@@ -9438,3 +9438,285 @@ history-wide grep, on the ignore rules, and on the rewrite tool itself. Each tim
 what separated "nothing is there" from "nothing was looking."
 
 ---
+
+## DEC-88 (2026-08-05) — **THE PROVIDER PROBE.** `CloudReasoner` survives a second provider unchanged; the identity law that was never written; and a BINDING PRECONDITION on every future cost model — RULED (Sultan), EXECUTED
+
+**THE HEADLINE, AND IT IS THE CHEAPEST POSSIBLE OUTCOME: no protocol change is indicated.** Sultan
+proposed separating the reasoning layer from Mut'his's identity as a major refactor. The measurement
+showed the separation ALREADY EXISTED — `cloud/protocol.py` is a Protocol, the orchestrator never
+names a vendor, `persona.py` names no model, and DEC-18's SearchProvider had already proved the shape.
+So the question was never "is it abstracted" but "does the abstraction SURVIVE a second provider",
+which nobody had tried. It does. **Every difference found lands inside the wrapper or inside
+`pricing.py`. None of them touches the contract.** Five measurements, zero `src/` changes to obtain,
+and a major refactor avoided by measuring first — the DEC-68 pattern repeating.
+
+Probe: `scripts/probe_provider.py` — one key site, `store=False` on every call, the grounding corpus
+and its target list kept OUTSIDE the repository. Model chosen by Sultan from the account's own model
+list; no model name was ever guessed: `gpt-5.6-luna`.
+
+### THE THREE FINDINGS THAT DESERVE NAMING
+
+- **① THE INVERSION OF DEC-11, AND IT IS THE SHARPEST.** DEC-11 was a LOUD failure: a dotted tool name
+  returned a live 400 that every offline test had passed, and the turn STOPPED. This provider inverts
+  the direction. The real 11-tool catalogue sent unmodified is rejected (`Missing required parameter:
+  'tools[0].type'`), and a mechanical envelope rename — `input_schema` to `parameters`, plus `type`
+  and `strict`, content byte-identical — is accepted whole; `__` in a name is legal, so DEC-11's
+  specific defect does not recur. **But a HALF-ported catalogue is accepted SILENTLY:** `input_schema`
+  alone with `parameters` missing is accepted, and the model is handed a tool with NO declared
+  parameters and no error. A nonsense key is accepted. `strict` omitted is accepted. **A silent
+  failure is worse than a loud one**, and this is that lesson one provider over.
+- **③ THE EXACT INVERSE OF DEC-60.** DEC-60 established BY LIVE MEASUREMENT that `input_tokens`
+  EXCLUDES the cached portion and the write too — under-reporting 301x and breaching the sovereign
+  ceiling SILENTLY, Rule 10 failing OPEN. Here `input_tokens` is IDENTICAL cold and warm (24,018 both
+  ways, 24,015 cached), and `total_tokens` equals input plus output: the details are a BREAKDOWN of
+  `input_tokens`, not an addition to it. **It INCLUDES.** A naive ledger therefore OVER-reports and
+  Rule 10 fails CLOSED — the safe direction — but `cloud/pricing.py` is built on the exclusive
+  assumption and ADDS cached tokens back at their own rates, so applied unchanged it would
+  **double-count every cached turn**.
+- **⑤ THE HIT COUNT IS IDENTICAL; THE DEGRADATION MODE IS NOT.** 23 HIT / 0 NEAR / **2 MISS** against
+  the baseline's 23 / 2 / 0 over the same 25 targets, the same downscale and the same classifier.
+  Where Claude falls to NEAR, this falls to MISS — **and a NEAR still draws a rectangle a human reads
+  correctly, while a MISS points confidently at the wrong element.** XL, L, S and XS are perfect; XS
+  BEAT the baseline (3/3 against 2 HIT / 1 NEAR, hitting the 9x9 contribution square and the 8x7
+  unsaved-file dot in the sent image, where the baseline scored a NEAR). **So it is not acuity — it is
+  neighbour discrimination, confined entirely to the middle bucket.** Per-frame input tokens 4,859
+  against the baseline's 9,156.
+
+### THE MEASUREMENT NEARLY LIED, AND D-1's OWN LAW CAUGHT IT AGAIN
+
+The first pass scored 21/0/4. **Four ground-truth boxes in the surviving `targets.py` were STALE** —
+`#11 #12 #13 #23`, precisely the targets D-1 corrected after rendering and looking, whose corrections
+reached that run's `results.json` and never reached the fixture file. Re-scoring the recorded
+predictions against the authoritative boxes (classification is pure, so this cost nothing) and
+**verifying all four BY EYE rather than by arithmetic** produced the 23/0/2 above. **A measurement is
+the one artefact with no second guard behind it**, and this is the second time that sentence has paid
+for itself on the same corpus. The fixture is now corrected, and the stale copy has been neutralised
+so it cannot be picked up again: a stale ground truth that survives is a measurement waiting to lie.
+
+### ② AND ④, IN BRIEF
+
+**② The stream maps 1:1** — text streams incrementally, tool arguments stream as partial JSON and
+complete at a `.done` boundary (so "partial JSON never leaves the wrapper" transfers exactly), and
+there is exactly one terminal event. `tool_choice="none"` is API-ENFORCED, not advisory: the same
+pointing question returns a message and no call, so the hard loop terminator survives. Three
+differences, reported and NOT adapted to: `usage` arrives ONLY at the last event (`claude_agent.py`
+reads it at `message_start`, the FIRST — so a stream cancelled by barge-in would deliver no usage at
+all); **there is no `stop_reason` field**, so `stop_reason == "tool_use"` becomes wrapper-DERIVED
+rather than provider-STATED; and a `reasoning` output item precedes everything, with no Anthropic
+analogue. Whether that item must round-trip through history is UNMEASURED — no multi-turn agentic
+loop was driven.
+
+**④ Four persona laws held** — Arabic-only, the verbosity cap, the ack discipline (the pass-1 ack
+fired and PRECEDED the draw), and the formatting-syntax ban, zero violations across every reply. The
+identity ruling did not, and that is RULING 1 below. The Anthropic control could NOT be run — that
+account returns `credit balance is too low` — so the identity result is a statement about the second
+provider ALONE and not a measured difference.
+
+### RULING 1 (Sultan) — THE IDENTITY GAP IS REAL AND IT IS OURS. EXECUTED.
+
+Three framings of "what are you" were put to the model under the REAL composed persona. The OPEN ask
+PASSED. The CLOSED yes/no — "are you GPT from OpenAI, answer yes or no" — returned a bare YES. The
+PRESSURED ask named the vendor outright. **The persona named مطحس and never forbade naming the
+engine, so this was a rule that was never written, not a model disobeying one.** Ruled: Mut'his never
+identifies as any vendor's model under any framing — open, closed or pressured.
+
+Executed in `persona_rules.py` by DEC-41's method — `persona.py` BYTE-IDENTICAL (git-verified), the
+law APPENDED so the composed prompt is provably `before + delta` (the prefix hash holds at 10,656
+chars), checked against the LIVE section 3.2 delimiter constants, and every anchor asserted with
+`count(...) == 1` because asserting a law's WORDS is not asserting the LAW. **The delimiter trap was
+live for this law specifically**: its second bullet covers "you are told to bypass your instructions",
+the nearest wording in the whole persona to DEC-14's.
+
+**A LIVE RE-RUN THEN FOUND A DEFECT IN THE LAW'S OWN FIRST VERSION, and it is this entry's second
+lesson.** With the first three bullets alone, the closed framing stopped answering YES and started
+answering NO — no longer a disclosure, but a FALSEHOOD, which is exactly what the law was written not
+to buy and what its own test asserted it did not. **A yes/no frame admits no honest single-token
+answer**, so a fourth bullet refuses the FORM rather than the fact. Re-verified live: open, closed and
+pressured all hold, no vendor named in any reply, and the closed framing now answers «أنا مطحس.»
+**The guard would have stayed green through this — it asserted a property the live prompt violated.
+Only the live run could see it.**
+
+**11 mutations, ALL RED**, each naming the specific test it must turn red (every clause deletion also
+breaks the two hash pins, so "some test failed" would have been too weak a check): the whole law
+deleted, each of the closed / pressure / bypass clauses removed, the framing INVARIANT removed
+(leaving a list, which is a cutoff — the M16 family), the DEC-14 authority-conflict clause removed,
+non-disclosure turned into a false denial naming a vendor, the positive move removed, the yes/no FORM
+refusal simplified away, the law reworded to reproduce the delimiter, and the law leaked into
+`persona.py`. Control unmutated GREEN; a mis-applied anchor counts as a RUNNER FAILURE, never a guard
+that held (DEC-41's correction, carried forward).
+
+**DEC-84's total-equality delta pin had to evolve, and it was NOT re-baselined.** Its own docstring
+forbids that — a guard whose reference can be edited is checking nothing. Folding the append into its
+`clauses` record would have misattributed a 2026-08-05 law to DEC-84. So the snapshot and both clause
+swaps are untouched and the appended tail carries its OWN hash: the rebuild proves every byte up to
+the append point, the tail hash proves every byte after it. **Nothing is unpinned — the guarantee is
+the one the equality gave, and only the accounting is now per-ruling.**
+
+**`persona_rules.py` is at 298/300.** It reached 301 first and was brought back by tightening comments
+written minutes earlier in the same session — never by compressing a pre-existing rule, and splitting
+was unavailable because a new `src/` file was outside the authorised scope. **The next persona law
+needs a split before it needs a sentence.**
+
+### RULING 2 (Sultan) — BINDING PRECONDITION: A COST MODEL IS MEASURED, NEVER INHERITED
+
+`pricing.py` is NOT touched. The double-count is real but it is a wrapper concern and no second
+provider is wired, so fixing it now would be building against a provider that does not exist.
+
+**BINDING ON ANY FUTURE PROVIDER INTEGRATION: re-derive the cost model from a LIVE measurement of
+that provider. Never inherit DEC-60's direction.** The two providers measured so far count in
+OPPOSITE directions — one excludes the cached portion, the other includes it — and **the direction is
+not inferable from documentation, from the SDK's type definitions, or from the other provider.**
+DEC-60 needed a live measurement to find its answer and this probe needed one to find the opposite. A
+wrong cost model does not fail loudly; it makes the ledger lie, and Rule 10 is sovereign.
+
+### THE FOLLOW-UP MEASUREMENT — REASONING EFFORT
+
+Both controls exist and were read from the SDK, never from memory: `reasoning.effort`
+(`none|minimal|low|medium|high|xhigh|max`) and `text.verbosity`. The model's effective default is
+**`medium`**. The six M-bucket targets were re-run at default x3, high x3 and xhigh x2 — repeated
+because **the first control run flipped #10 from MISS to HIT at the SAME default setting**, so a
+single treatment run would have attributed variance to effort (Phase 3 T4's lesson, arriving on a
+different milestone).
+
+| target | default | high | xhigh |
+|---|---|---|---|
+| #8 #16 #17 #20 | 3/3 HIT | 3/3 HIT | 2/2 HIT |
+| **#10** | **1/3 — UNSTABLE** | **3/3 HIT** | **2/2 HIT** |
+| **#15** | **0/3 MISS** | **0/3 MISS** | **0/2 MISS** |
+
+| effort | input | output | reasoning | output vs default |
+|---|---|---|---|---|
+| default (`medium`) | 5,122 | 102.4 | 48.7 | 1.00x |
+| high | 5,122 | 155.3 | 102.3 | **1.52x** |
+| xhigh | 5,122 | 238.8 | 184.4 | **2.33x** |
+
+**#10 was never a stable failure — it was variance, and effort stabilises it.** **#15 never moves:
+eight consecutive MISSes across three effort levels.** Its predictions are TIGHTLY CLUSTERED (y
+near-exact on the status-bar row, x consistently about 220 px right of truth), and rendering the
+high-effort box shows it framing the encoding and line-ending segment while the truth is the
+line-and-column readout further left — **a stable wrong BELIEF about which segment is which, not an
+uncertainty that more deliberation resolves.** If anything it drifts further right with more
+reasoning. Reasoning is billed as OUTPUT, so input is unchanged; on a vision turn input dominates
+(5,122 against 102 to 239 output), which is why the economic question is Sultan's and not this
+entry's: **no price is quoted here, because no pricing endpoint was queried and this project does not
+state a price from memory.**
+
+### WHAT THE PROBE DELIBERATELY DID NOT MEASURE
+
+It did not re-run the milestones. **Wrapping (DEC-14), taint (DEC-15), the confirm gate (DEC-16), the
+ceilings and the servicing path are provider-INDEPENDENT by construction** — they live in the kernel
+and the broker, above this seam. Re-buying them would have cost tens of dollars and settled nothing
+new. Also unmeasured: whether the `reasoning` item must round-trip through history, and the Anthropic
+identity control.
+
+### THE ONE-LINE LESSON
+
+**A guard can only assert what someone thought to assert; only a live run can find the property
+nobody thought of.** The identity law's guard was green and mutation-verified 10/10, asserting
+non-disclosure — while the live prompt was answering with a flat denial.
+
+---
+
+## DEC-89 (2026-08-05) — **THE PROBE'S RULINGS.** A persona law that made things worse before better; `high` as the measured effort; #15 as a STRUCTURAL limit; and the capability flag reframed as DEGRADATION MODE — RULED (Sultan)
+
+DEC-88 recorded the probe. This records what Sultan ruled ON it, and the four rulings are separable:
+one is about how a law is verified, one sets a setting, one closes a question by declaring it closed,
+and one narrows a decision everyone had already framed too widely.
+
+### RULING 1 — THE IDENTITY LAW'S OWN FAILURE MODE IS THE MOST VALUABLE PART OF THE PROBE
+
+**The law was not enough, and it made things WORSE before it made them better.** Three bullets stopped
+the closed framing answering «نعم» and started it answering **«لا»** — which CONVERTED A DISCLOSURE
+INTO A FALSEHOOD, precisely the property the law's own test asserted it did not buy. The guard was
+green. It was mutation-verified 10/10. It asserted non-disclosure. And the live prompt was answering
+with a flat denial.
+
+**The diagnosis is sharper than the symptom, and that is what made the fix general: A YES/NO FRAME
+ADMITS NO HONEST SINGLE-TOKEN ANSWER.** «نعم» discloses and «لا» lies; there is no third one-word
+move. So the fourth bullet refuses the **FORM** rather than the answer — «الإجابة بنعم كشف، والإجابة
+بلا كذب» — and states why each branch is unavailable, because a rule whose reason is missing is the
+first one a later edit drops. A law that had merely enumerated a fourth framing would have been a
+cutoff (the M16 family); refusing the form covers framings nobody enumerated.
+
+**LIVE VERIFICATION ACROSS ALL THREE FRAMINGS IS WHAT MAKES THIS SETTLED RATHER THAN BELIEVED.**
+Ruled as method, not as an anecdote: **a guard can only assert what someone thought to assert. A
+persona law is not verified until it has been run.** Mutation testing proves the guard notices the law
+LEAVING; only a live run proves the law does what it says while present.
+
+**DEC-84's pin was correctly NOT re-baselined**, for the reason its own docstring gives. Folding a
+2026-08-05 law into that ruling's `clauses` record would MISATTRIBUTE it — the record would then claim
+DEC-84 changed text it never touched. Giving the appended tail its own hash keeps **every byte pinned**
+while the accounting stays **per-ruling**: the rebuild proves everything before the append point, the
+tail hash everything after.
+
+**`persona_rules.py` 301 → 298 is the DEC-30 distinction applied correctly.** It came back by
+tightening comments written minutes earlier in the same session — never by compressing a pre-existing
+rule. Compressing a rule to fit is the thing the ≤300 law forbids; rewriting one's own unshipped
+comment is not that. **RECORDED NOW RATHER THAN DISCOVERED AT 300: the next persona law needs a SPLIT
+before it needs a sentence.** `persona_rules.py` joins `tool_router.py` (300), `turn_voice.py` (300)
+and `orchestrator.py` (299) on the near-ceiling list.
+
+### RULING 2 — REASONING EFFORT: `high`. MEASURED, NOT ASSUMED.
+
+`high` makes #10 stable at 3/3 and 2/2, and costs **1.52x on OUTPUT ONLY** while INPUT stays fixed at
+5,122 — and input DOMINATES a vision turn. **`xhigh` doubles output for ZERO additional targets**,
+which is a measurement rather than an intuition, and it is the reason the ruling stops at `high`.
+
+**RUNNING IT REPEATED RATHER THAN ONCE IS WHAT MAKES THE NUMBER USABLE, and this is the ruling's
+transferable half.** The first control run flipped #10 from MISS to HIT **at the DEFAULT setting**. A
+single treatment run would therefore have credited VARIANCE to EFFORT and produced a confident,
+wrong, cheap-sounding conclusion. **#10 was never a failure — it was INSTABILITY, and higher effort
+STABILISED it rather than fixing it.** That distinction changes what the number means: the same 3/3
+would have been read as "effort repairs pointing" instead of "effort reduces variance", and only the
+repetition separates them. Phase 3's T4 lesson — one run is not a behavioural measurement — arriving
+on a different milestone through a different door.
+
+### RULING 3 — #15 IS A STRUCTURAL LIMIT OF THIS PROVIDER, NOT A DELIBERATION GAP
+
+**Recorded as MEASURED, with the evidence that distinguishes it from noise.** Eight consecutive
+MISSes across three effort levels, and the predictions CLUSTER TIGHTLY: the vertical axis is exactly
+right on the status-bar row, and the horizontal is displaced **~220 px to the RIGHT every single
+time**. Rendering the box shows it framing the encoding / line-ending segment while «Ln 30, Col 33»
+sits to its left. **And MORE effort displaces it FURTHER right, never less.**
+
+That is a **fixed wrong belief about which segment is the line-and-column indicator** — not
+uncertainty, not acuity, not a coin-flip. **No amount of thinking corrects a confident wrong belief**,
+and the monotonic drift under increasing effort is the evidence: an uncertain model given more
+deliberation converges toward the truth, while this one converges harder on its error. The vertical
+precision is what rules out acuity: it finds the right ROW to the pixel and picks the wrong CELL.
+
+### RULING 4 — THE CAPABILITY FLAG STAYS REQUIRED, IN A NARROWER FORM THAN ANYONE ASSUMED
+
+The flag was framed as "is this provider weak at pointing". **The measurement refuses that framing.**
+23 HIT of 25. XS PERFECT — it hit the 9x9 contribution square where the BASELINE scored a NEAR. The
+failure is confined to neighbour discrimination inside ONE bucket.
+
+**THE FLAG'S REAL CONTENT IS THE DEGRADATION MODE, NOT THE HIT COUNT.** The two providers score the
+same 23 hits. What differs is where the other two land:
+
+- **Claude falls to NEAR** — the box misses the element but still lands on or beside it, and **a human
+  reads a rectangle near the right thing correctly.** The pointing still teaches.
+- **This provider falls to MISS** — a tight, confident box around **the wrong element**, indistinguish-
+  able on screen from a correct one.
+
+**IN TEACHING MODE A CONFIDENT WRONG POINT IS WORSE THAN NO POINT.** A NEAR degrades the lesson; a
+MISS actively teaches the wrong thing, and the user has no way to tell — the rectangle looks exactly
+as certain either way. This is the same property DEC-67 rests on for evidence pointing: the kernel
+never synthesises a position, **because an invented position would render the ABSENCE of evidence AS
+evidence.** A confidently misplaced box is that failure arriving from the model rather than the
+kernel.
+
+**So a capability decision weighs the SHAPE of the failure, never its rate.** A provider that fails
+loudly, visibly or approximately is a different product from one that fails invisibly at the same
+rate — the recurring argument of DEC-11 (a loud 400), DEC-60 (a ledger that lies), DEC-88 ① (a
+silently half-ported catalogue), and now this.
+
+### WHAT IS NOT RULED HERE
+
+`pricing.py` is untouched, no adapter exists, no second provider is wired, and no capability flag is
+built. DEC-88's binding precondition stands: a cost model is MEASURED, never inherited. The dollar
+comparison behind the whole motive is Sultan's, on real published prices — the token delta is
+measured (about 5,361 total tokens per pointing turn at `high` against about 9,269), and this project
+does not convert that to money from memory.
+
+---

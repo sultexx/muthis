@@ -61,6 +61,28 @@ SENT_W, SENT_H = 1280, 720
 # delta assertion below would pass while proving nothing.
 BEFORE_SHA256 = "70a186e5b4ac12d94ba159fd5fb2e9a14812f4f8a7f0d1573345329988f4476d"
 
+# Text APPENDED to the persona AFTER DEC-84, pinned by its own hash.
+#
+# WHY THIS EXISTS RATHER THAN A RE-SNAPSHOT. DEC-84's two clause swaps rebuild
+# the persona exactly as it stood at that ruling. A law appended later is a
+# DIFFERENT change under its own delta pin, and there were only three ways to
+# absorb it: re-baseline `BEFORE_FILE` (forbidden — the docstring above says a
+# guard whose reference can be edited is checking nothing), fold the append into
+# `clauses` (which would misattribute a 2026-08-05 law to DEC-84's record), or
+# pin it separately. The third keeps attribution honest AND keeps the check
+# byte-total: the rebuild proves every byte up to the append point, this hash
+# proves every byte after it. Nothing is unpinned, so the guarantee is the same
+# one the `==` gave — only the accounting is now per-ruling.
+#
+# Contents: the identity law (2026-08-05) — Mut'his never identifies as any
+# vendor's model. Its own additive proof lives in test_persona_identity_law.py.
+# Verified before pinning, never pasted from a failure message: the tail was
+# printed verbatim and is 741 characters — the SAME delta length the identity
+# law's own prefix-hash proof measures independently — and contains that law and
+# nothing else.
+APPENDED_SINCE_DEC84_SHA256 = (
+    "c5a73861200c1708ff59504fe1af68afb8a18031c6af903316552371b01de41b")
+
 
 def _prompt() -> str:
     return resolve_system_prompt(LOOK_SYSTEM_PROMPT, SENT_W, SENT_H)
@@ -91,9 +113,19 @@ def test_the_prompt_differs_from_the_snapshot_by_EXACTLY_the_pinned_clauses():
             "delta no longer describes this change")
         rebuilt = rebuilt.replace(clause["old"], clause["new"])
 
-    assert rebuilt == _prompt(), (
+    live = _prompt()
+    assert live.startswith(rebuilt), (
         "the composed prompt is NOT the snapshot plus exactly these two clause "
         "swaps — something else in the persona changed and is unaccounted for")
+
+    # The remainder is laws APPENDED after DEC-84, pinned above. Between the two
+    # assertions every byte of the live prompt is accounted for, which is what
+    # the original equality guaranteed; an edit anywhere still fails one of them.
+    tail = live[len(rebuilt):]
+    assert hashlib.sha256(tail.encode()).hexdigest() == APPENDED_SINCE_DEC84_SHA256, (
+        "text appended to the persona after DEC-84 has changed and is "
+        "unaccounted for — update APPENDED_SINCE_DEC84_SHA256 deliberately, "
+        "together with the appending law's own additive proof")
 
 
 def test_no_unconditional_PER_PASS_ack_mandate_survives():
