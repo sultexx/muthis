@@ -46,44 +46,50 @@ def test_every_wrapping_the_model_may_add_normalizes_to_the_registry_key(receive
     assert _normalize_doc_id(received) == "lecture.pdf"
 
 
-def test_a_mangled_id_is_RECOVERED_when_exactly_one_document_is_open(caplog):
-    """The shape that failed live: the id does not match, one document is open,
-    so the answer must still be served — and the recovery must be VISIBLE."""
+def test_a_mangled_id_is_NOT_recovered_now_that_the_BINDING_replaces_it():
+    """RE-AIMED at DEC-71, not deleted (DEC-63's own K2–K5 lesson).
+
+    This used to assert that ONE open document RECOVERS a mangled id. That layer
+    existed because the model carried the id; it is retired with the round-trip.
+    The safety net now runs the other way: a residual caller supplying an id that
+    does not match REFUSES — even with exactly one document open, where the old
+    recovery would have masked it."""
     service = _service_with("lecture.pdf")
-    with caplog.at_level(logging.WARNING, logger="muthis.broker.docs.service"):
-        _passages, note = service.query("something-the-model-invented", "سؤال؟")
-    assert note != DOC_NOT_OPEN_AR, "the single open document was not recovered"
-    assert "RECOVERED MISMATCH" in caplog.text, "the recovery was silent"
-    # DEC-61: a doc_id IS the file's own name, so the VALUES never reach the log.
-    assert "lecture.pdf" not in caplog.text
-    assert "something-the-model-invented" not in caplog.text
+
+    _passages, note = service.query("سؤال؟", doc_id="something-the-model-invented")
+
+    assert note == DOC_NOT_OPEN_AR, "an unmatched id was guessed at"
 
 
 def test_a_mangled_id_is_NOT_guessed_when_two_documents_are_open():
-    """Here the ambiguity is REAL: guessing would answer questions about the
-    wrong document with no observable difference (the DEC-47 argument)."""
+    """DEC-63 layer 3, UNCHANGED and still the safety net: guessing would answer
+    about the wrong document with no observable difference."""
     service = _service_with("a.pdf", "b.pdf")
-    _passages, note = service.query("neither-of-them", "سؤال؟")
+    _passages, note = service.query("سؤال؟", doc_id="neither-of-them")
     assert note == DOC_NOT_OPEN_AR
 
 
 def test_nothing_open_still_returns_the_honest_note():
     service = _service_with()
-    _passages, note = service.query("anything", "سؤال؟")
+    _passages, note = service.query("سؤال؟", doc_id="anything")
     assert note == DOC_NOT_OPEN_AR
 
 
-def test_normalization_alone_resolves_a_wrapped_id_when_recovery_CANNOT_help():
-    """THE DISCRIMINATING TEST, added because a mutation survived without it.
+def test_a_query_with_NO_id_and_nothing_open_refuses_honestly():
+    """The model's ONLY path since v5. Nothing bound, so nothing to answer from —
+    and the note must send it to `open` rather than invite a retry."""
+    service = _service_with()
+    _passages, note = service.query("سؤال؟")
+    assert note == DOC_NOT_OPEN_AR
 
-    Removing the normalization survived the tests above: with ONE document open
-    the single-doc recovery caught every mangled id, so normalization was never
-    the thing under test. Two documents open disables recovery (the ambiguity is
-    real), so a guillemet-wrapped id can ONLY resolve through normalization —
-    and the mutation now goes RED. The M15 rule, applied: an unobservable
-    property is a fact about the test, not a licence to leave it unguarded."""
+
+def test_normalization_still_resolves_a_wrapped_id_on_the_RESIDUAL_path():
+    """The normalization survives for callers that still pass an id (tests, the
+    diag script). With TWO documents open there is no recovery to mask it, so a
+    guillemet-wrapped id can only resolve THROUGH normalization — which is what
+    keeps the mutation that deletes it RED."""
     service = _service_with("a.pdf", "b.pdf")
-    passages, note = service.query("«a.pdf»", "سؤال؟")
+    passages, note = service.query("سؤال؟", doc_id="«a.pdf»")
     assert note != DOC_NOT_OPEN_AR, (
-        "a wrapped id did not normalize; with two documents open the recovery "
-        "cannot mask it, so this is the normalization itself failing")
+        "a wrapped id did not normalize; with two documents open nothing can "
+        "mask it, so this is the normalization itself failing")

@@ -40,7 +40,7 @@ from muthis_plugins.doc_rag.delivery import (
     MAX_PASSAGE_CHARS, MIN_PASSAGE_CHARS, NOTHING_FOUND_AR, render, select,
 )
 from muthis_plugins.doc_rag.plugin import (
-    DocRagPlugin, EMPTY_DOC_ID_AR, EMPTY_PATH_AR, FULL_HEADER_AR, NO_SERVICE_AR,
+    DocRagPlugin, EMPTY_PATH_AR, FULL_HEADER_AR, NO_SERVICE_AR,
     UNKNOWN_TOOL_AR,
 )
 from muthis_sdk import PluginContext
@@ -217,7 +217,8 @@ class _Service:
             raise OSError("disk gone")
         return self._opened
 
-    def query(self, doc_id, question):
+    def query(self, question, doc_id=None):
+        self.seen_doc_id = doc_id
         return ([], self._note) if self._note else (self._passages, None)
 
 
@@ -235,14 +236,17 @@ def test_zone_1_hands_over_the_full_text_and_says_not_to_query_it():
     assert "ما تحتاج" in out.text_ar     # do not call query — it would cost a pass
 
 
-def test_zone_2_returns_the_doc_id_the_model_must_pass_back():
+def test_zone_2_names_NO_id_because_there_is_none_to_carry():
+    """RE-AIMED at DEC-71. This used to assert the note returns the id the model
+    must pass back — the round-trip that produced three live truncations. The note
+    now states that this document IS the one the query tool answers from."""
     plugin = DocRagPlugin(service=_Service(
         _Opened(zone="index", doc_id="lecture.pdf", pages=228, chunks=267)))
 
     out = _run(plugin, "open", {"path": "C:/x/lecture.pdf"})
 
-    assert "lecture.pdf" in out.text_ar and "267" in out.text_ar
-    assert "228 صفحة" in out.text_ar
+    assert "267" in out.text_ar and "228 صفحة" in out.text_ar
+    assert "lecture.pdf" not in out.text_ar, "the note still hands back an id"
 
 
 def test_a_pageless_document_gets_no_invented_page_count():
@@ -251,7 +255,7 @@ def test_a_pageless_document_gets_no_invented_page_count():
 
     out = _run(plugin, "open", {"path": "C:/x/notes.md"})
 
-    assert "صفحة" not in out.text_ar and "notes.md" in out.text_ar
+    assert "صفحة" not in out.text_ar and "notes.md" not in out.text_ar
 
 
 def test_a_refusal_is_passed_through_UNEDITED():
@@ -278,14 +282,26 @@ def test_the_plugin_never_raises_when_the_service_explodes():
 @pytest.mark.parametrize("tool,args,expected", [
     ("open", {}, EMPTY_PATH_AR),
     ("open", {"path": "   "}, EMPTY_PATH_AR),
-    ("query", {}, EMPTY_DOC_ID_AR),
-    ("query", {"doc_id": ""}, EMPTY_DOC_ID_AR),
     ("nonsense", {}, UNKNOWN_TOOL_AR),
 ])
 def test_bad_arguments_become_arabic_notes_never_exceptions(tool, args, expected):
     plugin = DocRagPlugin(service=_Service(_Opened()))
 
     assert _run(plugin, tool, args).text_ar == expected
+
+
+def test_the_plugin_VALIDATES_NOTHING_about_a_query_and_passes_it_through():
+    """DEC-71 moved the only argument a query had. The plugin now has nothing to
+    check — it forwards the question and forwards NO id, and the service owns the
+    empty-question refusal. Asserted directly so a future edit that re-adds a
+    plugin-side id check fails here."""
+    service = _Service(passages=[_p("نص", 0.9, "p1", page=1)])
+    plugin = DocRagPlugin(service=service)
+
+    out = _run(plugin, "query", {"question": "س"})
+
+    assert out.is_error is False
+    assert service.seen_doc_id is None, "the plugin invented a doc_id"
 
 
 def test_no_service_configured_is_an_ordinary_note_not_a_missing_tool():
@@ -295,7 +311,7 @@ def test_no_service_configured_is_an_ordinary_note_not_a_missing_tool():
     plugin = DocRagPlugin(service=None)
 
     assert _run(plugin, "open", {"path": "x"}).text_ar == NO_SERVICE_AR
-    assert _run(plugin, "query", {"doc_id": "x"}).text_ar == NO_SERVICE_AR
+    assert _run(plugin, "query", {"question": "س"}).text_ar == NO_SERVICE_AR
 
 
 def test_the_plugin_applies_the_delivery_rules_it_owns():
@@ -303,7 +319,7 @@ def test_the_plugin_applies_the_delivery_rules_it_owns():
         _p("الأفضل", 0.9, "p1", page=1), _p("شقيق أضعف", 0.5, "p1", page=1),
         _p("مصدر ثانٍ", 0.7, "p2", page=2)]))
 
-    out = _run(plugin, "query", {"doc_id": "d", "question": "س"})
+    out = _run(plugin, "query", {"question": "س"})
 
     assert "شقيق أضعف" not in out.text_ar, "the plugin did not dedupe by parent"
     assert out.text_ar.index("الأفضل") < out.text_ar.index("مصدر ثانٍ")
@@ -312,7 +328,7 @@ def test_the_plugin_applies_the_delivery_rules_it_owns():
 def test_a_service_note_is_surfaced_as_an_error_note():
     plugin = DocRagPlugin(service=_Service(note=DOC_NOT_OPEN_AR))
 
-    out = _run(plugin, "query", {"doc_id": "ghost", "question": "س"})
+    out = _run(plugin, "query", {"question": "س"})
 
     assert out.text_ar == DOC_NOT_OPEN_AR and out.is_error is True
 
@@ -345,7 +361,7 @@ def _index(n=3) -> SessionIndex:
 def test_querying_an_unopened_document_gets_its_OWN_note_not_not_found():
     """DEC-35 one layer up: "not found" would make the model retry the QUERY when
     what it needs is to OPEN the document first."""
-    passages, note = _service().query("ghost.pdf", "س")
+    passages, note = _service().query("س", doc_id="ghost.pdf")
 
     assert passages == [] and note == DOC_NOT_OPEN_AR
 
@@ -356,7 +372,7 @@ def test_an_empty_question_is_refused_before_the_encoder_is_touched():
             raise AssertionError("the encoder ran on an empty question")
 
     service = DocumentService(model_dir=pathlib.Path("."), encoder=_Boom())
-    passages, note = service.query("d", "   ")
+    passages, note = service.query("   ", doc_id="d")
 
     assert passages == [] and note == EMPTY_QUESTION_AR
 
@@ -371,7 +387,7 @@ def test_an_unavailable_encoder_becomes_a_note_not_an_exception():
     service = DocumentService(model_dir=pathlib.Path("."), registry=registry,
                               encoder=_Dead())
 
-    passages, note = service.query("d", "س")
+    passages, note = service.query("س", doc_id="d")
 
     assert passages == [] and note == notes.DOC_ENCODER_UNAVAILABLE_AR
 
@@ -381,7 +397,7 @@ def test_query_returns_ranked_passages_carrying_their_position():
     registry.put("d", _index())
     service = _service(registry=registry)
 
-    passages, note = service.query("d", "س")
+    passages, note = service.query("س", doc_id="d")
 
     assert note is None and len(passages) == 3
     assert all(p.parent and p.page for p in passages)

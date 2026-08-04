@@ -53,6 +53,15 @@ class FrameCapture:
         await asyncio.sleep(self._settle_s)
         sent = await self._downscale(await self._screen_capture())
         self._overlay.set_state("thinking")  # dot reappears (thinking) after the grab
+        # DEC-65 (T3): the mode indicator comes back too. It is the SECOND
+        # persistent element to survive a grab, and it survives it for the same
+        # reason and at the same instant as the dot — which is why persistence
+        # ACROSS TURNS costs one call here rather than a lifecycle of its own.
+        # Duck-typed like VoiceOut's caption seam, so stubs, old fakes and the
+        # `turn.Overlay` protocol are all untouched.
+        restore = getattr(self._overlay, "restore_mode_indicator", None)
+        if restore is not None:
+            restore()
         result.sent_width, result.sent_height = sent.sent_width, sent.sent_height
         result.scale_x, result.scale_y = sent.scale_x, sent.scale_y
         return sent.sent_bytes

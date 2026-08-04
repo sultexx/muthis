@@ -38,7 +38,40 @@ ExecFn = Callable[..., Awaitable[Any]]
 StageGateFn = Callable[[str, bytes], Optional[str]]
 
 # Model-facing Arabic notes (logs stay English).
-DOCKER_UNAVAILABLE_AR = "تعذّر تشغيل الصندوق المعزول — خدمة Docker غير متاحة الآن."
+#
+# THE TERMINALITY NOTE (the voice-surface pass). MEASURED LIVE: with Docker down
+# the model spent the WHOLE SandboxGate budget — three `docker create` calls at
+# rc=1 in one turn, ~$0.12 — because the old text ("خدمة Docker غير متاحة الآن")
+# reported only what did NOT happen, and the word «الآن» actively read as
+# TRANSIENT. Retrying is what a competent agentic model does with an unexplained
+# failure, and the agentic loop exists to retry.
+#
+# So this note carries the standing note law's three obligations (AGENTS.md,
+# 2026-07-30; ruled in DEC-58): (1) the STATE ACHIEVED — nothing was built, run
+# or changed, which also stops the model reasoning about partial state; (2)
+# TERMINAL, said in those words and closing the attempt, with the reason it
+# cannot be retried away; (3) the VALID NEXT STEP, named — because "do not do X"
+# leaves a model with no sanctioned move and the helpful move is the wrong one.
+#
+# It is an INTERNAL DIRECTIVE (the «توجيه داخلي» family, the SandboxGate note's
+# shape) so the model obeys it and never reads it aloud.
+#
+# PRECISION, because the honest answer is not simply "terminal": the condition is
+# terminal FOR RETRYING — no further attempt this turn can succeed — while the
+# thing that changes it is a USER action, not a model action. The note says
+# exactly that instead of claiming Docker is permanently gone.
+#
+# THIS IS A MESSAGE CHANGE, NOT A GATE CHANGE (Sultan's ruling, and the DEC-42 /
+# DEC-55-ruling-2 discipline): `SandboxGate` still allows ≤3 runs per turn, and
+# no bound, cap or limit moved to make this note easier to write.
+DOCKER_UNAVAILABLE_AR = (
+    "توجيه داخلي (لا يراه المستخدم): ما نُفِّذ شي — خدمة Docker غير مشغّلة على "
+    "جهاز المستخدم، فما انبنى صندوق ولا شُغِّل الكود ولا تغيّر عنده أي شيء. "
+    "وهذه حالة نهائية في هذه الجولة ولا تُصلَح بإعادة المحاولة: لا تُشغّل الكود "
+    "مرة ثانية الآن، لأن كل محاولة تالية تفشل بنفس السبب بالضبط. بدل المحاولة: "
+    "خبّر المستخدم أن Docker غير مشغّل عنده وأنه يشغّله ثم يعيد طلبه، واشرح له "
+    "الكود ووش المتوقّع يطلع منه بالكلام بدون تشغيل."
+)
 TIMEOUT_AR = "تجاوز التشغيل المهلة المحدّدة فأوقفته."
 FILES_TOO_LARGE_AR = "الملفات المرفقة أكبر من الحد المسموح (١ ميغابايت)."
 BAD_LANGUAGE_AR = "هذه اللغة غير مدعومة في الصندوق."

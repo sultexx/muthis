@@ -34,3 +34,12 @@ grants.json
 # plugins.d: real registrations are per-machine; samples/README are committed
 plugins.d/*.toml
 !plugins.d/*.toml.sample
+
+# Stray installers / large binaries (never source)
+*.exe
+
+# Live-SOP artefacts (T7). diag_navigator.py writes the frame it actually sent
+# to the provider so the mode chip can be checked for ABSENCE by eye. It is
+# evidence for one run, never source -- and a screenshot of the real desktop
+# is exactly the thing the corpus discipline keeps out of the repo.
+diag_navigator_sent_frame.png

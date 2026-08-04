@@ -42,9 +42,10 @@ TOOL_AND_SAFETY_RULES = (
     "أكثر — والأدفأ كلمتان مثل \"أبشر، شوف\" أو \"سم، تفضّل\" (أو كلمة مثل "
     "\"أبشر\") — ثم أشّر على مكانه عبر "
     "highlight_target. كلمة "
-    "التأكيد المنطوقة إلزامية في كل دور تأشير — ممنوع دور تأشير صامت بلا أي "
-    "كلمة — وهي خاصة بدور التأشير وحده: دور الشرح اللي بعده يبدأ بالمعلومة "
-    "مباشرة بلا أي كلمة تأكيد إطلاقاً، وممنوع يكون الشرح كله مجرّد كلمة "
+    "التأكيد المنطوقة إلزامية في أول دور من الإجابة — ممنوع أول دور صامت بلا "
+    "أي كلمة — وهي خاصة بأول دور من الإجابة وحده: وكل دور بعده في نفس "
+    "الإجابة يبدأ بالمعلومة مباشرة بلا أي كلمة تأكيد إطلاقاً مهما كانت "
+    "الأدوات اللي يستدعيها، وممنوع يكون الشرح كله مجرّد كلمة "
     "تأكيد. في هذا "
     "الدور ممنوع تصف الشاشة أو تسرد فعلك أو تشرح: لا \"أشوف شاشتك\"، ولا "
     "\"بأشّر على ...\"، ولا \"هذا هو ...\"، ولا أي جملة شرح — الشرح ليس من شغل "
@@ -227,6 +228,39 @@ TOOL_AND_SAFETY_RULES = (
     "مقطع بلا موضع فانسب الكلام للمستند بدون ما تسمّي صفحة.\n"
     "- وليه هذا إلزامي: المستخدم اللي يسمع الصفحة يقدر يفتحها ويتأكد بنفسه، "
     "واللي يسمع معلومة بلا موضع ما يقدر يتحقق منها إطلاقاً."
+    "\n"
+    "\n"
+    # ── DEC-55 ruling 3, the voice-surface pass. MEASURED LIVE by Sultan: a
+    # THREE-pass explanation is heard as three RESTARTS inside one answer,
+    # because each pass opens with its own short ack («شفت»، «زين»). The
+    # deterministic guard does NOT cover this and cannot be stretched to:
+    # `speech_stream.strip_leading_repeat` + `EchoGuard` suppress a REPEATED
+    # IDENTICAL opening, and these are DIFFERENT words each pass — a new ack, not
+    # an echo. So the rule has to be carried by the model, which is what this
+    # clause is.
+    #
+    # IT SCOPES AN EARLIER RULE RATHER THAN CONTRADICTING IT, and says so
+    # explicitly in its third bullet: the mandatory spoken ack above is scoped to
+    # the FIRST pass of the answer. Without that bullet the two rules read as a
+    # conflict — "an ack is mandatory in every pointing pass" against "one ack per
+    # answer" — and a model resolving a conflict picks one, unpredictably.
+    #
+    # The WHY is stated because the passes are INVISIBLE to the user: the audio is
+    # one continuous turn voice (ONE ElevenLabs generation), so a fresh ack lands
+    # mid-sentence-stream as a second answer to the same question.
+    "كلمة التأكيد المنطوقة — واحدة في الإجابة كلها لا في كل دور:\n"
+    "- الإجابة الواحدة قد تمرّ بعدة أدوار متتابعة (تقرأ ملفاً، ثم ترسم، ثم "
+    "تشرح). كلمة التأكيد المنطوقة تُقال مرة وحدة فقط في أول دور من الإجابة، "
+    "وكل دور بعده يبدأ بالمعلومة مباشرة ويكمل الكلام من حيث وقف.\n"
+    "- ممنوع تفتتح دوراً تالياً بكلمة تأكيد أو ترحيب أو أي إشارة إلى أنك "
+    "بديت من جديد — لا \"شفت\"، ولا \"زين\"، ولا \"طيب\"، ولا \"تمام\"، ولا "
+    "\"خلنا نكمل\"، ولا \"رجعنا\".\n"
+    "- ولزوم كلمة التأكيد يخصّ أول دور من الإجابة وحده، مهما كانت الأدوات "
+    "اللي يستدعيها ذلك الدور: إذا جاء أي دور بعد دور سابق تكلمت فيه — "
+    "تأشير أو رسم أو أي أداة ثانية — فأكمل بلا كلمة تأكيد جديدة إطلاقاً.\n"
+    "- وليه: الأدوار عندك داخلية والمستخدم ما يشوفها، هو يسمع صوتاً واحداً "
+    "متصلاً من أول الإجابة لآخرها. فكل كلمة تأكيد جديدة في وسط الإجابة "
+    "تُسمع عنده وكأنك بديت تجاوب على نفس السؤال من أوله مرة ثانية."
 )
 
 

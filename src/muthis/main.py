@@ -57,10 +57,11 @@ from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
     _build_broker_graph, _build_doc_rag, _build_orchestrator, _build_sandbox,
     _log_docker_fallback_decision, _pointer_anim_ms, _size_sent_image,
-    mount_doc_rag, mount_web_research,
+    mount_doc_rag, mount_navigator, mount_web_research,
 )
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
+from muthis_plugins.navigator import NavigatorPlugin  # noqa: E402
 from muthis_plugins.sandbox_exec import SandboxExecPlugin  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .logging_policy import configure_logging  # noqa: E402
@@ -117,6 +118,13 @@ async def run() -> None:
     # takes the pointer ack and hard-terminates the turn.
     doc_service, doc_plugin = _build_doc_rag()
     mount_doc_rag(router, doc_plugin)
+    # Phase 3 (T4): navigator__plan + navigator__step join the catalog — the
+    # FIFTH model-visible change (v6), and the first that EXTENDS again after
+    # v5's revision. Mounted AFTER the doc tools so the diff stays additive,
+    # and AFTER the servicing branch + the answer-by-name arm landed, which
+    # is DEC-39's REQUIREMENT: a mounted-but-unserviced tool takes the
+    # POINTER ack and hard-terminates the turn.
+    mount_navigator(router, NavigatorPlugin())
     model_tools = [descriptor.schema for descriptor in router.descriptors()]
     _log_docker_fallback_decision()
 

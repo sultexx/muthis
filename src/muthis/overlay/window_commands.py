@@ -22,7 +22,7 @@ def _bbox_center(bbox: tuple[int, int, int, int]) -> tuple[int, int]:
 
 def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
                      status=None, caption=None, dimmer=None, badge=None,
-                     spotlight_on=True) -> bool:
+                     mode=None, spotlight_on=True) -> bool:
     """Apply one overlay command to the view objects. Returns False iff the
     overlay should stop ("close"), True otherwise.
 
@@ -94,6 +94,15 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
     elif action == "show_domain_badge":  # DEC-20: the attribution backstop
         if badge is not None:
             badge.show(command[1])
+    elif action == "show_mode_indicator":  # DEC-65 (T3): the kernel's own frame
+        if mode is not None:
+            mode.show(command[1])
+    elif action == "restore_mode_indicator":
+        # The cross-turn half: redraw what the ghosting hide erased. Sent from
+        # the ONE hide->settle->capture chokepoint, right where the status dot
+        # is already relit after a grab.
+        if mode is not None:
+            mode.restore()
     elif action == "clear_caption":
         if caption is not None:
             caption.clear()
@@ -101,6 +110,11 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
         # the same command, so there is no second lifecycle to fall out of step.
         if badge is not None:
             badge.clear()
+        # THE MODE INDICATOR DELIBERATELY DOES **NOT** (DEC-65/DEC-73's carried
+        # caveat). The badge's per-turn lifetime is free BECAUSE this fires at
+        # end of turn — and that is exactly why the arrangement does not
+        # transfer to an element that must SURVIVE ACROSS TURNS. Written as an
+        # explicit non-branch so a reader sees a decision, not an omission.
     elif action == "hide":
         # Ghosting path: kill any in-flight glide and clear the pointer, the
         # rectangle, the shapes AND the caption bar, so no frame — and no
@@ -114,6 +128,8 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
             caption.clear()
         if badge is not None:  # ghosting covers the badge too — Claude must
             badge.clear()      # never see the sources it was shown last turn
+        if mode is not None:   # ghosting covers the indicator too; its text is
+            mode.clear()       # REMEMBERED, and restored after the grab
         if dimmer is not None:  # ghosting: a capture never sees a dimmed screen
             dimmer.hide()
     return True

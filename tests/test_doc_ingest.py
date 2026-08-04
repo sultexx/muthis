@@ -39,7 +39,7 @@ from muthis.broker.docs.chunking import ChunkWindowExceeded
 from muthis.broker.docs.encoder import EncoderUnavailable
 from muthis.broker.docs.extract import NoTextLayer, UnsupportedDocument
 from muthis.broker.docs.ingest import DocumentIngestor, IngestOutcome
-from muthis.broker.docs.zones import DocZone, ZonePolicy
+from muthis.broker.docs.zones import PER_CHUNK_ENCODE_MS, DocZone, ZonePolicy
 
 
 # ---------------------------------------------------------------------------
@@ -227,6 +227,29 @@ async def test_the_zone_3_refusal_STATES_the_size_and_the_limit():
 
 
 @pytest.mark.asyncio
+async def test_the_zone_3_refusal_CARRIES_THE_THREE_OBLIGATIONS():
+    """The standing rule of 2026-07-30, driven rather than trusted.
+
+    DEC-72 made this load-bearing: lowering the ceiling moved ~900-2,000-page
+    documents into this note, so a bigger band of documents now depends on it not
+    producing the retry loop DEC-35 measured at four provider calls and ~$0.10.
+    A note that reports only what did NOT happen is exactly what causes that."""
+    note = (await _ingestor(_blocks(3_000_000)).ingest(DOC)).note_ar
+
+    # (1) WHAT WAS ACCOMPLISHED — opened and read, and nothing indexed. Both
+    #     halves: "I read it" alone would invite a re-open, "I indexed nothing"
+    #     alone reads as a crash.
+    assert "فتحت المستند" in note and "قرأت نصه" in note
+    assert "ما فهرست منه شي" in note
+    # (2) TERMINAL for this file whole — and it must say so as an INSTRUCTION, not
+    #     as a fact the model has to infer.
+    assert "لا ترسله مرة أخرى" in note
+    # (3) THE VALID NEXT STEP, named and available now — the vision path DEC-47
+    #     requires is asserted by its own test above.
+    assert "تشتغل الآن" in note
+
+
+@pytest.mark.asyncio
 async def test_the_SECOND_gate_refuses_an_under_estimated_document_before_encoding():
     """The estimate is an upper bound, not a proof. If a document slips through the
     first gate, the true chunk count catches it — and `encode_passages` is never
@@ -235,7 +258,10 @@ async def test_the_SECOND_gate_refuses_an_under_estimated_document_before_encodi
     # A budget that pays for 2 chunks. 2_000 chars ESTIMATE to 716 tokens, which is
     # inside this policy's 760-token maximum — so gate 1 admits the document. Its
     # dense tokenizer then yields far more than 2 chunks, and gate 2 refuses it.
-    tiny = ZonePolicy(inject_limit=10, budget_seconds=2 * 30.2 / 1000.0)
+    # Sized from the constant in force, never a literal copy of it (DEC-72: a
+    # second hard-coded encode time is how a superseded figure survives a fix).
+    tiny = ZonePolicy(inject_limit=10,
+                      budget_seconds=2 * PER_CHUNK_ENCODE_MS / 1000.0)
     assert tiny.max_chunks == 2 and tiny.max_tokens == 760
 
     out = await _ingestor(_blocks(2_000), factory=lambda: spy,

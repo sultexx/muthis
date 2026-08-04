@@ -64,10 +64,6 @@ EMPTY_PATH_AR = (
     "ما وصلني مسار مستند، فما فُتح شي وما صار خطأ. اسأل المستخدم عن المسار "
     "الكامل للملف ثم أعد المحاولة."
 )
-EMPTY_DOC_ID_AR = (
-    "ما وصلني معرّف مستند، فما تغيّر شي. افتح المستند أول بأداة الفتح، وبعدها "
-    "اسأل عنه بالمعرّف اللي أعطيك إياه."
-)
 OPEN_FAILED_AR = (
     "ما قدرت أفتح المستند وما صار له فهرسة. تأكد من المسار مع المستخدم، أو "
     "اطلب منه يفتح الملف على الشاشة وأنا أشرح لك منه."
@@ -85,11 +81,14 @@ FULL_HEADER_AR = (
     "عندك كل المحتوى، فما تحتاج تسأل عنه بأداة الاستعلام:"
 )
 
-# Zone 2 — indexed. Tells the model the ONE thing it must do next, and names the
-# id, because an id it has to infer is an id it will get wrong.
+# Zone 2 — indexed. DEC-71: it names NO id, because there is none to carry. The
+# document just opened IS the one the query tool answers from, so the note states
+# that fact rather than handing over a string the model must re-emit. Three live
+# truncations came from re-emitting one.
 INDEXED_AR = (
-    "فهرست المستند «{doc_id}» ({chunks} مقطع{pages}). اسألني عن أي شي فيه بأداة "
-    "الاستعلام مع هذا المعرّف بالضبط."
+    "فهرست المستند ({chunks} مقطع{pages}) وهو الآن المستند المفتوح عندي. "
+    "اسألني عن أي شي فيه بأداة الاستعلام مباشرة — ما تحتاج تعطيني اسمه ولا "
+    "معرّفه، وإذا بغيت مستنداً ثانياً افتحه بأداة الفتح وصار هو المقصود."
 )
 
 
@@ -148,17 +147,21 @@ class DocRagPlugin(ToolPlugin):
         if text:
             return ToolResult(text_ar=f"{FULL_HEADER_AR}\n{text}")
         return ToolResult(text_ar=INDEXED_AR.format(
-            doc_id=getattr(opened, "doc_id", ""),
             chunks=getattr(opened, "chunks", 0),
             pages=_pages_clause(getattr(opened, "pages", None))))
 
     # ───────────────────────────── query ─────────────────────────────────────
 
     def _query(self, args: dict[str, Any]) -> ToolResult:
+        # DEC-71: the model carries NO document identifier. The broker binds the
+        # query to the document `open` last indexed, so there is nothing here to
+        # extract, re-emit or paraphrase. A `doc_id` arriving from an older caller
+        # is passed through and still checked against the registry (DEC-63 layer
+        # 3 refuses an unmatched one); the model has no way to supply it, because
+        # the v5 schema does not offer the field.
         doc_id = args.get("doc_id")
-        if not isinstance(doc_id, str) or not doc_id.strip():
-            return ToolResult(text_ar=EMPTY_DOC_ID_AR, is_error=True)
-        passages, note = self._service.query(doc_id.strip(), args.get("question"))
+        doc_id = doc_id.strip() if isinstance(doc_id, str) and doc_id.strip() else None
+        passages, note = self._service.query(args.get("question"), doc_id=doc_id)
         if note is not None:
             return ToolResult(text_ar=note, is_error=True)
         # THE TWO SURVIVING DEC-46 RULES, applied here because DEC-46 assigns
@@ -176,7 +179,7 @@ def _pages_clause(pages: Optional[int]) -> str:
 
 
 __all__ = [
-    "DocRagPlugin", "EMPTY_DOC_ID_AR", "EMPTY_PATH_AR", "FULL_HEADER_AR",
+    "DocRagPlugin", "EMPTY_PATH_AR", "FULL_HEADER_AR",
     "INDEXED_AR", "NO_SERVICE_AR", "OPEN_FAILED_AR", "OPEN_TOOL", "QUERY_TOOL",
     "UNKNOWN_TOOL_AR",
 ]

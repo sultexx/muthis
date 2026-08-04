@@ -35,7 +35,7 @@ from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
                      stub_screen_capture, stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .frame_capture import FrameCapture
-from .highlight_gate import INTERRUPTED_NOTE_AR, HighlightGate
+from .highlight_gate import HighlightGate
 from .interrupt_hooks import InterruptHooks
 from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
@@ -45,6 +45,8 @@ from .turn import (
     TurnResult, build_tool_result_message, strip_images_from_history,
 )
 from ..overlay_autohide import AutoHideController, DEFAULT_OVERLAY_TIMEOUT_S
+from .session_mode import SessionMode
+from .turn_prelude import TurnPrelude
 from .verbosity import VerbosityController
 from ..voice_out import VoiceOut
 
@@ -90,6 +92,7 @@ class Orchestrator:
         session_timeout_s: float = SESSION_TIMEOUT_S,
         overlay_timeout_s: float = DEFAULT_OVERLAY_TIMEOUT_S,
         verbosity: Optional[VerbosityController] = None,
+        session_mode: Optional[SessionMode] = None,
         stream_tts: Optional[bool] = None,
         speech_session_factory: Optional[Callable[[], object]] = None,
     ) -> None:
@@ -101,9 +104,11 @@ class Orchestrator:
         # The spoken surfaces (privacy boundary + status choreography + budget
         # refusal) live in voice_out.py — the ≤300-line split, like highlight_gate.
         self._voice = VoiceOut(tts, overlay)
-        # Verbosity state lives ACROSS turns (sticky SHORT/DETAILED) — a real
-        # default like the other seams, so main.py needs no wiring (v5 B3).
-        self._verbosity = verbosity or VerbosityController()
+        # Every kernel-owned directive that decorates the raw transcript lives
+        # in ONE object (DEC-73 split 2): verbosity, the barge-in note, and — as
+        # of T1 — DEC-65's injected mode frame. Held ACROSS turns; the rationale
+        # moved WITH the code rather than being compressed out of it (DEC-30).
+        self._prelude = TurnPrelude(verbosity=verbosity, session_mode=session_mode)
         self._session_timeout_s = session_timeout_s
         self._auto_hide = AutoHideController(self._overlay, overlay_timeout_s)
         # The hide→settle→capture chokepoint lives in frame_capture.py — the
@@ -119,6 +124,7 @@ class Orchestrator:
             read_file=read_file,  # v7 Phase 4: the read_local_file seam
             router=router,  # V2 Phase 1: the ONE injected seam (roadmap §1)
             sandbox=sandbox,  # V2 Phase 2 (T5): the run_code servicer
+            prelude=self._prelude,  # T4: the mode frame + its ONE authority
         )
         # Barge-in (v7 Phase 3): the live turn's voice + the next-turn note flag.
         self._active_turn_voice = None
@@ -180,13 +186,9 @@ class Orchestrator:
     async def run_turn(self, user_text: str) -> TurnResult:
         """Execute one full (stubbed) turn. Never raises on timeout — the
         TurnResult reports what happened. Cancellation propagates normally."""
-        # Verbosity (option A): detect a voice command in the RAW transcript,
-        # then attach the internal directive ONCE per utterance — never on the
-        # agentic loop's continuations or the refresh follow-up.
-        user_text = self._verbosity.begin_turn(user_text)
-        if self._interrupted_last_turn:  # barge-in context (v7 Phase 3)
-            self._interrupted_last_turn = False
-            user_text = f"{INTERRUPTED_NOTE_AR}\n{user_text}"
+        user_text = self._prelude.begin_turn(
+            user_text, interrupted=self._interrupted_last_turn)
+        self._interrupted_last_turn = False
         result = TurnResult()
         # Per-turn state (fresh by construction): the draw gate and the ONE
         # continuous speech generation every pass feeds into (v7). The gate is
@@ -227,9 +229,7 @@ class Orchestrator:
             finally:
                 self._active_turn_voice = None  # the barge-in window closes here
         self.history = strip_images_from_history(self.history)  # Bug 3: drop stale frame
-        # Verbosity decay (B4): EXACT is one-shot per WHOLE utterance — decaying
-        # any earlier would strip it before the tool_choice="none" explain pass.
-        self._verbosity.end_turn()
+        self._prelude.end_turn()   # decay whatever is one-shot (B4)
         return result
 
     # ───────────────────────── Turn pipeline ─────────────────────────
@@ -250,7 +250,7 @@ class Orchestrator:
                 await self._voice.refuse_for_budget(
                     result, self._budget, speak=turn_voice.speak_or_feed)
                 return
-            turn_complete, refresh_call, read_result, run_result = await self._pass.consume(
+            turn_complete, refresh_call, serviced = await self._pass.consume(
                 user_input, screenshot, list(self.history),
                 self._highlight_gate, result, turn_voice)
             if turn_complete is None:                    # stream died, no TurnComplete
@@ -272,7 +272,7 @@ class Orchestrator:
             fresh = await self._frames.capture(result) if serviced_refresh else None
             pairing = build_tool_result_message(
                 turn_complete.assistant_content, refresh_call, fresh,
-                self._highlight_gate, read_result, run_result)
+                self._highlight_gate, serviced)
             if pairing is not None:
                 self.history.append(pairing)
             refresh_used += int(serviced_refresh)

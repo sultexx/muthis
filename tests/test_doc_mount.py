@@ -47,6 +47,7 @@ from muthis_plugins.web_research.plugin import WebResearchPlugin
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 V3_SNAPSHOT = pathlib.Path(__file__).parent / "snapshots" / "look_tools_v3.json"
 V4_SNAPSHOT = pathlib.Path(__file__).parent / "snapshots" / "look_tools_v4.json"
+V5_SNAPSHOT = pathlib.Path(__file__).parent / "snapshots" / "look_tools_v5.json"
 MAIN_PY = ROOT / "src" / "muthis" / "main.py"
 
 
@@ -172,7 +173,7 @@ def test_the_root_clears_the_document_index_at_shutdown():
 
 # ═══ CATALOG v4 — byte-pinned, purely additive ═══════════════════════════════
 
-def test_v4_catalog_byte_pins_the_doc_tools():
+def test_v5_catalog_byte_pins_the_doc_tools():
     """T4 — the FOURTH model-visible change (V1 four → v2 sandbox → v3 web → v4
     docs). Byte-pinned to look_tools_v4.json; v1/v2/v3 stay historical anchors.
 
@@ -182,8 +183,8 @@ def test_v4_catalog_byte_pins_the_doc_tools():
     catalog = [d.schema for d in _v4_router().descriptors()]
     canonical = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
 
-    assert canonical.encode("utf-8") == V4_SNAPSHOT.read_bytes(), (
-        "the v4 catalog drifted from look_tools_v4.json — a model-visible change; "
+    assert canonical.encode("utf-8") == V5_SNAPSHOT.read_bytes(), (
+        "the v5 catalog drifted from look_tools_v5.json — a model-visible change; "
         "revert the schema edit or re-approve the snapshot")
     assert [t["name"] for t in catalog] == [
         "highlight_target", "draw_shapes", "request_screen_refresh",
@@ -191,12 +192,47 @@ def test_v4_catalog_byte_pins_the_doc_tools():
         DOC_OPEN_TOOL, DOC_QUERY_TOOL]
 
 
-def test_v4_EXTENDS_v3_and_never_rewrites_it():
-    catalog = [d.schema for d in _v4_router().descriptors()]
-    v3 = json.loads(V3_SNAPSHOT.read_text(encoding="utf-8"))
+def test_v5_is_the_FIRST_catalog_change_that_REVISES_rather_than_EXTENDS():
+    """v2, v3 and v4 each APPENDED tools and left every earlier schema
+    byte-identical, and their tests asserted exactly that. v5 cannot: DEC-71
+    REMOVES a field from an existing tool.
 
-    assert catalog[:len(v3)] == v3, "v4 must extend v3, never rewrite it"
-    assert len(catalog) == len(v3) + 2
+    So the guard changes SHAPE rather than being deleted -- it now pins the BLAST
+    RADIUS. The seven tools that predate `doc_rag` must still be byte-identical to
+    v4, and the revision must be confined to the two doc tools. A schema edit that
+    reached `highlight_target` or `web__fetch` fails here."""
+    catalog = [d.schema for d in _v4_router().descriptors()]
+    v4 = json.loads(V4_SNAPSHOT.read_text(encoding="utf-8"))
+
+    assert len(catalog) == len(v4) == 9, "v5 adds and removes no TOOL"
+    assert catalog[:7] == v4[:7], (
+        "a v5 edit reached a tool that predates doc_rag -- the revision must be "
+        "confined to docs__open and docs__query")
+    changed = [t["name"] for t, o in zip(catalog, v4) if t != o]
+    assert changed == [DOC_OPEN_TOOL, DOC_QUERY_TOOL], (
+        f"unexpected revision set: {changed}")
+
+
+def test_v4_still_EXTENDS_v3_as_a_historical_anchor():
+    """v4 remains a frozen historical record. Two anchors at different depths
+    cannot both be re-based by accident (the DEC-57 method)."""
+    v3 = json.loads(V3_SNAPSHOT.read_text(encoding="utf-8"))
+    v4 = json.loads(V4_SNAPSHOT.read_text(encoding="utf-8"))
+
+    assert v4[:len(v3)] == v3 and len(v4) == len(v3) + 2
+
+
+def test_doc_id_is_GONE_from_the_model_facing_query_schema():
+    """THE POINT OF DEC-71, asserted against what the MODEL is actually offered.
+    A field the schema does not declare is a field the model cannot send, which is
+    what REMOVES the round-trip rather than shrinking it."""
+    catalog = {t["name"]: t for t in
+               (d.schema for d in _v4_router().descriptors())}
+    query = catalog[DOC_QUERY_TOOL]["input_schema"]
+
+    assert "doc_id" not in query["properties"], "doc_id is still offered"
+    assert query["required"] == ["question"]
+    assert "doc_id" not in json.dumps(catalog[DOC_OPEN_TOOL], ensure_ascii=False)
 
 
 def test_the_v4_catalog_holds_the_descriptor_cap():

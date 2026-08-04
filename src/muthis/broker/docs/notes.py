@@ -46,14 +46,29 @@ BAN: the output surface is TTS and a captions bar, never a renderer).
 from __future__ import annotations
 
 # ── Zone 3: too large to index. The refusal DEC-47 designed. ─────────────────
-# States the size honestly, then the three paths, strongest last so it is the one
-# the model most likely repeats.
+# THE THREE OBLIGATIONS (the standing rule of 2026-07-30), each earned here:
+#   1. WHAT WAS ACCOMPLISHED — the file WAS opened and its text read, and NOTHING
+#      was indexed. Without this the model cannot tell a refusal from a crash, and
+#      "ask about a section" reads as a fresh start rather than as the next step on
+#      a document already open. WORDED TO BE TRUE AT BOTH CALL SITES: the up-front
+#      estimate and the exact second gate. The second one has already chunked and
+#      loaded the encoder, so this claims only what holds for both — read, sized,
+#      not one vector computed. A note is not exempt from the accuracy it demands.
+#   2. TERMINAL OR TRANSIENT — terminal FOR THIS FILE WHOLE, and transient for
+#      everything else: re-sending the same file gets the same answer, so the note
+#      says not to. This became load-bearing at DEC-72, which lowered the ceiling
+#      and moved ~900-2,000-page documents into this note; a bigger refused band
+#      means more chances for the retry loop DEC-35 measured at ~$0.10 a go.
+#   3. THE VALID NEXT STEP — the three paths, strongest last so it is the one the
+#      model most likely repeats. The size is stated because a refusal the user
+#      cannot check is a refusal the user cannot trust.
 DOC_TOO_LARGE_AR = (
-    "المستند أكبر من طاقتي على الفهرسة — قدّرته بحوالي {tokens} توكن والحد عندي "
-    "{limit} توكن، وفهرسته كاملة تتجاوز الوقت المتاح. عندك ثلاث طرق: اسألني عن "
-    "قسم محدد أو فصل معيّن وأنا أقرأه لك، أو قسّم الملف لملفات أصغر وافتح واحد "
-    "منها، أو — وهذي أقواها — افتح الملف على الشاشة وأنا أشرح لك منه وأشير على "
-    "السطر نفسه بينما تقرأ."
+    "فتحت المستند وقرأت نصه وحسبت حجمه: حوالي {tokens} توكن والحد عندي {limit} "
+    "توكن، وفهرسته كاملة تتجاوز الوقت المتاح — فما فهرست منه شي، ووقفت قبل ما "
+    "أبدأ. هذا الحد ثابت لهذا الملف كامل، فلا ترسله مرة أخرى كما هو لأن النتيجة "
+    "بتكون نفسها. عندك ثلاث طرق تشتغل الآن: اسألني عن قسم محدد أو فصل معيّن وأنا "
+    "أقرأه لك، أو قسّم الملف لملفات أصغر وافتح واحد منها، أو — وهذي أقواها — "
+    "افتح الملف على الشاشة وأنا أشرح لك منه وأشير على السطر نفسه بينما تقرأ."
 )
 
 # ── The two PDF/format conditions DEC-35 requires to differ ──────────────────
@@ -109,6 +124,33 @@ DOC_READ_FAILED_AR = (
 )
 
 
+# The SAME failure, but with a cause we can NAME and an action that fixes it.
+# Live evidence: the model sent a percent-encoded path (`.../My%20Documents/...`),
+# nothing existed there, and it read the generic note above — which is true and
+# useless, because "check the path" does not tell a model that `%20` is a space.
+# The three obligations, each earned: what happened (BOTH forms tried, nothing
+# opened, no index), that repeating THIS spelling is terminal, and the one action
+# — ask the user for the path as the file explorer shows it.
+DOC_PATH_URL_ENCODED_AR = (
+    "ما قدرت أفتح المستند: المسار اللي وصلني مكتوب بترميز الروابط — فيه علامة "
+    "٪ ومعها رقمان، مثل 20% بدل المسافة. جرّبته كما وصلني، ثم جرّبته بعد فك "
+    "الترميز، وما فُتح شي في الحالتين وما صارت فهرسة ولا تغيّر شي. لا تعيد "
+    "إرسال نفس المسار بنفس الصيغة، فالنتيجة بتكون نفسها: اطلب من المستخدم "
+    "المسار كما يظهر له في مستكشف الملفات بمسافات عادية، أو خلّه يفتح الملف "
+    "على الشاشة وأنا أشرح لك منه وأشير على المكان اللي تسأل عنه."
+)
+
+
+def read_failed(*, url_encoded: bool = False) -> str:
+    """The open-failed refusal, NAMING the url-encoding when that is the cause.
+
+    Two notes rather than one for DEC-35's reason exactly: a refusal that
+    misreports its reason turns a fixable condition into a blind retry, and
+    "check the path" and "the path is url-encoded, ask for it unencoded" are
+    different instructions producing different next moves."""
+    return DOC_PATH_URL_ENCODED_AR if url_encoded else DOC_READ_FAILED_AR
+
+
 def too_large(tokens: int, limit: int) -> str:
     """The zone-3 refusal, carrying the two numbers that justify it.
 
@@ -128,6 +170,7 @@ def unsupported(suffix: str) -> str:
 
 __all__ = [
     "DOC_CHUNK_FAILED_AR", "DOC_EMPTY_AR", "DOC_ENCODER_UNAVAILABLE_AR",
-    "DOC_READ_FAILED_AR", "DOC_TOO_LARGE_AR", "DOC_UNSUPPORTED_AR",
-    "PDF_SCANNED_AR", "too_large", "unsupported",
+    "DOC_PATH_URL_ENCODED_AR", "DOC_READ_FAILED_AR", "DOC_TOO_LARGE_AR",
+    "DOC_UNSUPPORTED_AR", "PDF_SCANNED_AR", "read_failed", "too_large",
+    "unsupported",
 ]

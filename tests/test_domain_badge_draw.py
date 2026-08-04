@@ -153,7 +153,7 @@ def test_an_overlay_without_a_badge_surface_never_crashes_the_turn():
                          voice=object(), stream_tts=False,
                          router=ToolRouter(fetched_domains=collector.domains))
 
-    complete, _refresh, _read, _run_result = asyncio.run(turn_pass.consume(
+    complete, _refresh, _serviced = asyncio.run(turn_pass.consume(
         UserInput(text="اشرح"), None, [], HighlightGate(), TurnResult(),
         _Voice(_Overlay())))
 

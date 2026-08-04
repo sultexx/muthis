@@ -78,9 +78,37 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
 
 @pytest.mark.parametrize("name,ceiling", [
     ("kernel/tool_router.py", 300),
+    # 299 -> 296, DECLARED (DEC-73 split 2). The P0 D-2 measurement found that
+    # the minimum cost of ANY new injected seam here is three lines against ONE
+    # of headroom, so the file could not absorb the next arrival whatever it was.
+    # `TurnPrelude` is the room, bought once for a real responsibility.
+    # 296 -> 298, DECLARED (T1, DEC-65): the SessionMode injection — one import
+    # and one constructor parameter. The third line DEC-73 projected was an EDIT
+    # of the existing `TurnPrelude(...)` call, so design C cost 2 rather than 3
+    # and the file keeps two lines of headroom. Measured after the write, not
+    # before: the projection was checked against the file, per the ruling.
+    # 298 -> 299, DECLARED (T4, DEC-66): ONE line — the prelude passed into
+    # `TurnPass`, so a mode verb can reach the ONE evaluation point. A +0 form
+    # existed (packing two kwargs onto one 76-char line) and was REFUSED: a pin
+    # that reads 298 because a line was stuffed is a lie in the pin, and the law
+    # says split, never compress. ONE line of headroom remains.
     ("kernel/orchestrator.py", 299),
     ("turn_voice.py", 300),
     ("persona.py", 209),
+    # NEWLY under pressure at T3 (DEC-65's indicator), and pinned for that
+    # reason: 280 -> 296 as the overlay gained its third persistent element, and
+    # 274 -> 298 as the composition root gained the DEC-37-shaped seam that
+    # feeds it. Neither had a declared number before, which is exactly the state
+    # `broker/docs/service.py` was in when it crossed the law in silence.
+    ("overlay/sidekick_window.py", 296),
+    ("composition.py", 298),
+    # NEWLY under pressure at T4 (DEC-78's Navigator servicing): 271 -> 293 as
+    # the mode-verb detection arm landed. Pinned HERE, in T5's first commit, by
+    # Sultan's ruling — and the reason is precedent, not tidiness: an UNPINNED
+    # file at 293 is exactly the state `broker/docs/service.py` was in when it
+    # crossed the law in silence. Declaring it is the fix; extracting is a
+    # separate decision if a later task needs the room.
+    ("kernel/turn_pass.py", 293),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.

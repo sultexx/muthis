@@ -41,8 +41,9 @@ from .draw_dispatch import DRAW_TOOLS, PendingDraw, next_draw
 from ..file_reader import ReadFileFn
 from .highlight_gate import HighlightGate, loop_tool_choice
 from .core_router import build_core_router
+from .pass_servicing import PassServiced, service_pass_calls
 from .tool_router import ToolRouter
-from .tool_result_pairing import PRECONDITION_TOOLS
+from .tool_result_pairing import NAV_TOOLS, PRECONDITION_TOOLS
 from .turn import ROUTER_SERVICED_TOOLS, RUN_CODE_TOOL, TurnResult
 from ..turn_voice import TurnVoice
 
@@ -72,6 +73,7 @@ class TurnPass:
         read_file: Optional[ReadFileFn] = None,
         router: Optional[ToolRouter] = None,
         sandbox: Optional[Any] = None,
+        prelude: Optional[Any] = None,
     ) -> None:
         self._reasoner = reasoner
         self._budget = budget
@@ -97,6 +99,12 @@ class TurnPass:
         # T5: the plugin-domain sandbox servicer (gate + runner + kill), injected
         # at composition. None → run_code is unavailable (never offered anyway).
         self._sandbox = sandbox
+        # T4 (DEC-73, design C): the turn's directive assembly, injected so a
+        # MODE verb can reach the ONE evaluation point. ONE object rather than
+        # two, because the authority is built OVER the frame — so "the two
+        # disagree about which mode" is not a state that exists. None keeps the
+        # arm inert (stub-first), never absent.
+        self._prelude = prelude
 
     def new_turn_voice(self) -> TurnVoice:
         """A fresh per-turn voice (built by run_turn like the HighlightGate):
@@ -136,13 +144,13 @@ class TurnPass:
         gate: HighlightGate,
         result: TurnResult,
         turn_voice: TurnVoice,
-    ) -> tuple[Optional[TurnComplete], Optional[ToolCall],
-               Optional[tuple[ToolCall, str]], Optional[tuple[ToolCall, str]]]:
+    ) -> tuple[Optional[TurnComplete], Optional[ToolCall], PassServiced]:
         """Drain one provider turn into result. Returns (turn_complete,
-        refresh_call, read_result): refresh_call is set iff the model asked
-        for a new screenshot; read_result is (call, content) for the FIRST
-        read_local_file of the pass, already serviced (v7 Phase 4) — the
-        pipeline rides both into build_tool_result_message."""
+        refresh_call, serviced): refresh_call is set iff the model asked for a
+        new screenshot — the ORCHESTRATOR services that one, by capturing a
+        fresh frame, which is why it stays outside the record. `serviced` is
+        the PassServiced record of everything this module answered (DEC-73);
+        the pipeline rides it into build_tool_result_message."""
         # DEC-16: the deterministic approval detector reads the RAW transcript
         # HERE, before the provider runs, because this is where the kernel
         # already hands it over — which is what keeps orchestrator.py
@@ -156,6 +164,7 @@ class TurnPass:
         read_call: Optional[ToolCall] = None
         precondition_call: Optional[ToolCall] = None
         run_call: Optional[ToolCall] = None  # T5: the pass's run_code (first wins)
+        nav_call: Optional[ToolCall] = None  # T4: the pass's mode verb (first wins)
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
         tool_choice = loop_tool_choice(gate)
@@ -203,6 +212,19 @@ class TurnPass:
                             precondition_call = event
                     elif read_call is None:
                         read_call = event
+                elif event.name in NAV_TOOLS:
+                    # T4: a MODE verb — KERNEL-serviced (DEC-73), answered after
+                    # the sync point like a read and NEVER touching the draw
+                    # gate, so a step that also points still gets its one
+                    # pointing (DEC-67's per-turn resource is untouched).
+                    # Without this branch it would fall to the LOOK-only `else`
+                    # below, take the POINTER ack and hard-terminate the turn —
+                    # the DEC-39 failure, which is why this arm landed BEFORE
+                    # the mount. First navigator call of the pass wins; any
+                    # other id is answered BY NAME in tool_result_pairing.
+                    result.tool_calls.append(event)
+                    if nav_call is None:
+                        nav_call = event
                 elif self._sandbox is not None and event.name == RUN_CODE_TOOL:
                     # T5: an EXECUTION tool, serviced after the sync point like a
                     # read — it NEVER gates the draw. First run of the pass wins.
@@ -222,7 +244,7 @@ class TurnPass:
             # Abnormal pass end: the pipeline abandons the turn voice — this
             # branch never spoke on the buffered path either.
             logger.error("[orchestrator] provider stream ended without TurnComplete")
-            return None, None, None, None
+            return None, None, PassServiced()
 
         result.input_tokens += turn_complete.input_tokens
         result.output_tokens += turn_complete.output_tokens
@@ -243,29 +265,14 @@ class TurnPass:
             # longer blocks the loop, so the next pass's round-trip hides
             # BEHIND its playback (the measured 3.48s gap).
             await turn_voice.speak_or_feed(message_text)
-        # Phase 4: service the pass's ONE read AFTER the audio is moving (local
-        # I/O must never delay the spoken ack). Routed through the ToolRouter
-        # (V2 Phase 0) at the SAME site with the same await discipline; the
-        # router never raises — every failure is already an Arabic note.
-        read_results: list[tuple[ToolCall, str]] = []
-        # The precondition FIRST: `docs__query` in the same pass depends on the
-        # index `docs__open` builds, so servicing them out of order would answer
-        # the query against nothing.
-        for routed_call in (precondition_call, read_call):
-            if routed_call is None:
-                continue
-            outcome = await self._router.service(routed_call.name, routed_call.args)
-            read_results.append((routed_call, outcome.result.text_ar))
-            if outcome.taint and not result.taint:
-                # §3.2: coarse turn-level taint — recorded here, enforced by
-                # the high-impact gates when those tools exist (Phase 2).
-                result.taint = True
-                logger.info("[orchestrator] turn tainted by %s", outcome.provenance)
-        # T5: service run_code AFTER the sync point too — bounded ≤3/turn by the
-        # SandboxGate inside the servicer; the draw gate is never touched.
-        run_result: Optional[tuple[ToolCall, str]] = None
-        if run_call is not None and self._sandbox is not None:
-            run_result = (run_call, await self._sandbox.run(run_call.args))
+        # Everything the pass ASKED FOR is serviced in pass_servicing.py (DEC-73)
+        # — the sync point above is the line between draining a stream and
+        # answering what it contained, and that line is now structural. The
+        # precondition-before-read ORDER lives there with its reason.
+        serviced = await service_pass_calls(
+            router=self._router, sandbox=self._sandbox, result=result,
+            precondition=precondition_call, read=read_call, run=run_call,
+            nav=nav_call, prelude=self._prelude)
         # DEC-20/36: the badge, drawn by the KERNEL from the broker's own record.
         # HERE, at the very end of the pass: after the Option-A sync point and
         # after servicing, so it can neither reorder draw→speak nor delay the
@@ -280,7 +287,7 @@ class TurnPass:
         badge = getattr(self._overlay, "show_domain_badge", None)
         if badge is not None:
             badge(self._router.fetched_domains())
-        return turn_complete, refresh_call, read_results, run_result
+        return turn_complete, refresh_call, serviced
 
 
 __all__ = ["TurnPass", "REFRESH_TOOL", "STREAM_TTS_ENV"]
