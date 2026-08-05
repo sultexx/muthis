@@ -9720,3 +9720,124 @@ measured (about 5,361 total tokens per pointing turn at `high` against about 9,2
 does not convert that to money from memory.
 
 ---
+
+## DEC-90 (2026-08-05) — **THE FULL-TURN MEASUREMENT.** The economic case, measured on the shape a real turn takes; why `xhigh` was rejected; and dynamic effort DESIGNED-AND-DEFERRED — MEASURED, no ruling taken
+
+DEC-88 and DEC-89 measured PASSES. A real Mut'his turn is 2-4 passes, and the whole economic case
+rested on a number that had never been measured on that shape. This closes it. **No provider is
+wired, `pricing.py` is untouched, and nothing is ruled here** — this is the last measurement before
+Sultan decides whether Luna is integrated at all.
+
+**METHOD — and the one part of it that needs stating plainly.** Driving the REAL orchestrator requires
+something satisfying `CloudReasoner`; there is no other way to reach the agentic loop. The
+`LunaReasoner` used here is an **INSTRUMENT, not an adapter**: it lives in a scratch directory, is
+committed nowhere, is imported by nothing, appears in no composition root and in no `.env` selection,
+and is discarded with this measurement. Everything else is PRODUCTION — the real `Orchestrator`, the
+real agentic loop and `HighlightGate`, the real `TurnPass` and its Option-A sync point, the real
+`ToolRouter` with the byte-pinned v6 catalogue, the real downscale, the real composed persona. Only
+the OUTPUT seams are stubs (no Tk window, no TTS audio) and the frame comes from the grounding corpus
+rather than a live capture, so the turn is deterministic. Neither choice touches token accounting or
+the pass structure. The ledger is a TEMP file: recording Luna costs into `budget.json` would corrupt
+the sovereign ledger with a provider that is not integrated.
+
+### THE PASS STRUCTURE, MEASURED
+
+A pointing turn is **TWO passes**, exactly as designed — `auto` then `none`:
+
+| pass | choice | input | cached | output | reasoning | cost | calls |
+|---|---|---|---|---|---|---|---|
+| 0 | `auto` | 7,097 | 0 (cold) / 6,910 (warm) | 120 | 66 | $0.001583 / $0.000320 | `highlight_target` |
+| 1 | `none` | 7,290 | **5,895** | 139 | 63 | $0.000564 | — |
+
+`stop_reason` was DERIVED (no such field exists — DEC-88 ②) and the loop terminated correctly at
+`end_turn`. Output items carried a `reasoning` entry on every pass.
+
+### PROMPT CACHING ENGAGED, AND THE FINDING IS ARCHITECTURAL RATHER THAN COMMERCIAL
+
+**81% of pass-1 input was cached — 5,895 of 7,290 — and the figure reproduced EXACTLY across two
+independent runs.** The identity turn cached 5,967 both times.
+
+**THE CACHED PREFIX INCLUDES THE IMAGE, and that is provable from the measured numbers rather than
+assumed:** the uncached remainder on pass 1 is 1,395 tokens, while a 1280x720 frame measured
+4,853-4,867 tokens on its own in DEC-88 ⑤. An image that large cannot fit in a 1,395-token remainder,
+so it is inside the cached prefix.
+
+**On the Anthropic path it structurally CANNOT be.** `cloud/cache_control.py` places breakpoints on
+`system` and `tools` ONLY — the image rides in the messages and is never covered. So the two
+providers differ not in cache PRICE (both charge 0.1x input for a read) but in cache REACH, and the
+dominant input component of a vision turn falls on opposite sides of that line. **This is a
+measurement about our own code as much as about a vendor**, and it is the reason the turn-level ratio
+comes out WIDER than the pass-level one rather than narrower.
+
+### THE DOLLAR-PER-TURN, WITH ITS LIMITS ON THE FACE OF IT
+
+Published list prices, FETCHED 2026-08-05 from each vendor's own documentation — never from memory,
+and **not Sultan's consoles**, so any negotiated rate or credit balance is unreflected.
+`claude-sonnet-4-6` $3.00/$15.00 per MTok (cache read $0.30); `gpt-5.6-luna` $0.20/$1.20 (cached input
+$0.02). This also CONFIRMS `pricing.py`'s recorded Anthropic entry is still correct.
+
+| | luna (MEASURED) | sonnet (PROJECTED) | ratio |
+|---|---|---|---|
+| first turn of a session | **$0.002127** | $0.059400 | **27.9x** |
+| continuing session | **$0.000883** | $0.047320 | **53.6x** |
+| per 1,000 continuing turns | **$0.88** | $47.32 | — |
+
+**THE SONNET COLUMN IS A PROJECTION AND IS LABELLED ONE.** It was NOT measured, because that account
+returns `credit balance is too low`. Its stated assumptions: pass-0 input is the D-1 MEASURED 9,156;
+pass-1 input is +193 (the delta Luna showed); outputs are Luna's measured 120/139; and only
+persona+tools cache, per `cache_control.py`. **A future reader must not quote the Sonnet column as a
+measurement.**
+
+**The pass-level 24.1x becomes 27.9x at turn level cold**, and widens with session length because
+Luna's automatic caching covers the image while ours structurally cannot. The economic case is
+therefore not weakened by moving from a pass to a turn — it is strengthened, for a reason that is
+about cache REACH rather than about price.
+
+### THE PERSONA ACROSS PASSES — ALL FOUR PROPERTIES HELD, AND ONE HAD NEVER BEEN TESTED HERE
+
+- **DEC-84's one-ack-per-ANSWER discipline HELD across passes.** Pass 0 opened «أبشر، شوف»; pass 1
+  went STRAIGHT into the explanation with no second ack, no «شفت», no «طيب». A NEW answer two turns
+  later correctly opened a NEW ack («سم، تفضّل»). **This is the exact defect DEC-84 was written for —
+  a three-pass answer heard as three restarts — and it had never been tested on this provider.**
+- **The verbosity cap held on the longer multi-pass answer**: ~40 words on the explanation pass, with
+  technical terms in English verbatim (`Start menu`, `Sleep`, `Restart`, `Shut down`).
+- **The formatting-syntax ban held**: zero violations across every pass.
+- **THE IDENTITY LAW HELD MID-CONVERSATION UNDER A CLOSED FRAMING** — the hardest case, asked on the
+  third turn with history in context: «ما أقدر أؤكد أو أنفي، أنا مطحس.» Neither «نعم» nor «لا».
+
+### WHY `xhigh` WAS REJECTED, RECORDED BEFORE IT IS MISREAD
+
+DEC-89 ruled `high`. **`xhigh` was rejected on MEASURED ACCURACY, not on price**, and the distinction
+belongs in the record because a future reader will otherwise assume cost drove it. Effort bills as
+OUTPUT while input is **84.6%** of a turn's cost, so default → `high` moves only **5.6%** of the turn
+and default → `xhigh` about **1.5%** more. **At 22x instead of 24x, `xhigh` would have been perfectly
+affordable.** It was refused because it bought ZERO additional targets — #10 was already stable at
+`high`, and #15 never moved at any level (DEC-89 ruling 3).
+
+### DYNAMIC EFFORT — DESIGNED, DEFERRED, AND THE REASON IS A NUMBER
+
+Sultan's idea: route `max` to complex work (code analysis, document ingestion) and `high` to ordinary
+turns — **the DEC-15 impact-classification shape applied to effort**, and architecturally sound: the
+kernel already classifies work, so the seam exists.
+
+**DEFERRED, and the measurement is the argument.** Effort bills as output; input is 84.6% of a turn;
+default → `xhigh` moves ~1.5% of turn cost. **The complexity buys no meaningful saving**, and a
+routing table is a permanent maintenance surface bought for a rounding error. This is the DEC-50
+shape again — a mechanism whose measured unique contribution is ~zero is not built.
+
+**THE REVISIT TRIGGER, stated so this is re-examined rather than forgotten: if the input/output
+balance ever shifts** — a cheaper vision path, a much larger reasoning budget, a text-dominant
+workload like `doc_rag` where no image is sent, or a provider whose reasoning is billed differently —
+**the arithmetic changes and this should be re-measured before being re-rejected.** The full-turn
+measurement already hints at it: on a turn with NO image, input collapses and effort's share rises.
+
+### KNOWN LIMITS OF THIS MEASUREMENT
+
+The Sonnet column is projected, not measured. The pointing box drawn during the full turn was NOT
+graded against ground truth — DEC-88 ⑤ is the accuracy measurement and this one is about shape and
+cost. Only the pointing turn shape (2 passes) was measured; a `doc_rag` or Navigator turn reaches 3-4
+and was not driven. And the caching figures are for a session reusing one frame; a session that
+changes frames every turn will cache less than 81% on pass 0 while still caching the persona and
+catalogue.
+
+---
