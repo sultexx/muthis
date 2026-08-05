@@ -40,11 +40,37 @@ degradation-mode difference (Claude falls to NEAR, this falls to MISS) is a RECO
 KNOWN LIMIT. **25 mutations ALL RED**, one of which (M7) exposed a hole in its own
 guard: the reference had been polluted by the very mutation it was checking for.
 
-**DECLARED UNMEASURED:** whether the `reasoning` output item must round-trip through
-history. It is NOT carried (Law 11 forbids wrapper state; a provider-specific opaque
-block in kernel history is the second vocabulary this design refuses), and DEC-90
-drove a real TWO-pass turn to correct termination without it. A 3-4 pass turn has
-never been driven.
+## LIVE SOP RUN ON LUNA — economics confirmed, one defect (2026-08-05, DEC-92)
+
+**20 real turns, $0.040738 total, ~$0.002/turn** — the ledger matches Sultan's figure to
+the last digit, against ~$0.516 for his previous `doc_rag` session on Anthropic. DEC-90's
+projection held. Four barge-ins fired immediately; the ack discipline and the identity law
+both held across the session.
+
+**THE ROUND-TRIP QUESTION IS ANSWERED FOR THE DRIVEN SHAPE.** None of DEC-91's four
+symptoms occurred, so at the **2-pass POINTING shape the `reasoning` item does NOT need to
+round-trip**. **A 3-4 pass turn was still NOT driven** — and the ledger proves no routed
+plugin ran that session, so no `doc_rag` turn happened. Open where it was not asked.
+
+**OPEN DEFECT — the output ceiling, NOT FIXED (Sultan's ruling).** `luna_agent.DEFAULT_MAX_TOKENS`
+is **1024, copied from `claude_agent.py` rather than derived**. `reasoning_tokens` is a
+BREAKDOWN of `output_tokens` (DEC-88's table: output − reasoning is constant at ~53-54
+across all three efforts), so at `high` the cap covers ~102 reasoning tokens before one
+visible token, where Anthropic spends zero. A live turn hit it mid-tool-arguments → partial
+JSON correctly DROPPED (never repaired) → `stop_reason=max_tokens` → loop ended → **spoke,
+never pointed.** The MEAN was measured (155.3, 15.2% of cap); the TAIL never was, and
+`max_tokens` is a tail parameter. `probe_provider.py point --effort high` already records
+`reasoning_tokens` per target — the missing distribution is one re-run.
+
+**NAVIGATOR: the translation is CLEAN, so the defect branch is CLOSED.** Both verbs
+translate byte-identically, all 11 descriptors carry exactly 3 keys (nothing dropped on our
+side either), and their schema constructs are a SUBSET of the other nine. **But whether
+`navigator__plan` was called is NOT ANSWERABLE from any artifact**: the mode path contains
+ZERO logger calls, and `kernel_serviced=True` means the router's ledger seam never fires for
+it. That observability gap is the finding — the one tool family designed to persist across
+turns is the one whose invocation cannot be confirmed afterwards. No persona law is written:
+T7's O-1 already measured Navigator reach as VARIABLE on Claude, so one unconfirmable
+session is an UNOBSERVED gap, and DEC-83's rule stands.
 
 ## PHASE 3 MERGED, REPOSITORY AUDIT CLOSED (2026-08-04)
 **Phase 3 — the Navigator** is COMPLETE and **MERGED to `main`**, tagged

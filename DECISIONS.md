@@ -10111,3 +10111,210 @@ because it snapshotted state the defect had already reached. Only a reference ou
 outside the blast radius.
 
 ---
+
+## DEC-92 (2026-08-05) — **THE LUNA LIVE SOP.** The economics confirmed on 20 real turns; the round-trip question ANSWERED for the driven shape; ONE defect (an inherited output ceiling); and a Navigator question that is NOT ANSWERABLE from any artifact — MEASURED + DIAGNOSED, no fix taken
+
+Sultan ran the live SOP on `luna` (the DEC-91 integration, default flipped in his own `.env`). This
+records what it settled, the one real defect, and one question the diagnosis could NOT close — plus
+**two inference errors made while diagnosing it**, because both were the same mistake and it is the
+methodologically valuable part of the entry.
+
+**Nothing is fixed here. No `src/` change, no ceiling change, no default change. The rulings are
+Sultan's.**
+
+### WHAT THE RUN CONFIRMED
+
+**The economics held.** 20 real turns, **$0.040738 total, ~$0.002 per turn** — the ledger's
+`2026-08-05` entry matches Sultan's reported figure to the last digit. Against it: his previous
+`doc_rag` session on the Anthropic path at **~$0.516**. DEC-90 projected 27.9x cold and 53.6x in a
+continuing session, and the projection survived contact with real turns.
+
+**Four persona properties held across the session**, including the two that had never been tested on
+this provider under real conditions: the DEC-84 one-ack-per-answer discipline, and the DEC-88 identity
+law. Four barge-ins fired immediately — the v7 Phase 3 path is provider-independent by construction
+(it cancels a stream, and neither provider knows), and that construction is now observed rather than
+assumed.
+
+### THE LIVE-RUN QUESTION IS ANSWERED — FOR THE SHAPE THAT WAS DRIVEN, AND ONLY THAT ONE
+
+DEC-91 recorded four symptoms a lost chain of thought would produce and asked Sultan to watch for
+them. **NONE occurred.** No explain pass described an element other than the box just drawn; no tool
+was re-called within a turn; no Navigator step disagreed with what the kernel drew; and no answer
+arrived coherent-but-amnesiac about a decision one pass earlier.
+
+**RULED ANSWERED FOR THE 2-PASS POINTING SHAPE: the `reasoning` output item does NOT need to
+round-trip through history.** The refusal to carry it — which was a DERIVATION from Law 11 and from
+the kernel's single-vocabulary rule, never a preference — is vindicated by measurement rather than
+merely unfalsified.
+
+**AND THE LIMIT IS RESTATED RATHER THAN QUIETLY DROPPED: a 3-4 pass turn was STILL NOT DRIVEN.**
+`doc_rag` and the Navigator produce that shape and neither ran (see the ledger evidence below, which
+is decisive for `doc_rag`). The pointing turn is 2 passes, and 2 passes is exactly the shape where a
+one-pass memory gap is least able to show. **The question is answered where it was asked and open
+where it was not**, and writing that down is the difference between a closed question and a closed
+one that reopens as a surprise.
+
+### THE DEFECT — AN OUTPUT CEILING INHERITED RATHER THAN MEASURED
+
+Two log lines, one cause:
+
+```
+ERROR   Malformed tool JSON for highlight_target — dropping
+WARNING response incomplete: max_output_tokens
+```
+
+**THE GUARD BEHAVED CORRECTLY AND THAT HALF IS WORTH STATING FIRST.** The model was cut off
+mid-generation of the tool's arguments; partial JSON arrived; `_tool_call_from` dropped the call
+rather than repairing it. **A repaired or guessed coordinate would have drawn a confident rectangle
+at a position the model never finished choosing** — DEC-67's "the kernel never synthesises a
+position" holding on a provider it was not written for, and DEC-89 ruling 4's argument (a confidently
+misplaced box is worse than none) arriving through a different door. `claude_agent.py` drops on
+malformed JSON for the same reason; the behaviour is letter-identical across both wrappers.
+
+**WHERE THE NUMBER LIVES, MEASURED:**
+
+| | value | source | in `.env`? |
+|---|---|---|---|
+| `claude_agent.DEFAULT_MAX_TOKENS` | **1024** | `MUTHIS_CLAUDE_MAX_TOKENS` or the literal | NOT set |
+| `luna_agent.DEFAULT_MAX_TOKENS` | **1024** | `MUTHIS_LUNA_MAX_TOKENS` or the literal | NOT set |
+
+**IT IS NOT A SINGLE SHARED CONSTANT — IT IS TWO INDEPENDENT CONSTANTS THAT HAPPEN TO HOLD THE SAME
+NUMBER, AND THAT IS A DIFFERENT (BETTER) PROBLEM.** Each wrapper declares its own, each has its own
+`.env` override, and the composition root passes neither — so `build_reasoner` never touches the
+value and the two are already separable without a code change. The defect is not coupling. **The
+defect is that the second number was COPIED from the first instead of derived**, which is DEC-88
+ruling 2's exact failure mode applied to the other number a provider difference touches: the cost
+model was re-measured, and `max_tokens` was inherited.
+
+**WHY 1024 STARVES THIS PROVIDER AND NOT THE OTHER — `reasoning` IS INSIDE `output_tokens`.**
+Derived from DEC-88's own effort table rather than from documentation:
+
+| effort | output | reasoning | output − reasoning |
+|---|---|---|---|
+| default (`medium`) | 102.4 | 48.7 | **53.7** |
+| `high` | 155.3 | 102.3 | **53.0** |
+| `xhigh` | 238.8 | 184.4 | **54.4** |
+
+**The remainder is CONSTANT at ~53-54 while reasoning nearly quadruples.** The visible answer never
+changed; `output_tokens` moved by exactly the reasoning delta. So `reasoning_tokens` is a BREAKDOWN of
+`output_tokens`, not an addition to it — **the same inclusive shape already measured for
+`cached_tokens` (DEC-88 ③), and the second time this provider's counters have turned out inclusive
+where the intuition says additive.** DEC-90's full turn agrees: pass 0 output 120 / reasoning 66 →
+visible 54; pass 1 output 139 / reasoning 63 → visible 76.
+
+Anthropic's path spends ZERO reasoning tokens under this configuration, so 1024 is ~7-8x its measured
+output. On `luna` at `high` the same 1024 must cover reasoning first.
+
+**THE ARITHMETIC OF THE FAILURE, AND THE FINDING IS ABOUT THE TAIL:**
+
+- measured MEAN output at `high` on a pointing pass: **155.3 — 15.2% of the cap**
+- of which reasoning: **102.3 (66% of output)**; visible text + tool arguments: **~53**
+- the failing turn REACHED 1024, so reasoning consumed roughly **950-1000 tokens — at least 9.3x the
+  measured mean**
+
+**THE MEAN WAS MEASURED. THE TAIL NEVER WAS. `max_tokens` is a TAIL parameter, and it was set from a
+distribution nobody characterised.** A cap at 6.6x the mean sounds generous and is not, because
+reasoning length is the one component that varies with problem difficulty — and a live desktop is
+harder than a fixture corpus.
+
+**THE PROJECT ALREADY KNEW THIS AND THE KNOWLEDGE DID NOT TRAVEL.** `scripts/probe_provider.py` sets
+`max_output_tokens=3000` for the pointing step and says why in a comment: *"reasoning is billed as
+OUTPUT and a low cap would truncate the very setting under test."* **The probe raised its cap to
+protect a measurement; the wrapper kept a cap copied from a provider that has no reasoning tokens at
+all.** That gap between what an instrument knew and what production shipped is the whole defect.
+
+**WHAT A TRUNCATED TURN COSTS THE USER, traced through the code:** the dropped call leaves
+`saw_tool_call=False`, `status="incomplete"` derives `stop_reason="max_tokens"`, and the orchestrator's
+`stop_reason != "tool_use"` ends the agentic loop cleanly with no retry. **So Mut'his speaks whatever
+text streamed before the cut and never points.** No crash, no loop, no wrong box — the failure is
+SILENT to everything except these two log lines. Accounting is unaffected: `response.incomplete` is a
+terminal event, so usage is reported and the turn is charged normally.
+
+**THE OPTIONS, for Sultan's ruling — no recommendation is executed here:**
+
+1. **MEASURE THE TAIL FIRST, THEN SET THE NUMBER.** The apparatus already exists and needs no new
+   code: `probe_provider.py point --effort high` records `reasoning_tokens` PER TARGET into its
+   `--out` JSON, so one re-run over the 25-target corpus yields the full distribution including its
+   maximum. This is the project's own discipline and the cheapest of the four.
+2. **Raise `MUTHIS_LUNA_MAX_TOKENS` in `.env`.** Zero code change, per-provider already, effective
+   immediately — but it is a number chosen without the distribution, which is how 1024 arrived.
+3. **Raise `luna_agent.DEFAULT_MAX_TOKENS`.** Same guess, now compiled in.
+4. **Accept it.** A dropped pointer is rare, silent, and costs one turn.
+
+Weak evidence bearing on any number: DEC-88's effort comparison ran 18 `high` passes at a 3,000 cap
+with no truncation reported — six M-bucket targets, a fixture corpus, and not a tail measurement.
+
+### THE NAVIGATOR OBSERVATION — AND TWO INFERENCE ERRORS MADE WHILE DIAGNOSING IT
+
+Sultan observed that with Claude the orange indicator and step chip stayed visible for a minute or
+more ACROSS turns, while on `luna` the overlay disappears after seconds like an ordinary highlight.
+The reframing that produced this entry was correct: **that is a SessionMode question, not an
+inference-quality one.** The persistent chip is T3's kernel-drawn mode indicator; it lives across
+turns and clears only when the mode ends. `overlay_autohide 7.00s` appearing four times is the
+designed post-speech hide and has been since v7. Nothing in the product changed.
+
+**THE TRANSLATION IS CLEAN — MEASURED, AND THIS IS THE HALF THAT WAS DECIDABLE.** Both Navigator
+verbs were put through the real production mounts and the DEC-91 envelope:
+
+- `name`, `description` and `parameters` are byte-identical to the source descriptor; `parameters`
+  is the SAME object (carried by reference, never copied, never edited);
+- the envelope key set is exactly the contract, and both round-trip through JSON unchanged;
+- **every one of the eleven descriptors carries exactly three keys**, so the translation consumes all
+  of them and drops nothing — the mirror-image of ①'s risk, pointed at OUR side rather than the
+  vendor's, and it is closed by measurement;
+- the schema constructs the pair uses (`type`, `enum`, `items`) are a SUBSET of what the other nine
+  use — **nothing unique, so nothing for a vendor validator to treat differently.**
+
+**So the tools are not unreachable through a lost field. That class of defect is excluded.**
+
+Two facts about the pair, recorded because they are measurements and not explanations: they carry
+**the two SHORTEST descriptions in the catalogue** (280 and 274 chars against a catalogue mean near
+600, and against `draw_shapes` at 1,211), and they sit **LAST in the fixed order** (positions 10 and
+11 of 11). Neither is a defect and neither is offered as a cause.
+
+**BUT THE QUESTION "DID LUNA CALL `navigator__plan`?" IS NOT ANSWERABLE FROM ANY ARTIFACT ON THIS
+MACHINE — AND I REACHED FOR TWO WRONG ANSWERS BEFORE ESTABLISHING THAT.** Both errors were the same
+error, and it is the one this entry is worth reading for.
+
+**ERROR 1 — "no mode-entry line in the log, therefore the mode was never entered."** `session_mode.py`,
+`mode_transition.py`, `navigator_service.py` and `mode_surfaces.py` contain **ZERO logger calls
+between them.** There is no mode-entry line to be absent. The absence proves nothing.
+
+**ERROR 2 — and I made it one layer down, immediately after catching the first.** `budget.json` has
+per-plugin attribution buckets, and **there is no `plugins` bucket at all for `2026-08-05`** — a real
+and useful fact, since it means **no ROUTED plugin ran: no `doc_rag`, no `web_research`, no
+`file_read`.** That decisively confirms no `doc_rag` turn was driven. But I began to read it as
+covering the Navigator too, and **it structurally cannot: the Navigator verbs are mounted
+`kernel_serviced=True`, so `ToolRouter._record` never fires for them** — the kernel owns the effect
+because the state is the kernel's (DEC-73). The ledger is silent about them BY DESIGN, exactly as it
+is about the draw tools.
+
+**THE SHAPE OF BOTH ERRORS IS THE SAME: reading the ABSENCE of a signal as evidence, from an
+instrument that never emits that signal.** It is DEC-91's own M7 lesson wearing different clothes —
+there a guard's REFERENCE was corrupted before it was read; here an instrument's SILENCE was read as
+a measurement. Both are the general failure of **checking against something that was never capable of
+disagreeing with you**, and both were caught only by asking what the instrument actually does rather
+than what it appears to say.
+
+**THE REAL FINDING, THEREFORE, IS AN OBSERVABILITY GAP: a Navigator call leaves NO TRACE ANYWHERE.**
+Not in the log (the whole mode path is silent), not in the ledger (`kernel_serviced` bypasses the
+attribution seam), and not in per-turn accounting (no token breakdown is logged). The draw tools are
+at least indirectly visible through the `overlay_autohide` line; the Navigator has no equivalent.
+**The one model-visible tool family whose whole purpose is to persist ACROSS turns is the one family
+whose invocation cannot be confirmed after the fact.** Sultan's visual observation — the chip did not
+persist — remains the only evidence, and it cannot distinguish "never entered" from "entered and
+immediately exited by one of the three exits".
+
+**WHAT IS RULED HERE: NOTHING, DELIBERATELY.** The instruction was to measure the translation first
+because *a tool unreachable through a dropped field is a defect, while a tool reachable but unused is
+a ruling*. **The translation is measured and clean, so the defect branch is closed.** The ruling
+branch cannot be entered yet, because the persona-law question needs an OBSERVED gap and T7's O-1
+already established that Navigator reach is VARIABLE even on Claude — called in run 1, not in run 2,
+`draw_shapes` in run 3. **One session on a new provider, with no way to confirm whether the verb was
+reached, is not an observed gap. It is an unobserved one.** DEC-83's rule stands: a law is written on
+a STABLE observed gap, and the variance IS the answer until it isn't.
+
+The cheapest thing that would make the next session decisive is a single log line at mode entry.
+That is a proposal, not a change, and it is Sultan's.
+
+---
