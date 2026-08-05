@@ -10600,3 +10600,277 @@ right thing: not "add a field", but "which numbers must survive a turn."**
 - **No persona law**, and now for a stronger reason than DEC-92's: the verbs ARE reached.
 
 ---
+
+## DEC-95 (2026-08-05) — **ONE REPORTED DEFECT DISSOLVED INTO ARITHMETIC; THE OTHER IS A CONSTANT THAT CONTRADICTS ITSELF.** A correct outcome that reads as a failure; a directive that orders speech in the syntax of the family that forbids it; and the accepted consequence DEC-51 bought on an assumption that does not hold — DIAGNOSED + RULED (Sultan), no fix taken
+
+Two defects were reported from real usage. **They are not the same kind of thing, and that is the entry.**
+One was measured out of existence; the other is structural and reaches every high-impact tool.
+
+Zero `src/` changes. **1,643 green.**
+
+---
+
+# PART ONE — NEW DOCUMENT INGESTION IS NOT A DEFECT
+
+### THE REPORT, AND WHY IT LOOKED LIKE A DEFECT
+
+*"Documents already known to the project index correctly; a PDF added during a session does not."*
+The obvious suspect was the PATH/IDENTIFIER JOURNEY, which had bitten three times — `%20`
+URL-encoding, a truncated identifier, and DEC-71's round-trip. **It was checked and it is not the
+cause**, and the previous two times the assumed cause was also wrong, which is why it was checked
+rather than assumed.
+
+### THE MEASUREMENT — the real `open()` on three real PDFs
+
+Driven through `DocumentService.open()` on actual files, chosen for the three filename shapes most
+likely to break a path: a space, Arabic, and parentheses.
+
+| file | pages | chars extracted | zone | outcome |
+|---|---|---|---|---|
+| `HW_1.pdf` | 1 | 2,227 | **inject** | ok, 388 ms |
+| `04-Pass by Value…copy 2.pdf` | 3 | 897 | **inject** | ok, 33 ms |
+| `(Lec 4,5) اختبر نفسك.pdf` | 7 | 1,228 | **inject** | ok, 57 ms |
+
+**All three succeeded.** `resolve_document_path` (`paths.py:67`) never had to fall back — the raw
+path won every time. The two adjacent suspects were cleared by measurement in the same pass:
+
+- **The encoder is present and healthy** — `verified=3 missing=0 of 3 pinned files`, loads in
+  2,851 ms, encodes to `(1, 384) float32`. A missing encoder would have produced EXACTLY the reported
+  symptom (small documents fine, large ones failing), so eliminating it mattered.
+- **The block assembler is not losing content.** pypdf's own plain extraction against the assembler:
+  2,309→2,227 (0.96), 1,039→897 (0.86), 1,683→1,228 (0.73). The deltas are whitespace normalisation.
+  **The hypothesis that extraction was silently near-empty was WRONG and was withdrawn on the
+  measurement** rather than reported — those PDFs are image-heavy slide decks that genuinely carry
+  almost no text.
+
+### THE MECHANISM IS ARITHMETIC
+
+```
+inject_limit = 50,000 tokens = 139,664 chars   (at TOKENS_PER_CHAR_CEILING = 0.358)
+max_tokens   = 338,200 tokens = 944,692 chars  (890 chunks at 67.4 ms inside a 60 s budget)
+
+the measured files = 897 – 2,227 chars  →  0.64 % – 1.59 % of the injection threshold
+```
+
+To reach zone 2 a document needs ~139,664 characters of EXTRACTED TEXT — about **77 pages of dense
+prose**, or **465 pages** at the 175–300 chars/page these slide decks actually carry.
+
+**Every ordinary PDF lands in zone 1 and zone 2 is unreachable for anything opened in daily use.**
+`docs__open` hands the model the whole document and sets `self._bound = _INJECTED` (`service.py:167`);
+a later `docs__query` then correctly returns `DOC_ALREADY_IN_FULL_AR`. **`docs__query` never runs for
+a normal PDF and cannot.**
+
+### THE RULING — DESIGNED BEHAVIOUR, NOT A DEFECT
+
+**"It does not index" is literally true and is `zones.py` behaving exactly as DEC-47 designed it.**
+The document is INJECTED WHOLE, which is STRICTLY BETTER than retrieval — no retrieval step can beat
+handing the model the entire document, which is the argument DEC-47 made when it built zone 1 first.
+The reported failure is a correct outcome.
+
+**The control documents (the SDAIA document, the booklet) reached indexing because they are LARGE,
+never because they were "already known."** The difference is SIZE and nothing else.
+
+### THE PHRASE THAT CORRESPONDS TO NOTHING, AND WHY STOPPING WAS RIGHT
+
+**There is no project index, no roots allow-list, and no cross-session persistence for a document to
+be "already known" TO.** `IndexRegistry` is RAM-only, `_opened_paths` dies with the process, and
+`clear()` runs in main's ordered shutdown — that is the session-scoped privacy guarantee, working.
+
+**The diagnosis stopped at that phrase instead of guessing which mechanism was meant, and stopping
+was correct.** The phrase matches no mechanism in the code, and inventing a match would have aimed
+the whole investigation somewhere wrong. **This is the DEC-43 failure shape one layer up: a pointer
+into a real system at a mechanism that does not exist fails QUIETLY** — it does not error, it
+produces a confident diagnosis of the wrong thing.
+
+### WHAT IS STILL OPEN, AND WHAT IT WOULD MEAN
+
+The `[doc_rag]` lines from the failing turn. **The `zone=` line alone names the branch:**
+
+| log signature | branch |
+|---|---|
+| *(no `[doc_rag]` line at all)* | the file never reached `docs__open` |
+| `refused unsupported format:` | suffix not in `SUPPORTED_SUFFIXES` |
+| `refused scanned pdf (no text layer)` | TERMINAL — no OCR in launch scope |
+| `extraction admitted ZERO blocks — refusing` | the cutoff rule fired |
+| `zone=… admitted=1` | **inject vs index — the discriminator** |
+| `query: candidates=N of M chunks` | the query actually ran |
+
+**PRE-COMMITTED RULING (Sultan): if it reads `zone=inject`, the behaviour is CORRECT and the SURFACE
+is what misled.** Nothing tells the user that a small document was injected whole rather than
+indexed, **so a correct outcome reads as a failure.** That is a MESSAGE question, not a mechanism
+question, and it must not be answered by touching `zones.py`.
+
+---
+
+# PART TWO — THE CONFIRMATION PATH IS REAL, STRUCTURAL, AND WORSE THAN A SINGLE REFUSAL
+
+The log already carried the diagnosis: `high-impact web__search refused — awaiting spoken approval`
+repeatedly, then `agentic cap (4) hit`. **Verified rather than re-derived**, and the verification
+found the composition is worse than one refusal.
+
+### THE MEASURED SEQUENCING — the first search poisons every later one
+
+Driving the real `ToolRouter` + `ConfirmGate`:
+
+```
+CALL 1: provenance=web_research     is_error=False  → tainted_now=True
+CALL 2: provenance=kernel:confirm   is_error=True   → refused
+CALL 3: provenance=kernel:confirm   is_error=True   → refused
+CALL 4: provenance=kernel:confirm   is_error=True   → refused
+```
+
+`web__search` is high-impact UNCONDITIONALLY via the capability arm (`high_impact.py:91`), and the
+gate fires on `high_impact AND tainted`. **So the FIRST search taints the session — sticky, and the
+log says so: *"no clearing path by design"* — and EVERY search after it is refused for the life of
+the process.** The retries cost provider passes but no search credits: the router returns at
+`tool_router.py:264` before any plugin is reached.
+
+### THE CENTRAL FINDING — THE CONSTANT CONTRADICTS ITSELF IN ONE STRING
+
+**The directive that ORDERS the model to speak is dressed in the syntax of the family that FORBIDS
+speaking.**
+
+The persona family rule (`persona_rules.py:120`, verbatim):
+
+> التوجيهات الداخلية: إذا بدأت رسالة المستخدم بسطر يفتتح بـ**"(توجيه داخلي"** … **ولا تقرأه بصوت
+> عالٍ ولا تقتبسه ولا تشِر إلى وجوده أبداً.**
+
+The confirm directive (`confirm_gate.py:107`, rendered verbatim):
+
+> **توجيه داخلي (لا يراه المستخدم)**: … فما نُفِّذ الطلب … **الآن اطلب الإذن بصوتك: اذكر اسم الأداة
+> «web__search» ومعاملاتها كما هي (query=…)**
+
+**The preamble declares «لا يراه المستخدم» — *the user does not see this* — and four clauses later
+commands the model to say its contents aloud.** This is the ONLY member of the family whose entire
+purpose is to produce USER-FACING SPEECH, and it wears the family's invisibility preamble anyway.
+Every other member instructs the model about internal state and genuinely is invisible.
+
+### THE THREE-PATH ANALYSIS — EVERY READING LEADS TO SILENCE
+
+1. **Read the constant alone** — it is self-contradictory in place, no persona required. A model that
+   leads with the preamble treats the whole thing as scaffolding the user must not hear.
+2. **Generalise the family rule** — then the persona FORBIDS what the directive ORDERS: naming the
+   tool and its arguments aloud IS quoting it and IS referring to its existence. **This is the DEC-55
+   conflict shape that THIS VERY FILE warns about** — *"a model resolving a conflict picks one,
+   unpredictably."*
+3. **Read the literal trigger** — then the rule does not bind at all, and nothing anywhere requires
+   the request to be spoken.
+
+**Three paths, one outcome.** Nothing in the system requires the spoken request, and one reading
+actively forbids it.
+
+### THE GUARD AND THE PERSONA DISAGREE ABOUT WHAT THE FAMILY IS
+
+All 14 directive constants were classified against the persona's LITERAL trigger `(توجيه داخلي`:
+
+- **3 MATCH** (open with the parenthesis): `DIRECTIVE_OPEN_AR` (`verbosity.py:52`),
+  `INTERRUPTED_NOTE_AR` (`highlight_gate.py:132`), `FILE_ALREADY_READ_AR` (`file_reader.py:94`).
+- **11 DO NOT** (open with the bare marker) — including `_CONFIRM_DIRECTIVE_AR`,
+  `FETCH_GATE_EXHAUSTED_AR`, `SANDBOX_GATE_EXHAUSTED_AR`, `EVIDENCE_DIRECTIVE_AR`, and all four
+  `deferral_notes.py` constants.
+
+**`test_ack_scope.py:86` discovers family members by `DIRECTIVE_MARKER_AR in value` — the MARKER, 14
+constants. The persona binds on the parenthesised TRIGGER — 3 constants.** The project's own guard
+and the text the model actually reads do not agree about what the family IS. And
+`confirm_gate.py` lives in `trust/`, outside that guard's `KERNEL` scan entirely, so nothing checks
+this constant against the law it is written to belong to.
+
+**Membership in the internal-directive family is asserted by COMMENT, not established by MECHANISM** —
+`fetch_gate.py:43` calls it *"the «توجيه داخلي» family the persona obeys and never reads aloud"* about
+a constant the persona's own trigger does not match.
+
+### THE MISSING COUNTER
+
+**Unlike `FetchGate` and `SandboxGate`, the confirm path has NO COUNTER.** It refuses identically
+forever and never becomes terminal — `refusal_for` re-places the pending with the same fingerprint on
+every call — so a retrying model spends all four agentic passes and the turn ends having done
+nothing. `FETCH_GATE_EXHAUSTED_AR` exists precisely because *"a model that keeps fetching until the
+agentic cap spends the user's budget and ends the turn with nothing said."* **The same failure is
+reachable here and nothing stands in front of it.**
+
+### THE TERMINAL SURFACE MISDIRECTS
+
+At the cap the user hears `AGENTIC_CAP_NOTE_AR` (`turn.py:120`, spoken at `orchestrator.py:295`):
+
+> اكتفيت بهذا القدر الآن، إذا تبي أكمل **اسألني من جديد**
+
+***Ask me again.*** Taint is sticky with no clearing path — **so following the system's own final
+spoken instruction reproduces the identical failure, indefinitely.** The one surface that does reach
+the user reliably is the one that points away from the fix.
+
+### THE HONEST LIMIT, MATERIALISED — AND IT IS NOT SEARCH-SPECIFIC
+
+DEC-16 recorded that the MODEL IS THE MESSENGER and accepted it for launch. **Confirmed in code:
+there is no kernel-owned surface for a refused high-impact call at all** — no speech, no caption, no
+badge; `ConfirmGate.pending_tool` has no consumer outside tests; the domain badge stays empty because
+nothing was fetched. **The model's own prose is the only channel, and a refused high-impact tool can
+therefore fail SILENTLY from the user's side.** This reaches EVERY high-impact tool, present and
+future — not `web__search`.
+
+**Still open, and only the transcript can close it: whether the request was spoken on THAT run, and
+in a form a user would recognise as a request.** The code establishes that nothing REQUIRES it; it
+cannot establish what the model did.
+
+### THE TURN/PASS HYPOTHESIS — RECORDED AS A HYPOTHESIS, NOT A CAUSE
+
+The directive says «لا تعِد استدعاء الأداة في **هذه الجولة**». **The kernel means a USER TURN. The
+persona uses «دور» for a PASS throughout** («الدور الأول… دورك التالي»), and the two words are near
+synonyms. A model reading each new agentic pass as a new «جولة» sees the constraint ALREADY SATISFIED
+and the «الجولة القادمة» as *now*.
+
+**The counting gates are immune to this ambiguity — they count regardless of how the word is read.
+This one is not: it depends entirely on the model's reading.** Recorded as a hypothesis the
+transcript can confirm or kill; it is NOT asserted as the cause of the four retries.
+
+### THE NOTE-RULE FINDING — NEW COVERAGE INFORMATION, NOT A VIOLATION
+
+The directive was checked against the standing note law (state what was achieved · terminal or
+transient · the valid next step). **It SATISFIES ALL THREE:**
+
+| obligation | text |
+|---|---|
+| what was achieved | «فما نُفِّذ الطلب» — the request was not executed |
+| terminal or transient | «وينتظر إذن المستخدم الصوتي» + «لا تعِد استدعاء الأداة في هذه الجولة» |
+| the valid next step | «اطلب منه أن يقول كلمة «أوافق» وحدها في الجولة القادمة» |
+
+**So the rule written to catch retry loops did its job, and the retry loop happened anyway.**
+
+**RECORDED AS AN EXTENSION OF THE STANDING RULE RATHER THAN A BREACH OF IT: the law governs the
+note's CONTENT, and it cannot govern whether the next PASS obeys it.** A complete note is necessary
+and is not sufficient. Where obedience must be guaranteed rather than requested, the mechanism is a
+COUNTER that makes the condition terminal — which is exactly what the two gates that never produced
+this failure already have.
+
+---
+
+# THE LINK BETWEEN THE TWO PARTS
+
+`mount_doc_rag` sets **`taint=True`** (`composition_mounts.py:115`). **So opening ANY document makes
+every later `web__search` require spoken approval.**
+
+DEC-51 recorded that consequence explicitly and accepted it — *"a hostile PDF's goal is precisely to
+push the model outward, which is the exact motion the confirmation stands in front of."* **The
+acceptance was sound. Its unstated premise was that the confirmation would be SPOKEN.**
+
+**Part two shows the premise does not hold, and that converts an ACCEPTED CONSEQUENCE into a SILENT
+DEAD END.** The user opens a document, later asks for something that needs the web, hears no request
+for approval, and receives an answer from the model's own knowledge — with nothing anywhere
+indicating that a tool was refused or that one word would have released it.
+
+**The general form, and it is why this is recorded as one entry rather than two: a security control
+whose ONLY delivery channel is the model is not a control the system can guarantee — it is a request
+the system HOPES was passed on.** Every layer of the confirmation path is deterministic — the
+detector, the hash binding, the single use, the expiry — except the one step that has to reach a
+human.
+
+### WHAT REMAINS OPEN, IN ONE PLACE
+
+- **The `[doc_rag]` lines from the failing turn.** `zone=inject` ⇒ correct behaviour, surface
+  question, pre-ruled above.
+- **Whether the approval request was SPOKEN on that run** — needs the transcript; unanswerable from
+  code.
+- **The turn/pass reading of «جولة»** — a hypothesis, not a cause.
+- **NO FIX TAKEN on any of it**, and specifically: no persona edit, no timing change, no counter, no
+  new surface. Each is Sultan's ruling and several are constitutional in shape.
+
+---
