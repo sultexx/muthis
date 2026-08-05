@@ -31,7 +31,7 @@ from .broker.search import build_search_provider
 # re-export keeps every existing importer — main.py, the tests, the diag
 # scripts — working unchanged (the turn.py precedent).
 from .composition_mounts import mount_doc_rag, mount_navigator, mount_web_research  # noqa: F401
-from .cloud.claude_agent import ClaudeAgent
+from .cloud.protocol import CloudReasoner  # the CONTRACT, never a vendor (DEC-88)
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget
 from .kernel.frame_capture import FrameCapture
@@ -267,7 +267,7 @@ def _mode_indicator_seam(overlay):
 
 
 def _build_orchestrator(
-    agent: ClaudeAgent, budget: Budget, overlay: SidekickOverlay, mic_seam,
+    agent: CloudReasoner, budget: Budget, overlay: SidekickOverlay, mic_seam,
     router: ToolRouter, sandbox: SandboxService,
 ) -> Orchestrator:
     """Wire the FULL production graph through the existing DI seams. Tests inject

@@ -53,7 +53,8 @@ load_dotenv()
 from .activation import ActivationController  # noqa: E402,F401 — re-export: old imports keep working
 from .broker.docs.zones import assert_zone_invariant  # noqa: E402
 from .kernel.budget import Budget  # noqa: E402
-from .cloud.claude_agent import ClaudeAgent, LOOK_SYSTEM_PROMPT  # noqa: E402
+from .cloud.claude_agent import LOOK_SYSTEM_PROMPT  # noqa: E402
+from .cloud.selection import build_reasoner  # noqa: E402 — the .env reasoner switch
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
     _build_broker_graph, _build_doc_rag, _build_orchestrator, _build_sandbox,
     _log_docker_fallback_decision, _pointer_anim_ms, _size_sent_image,
@@ -128,11 +129,16 @@ async def run() -> None:
     model_tools = [descriptor.schema for descriptor in router.descriptors()]
     _log_docker_fallback_decision()
 
-    # Persona resolved with the sent-image dims and injected through ClaudeAgent's
+    # Persona resolved with the sent-image dims and injected through the agent's
     # existing system_prompt seam. resolve_system_prompt falls back loudly to
-    # LOOK_SYSTEM_PROMPT if the builder is empty/raises.
+    # LOOK_SYSTEM_PROMPT if the builder is empty/raises. THE SAME PERSONA GOES TO
+    # EITHER VENDOR — there is no provider-specific persona text anywhere, and a
+    # test asserts it (the identity law is a Mut'his law, not a Claude one).
     persona_prompt = resolve_system_prompt(LOOK_SYSTEM_PROMPT, sent_width, sent_height)
-    agent = ClaudeAgent(system_prompt=persona_prompt, tools=model_tools)  # reads ANTHROPIC_API_KEY
+    # WHICH reasoner is a `.env` choice, exactly as the search provider is
+    # (DEC-18's shape, returned to the layer it was copied from). The root never
+    # learns which vendor answered; it holds a CloudReasoner and nothing else.
+    agent = build_reasoner(system_prompt=persona_prompt, tools=model_tools)
     await agent.warm_up_tls()  # warm the shared TLS session before the first call
 
     orchestrator = _build_orchestrator(agent, budget, overlay, mic.stop, router, sandbox)
