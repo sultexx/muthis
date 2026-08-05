@@ -75,6 +75,7 @@ transition is a value, because a bound is not an exception on the turn path
 from __future__ import annotations
 
 import dataclasses
+import logging
 from typing import Callable, Optional
 
 from .mode_surfaces import (
@@ -83,6 +84,8 @@ from .mode_surfaces import (
 )
 from .plan import Plan
 from .session_mode import SessionMode
+
+logger = logging.getLogger("muthis.kernel.mode_transition")
 
 # The request kinds. Every mode change in the product is one of these — there is
 # no eighth kind reachable by another path, which is what "no special paths"
@@ -210,6 +213,30 @@ class ModeAuthority:
         if not request.mode_name:
             return self._refuse(UNNAMED_MODE)
         self._mode.enter(request.mode_name, plan=request.plan)
+        # THE ONE MODE-ENTRY LOG LINE (DEC-93), placed where entry is DECIDED
+        # rather than scattered: this is the only `SessionMode.enter` call site
+        # in `src/`, so one line here cannot miss an entry and cannot double-count
+        # one. It exists because DEC-92 found that a mode entry left NO TRACE
+        # ANYWHERE — not in a log, not in the plugin ledger (a `kernel_serviced`
+        # verb never reaches `ToolRouter._record`) — so "did the model reach the
+        # Navigator at all" was unanswerable after the fact. The one tool family
+        # designed to PERSIST ACROSS TURNS was the one whose invocation could not
+        # be confirmed.
+        #
+        # THE MODE NAME IS DELIBERATELY NOT LOGGED, and the omission is the
+        # careful part. `navigator_service` passes the MODEL-AUTHORED plan TITLE
+        # as `mode_name`, and a title may echo whatever was on the user's screen.
+        # That is exactly the content `session_mode.py` refuses a logger in order
+        # to protect ("no means to leak it"), and this line must not become the
+        # leak that module's absence-of-means was built to prevent. The STEP
+        # COUNT is an integer and the FACT of entry is the kernel's own, so both
+        # are safe under the DEC-20 / DEC-28 rule that a log carries the kernel's
+        # facts and never content. Discriminating between modes in the log needs
+        # a kernel-ASSIGNED kind distinct from the display title — a design note
+        # for whoever adds the second mode, not something to improvise here.
+        logger.info("[mode] ENTERED — walkthrough of %d step(s); persists ACROSS "
+                    "TURNS until an exit (exit word / completion / idle)",
+                    request.plan.total if request.plan else 0)
         return TransitionOutcome(applied=True)
 
     def _leave(self) -> TransitionOutcome:

@@ -62,6 +62,32 @@ never pointed.** The MEAN was measured (155.3, 15.2% of cap); the TAIL never was
 `max_tokens` is a tail parameter. `probe_provider.py point --effort high` already records
 `reasoning_tokens` per target — the missing distribution is one re-run.
 
+**DEC-93 — THE RULE GENERALISED, and DEC-88 ruling 2 was UNDER-SCOPED.** *Any PROVIDER-SHAPED
+NUMBER is measured, never inherited* — the class is not "cost models" but every number
+whose correct value depends on provider behaviour. Ruling 2 was obeyed exactly and the
+defect still walked past it, because `max_tokens` looks like a setting. **To-check list,
+not a defect list:** `SESSION_TIMEOUT_S` 90 · `MAX_AGENTIC_ITERATIONS` 4 ·
+`MAX_REFRESH_FOLLOWUPS` 1 · the `httpx.Timeout(120,15)` copied into both wrappers ·
+**`DEFAULT_VISION_MAX_WIDTH` 1280, the sharpest — DEC-88 ⑤ already measured the SAME frame
+at 4,859 tokens on one provider and 9,156 on the other, and nobody read that as a
+parameter question.**
+
+**THE TAIL MEASUREMENT IS BLOCKED — reported, not substituted.** `probe_provider.py point`
+needs `targets.py`, the classifier and the 25-target corpus; **none is on this machine**
+(consistent with DEC-88 keeping them outside the repo — absence by design, not loss). Only
+Sultan can supply them. Narrowing: a TAIL needs only `targets.py` + the corpus, NOT the
+classifier or the ground-truth boxes — those grade HIT/NEAR/MISS, while `reasoning_tokens`
+is read straight off `usage`. Caveat for whatever number is chosen: **a corpus tail is a
+LOWER BOUND on the live tail.** The live distribution cannot be read instead —
+`TurnComplete` carries no reasoning field and no per-turn token figure is logged, so it is
+DEC-92's observability gap in a second place.
+
+**THE MODE-ENTRY LOG LINE IS IN** (`mode_transition._enter`, the only `SessionMode.enter`
+call site in `src/`; 263 → 290). **It deliberately does NOT log the mode NAME** —
+`navigator_service` passes the MODEL-AUTHORED plan title as `mode_name`, which may echo the
+user's screen, and that is exactly what `session_mode.py` refuses a logger to protect. Fact
+of entry + step count only, verified against an Arabic model-authored title.
+
 **NAVIGATOR: the translation is CLEAN, so the defect branch is CLOSED.** Both verbs
 translate byte-identically, all 11 descriptors carry exactly 3 keys (nothing dropped on our
 side either), and their schema constructs are a SUBSET of the other nine. **But whether

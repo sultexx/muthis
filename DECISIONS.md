@@ -10318,3 +10318,133 @@ The cheapest thing that would make the next session decisive is a single log lin
 That is a proposal, not a change, and it is Sultan's.
 
 ---
+
+## DEC-93 (2026-08-05) — **A PROVIDER-SHAPED NUMBER IS MEASURED, NEVER INHERITED.** DEC-88 ruling 2 was UNDER-SCOPED; the mode-entry log line, with the one field it refuses to carry; and a tail measurement BLOCKED for a missing fixture — RULED (Sultan), PARTLY EXECUTED
+
+Three rulings on DEC-92's diagnoses. **One is executed, one is BLOCKED on a missing artefact and is
+reported rather than substituted, and one is a decision not to act.**
+
+### RULING 1 — THE RULE, GENERALISED: DEC-88 RULING 2 WAS UNDER-SCOPED
+
+DEC-88 ruling 2 said: **a COST MODEL is measured, never inherited.** It was written from the cached-
+token direction, which is why it named cost models. DEC-92 found `max_tokens` copied from
+`claude_agent.py` into `luna_agent.py` — a number that is not a cost model, that nothing in ruling 2
+covered, and that failed live for the same reason a wrong cost model would have.
+
+**RULED, AND IT SUPERSEDES THE NARROWER FORM: any PROVIDER-SHAPED NUMBER is re-measured, never
+inherited. The class is not "cost models" — it is every number whose CORRECT VALUE DEPENDS ON
+PROVIDER BEHAVIOUR.** A cost model was the first member of that class to be found, not the class.
+
+**WHY THE UNDER-SCOPING WAS INVISIBLE:** ruling 2 was obeyed exactly as written. The cost model WAS
+re-measured, carefully, and `pricing.py` holds two functions because of it. The rule did its job and
+the defect walked past it, because `max_tokens` does not look like a cost model — **it looks like a
+setting.** A rule stated over a CATEGORY protects only what a later reader files under that category.
+
+**THE NUMBERS THIS PUTS UNDER SUSPICION — A TO-CHECK LIST, NOT A DEFECT LIST.** Each was set with ONE
+provider in the room and none has been re-derived for the second. None is asserted wrong here:
+
+| number | value | why it is provider-shaped |
+|---|---|---|
+| `luna_agent.DEFAULT_MAX_TOKENS` | 1024 | **the found defect** — reasoning bills as output |
+| `SESSION_TIMEOUT_S` | 90.0 | a turn's wall-clock bound; provider latency differs |
+| `MAX_AGENTIC_ITERATIONS` | 4 | passes per turn; a provider may need more or fewer |
+| `MAX_REFRESH_FOLLOWUPS` | 1 | how often a provider asks for a fresh frame |
+| `httpx.Timeout(120.0, connect=15.0)` | both wrappers | copied verbatim into the second wrapper |
+| `DEFAULT_VISION_MAX_WIDTH` | 1280 | **the sharpest of these** — see below |
+
+**`DEFAULT_VISION_MAX_WIDTH` deserves naming because a measurement ALREADY EXISTS and nobody read it
+as a parameter question.** DEC-88 ⑤ measured the SAME downscaled frame at **4,859 input tokens on
+one provider and 9,156 on the other — a 1.9x difference in what one number costs.** The width was
+chosen against a token budget that no longer holds for both. It is not wrong; it is unexamined, and
+it is the clearest illustration that a number can be correct for the provider it was measured against
+and arbitrary for the next.
+
+### RULING 1's MEASUREMENT — **BLOCKED. THE APPARATUS IS COMPLETE; THE FIXTURE IS ABSENT.**
+
+The ruling was to run `probe_provider.py point --effort high` across the 25 targets, report the
+`reasoning_tokens` distribution, name the max, and propose a ceiling derived from the tail. **It was
+not run, and no number is proposed, because the fixture it needs is not on this machine.**
+
+`step_point` requires four arguments. Searched for and NOT FOUND:
+
+- **`--targets`** — a `targets.py` exposing `SHOTS`, `TARGETS` and `bucket`. Absent from the
+  repository and from the whole Desktop tree.
+- **`--classifier`** — the module exposing D-1's `classify`. Absent.
+- **`--corpus`** — the 25-target PNG set. `muthis_grounding/shots` holds **four** screenshots dated
+  2026-07-31 (the `doc_rag` P0 era); `muthis_bench` is the `doc_rag` question bench. Neither is D-1's
+  pointing corpus.
+
+This is consistent with DEC-88's own discipline — *"the corpus and its target list stay OUTSIDE the
+repo"* — so their absence is by design, not loss. **Only Sultan can supply them.**
+
+**A NARROWING THAT REDUCES WHAT HE MUST SUPPLY:** a TAIL measurement does not need the classifier or
+the ground-truth boxes at all. Those grade HIT / NEAR / MISS; `reasoning_tokens` is read straight off
+`usage` and is independent of whether the box was right. **What is genuinely required is `targets.py`
+and the corpus** — because reasoning length depends on the QUESTION ASKED, and the 25 Arabic requests
+cannot be reconstructed.
+
+**AND A CAVEAT THAT SHOULD TRAVEL WITH WHATEVER NUMBER IS EVENTUALLY CHOSEN: the corpus tail is a
+LOWER BOUND on the live tail.** The failing turn was Sultan's real desktop, not a fixture, and
+reasoning length scales with problem difficulty. A corpus-derived ceiling is a floor for a live one.
+
+**WHY THE LIVE DISTRIBUTION CANNOT BE READ INSTEAD, AND IT IS DEC-92's GAP IN A SECOND PLACE:**
+`TurnComplete` carries no reasoning field, `budget.py` records only cost, and no per-turn token
+figure is logged anywhere. **A real turn's reasoning count is unobservable today**, exactly as a
+Navigator entry was. **The same class of gap — no trace of a thing that happened — blocked both of
+DEC-92's questions, and ruling 2 closes it in one of the two places.**
+
+Weak evidence, offered as evidence and not as an answer: DEC-88's effort comparison ran 18 `high`
+passes at a 3,000 cap with no truncation reported — six M-bucket targets on a fixture corpus. It
+bounds nothing.
+
+### RULING 2 — THE MODE-ENTRY LOG LINE, **EXECUTED — WITH ONE FIELD DELIBERATELY REFUSED**
+
+One line, English, at `ModeAuthority._enter` — **the ONLY `SessionMode.enter` call site in `src/`**,
+so entry is logged where it is DECIDED and one line can neither miss an entry nor double-count one.
+`mode_transition.py` 263 → 290/300; no pinned ceiling moved; 1,643 green, unchanged.
+
+**IT DOES NOT LOG THE MODE NAME, AND THE OMISSION IS THE CAREFUL PART OF THIS RULING.** The ruling
+asked for "the mode and the step count", which reads as two kernel facts. **It is not:
+`navigator_service.py` passes `mode_name=title or "المسار"` — the mode name IS THE MODEL-AUTHORED PLAN
+TITLE**, and a title may echo whatever was on the user's screen. That is precisely the content
+`session_mode.py` refuses a logger in order to protect (*"there is no logging import here, so there is
+no means to leak it"* — a property a guard asserts, not a habit). **Logging it would have made this
+line the leak that module's absence-of-means exists to prevent**, and the ruling did not intend to
+repeal DEC-20 / DEC-28 — it asked for a kernel identifier and the field only looks like one from
+outside.
+
+So the line carries the FACT of entry and the STEP COUNT — an integer and a kernel fact, both safe —
+and nothing else. **Verified by driving a real transition with an Arabic model-authored title and
+asserting the title does NOT appear in the emitted record.**
+
+That still answers the question the ruling exists for: *did the model reach the Navigator verbs, and
+how often.* The title was never part of that answer and carried all of the risk.
+
+**WHERE IT DID NOT GO, and why that mattered more than where it did:** `session_mode.py` and
+`plan.py` are covered by `test_neither_primitive_has_a_logger_at_all`, which fails on the mere token
+`logger`. `mode_transition.py` is covered by a different guard that forbids
+`{asyncio, threading, sched, os, json, pickle}` and a name list containing no logging symbol — so the
+decision site was already the only lawful home, and the architecture had chosen it before this ruling
+did. **Discriminating BETWEEN modes in the log will need a kernel-ASSIGNED kind distinct from the
+display title.** That is a design note for whoever adds the second mode, recorded here rather than
+improvised now.
+
+### RULING 3 — NO PERSONA LAW. UPHELD, AND THE REASON IS NOW STRUCTURAL
+
+DEC-92 declined to write one because Navigator reach could not be confirmed. That judgement stands,
+and ruling 2 is what makes it more than a deferral: **the gap was UNOBSERVED, not observed, and it
+was unobservable.** T7's O-1 already measured reach as VARIABLE on Claude itself — called in run 1,
+not in run 2, `draw_shapes` in run 3 — so a single unconfirmable session on a new provider is not the
+STABLE observed gap DEC-83 requires.
+
+**The next session carries the log line, and that session can settle it.** If the verbs are then
+measurably unreached, that is **a ruling to request, not a patch to make.**
+
+### THE ONE-LINE LESSON
+
+**A rule stated over a CATEGORY protects only what a later reader files under that category.** Ruling
+2 said "cost models" and was obeyed exactly; the defect walked past it because `max_tokens` files
+under "settings". The fix is to state the rule over the PROPERTY — depends on provider behaviour —
+rather than over the example that produced it.
+
+---
