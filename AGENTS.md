@@ -110,6 +110,19 @@ PTT hold → mic streaming capture (record while held, flush on release) →
   and the ledger confirms no routed plugin ran that session. 2 passes is exactly where a one-pass memory gap is
   least able to show, so the question is answered where it was asked and OPEN where it was not. The symptoms to
   watch on a 3-4 pass turn, and the discriminator, are in DEC-92.
+- **A CAPABILITY THAT LEAVES NO TRACE IS INDISTINGUISHABLE FROM ONE THAT IS NEVER USED** (DEC-94,
+  earned twice in three entries). **Make it visible BEFORE writing a rule about behaviour nobody can see.**
+  DEC-92 nearly concluded the Navigator verbs were unreached; DEC-93 added ONE log line at the decision
+  site; the next session printed `[mode] ENTERED — walkthrough of 6 step(s)` and the verbs were reached
+  all along — **six consecutive turns inside the mode.** The cheap fix at the OBSERVATION site beat the
+  expensive rule written on a guess, and the worst case was the tool family whose whole purpose is to
+  PERSIST ACROSS TURNS. **The same gap is still OPEN in a second place: `TurnComplete` carries no
+  reasoning field and no per-turn token figure is logged, so a real turn's reasoning count is
+  unobservable** — which is why the DEC-92 tail measurement has to run on the off-machine D-1 corpus
+  instead of on production. **A number the system computes, uses and discards cannot be measured after
+  the fact, and the first time anyone needs it is always after the fact.** Not proposed as a change:
+  touching `TurnComplete` needs its own ruling (DEC-88 found the contract sufficient AS WRITTEN), and the
+  argument to have is *which numbers must survive a turn* — never *add a field*.
 - **A PROVIDER-SHAPED NUMBER IS MEASURED, NEVER INHERITED — BINDING, and it SUPERSEDES the narrower
   cost-model form** (DEC-93, generalising DEC-88 ruling 2). **The class is not "cost models" — it is every
   number whose CORRECT VALUE DEPENDS ON PROVIDER BEHAVIOUR.** The under-scoping was invisible because ruling 2
@@ -842,6 +855,28 @@ in DECISIONS.md (DEC-43).
   the identity law a property of a code path (DEC-91; the composed prompt is scanned for vendor names). A law
   that ENUMERATES the vendor it denies is also a cutoff (the M16 family): DEC-89 ruling 1 established that the
   working form refuses the FRAMING, never the list of answers.
+- **Do not "fix" the pointer appearing a fraction BEFORE the speech — it is the Option-A SYNC POINT and
+  the ordering IS the feature** (DEC-94, ANSWERED so it is not re-raised). `turn_pass.py` owns it and its
+  docstring states the order literally: *apply the ONE buffered draw → THEN speak*. An `auto` pass's text
+  stays fully buffered and reaches the voice AT the sync point, so **Mut'his never speaks about something
+  not yet drawn**; inverting it produces the exact defect the sync point exists to prevent. Likewise, the
+  overlay vanishing ~7 s after the voice stops is `DEFAULT_OVERLAY_TIMEOUT_S = 7.0` armed at SPEECH END —
+  and that arm site is itself v7.1 Fix F: the timer used to be armed at DRAW time, which was measured
+  hiding the rectangle MID-EXPLANATION. **What you are seeing is the corrected behaviour.**
+- **Do not raise `REASONING_EFFORT` above `high`, and do not treat the truncation defect by raising it**
+  (DEC-94 ruling 2, on top of DEC-89's measurement). `xhigh` fixed **ZERO** additional targets — #10 was
+  already stable at `high`, #15 stayed 0/2 — while output rose 1.54x. **And reasoning bills as OUTPUT,
+  which is what `max_output_tokens` caps**, so raising effort spends more of the very ceiling that already
+  overflowed: it compounds the defect instead of treating it. **The number that needs raising is the
+  CEILING, and only AFTER the tail is measured** — setting it from a mean is what produced the defect.
+- **Do not swap in a larger model to fix pointing** (DEC-94 ruling 1). `terra` is 10x luna's rates on both
+  input and output, taking the measured 53.6x continuing-session advantage to 5.4x. **But the ruling rests
+  on the measurement, not the price: luna's only accuracy failure is a FIXED WRONG BELIEF** (DEC-89 ruling
+  3 — eight consecutive MISSes clustered ~220 px right of truth, vertical exact, **drifting FURTHER right
+  as effort rose**), and **nothing measured anywhere in this project suggests a larger model corrects a
+  confident wrong belief.** A 10x price bought on an unmeasured hope is a guess. **If a larger model is
+  ever tested, it is tested the way luna was — the SAME 25 targets, the SAME protocol, the same
+  classifier** — or the number cannot be set beside 23/25.
 - Do not parse coordinates out of response prose. Tool calls only.
 - Do not add features, refactor, or "improve" beyond what was asked.
 - Do not expose a non-read-only MCP tool to the model, bypass the broker for an external

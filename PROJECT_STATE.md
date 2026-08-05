@@ -62,6 +62,31 @@ never pointed.** The MEAN was measured (155.3, 15.2% of cap); the TAIL never was
 `max_tokens` is a tail parameter. `probe_provider.py point --effort high` already records
 `reasoning_tokens` per target — the missing distribution is one re-run.
 
+**DEC-94 — ONE LOG LINE SETTLED IT. The Navigator IS reached.** The next session printed
+`[mode] ENTERED — walkthrough of 6 step(s); persists ACROSS TURNS`: luna called
+`navigator__plan`, entered teaching mode, **six consecutive turns inside it**, two barge-ins,
+session $0.0157. **What looked like "the verbs are unreached" was the OBSERVABILITY GAP** —
+DEC-92 was right to decline a persona law on it. **A capability that leaves no trace is
+indistinguishable from one that is never used; make it visible before ruling on it.**
+
+**THREE RULINGS, ALL "DO NOT" — all now in AGENTS.md "Do NOT":**
+1. **No larger model.** `terra` is 10× luna on both rates (53.6× → 5.4× vs sonnet). But the
+   ruling rests on the MEASUREMENT: luna's only failure is a FIXED WRONG BELIEF (DEC-89
+   ruling 3), and nothing measured says a bigger model corrects one — it drifted FURTHER
+   wrong as effort rose. If ever tested: same 25 targets, same protocol.
+2. **No effort above `high`.** `xhigh` fixed ZERO extra targets. And reasoning bills as
+   OUTPUT, which is what `max_output_tokens` caps — raising it spends more of the ceiling
+   that already overflowed. **The CEILING is what needs raising, after the tail is measured.**
+3. **"Points before it speaks" is DESIGNED — ANSWERED, not re-raisable.** The Option-A sync
+   point applies the buffered draw THEN speaks, so Mut'his never speaks about something not
+   yet drawn. The ~7 s vanish is `DEFAULT_OVERLAY_TIMEOUT_S` armed at SPEECH END — and that
+   arm site is v7.1 Fix F, so it is the CORRECTED behaviour. No change.
+
+**THE SECOND OBSERVABILITY GAP, STILL OPEN:** `TurnComplete` carries no reasoning field and no
+per-turn token figure is logged, so a real turn's reasoning count is unobservable. **ONE kind
+of absence blocked BOTH of DEC-92's questions** — the Navigator one is now closed, the tail one
+is not. Not proposed as a change: touching `TurnComplete` needs its own ruling.
+
 **DEC-93 — THE RULE GENERALISED, and DEC-88 ruling 2 was UNDER-SCOPED.** *Any PROVIDER-SHAPED
 NUMBER is measured, never inherited* — the class is not "cost models" but every number
 whose correct value depends on provider behaviour. Ruling 2 was obeyed exactly and the

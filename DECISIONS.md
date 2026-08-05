@@ -10448,3 +10448,155 @@ under "settings". The fix is to state the rule over the PROPERTY — depends on 
 rather than over the example that produced it.
 
 ---
+
+## DEC-94 (2026-08-05) — **ONE LOG LINE SETTLED THE QUESTION.** The Navigator IS reached; three rulings that are all "do not"; and the second observability gap, which explains why BOTH blocked measurements were blocked by ONE absence — RULED (Sultan)
+
+DEC-93 added one line. The next session answered a question two entries had failed to close.
+
+### THE LINE WORKED, AND THIS IS THE ENTRY'S WHOLE ARGUMENT FOR OBSERVABILITY
+
+```
+[mode] ENTERED — walkthrough of 6 step(s); persists ACROSS TURNS
+```
+
+**`luna` DID call `navigator__plan` and DID enter teaching mode with a six-step plan.** Six
+consecutive turns inside the mode, two immediate barge-ins, the session at **$0.0157**.
+
+**What had looked like "the verbs are unreached" was the OBSERVABILITY GAP and nothing else.** DEC-92
+declined to write a persona law on exactly that suspicion, and declining was right: the gap was
+UNOBSERVED, not observed. **One line converted an unanswerable question into a measured fact**, and it
+cost 27 lines in one file and zero behaviour.
+
+**RECORDED AS THE GENERAL LESSON, because it will recur: a capability that leaves no trace is
+indistinguishable from a capability that is never used.** The Navigator was the worst case of it —
+the ONE tool family whose entire purpose is to PERSIST ACROSS TURNS was the one whose invocation
+could not be confirmed afterwards. Before writing a rule about behaviour nobody can see, make it
+visible; the cheap fix at the observation site beats the expensive rule written on a guess.
+
+### THE REFUSED FIELD, RECORDED BECAUSE THE REASONING IS THE PRECEDENT
+
+Sultan's ruling said *"the mode and the step count"*, believing both to be kernel facts. **They are
+not.** `navigator_service.py` passes `mode_name=title or "المسار"` — **the MODEL-AUTHORED plan
+TITLE** — and a title may echo whatever was on the user's screen. Logging it would have made that
+line **the precise leak `session_mode.py`'s absence-of-means exists to prevent** (*"there is no
+logging import here, so there is no means to leak it"*), and would have done it inside the one commit
+whose stated purpose was observability.
+
+**RULED CORRECT, AND THE READING IS THE PART TO CARRY FORWARD: a ruling that names a field is a
+request for what that field APPEARS to be, not a repeal of the laws that govern what it actually
+holds.** `mode_name` looks like an identifier from outside; it is content. Reading the ruling as
+asking for an IDENTIFIER — and delivering the fact of entry plus the step count, both genuinely the
+kernel's own — served the ruling's purpose exactly while leaving DEC-20 / DEC-28 intact.
+
+**AND IT IS VERIFIED RATHER THAN INTENDED**: a real transition was driven with an Arabic
+model-authored title and the emitted record asserted NOT to contain it. Intent is not a property;
+the assertion is.
+
+**The kernel-ASSIGNED kind, distinct from the display title, remains the right design note for the
+second mode — and it is NOT improvised now.** There is one mode; inventing a taxonomy for a second
+that does not exist is the speculative generality this project refuses.
+
+### RULING 1 — DO NOT SWITCH TO A LARGER MODEL
+
+Sultan asked about `terra`: **$2.00 / $12.00 against luna's $0.20 / $1.20 — exactly 10x on both
+rates**, so a turn's cost scales linearly by ten.
+
+| | per continuing turn | per 1,000 turns | ratio vs sonnet |
+|---|---|---|---|
+| luna (MEASURED, DEC-90) | $0.000883 | $0.88 | **53.6x** |
+| terra (DERIVED, 10x luna) | $0.008830 | $8.83 | **5.4x** |
+| sonnet (PROJECTED, DEC-90) | $0.047320 | $47.32 | 1.0x |
+
+**THE "GAIN DISCARDED" FIGURE HAS TWO HONEST READINGS AND THEY DIFFER SHARPLY — both are recorded so
+a future reader who recomputes does not conclude the record is wrong:**
+
+- **as LEVERAGE above parity**, 52.6x becomes 4.4x — **91.7% of the multiple is discarded**;
+- **as DOLLARS saved against sonnet**, $0.0464 becomes $0.0385 per turn — **17.1% of the saving is
+  discarded**, and terra still saves 83%.
+
+**THE RULING DOES NOT REST ON EITHER, AND THAT IS THE point.** It rests on the second argument, which
+is decisive on its own: **NOTHING MEASURED SAYS A LARGER MODEL WOULD HELP.** luna's only accuracy
+failure is DEC-89 ruling 3's — a **FIXED WRONG BELIEF** about which status-bar segment is the
+line-and-column readout: eight consecutive MISSes, predictions clustered tightly ~220 px right of
+truth, vertical position exact to the pixel, **and drifting FURTHER right as effort increased.** That
+is not uncertainty. **No measurement in this project, and none in the probe, suggests a larger model
+corrects a confident wrong belief** — and the one experiment that varied deliberation found it
+converging harder on the error rather than away from it.
+
+**A 10x price increase bought on an unmeasured hope is a guess, not a decision.** **IF terra is ever
+tested, it is tested the way luna was: the SAME 25 targets, the SAME protocol, the same classifier —
+so the number is comparable rather than merely encouraging.** Anything less produces a figure that
+cannot be set beside 23/25.
+
+### RULING 2 — DO NOT RAISE REASONING EFFORT TO `max`
+
+**DEC-89 already measured the answer and it is unambiguous: `xhigh` fixed ZERO additional targets
+over `high`.** #10 was already stable at 3/3 under `high`; **#15 stayed 0/2 at `xhigh`, the eighth
+consecutive MISS across three effort levels.** Output rose from 155.3 to 238.8 (1.54x over `high`,
+2.33x over default) and bought nothing.
+
+**AND RAISING IT NOW WOULD MAKE THE OPEN DEFECT WORSE, WHICH IS THE ARGUMENT THIS RULING ADDS TO
+DEC-89's.** Reasoning bills as OUTPUT and `output_tokens` is what `max_output_tokens` caps (DEC-92's
+derivation: output minus reasoning holds constant at ~53-54 while reasoning quadruples). **The
+ceiling already overflowed at `high`. More effort spends more of the very budget that overflowed** —
+it treats a truncation defect by increasing the thing that caused it.
+
+**The number that needs raising is the CEILING, not the effort — and only AFTER the tail is
+measured.** Raising the ceiling from a mean is what produced the defect; raising the effort into an
+overflowing ceiling would compound it.
+
+### RULING 3 — "IT POINTS BEFORE IT SPEAKS" IS DESIGNED. ANSWERED, SO IT IS NOT RE-RAISED
+
+**Both halves verified in the source, not restated from the report.**
+
+**The rectangle precedes the audio DELIBERATELY.** `turn_pass.py` owns the **Option-A SYNC POINT** and
+its docstring states the order literally: *"apply the ONE buffered draw → THEN speak"*. An `auto`
+pass's text stays FULLY BUFFERED and reaches the voice AT the sync point. **The draw is applied
+before speech begins so that Mut'his never speaks about something not yet drawn** — the ordering is
+the feature, and inverting it would produce the exact defect the sync point exists to prevent.
+
+**"It was just orange" is the 7-second auto-hide after SPEECH END**, `DEFAULT_OVERLAY_TIMEOUT_S = 7.0`,
+appearing four times in Sultan's log. **And the arm site is itself a fix worth naming here** (v7.1
+Fix F): the timer used to be armed at DRAW time, which was measured hiding the rectangle
+MID-EXPLANATION because draw+7 s landed before speech ended. `run_turn`'s `finally` is now the ONLY
+arm site and the 7 s counts from speech end. **So the behaviour Sultan saw is the CORRECTED one.**
+
+**NO CHANGE. Recorded as ANSWERED rather than merely closed**, because an unrecorded answer to a
+plausible-sounding observation gets re-raised, and the second person to raise it will not know it was
+already settled.
+
+### THE SECOND OBSERVABILITY GAP — ONE ABSENCE BLOCKED BOTH MEASUREMENTS
+
+`TurnComplete` carries `input_tokens`, `output_tokens`, the two cache counters and `cost_usd`. **It
+carries NO reasoning field, and no per-turn token figure is logged anywhere**: `budget.py` records
+only cost, and the wrapper logs neither. **So a real turn's reasoning count is unobservable**, exactly
+as a mode entry was.
+
+**THIS IS WHY BOTH OF DEC-92's QUESTIONS WERE BLOCKED BY ONE KIND OF ABSENCE, and naming the pattern
+is worth more than either instance:**
+
+- *"Did the model reach the Navigator?"* — blocked because entry left no trace. **CLOSED by DEC-93's
+  log line, and the answer arrived one session later.**
+- *"What is the reasoning tail?"* — blocked because per-turn reasoning leaves no trace, forcing the
+  measurement onto the D-1 corpus, whose fixture is deliberately off-machine. **STILL OPEN.**
+
+**The pattern: a number the system computes, uses and discards cannot be measured after the fact —
+and the first time anyone needs it is always after the fact.** The reasoning count crosses the seam
+on every single turn, is read to compute the cost, and is then dropped.
+
+**NOT PROPOSED AS A CHANGE HERE**, deliberately: the tail measurement is Sultan's to unblock by
+supplying the target questions, and adding a field to `TurnComplete` is a protocol touch that needs
+its own ruling and would not be free (DEC-88 found the contract sufficient AS WRITTEN, and the bar
+for touching it is correspondingly high). **Recorded so that whoever raises it next argues about the
+right thing: not "add a field", but "which numbers must survive a turn."**
+
+### WHAT REMAINS OPEN, IN ONE PLACE
+
+- **The reasoning TAIL — blocked on Sultan supplying `targets.py` and the corpus** (the classifier
+  and the ground-truth boxes are NOT needed; they grade accuracy, not tokens). **A corpus tail is a
+  LOWER BOUND on the live tail**, because the failing turn was a live request on a real desktop.
+- **`luna_agent.DEFAULT_MAX_TOKENS` stays 1024** until that measurement exists.
+- **The provider-shaped numbers of DEC-93** remain a to-check list, `DEFAULT_VISION_MAX_WIDTH` first.
+- **No persona law**, and now for a stronger reason than DEC-92's: the verbs ARE reached.
+
+---
