@@ -10874,3 +10874,227 @@ human.
   new surface. Each is Sultan's ruling and several are constitutional in shape.
 
 ---
+
+## DEC-96 (2026-08-06) — **THE ENTRY THAT CLOSES DEC-95.** Two correct behaviours and zero ingestion bugs; the refusal whose reason never reached the user; and STRATEGY — DESIGNED, DEFERRED, AND THE MEASUREMENT IS THE ARGUMENT — CLOSED (Sultan) + MEASURED, no ruling taken
+
+DEC-95 left two things open: the `[doc_rag]` lines from the failing turn, and a design that could
+not be written because its content lived in a cleared session. **Both arrive here.**
+
+Zero `src/` changes. **1,643 green.**
+
+---
+
+# PART ONE — DEFECT 1 IS CLOSED: TWO CORRECT BEHAVIOURS, ZERO INGESTION BUGS
+
+### THE LOGS, WHICH NAME THE CAUSE THE ARITHMETIC COULD ONLY BOUND
+
+```
+[doc_rag] refused scanned pdf (no text layer): no text layer on any of 96 pages
+[doc_rag] zone=inject tokens=11022 ... admitted=1
+```
+
+**Two different documents, two different branches, and BOTH are behaving as designed.**
+
+- **The "new PDF" was a SCANNED document** — 96 pages of images with no text layer. The refusal is
+  correct and TERMINAL: OCR is out of launch scope (`V2_ROADMAP.md` §4 — *«المستندات الممسوحة ضوئيًا
+  (OCR) خارج نطاق الإطلاق»*). **Recorded as a stated LIMITATION, not a defect.**
+- **The file that DID open landed in `zone=inject` at 11,022 tokens** — comfortably under the 50,000
+  limit, injected WHOLE rather than indexed. **Exactly what DEC-95's arithmetic predicted**, now
+  confirmed on the real document instead of on three files chosen to probe the path.
+
+**So the "already known documents index correctly" comparison was SIZE and TEXT-LAYER PRESENCE, and
+never familiarity.** DEC-95 refused to guess which mechanism that phrase named; the logs show it
+named two, and neither was a mechanism the phrase suggested. **The discipline paid twice** — once by
+not inventing a match, and once by leaving the question in a shape the logs could answer in two lines.
+
+### THE ONE REAL DEFECT IS THE SURFACE — AND IT IS DEC-35'S SHAPE AGAIN
+
+**Mut'his refused a scanned PDF and Sultan did not learn why.** The reason was computed correctly,
+was type-accurate, and was written to the log — *and it never reached the person who needed it.*
+
+**That is precisely DEC-35's shape: a refusal whose reason does not reach the person who needs it.**
+DEC-35 fixed it one layer in — it made the broker's refusals TYPE-ACCURATE so a TERMINAL condition
+would stop reading as a retryable one, because a mis-reported refusal made the model rationally retry
+four paths. **The same failure has now been found one layer OUT.** The note is accurate and the model
+receives it; the USER does not. DEC-35 taught the machine to say the right thing; it did not
+guarantee anyone hears it.
+
+**AND IT IS THE SAME CLASS AS THE ZONE-1 CASE.** A small document injected whole and a scanned
+document refused are opposite outcomes, but they fail the user identically:
+
+> **a correct outcome reads as a failure because nothing tells the user which branch was taken.**
+
+Zone 1 versus zone 2, text layer versus none — the system knows exactly which path it took every
+time, states it in English in the log, and surfaces none of it. **The branch is observable to the
+operator and invisible to the user, which is the DEC-94 observability lesson pointed at a HUMAN
+rather than at an engineer.**
+
+**NO FIX TAKEN.** This is a MESSAGE question, pre-ruled at DEC-95 and confirmed here, and it must not
+be answered by touching `zones.py`, `extract.py` or the notes the model reads — those are all correct.
+Whatever answers it is a USER-FACING surface, which is a different layer and its own ruling.
+
+### THE `%20` FIX IS NOW LIVE-VERIFIED
+
+From the same log:
+
+```
+[doc_rag] path looked URL-encoded and the decoded form exists — opening that
+```
+
+**`paths.py` fired in real use and recovered a mangled path.** The defect it was written from was a
+live log; the fix has now been **proven in PRODUCTION, not in a test**. Worth recording precisely
+because it is the branch DEC-95 checked first and cleared — the path journey is not merely
+un-implicated, it is demonstrably WORKING, and the RAW-path-wins ordering held.
+
+---
+
+# PART TWO — STRATEGY: DESIGNED, DEFERRED, AND THE MEASUREMENT IS THE ARGUMENT
+
+*(DEC-90's form: the design is recorded in full so that deferring it costs nothing later, and the
+number that defers it is stated before the design rather than after.)*
+
+### THE MEASUREMENT THAT DEFERS IT
+
+**10 real-usage cases. 8 carried `verbosity_sufficient: false` — and only 3 are INTERACTION-SHAPED.**
+
+| case | what it actually was |
+|---|---|
+| 2, 4 | **missing capability** |
+| 5 | **an un-called tool** |
+| 6 | **the confirmation path** (DEC-95) |
+| 10 | **latency** |
+
+**Of the 3 real interaction gaps, 2 are the SAME DEFECT — explaining instead of executing —
+addressable by ONE persona clause.**
+
+**Under the decision table written BEFORE the measurement, that is the "do not build" branch.** The
+table is what makes this a ruling rather than a preference: the threshold was fixed while the answer
+was still unknown, so the number decides and nobody has to argue about whether 3 feels like enough.
+
+### DEFINITION
+
+**Constraints and preferences READ during decision-making, owning nothing.** The distinguishing
+property: **it is the only component in Mut'his that owns no state, no authority and no effect.**
+Persona owns identity, `SessionMode` owns the frame, the Planner owns the decision.
+
+### RESPONSIBILITY
+
+It answers **one** question: *what constraints must the Planner take into account?*
+
+It does **NOT** answer who Mut'his is (Persona), what the session state is (`SessionMode`), how the
+task is solved (Planner), or what is permitted (the kernel).
+
+### LIFECYCLE
+
+**Derived at turn start from the turn AND the history together, consumed, gone.** Never stored,
+carried or transported. **Continuity comes from INPUT CONSISTENCY, not from a saved object** — which
+is why a multi-turn writing task feels continuous with no state at all.
+
+**"Does it change mid-task?" dissolves:** it neither changes nor persists — it is RE-DERIVED, so
+there is no transition mechanism and no intermediate state. That is the undefined third state DEC-24
+closed, refused here by construction rather than by rule.
+
+### THE EIGHT BOUNDARIES
+
+1. **READ, never applied** — imports nothing that can change state. **Proven by ABSENCE**, the
+   `FetchedDomains` shape.
+2. **Data, never text** — no sentence from it reaches the model; the Planner reads the FIELD and
+   translates it in its own words. **This exists because the multi-pass ack survived precisely by
+   having two sources for one behaviour** — a law in the persona and a directive that did not carry
+   it.
+3. **An explicit user command always wins** — guaranteed BY CONSTRUCTION, since the derivation reads
+   the explicit command.
+4. **Grants no privilege** — raises no taint, is never persisted, does not touch the security model.
+5. **Knows nothing of tools** — it says *"direct or progressive"*, never *"use search"*. A field
+   selecting a tool would be a CAPABILITY decision, and those are kernel-side by the closed
+   enumeration (DEC-27).
+6. **Knows nothing of providers** — a constraint shaped for one model would re-bind the project to a
+   vendor after DEC-91 freed it.
+7. **ONE consumer: the Planner** — a second reader makes it SHARED STATE, and shared state read by
+   several drifts (the DEC-15 lesson).
+8. **Values are ENUMERATED, never open** — a closed set of fields and values. **All three guarantees
+   presuppose it:** you cannot test determinism over an open space, cannot prove immutability of
+   something with no shape, and cannot verify observable inputs if the output is free text. **It is
+   also what makes boundary 2 GUARDABLE — an enum value cannot leak as a sentence.**
+
+### THE THREE GUARANTEES
+
+1. **PURE DERIVATION over observable inputs** — no hidden state, no dependence on time or ordering.
+   **Sultan originally asked for DETERMINISM; it was reworded, and the rewording is the point.** A
+   determinism guarantee over a PROBABILISTIC deriver would be written and then broken on the first
+   run — **measured in this project: the same question produced three different tool choices in T7,
+   and target #10 hit once in three at a fixed setting.** A guarantee that gets broken is WORSE than
+   none, because decisions get built on it.
+2. **IMMUTABLE after derivation** — read-only; the Planner consumes and never rewrites. **A
+   CONSEQUENCE of boundary 1 rather than an addition**, and that is its value: it gives the property
+   a SECOND INDEPENDENT GUARD — boundary 1 proves by ABSENCE, this proves by STRUCTURE.
+3. **OBSERVABLE INPUTS ONLY** — the derivation rests on the turn, the history and explicit user
+   commands; never on internal state or invisible model behaviour. **Its value shows at FAILURE
+   time: a wrong constraint can be REPRODUCED, because all of its inputs are visible.**
+
+### DERIVATION OWNERSHIP
+
+**The model PROPOSES a value from the closed enumeration; the kernel VALIDATES STRUCTURALLY only —
+membership in the enum — never semantically.** The kernel stays responsible for **VALIDITY, never
+for MEANING**, which keeps *"the model proposes, the kernel verifies"* consistent with every other
+decision in the project.
+
+### PRIORITY WHEN A CONSTRAINT CONFLICTS
+
+**The user's explicit command wins · a persona law wins · a capability ruling wins.**
+
+**Strategy is the LAST consulted and the FIRST to yield — and that is the test of where it belongs.**
+
+### EXPLICITLY EXCLUDED — A CONFIDENCE SCORE
+
+Proposed as a possible extension and **REJECTED**, on three independent grounds:
+
+- **It cannot be structurally validated** — a continuous number the model authors. Boundary 8 has no
+  purchase on it.
+- **It is the model-authored-number-driving-a-kernel-decision pattern, rejected SIX times** —
+  `is_error`, a declared `read_only`, a plugin-declared cost, and the rest of that family.
+- **It is MEASURED that this model does not know when it is wrong.** Target #15's boxes clustered
+  TIGHTLY across eight runs while confidently wrong, drifting FURTHER wrong as effort rose.
+
+**A confidently-wrong model reports high confidence**, so the signal would be HIGH exactly where it
+is not needed and possibly LOW where the model is right. **Worse than absent, because it reads as a
+signal.**
+
+### REOPENING
+
+**Recurring interaction gaps that cannot be cleanly solved by a Persona rule or the existing
+mechanisms.**
+
+---
+
+# THE DATASET SCHEMA FIX
+
+**`verbosity_sufficient` gains a third value, `not_applicable`.** The two-valued field forced a
+verdict on cases where **verbosity was never the question** — several were capability, tool or
+latency problems, and recording `false` there overstates the interaction evidence by counting a
+missing capability as a communication failure. **That mislabelling is exactly what made 8 look like
+the interaction count when the real one is 3**, so the schema fix and the deferral above are the same
+finding seen twice.
+
+**The file lives OUTSIDE the repo at `C:\Users\sultb\Desktop\muthis_strategy\cases.jsonl`** — it is
+research data, not source, and it must never be copied into the tree.
+
+**NOT APPLIED — the path does not exist.** `Test-Path` on the directory returns False, no
+`*strateg*` folder is present on the Desktop, and a recursive search found no `cases.jsonl`. The fix
+is RECORDED here and lands when the file is reachable. **It was not created**: writing a research
+dataset would mean inventing the ten case records, which is the same refusal that kept this design
+unwritten until its content arrived verbatim.
+
+### WHAT REMAINS OPEN, IN ONE PLACE
+
+- **The surface defect** — a correct outcome reading as a failure because the branch taken is never
+  surfaced. Covers BOTH the scanned refusal and the zone-1 injection. A MESSAGE question; no fix
+  taken; not to be answered inside `zones.py` or the model-facing notes.
+- **Whether the DEC-95 approval request was SPOKEN** on that run — still needs the transcript, still
+  unanswerable from code.
+- **The turn/pass reading of «جولة»** — a hypothesis, not a cause.
+- **The schema fix** — blocked on the dataset's real location.
+- **Strategy stays DEFERRED**, with its reopening condition above. Nothing is stubbed, nothing is
+  named in a schema, and no field is reserved for it.
+
+---
