@@ -1,14 +1,52 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-08-04, **V3 Phase 3 MERGED to `main`, and the
-> REPOSITORY AUDIT CLOSED — the repo is ready for its first push**). **`AGENTS.md`
-> remains the full source of truth**; this is the compressed map. `main` carries the
-> Phase-3 merge `fbe9185` plus the audit pass; app suite **1513 green** + 27 sdk
-> tests — run on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces
-> false failures).
+> Token-saving snapshot (updated 2026-08-05, **the SECOND REASONER is integrated —
+> DEC-91**). **`AGENTS.md` remains the full source of truth**; this is the compressed
+> map. App suite **1616 green** + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that
+> one lacks trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — PHASE 3 MERGED, REPOSITORY AUDIT CLOSED (2026-08-04)
+## CURRENT STATUS — THE SECOND REASONER, INTEGRATED (2026-08-05, DEC-91)
+
+**Mut'his now has TWO reasoners behind ONE contract, and `cloud/protocol.py` is
+BYTE-UNTOUCHED** (git-verified). `MUTHIS_REASONER` in `.env` picks `claude` (the
+DEFAULT, and that is a ruling) or `luna`; the kernel never learns which answered.
+**The default is NOT changed and the switch is Sultan's after a live run** — no live
+run has been performed, and every figure quoted anywhere for this provider is
+DEC-88/89/90's measurement, never a fresh claim.
+
+New: `cloud/luna_agent.py` (238) · `luna_accounting.py` (110) · `luna_messages.py`
+(193) · `tool_envelope.py` (106) · `selection.py` (113). `pricing.py` 105 → 190.
+`main.py` 223 → 229. **`composition.py` stayed at its declared 298, and
+`orchestrator.py` (299), `tool_router.py` (300), `persona_rules.py` (298),
+`claude_agent.py`, `persona.py`, `cache_control.py` and `budget.py` are all
+untouched.** `luna_agent.py` hit 301/300 and was SPLIT — split, never compress.
+
+**The four measured differences, all absorbed by the wrapper:** the tool ENVELOPE is
+renamed (`input_schema`→`parameters`, +`type`, +`strict`) — **and a HALF-PORTED
+catalogue is ACCEPTED IN SILENCE by this API, the inverse of DEC-11's loud 400**, so
+the envelope is asserted by EXACT KEY SET; `usage` arrives only at the LAST stream
+event; **`stop_reason` does not exist and is DERIVED — the tool-call test must come
+FIRST, or the pointer draws and Mut'his falls silent**; and the cost model is
+INCLUSIVE, so `pricing.py` now holds TWO functions and crossing them double-counts
+every cached turn silently.
+
+ONE persona for both, with no provider-specific text anywhere (source AND composed
+prompt both scanned). `store=False` on every call is a PRIVACY control — the payload
+is the user's screen. `reasoning.effort="high"` is a CONSTANT, not a knob (DEC-89
+measured it; `xhigh` bought zero targets). **NO capability flag was built** — the
+measurement refused the framing it was ordered under (23 HIT of 25, XS perfect); the
+degradation-mode difference (Claude falls to NEAR, this falls to MISS) is a RECORDED
+KNOWN LIMIT. **25 mutations ALL RED**, one of which (M7) exposed a hole in its own
+guard: the reference had been polluted by the very mutation it was checking for.
+
+**DECLARED UNMEASURED:** whether the `reasoning` output item must round-trip through
+history. It is NOT carried (Law 11 forbids wrapper state; a provider-specific opaque
+block in kernel history is the second vocabulary this design refuses), and DEC-90
+drove a real TWO-pass turn to correct termination without it. A 3-4 pass turn has
+never been driven.
+
+## PHASE 3 MERGED, REPOSITORY AUDIT CLOSED (2026-08-04)
 **Phase 3 — the Navigator** is COMPLETE and **MERGED to `main`**, tagged
 `v3-navigator-complete`. `feature/v3-navigator` is preserved.
 
@@ -24,7 +62,7 @@ committed at [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-202
 wrong** — resolve them through that map (DEC-87 opens with this).
 The unreachable 638 MB installer went with the rewrite's repack: **`.git` 605 MB →
 ~3 MB**. The repository now carries a **README**, an **Apache-2.0 LICENSE**
-(`Copyright 2026 Sultan Faisal Al-Anzi`) and a **`.env.example`** (55 variables, no
+(`Copyright 2026 Sultan Faisal Al-Anzi`) and a **`.env.example`** (59 variables, no
 values). **NO REMOTE EXISTS and nothing has been pushed — that is Sultan's.**
 
 Mut'his now walks a user through a task step by step — `navigator__plan` +
@@ -572,8 +610,18 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
   task is deferred behind P0's D-2. Plugin half:
   `muthis_plugins/doc_rag/plugin.py` 185, `delivery.py` 136 (dedupe by parent,
   relevance order, cap), `schema.py` 104.
-- **Caching** (`cloud/`, M3): `pricing.py` 105, `cache_control.py` 70 — the
-  ledger cannot lie about a cached turn (DEC-60).
+- **Caching + cost** (`cloud/`, M3 then DEC-91): `pricing.py` 190,
+  `cache_control.py` 70 — the ledger cannot lie about a cached turn (DEC-60), and
+  since DEC-91 it holds **TWO cost functions, one per MEASURED direction**:
+  `estimate_cost_usd` ADDS cached tokens back (Anthropic, EXCLUSIVE),
+  `estimate_inclusive_cost_usd` SUBTRACTS and re-prices them (the second provider,
+  INCLUSIVE). Crossing them double-counts every cached turn **silently**.
+- **The second reasoner** (`cloud/`, DEC-91): `luna_agent.py` 238 (the stream),
+  `luna_accounting.py` 110 (usage-at-last-event + the DERIVED `stop_reason` + the
+  inclusive cost), `luna_messages.py` 193 (the kernel's block vocabulary ↔ this
+  vendor's flat items, both ways), `tool_envelope.py` 106 (the rename, guarded by
+  EXACT KEY SET because a half-port is accepted in SILENCE), `selection.py` 113
+  (the `.env` switch, DEC-18's shape). `protocol.py` 115 — **byte-untouched**.
 - **Overlay** (`overlay/`): `sidekick_window.py`, `window_commands.py`,
   `win32_glue.py`, `focus_dimmer.py`, `caption_bar.py`, `rectangle_widget.py`,
   `pointer_widget.py`, `pointer_animator.py`, `shapes_widget.py`,

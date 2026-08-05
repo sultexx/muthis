@@ -8231,152 +8231,152 @@ numbers), and with `composition.py`'s two remaining lines as its first measureme
 
 ---
 
-
-## DEC-78 (2026-08-02) — T4 EXECUTED: Navigator v1, catalog v6, and the orchestrator's last-but-one line spent honestly — RULED (Sultan), EXECUTED
-
-- **Item:** the fourth BUILD task of Phase 3. Navigator v1 per DEC-66 — plan creation, step
-  directives, pointing, user-driven advance. **NO visual verification** (Sultan's ruling;
-  v2 waits on T7).
-- **Scope held:** `tool_router.py` **300, byte-identical**. The draw path, Option-A sync, the
-  unified draw gate, `HighlightGate`, caption pacing, the `VoiceOut` chokepoint, `persona.py`
-  and `persona_rules.py` are all git-untouched. **The Navigator adds ZERO draw code.**
-
-### RULING 1 — THE ORCHESTRATOR LINE, AND WHY THE +0 FORM WAS REFUSED
-
-**`orchestrator.py` 298 → 299**, measured after the write. Design N-1b: ONE line passing the
-`TurnPrelude` into `TurnPass`, so a mode verb can reach the ONE evaluation point. One object
-rather than two, because the authority is built OVER the frame — so "the two disagree about
-which mode" is not a state that exists.
-
-**A +0 form existed and was REFUSED**, and Sultan ruled the refusal the part worth recording:
-packing two kwargs with separate comments onto one 76-char line to dodge a declared ceiling
-move is COMPRESSION, and the law says split, never compress. **A pin that reads 298 because a
-line was stuffed is a lie in the pin.**
-
-**THE DISTINCTION THAT MAKES THIS NOT PEDANTRY**, because the same commit does the opposite
-elsewhere: `composition.py`'s existing one-line import of two mount names took a third name
-and stayed one line at 96 chars — **298 → 298, +0**. Adding a name to an import list is that
-statement's natural form; merging two independent keyword arguments and their comments is
-not. The test is whether the line was already carrying a list.
-
-N-2 was rejected on the merits: a state transition inside `build_tool_result_message` services
-at HISTORY-BUILD time rather than at the sync point, breaking the shape every other serviced
-family holds.
-
-### RULING 2 — CATALOG v6, AND IT EXTENDS
-
-`navigator__plan` + `navigator__step`, byte-pinned to `look_tools_v6.json`, built through the
-REAL production mounts. **Eleven tools against a cap of 24.** v6 is v5 with two tools
-APPENDED and every earlier schema byte-identical, so **the additive guard shape RETURNS**
-after v5's revision and DEC-71's blast-radius pin is untouched in its own file.
-
-KERNEL-SERVICED, the `request_screen_refresh` pattern: the plugin declares two schemas and
-holds no state, no transition and no note. A plugin holding the plan would make "step 3 of 5"
-a PLUGIN'S CLAIM — which is the thing DEC-65 exists to have removed. `muthis plugin test` →
-**ADMISSIBLE, 8 checks, 0 skipped.**
-
-### `jump` TAKES THE STEP NUMBER AND NEVER THE ID — DEC-71 PAID FORWARD
-
-The user and the model both already say *"go back to step two"*, so the verb takes the 1-BASED
-NUMBER and the KERNEL maps it to that step's stable id, against the plan AS IT IS NOW. **An
-identifier that never crosses the boundary cannot fail the round trip it is put through.**
-
-Sultan's ruling records why this entry matters beyond the feature: **DEC-71's lesson was paid
-for over three rounds of live failure, and this is the first time it has been applied BY
-DESIGN rather than after the fact.** The discriminating guard is a jump AFTER a delete: a
-design storing the position would land on a different step with no observable difference,
-which is the DEC-63 defect in a new place. Mutations M4 and M5 are exactly that, and both go
-RED.
-
-### THE MOUNT SPENDS DEC-65's INVARIANT RATHER THAN ASSERTING IT
-
-`taint=False` and NO CAPABILITY — both the OPPOSITE of `doc_rag`'s, for opposite reasons. A
-mode verb ingests NOTHING: its arguments are the model's own words, already in the context,
-and no page, document or external byte crosses this route. With no capability there is
-nothing for `high_impact`'s arm to read, so a mode change can never demand spoken approval —
-which matters, because a confirmation in front of «next step» would make a walkthrough
-unusable. Driven with the taint ALREADY RAISED, since that is the state a confirmation would
-fire in.
-
-### DEC-39 HELD AS A REQUIREMENT: SERVICING LANDED BEFORE THE MOUNT
-
-The `turn_pass` detection arm and the `tool_result_pairing` answer-by-name arm landed and were
-GUARDED before the catalog line existed. **The four negatives are asserted by name, in one
-drive**, because each is a distinct failure of the SAME defect — an id nobody answered — and
-asserting one would leave the other three free:
-
-1. the tool_result is NOT the pointer ack · 2. the mode actually MOVED · 3. `gate.drawn` stays
-False and `loop_tool_choice` stays `"auto"` · 4. no LOOK-only violation was logged.
-
-### THE PASS ECONOMY IS ASSERTED, NOT ASSUMED
-
-Advance + point in ONE pass completes in **TWO** (`auto` → `none`): the advance is serviced
-after the sync point like a read and never touches the gate; the draw is buffered to the
-Option-A sync point and flips it. Advance WITHOUT pointing leaves the gate unflipped and
-`auto` surviving, completing in **THREE**. Both are inside `MAX_AGENTIC_ITERATIONS` = 4 — a
-turn that exceeded the cap would be a defect, not a slow path.
-
-**Pointing differs from `highlight_target` NOT AT ALL.** The Navigator adds no draw code: a
-step that points is the model calling the tool that already exists, and DEC-67's one visual
-intent per turn is enforced by the gate that is already there.
-
-### THE ASYMMETRY, RECORDED AS A PROPERTY RATHER THAN A SIDE EFFECT
-
-**`ModeAuthority`'s public surface is exactly `request`, so the servicer holds NO MUTATOR and
-therefore cannot bypass the evaluation point even by accident.** It reads the FRAME directly —
-a read surface that cannot change state — and every WRITE goes through the authority. That
-came out of MEASURING T4 rather than out of designing T2, and it is stronger than what T2 set
-out to build. Both halves are pinned, because a later "convenience" accessor on the authority
-would quietly undo it.
-
-### 16 MUTATIONS, ALL APPLIED, 16/16 RED — AND A HOLE FOUND BEFORE THE RUN
-
-**M12 (the orchestrator never passing the prelude) would have SURVIVED**, because the test
-harness assigned `_pass._prelude` by hand. Caught while writing the mutation list, and fixed
-by letting the ORCHESTRATOR build the prelude and reaching it the way production does.
-
-**That is the third sighting of the self-built graph in three tasks** — closed preventively at
-T1, reappeared at T3 in the fixtures, and now caught pre-run at T4. Sultan's framing, recorded
-verbatim: **the self-built graph is not a lesson learned once — it is a DEFAULT that must be
-refused every time.**
-
-### MEASURED AFTER THE COMMIT
-
-| file | before | after |
-|---|---|---|
-| `kernel/orchestrator.py` | 298 | **299** — pin moved in this commit with its reason |
-| `kernel/tool_router.py` | 300 | **300** — byte-identical |
-| `composition.py` | 298 | **298** — +0, as measured at planning |
-| `kernel/turn_pass.py` | 271 | 293 |
-| `kernel/tool_result_pairing.py` | 207 | 226 |
-| `kernel/deferral_notes.py` | 172 | 199 |
-| `kernel/pass_servicing.py` | 102 | 117 |
-| `composition_mounts.py` | 120 | 155 |
-| `main.py` | 215 | 223 |
-| `kernel/navigator_service.py` | — | **162** (new) |
-| `muthis_plugins/navigator/` | — | 71 / 40 / 6 (+ manifest) |
-
-**Guard: 1433 + 27 → 1478 + 27 green on `.venv`** (45 new). `turn_voice.py` 300,
-`persona.py` 209, `sidekick_window.py` 296 UNCHANGED.
-
-### CARRIED FORWARD, NOT DONE
-
-- **`orchestrator.py` has ONE line left.** T5's evidence pointing must measure before writing.
-- **`turn_pass.py` 293/300** is newly under pressure and is NOT pinned yet — the next milestone
-  to touch it should declare it, or extract.
-- **NO PERSONA LAW WAS ADDED.** The web and doc milestones each got one by explicit ruling
-  (DEC-41, DEC-57); no such ruling exists for the Navigator, so inventing one here would be a
-  model-facing change nobody signed. **Whether the model reaches for the verbs unprompted is a
-  T6/T7 observation**, and if it does not, a persona law is the ruling to ask for — not a
-  patch to make quietly.
-
-**`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.**
-
-**Next is T5 — evidence pointing, SCREEN ONLY** (DEC-67 path ①), under DEC-74 ruling 4's
-recorded condition: path ② is in scope but CONDITIONAL, and if T7 shows weak pointing on
-continuous prose the honest refusal is already designed and needs no new design session.
-
----
+
+## DEC-78 (2026-08-02) — T4 EXECUTED: Navigator v1, catalog v6, and the orchestrator's last-but-one line spent honestly — RULED (Sultan), EXECUTED
+
+- **Item:** the fourth BUILD task of Phase 3. Navigator v1 per DEC-66 — plan creation, step
+  directives, pointing, user-driven advance. **NO visual verification** (Sultan's ruling;
+  v2 waits on T7).
+- **Scope held:** `tool_router.py` **300, byte-identical**. The draw path, Option-A sync, the
+  unified draw gate, `HighlightGate`, caption pacing, the `VoiceOut` chokepoint, `persona.py`
+  and `persona_rules.py` are all git-untouched. **The Navigator adds ZERO draw code.**
+
+### RULING 1 — THE ORCHESTRATOR LINE, AND WHY THE +0 FORM WAS REFUSED
+
+**`orchestrator.py` 298 → 299**, measured after the write. Design N-1b: ONE line passing the
+`TurnPrelude` into `TurnPass`, so a mode verb can reach the ONE evaluation point. One object
+rather than two, because the authority is built OVER the frame — so "the two disagree about
+which mode" is not a state that exists.
+
+**A +0 form existed and was REFUSED**, and Sultan ruled the refusal the part worth recording:
+packing two kwargs with separate comments onto one 76-char line to dodge a declared ceiling
+move is COMPRESSION, and the law says split, never compress. **A pin that reads 298 because a
+line was stuffed is a lie in the pin.**
+
+**THE DISTINCTION THAT MAKES THIS NOT PEDANTRY**, because the same commit does the opposite
+elsewhere: `composition.py`'s existing one-line import of two mount names took a third name
+and stayed one line at 96 chars — **298 → 298, +0**. Adding a name to an import list is that
+statement's natural form; merging two independent keyword arguments and their comments is
+not. The test is whether the line was already carrying a list.
+
+N-2 was rejected on the merits: a state transition inside `build_tool_result_message` services
+at HISTORY-BUILD time rather than at the sync point, breaking the shape every other serviced
+family holds.
+
+### RULING 2 — CATALOG v6, AND IT EXTENDS
+
+`navigator__plan` + `navigator__step`, byte-pinned to `look_tools_v6.json`, built through the
+REAL production mounts. **Eleven tools against a cap of 24.** v6 is v5 with two tools
+APPENDED and every earlier schema byte-identical, so **the additive guard shape RETURNS**
+after v5's revision and DEC-71's blast-radius pin is untouched in its own file.
+
+KERNEL-SERVICED, the `request_screen_refresh` pattern: the plugin declares two schemas and
+holds no state, no transition and no note. A plugin holding the plan would make "step 3 of 5"
+a PLUGIN'S CLAIM — which is the thing DEC-65 exists to have removed. `muthis plugin test` →
+**ADMISSIBLE, 8 checks, 0 skipped.**
+
+### `jump` TAKES THE STEP NUMBER AND NEVER THE ID — DEC-71 PAID FORWARD
+
+The user and the model both already say *"go back to step two"*, so the verb takes the 1-BASED
+NUMBER and the KERNEL maps it to that step's stable id, against the plan AS IT IS NOW. **An
+identifier that never crosses the boundary cannot fail the round trip it is put through.**
+
+Sultan's ruling records why this entry matters beyond the feature: **DEC-71's lesson was paid
+for over three rounds of live failure, and this is the first time it has been applied BY
+DESIGN rather than after the fact.** The discriminating guard is a jump AFTER a delete: a
+design storing the position would land on a different step with no observable difference,
+which is the DEC-63 defect in a new place. Mutations M4 and M5 are exactly that, and both go
+RED.
+
+### THE MOUNT SPENDS DEC-65's INVARIANT RATHER THAN ASSERTING IT
+
+`taint=False` and NO CAPABILITY — both the OPPOSITE of `doc_rag`'s, for opposite reasons. A
+mode verb ingests NOTHING: its arguments are the model's own words, already in the context,
+and no page, document or external byte crosses this route. With no capability there is
+nothing for `high_impact`'s arm to read, so a mode change can never demand spoken approval —
+which matters, because a confirmation in front of «next step» would make a walkthrough
+unusable. Driven with the taint ALREADY RAISED, since that is the state a confirmation would
+fire in.
+
+### DEC-39 HELD AS A REQUIREMENT: SERVICING LANDED BEFORE THE MOUNT
+
+The `turn_pass` detection arm and the `tool_result_pairing` answer-by-name arm landed and were
+GUARDED before the catalog line existed. **The four negatives are asserted by name, in one
+drive**, because each is a distinct failure of the SAME defect — an id nobody answered — and
+asserting one would leave the other three free:
+
+1. the tool_result is NOT the pointer ack · 2. the mode actually MOVED · 3. `gate.drawn` stays
+False and `loop_tool_choice` stays `"auto"` · 4. no LOOK-only violation was logged.
+
+### THE PASS ECONOMY IS ASSERTED, NOT ASSUMED
+
+Advance + point in ONE pass completes in **TWO** (`auto` → `none`): the advance is serviced
+after the sync point like a read and never touches the gate; the draw is buffered to the
+Option-A sync point and flips it. Advance WITHOUT pointing leaves the gate unflipped and
+`auto` surviving, completing in **THREE**. Both are inside `MAX_AGENTIC_ITERATIONS` = 4 — a
+turn that exceeded the cap would be a defect, not a slow path.
+
+**Pointing differs from `highlight_target` NOT AT ALL.** The Navigator adds no draw code: a
+step that points is the model calling the tool that already exists, and DEC-67's one visual
+intent per turn is enforced by the gate that is already there.
+
+### THE ASYMMETRY, RECORDED AS A PROPERTY RATHER THAN A SIDE EFFECT
+
+**`ModeAuthority`'s public surface is exactly `request`, so the servicer holds NO MUTATOR and
+therefore cannot bypass the evaluation point even by accident.** It reads the FRAME directly —
+a read surface that cannot change state — and every WRITE goes through the authority. That
+came out of MEASURING T4 rather than out of designing T2, and it is stronger than what T2 set
+out to build. Both halves are pinned, because a later "convenience" accessor on the authority
+would quietly undo it.
+
+### 16 MUTATIONS, ALL APPLIED, 16/16 RED — AND A HOLE FOUND BEFORE THE RUN
+
+**M12 (the orchestrator never passing the prelude) would have SURVIVED**, because the test
+harness assigned `_pass._prelude` by hand. Caught while writing the mutation list, and fixed
+by letting the ORCHESTRATOR build the prelude and reaching it the way production does.
+
+**That is the third sighting of the self-built graph in three tasks** — closed preventively at
+T1, reappeared at T3 in the fixtures, and now caught pre-run at T4. Sultan's framing, recorded
+verbatim: **the self-built graph is not a lesson learned once — it is a DEFAULT that must be
+refused every time.**
+
+### MEASURED AFTER THE COMMIT
+
+| file | before | after |
+|---|---|---|
+| `kernel/orchestrator.py` | 298 | **299** — pin moved in this commit with its reason |
+| `kernel/tool_router.py` | 300 | **300** — byte-identical |
+| `composition.py` | 298 | **298** — +0, as measured at planning |
+| `kernel/turn_pass.py` | 271 | 293 |
+| `kernel/tool_result_pairing.py` | 207 | 226 |
+| `kernel/deferral_notes.py` | 172 | 199 |
+| `kernel/pass_servicing.py` | 102 | 117 |
+| `composition_mounts.py` | 120 | 155 |
+| `main.py` | 215 | 223 |
+| `kernel/navigator_service.py` | — | **162** (new) |
+| `muthis_plugins/navigator/` | — | 71 / 40 / 6 (+ manifest) |
+
+**Guard: 1433 + 27 → 1478 + 27 green on `.venv`** (45 new). `turn_voice.py` 300,
+`persona.py` 209, `sidekick_window.py` 296 UNCHANGED.
+
+### CARRIED FORWARD, NOT DONE
+
+- **`orchestrator.py` has ONE line left.** T5's evidence pointing must measure before writing.
+- **`turn_pass.py` 293/300** is newly under pressure and is NOT pinned yet — the next milestone
+  to touch it should declare it, or extract.
+- **NO PERSONA LAW WAS ADDED.** The web and doc milestones each got one by explicit ruling
+  (DEC-41, DEC-57); no such ruling exists for the Navigator, so inventing one here would be a
+  model-facing change nobody signed. **Whether the model reaches for the verbs unprompted is a
+  T6/T7 observation**, and if it does not, a persona law is the ruling to ask for — not a
+  patch to make quietly.
+
+**`AGENTS.md` / `PROJECT_STATE.md` refresh stays deferred to milestone close per DEC-74.**
+
+**Next is T5 — evidence pointing, SCREEN ONLY** (DEC-67 path ①), under DEC-74 ruling 4's
+recorded condition: path ② is in scope but CONDITIONAL, and if T7 shows weak pointing on
+continuous prose the honest refusal is already designed and needs no new design session.
+
+---
 
 
 ## DEC-79 (2026-08-02) — T5 EXECUTED: evidence pointing, all three paths, and a feature whose whole source change is fourteen lines — RULED (Sultan), EXECUTED
@@ -9839,5 +9839,275 @@ cost. Only the pointing turn shape (2 passes) was measured; a `doc_rag` or Navig
 and was not driven. And the caching figures are for a session reusing one frame; a session that
 changes frames every turn will cache less than 81% on pass 0 while still caching the persona and
 catalogue.
+
+---
+
+## DEC-91 (2026-08-05) — **THE SECOND REASONER, INTEGRATED.** `cloud/protocol.py` byte-untouched; two cost models where there was one; and a guard hole found by the mutation it was written for — RULED (Sultan), BUILT
+
+DEC-88 measured whether the `CloudReasoner` protocol survives a second provider. DEC-89 ruled on the
+measurements. DEC-90 measured the economics on the shape a real turn takes. **This is the build**, and
+Sultan's ruling that authorised it had two halves worth restating because both were NARROWER than
+anyone had framed them:
+
+**ONE DEFAULT PROVIDER, AND NO CAPABILITY FLAG.** The flag was ruled REQUIRED at DEC-89 ruling 4, and
+it is DROPPED here — **the measurement is why.** Sultan ordered it when everyone expected general
+pointing weakness; the probe measured the opposite: 23 HIT of 25, XS PERFECT (the 9x9 contribution
+square where the BASELINE scored a NEAR), and the failure confined to neighbour discrimination inside
+ONE bucket. **A flag would be a permanent maintenance surface bought for one measured defect** — the
+DEC-50 shape, where a mechanism whose measured unique contribution is ~zero is not built. The
+degradation-mode difference that made DEC-89 ruling 4 right (Claude falls to NEAR and still teaches;
+this provider falls to MISS and teaches the wrong thing) is preserved as a **RECORDED KNOWN LIMIT**,
+to be revisited if live use shows confident wrong pointing in teaching mode. **A ruling reversed by a
+measurement taken after it is not a ruling overturned — it is the measurement doing its job.**
+
+**SELECTION FOLLOWS DEC-18's SHAPE EXACTLY.** One protocol, two implementations, `.env` selection, a
+blind consumer. No new pattern and no new abstraction: the SearchProvider seam was itself built on
+the CloudReasoner pattern, was proven sufficient at M2, and is now returned to the layer it was
+copied from.
+
+### THE HEADLINE: `cloud/protocol.py` IS BYTE-UNTOUCHED
+
+Git-verified. A row that has claimed for a year that "swapping providers is a router-config change,
+never a downstream rewrite" has now been PAID by a second implementation, and the claim held to the
+byte. `orchestrator.py` (299), `tool_router.py` (300) and `persona_rules.py` (298) did not move
+either, and `composition.py` stayed at its declared 298 — the vendor-class annotation became the
+CONTRACT in a REPLACEMENT, not an addition, which is the only reason a pinned file could absorb it.
+**`budget.py` is untouched entirely: the sovereign ledger stays sovereign and only the price table
+learned a second model.**
+
+### ① THE ENVELOPE — AND WHY IT IS A MODULE WITH A GUARD RATHER THAN FOUR LINES
+
+`input_schema` → `parameters`, plus `type` and `strict`; content byte-identical. Four lines of code
+and a whole file of reasons, because **this is the INVERSE of DEC-11 and the inversion is the point.**
+DEC-11 was a LOUD failure: a dotted tool name returned a live 400 that every offline test had passed,
+and the turn STOPPED — the API was the guard. Here the API is not the guard. Measured accepted, each
+with no error at all: `input_schema` alone with `parameters` missing (the realistic half-port —
+someone adds `type` and forgets the rename), both present together, an outright nonsense key, and
+`strict` omitted although the SDK types it Required.
+
+**So the failure mode is a capability lost for the whole process, in silence, with a green suite.**
+The only thing that can notice is a test comparing the KEY SET **exactly** — which makes a missing key
+and an extra key the same kind of failure, and that symmetry is the whole design, because a half-port
+simultaneously DROPS `parameters` and KEEPS `input_schema`. `VENDOR_ENVELOPE_KEYS` is declared once in
+the module and imported by the guard; a test that re-typed the key set would be checking its own copy.
+
+The field accesses are SUBSCRIPTS, not `.get()`, and that is deliberate: a descriptor missing a field
+is a broken mount, and a `KeyError` at composition time is the loud failure this vendor will not give
+us. Defaulting the missing field would re-create, inside our own code, the exact silence the module
+exists to close.
+
+### ②③④ ALL LAND AT THE END OF A TURN, SO THEY LIVE TOGETHER
+
+`luna_agent.py` reached **301/300** and was split — **split, never compress** — and the seam was one
+the measurements had already drawn rather than a line count looking for a victim. `luna_accounting.py`
+holds exactly the three differences that surface at the terminal event:
+
+- **`usage` arrives ONLY at the last stream event**, where `claude_agent.py` reads it at the FIRST.
+  The consequence is recorded rather than hidden: a stream cancelled mid-flight — **barge-in is
+  exactly that** — delivers no usage at all, so that turn's tokens go unrecorded. The orchestrator
+  already abandons the voice quietly on a missing `TurnComplete`, and the same cancellation on the
+  Anthropic path records a partial figure. Neither is a silent over-spend: the ledger is short only by
+  a turn the user themself cut off.
+- **`stop_reason` DOES NOT EXIST, so the agentic loop's hard terminator is DERIVED — and the ORDER of
+  that derivation is the single most load-bearing thing in the integration.** A turn that called a
+  tool still reports `status == "completed"`, because the response DID complete. Testing status first
+  returns `end_turn`, the orchestrator stops at `stop_reason != "tool_use"`, and **the explanation
+  planned to land AFTER the pointer is never requested: the box draws and Mut'his falls silent.** That
+  is the LOOK-only product failing at its one job, out of a two-line function nobody reads twice. The
+  mutation that swaps those two clauses is M9.
+- **The cost model is INCLUSIVE** — see below.
+
+### THE COST MODEL, MEASURED — AND `pricing.py` NOW HOLDS TWO
+
+DEC-88 ruling 2 was BINDING and is DISCHARGED here: the direction was re-derived from the live
+measurement, never inherited. It is the **exact inverse of DEC-60**. `input_tokens` is the WHOLE
+prompt and the cached count is a BREAKDOWN of it, so cached tokens are SUBTRACTED and re-priced —
+where the Anthropic formula ADDS them back.
+
+**Applying either function to the other provider double-counts every cached turn, and it does so
+SILENTLY**: nothing raises, nothing logs, and the ledger simply stops being true. So the central test
+is not that the arithmetic is plausible — a wrong function passes every plausibility test — but that
+**the two models DISAGREE on a cached turn and AGREE when nothing was cached.** The day they agree
+everywhere, one of two measurements has been quietly discarded.
+
+The cached-input price is a TABLE ENTRY, not a multiplier on the other vendor's. **The two happen to
+agree at 0.1x today, and that agreement is a coincidence of two price lists rather than a rule** —
+deriving one from the other is precisely the inheritance the precondition forbids, and writing the
+price down is what stops a coincidence hardening into an assumption a third provider inherits. Both
+figures are DEC-90's, fetched from the vendor's own published documentation and not from a console,
+so any negotiated rate is unreflected by design.
+
+Two unknowns resolve AGAINST the ledger's favour, which is `split_cache_creation`'s rule applied to
+the other direction: an unpriced model falls back to the table default and WARNS, an unpriced cached
+rate is charged at the FULL input rate rather than at a discount this module cannot justify, and the
+cached count is CLAMPED so a bad counter can never CREDIT the budget. **A ledger that can move in both
+directions is not a ceiling.**
+
+### THE KERNEL'S VOCABULARY DOES NOT BECOME A SECOND VOCABULARY
+
+The kernel's conversation shape is the Anthropic block shape, and it predates the second provider by a
+year: `Orchestrator` stores it, `build_tool_result_message` pairs on `type` / `id` / `name`, and
+`history_hygiene` rewrites it. The direction of the fix follows: **the wrapper translates, the kernel
+learns nothing** — DEC-88's finding applied to the one place it actually costs code.
+
+Two properties that only an integration test could establish, and both are asserted by running the
+REAL kernel builder rather than by inspecting a dict:
+
+- **`call_id`, not `item_id`.** They are different strings on this API, the arguments event carries
+  only `item_id`, and only `call_id` pairs a `function_call_output`. The mapping captured at
+  `output_item.added` is load-bearing; carrying the wrong one orphans every tool call.
+- **NO FOLD IS NEEDED.** `claude_agent.run()` folds this turn's content into a trailing user message
+  because Anthropic nests `tool_result` inside a user message and enforces strict alternation. Here
+  those are TOP-LEVEL items, so the same history produces correctly ordered output on its own.
+  Reproducing the fold would have been cargo — a rule copied from the vendor it belongs to.
+
+A `request_screen_refresh` frame stays INSIDE its own tool result rather than being re-attached as a
+loose user message: the fresh frame must sit where the model asked for it, or the pairing stops
+meaning what it says.
+
+### THE OPEN LIVE-RUN QUESTION — NOT A DEFECT, AND STATED SO IT CAN BE RECOGNISED
+
+**Whether the `reasoning` output item must round-trip through history is UNMEASURED** (DEC-88 ②
+recorded it; nothing since has closed it). It is NOT carried, and **that is a derivation, not a
+preference**: carrying it needs either wrapper STATE between passes — **Law 11 forbids it** — or a
+provider-specific opaque block inside kernel history, which is the second vocabulary this integration
+exists not to create. Both doors are shut by laws that predate this provider, so the only way to carry
+it would be to open one of them, and neither should be opened on a hypothesis. DEC-90 then drove a
+real TWO-pass turn end to end without it and the loop terminated correctly at `end_turn`.
+
+**THE GAP IS REAL AND IT IS SPECIFIC: a POINTING turn is 2 passes, and that is the only shape ever
+driven. `doc_rag` and the Navigator produce 3-4** — which is exactly where a lost chain of thought
+would first bite.
+
+**WHAT A FAILURE WOULD LOOK LIKE, so Sultan can recognise it live rather than diagnose it twice.** It
+would NOT be a crash and NOT a wrong coordinate on the first pass — pointing accuracy is pass-0
+behaviour and was measured at 23/25. It would be **INCOHERENCE THAT BEGINS AT PASS 1 AND ONLY THERE**:
+
+- the explain pass describing a DIFFERENT element than the box that was just drawn, or re-deriving an
+  answer it had already reached;
+- the model **calling a tool it has already called** in the same turn — and the M3 lesson applies
+  before any conclusion is drawn from it, because **a retry loop is a symptom, not a diagnosis** and
+  four `doc_rag` runs once failed with that same symptom and three different causes;
+- a Navigator step where the SPOKEN step and the step the KERNEL drew disagree — the kernel holds the
+  plan, so its progress chip would stay correct while the voice drifted, and that divergence is the
+  cleanest tell of the three.
+
+**THE DISCRIMINATOR IS THE PROVIDER, NOT THE SYMPTOM.** Run the same multi-pass scenario on both
+reasoners with `MUTHIS_REASONER`; incoherence that appears from pass 1 on THIS provider and does not
+reproduce on the Anthropic path with the same history is this question answering itself. If it
+reproduces on both, it is something else and this entry is not the lead.
+
+**A LOUD FAILURE IS THE EASY CASE and is explicitly not what is being warned about**: if the API
+simply rejects a request for a missing reasoning item, that is a 400 at pass 1 and diagnoses itself.
+The reason this is written down at all is that the SILENT version — a model that answers, coherently
+enough to pass, having forgotten what it decided one pass ago — is the one nobody would attribute to
+history translation.
+
+### THE PERSONA IS THE PRODUCT'S, NOT A VENDOR'S
+
+There is ONE composed persona and both providers receive it. Asserted two ways, because they fail
+differently: the persona SOURCE is parsed and every non-docstring string literal scanned (so a
+docstring may still DISCUSS a vendor — the rationale for the identity law has to remain readable),
+**and the composed PROMPT BYTES are scanned too**, which catches a name assembled at runtime out of
+pieces no literal contains. Both carry positive controls, because a scan that examined nothing would
+look exactly like a clean persona.
+
+The rule runs in BOTH directions and that is the part a later edit will want to break: not only "you
+are Claude", but equally "never say you are GPT". **A law that ENUMERATES the vendor it denies is a
+cutoff** (the M16 family) — it covers the names someone thought of — and DEC-89 ruling 1 already
+established that the working form refuses the FRAMING rather than the list of answers.
+
+### `store=False` IS A PRIVACY CONTROL, NOT A DEFAULT
+
+Mut'his sends the user's SCREEN. Server-side retention of a turn is retention of the user's desktop,
+so it is refused at the one site that could grant it and asserted by test — the same instinct as the
+DEC-28 logging silence, and the same instinct that kept the probe's grounding corpus outside the
+repository.
+
+### `high` IS A CONSTANT, NOT A KNOB
+
+DEC-89 ruling 2 measured it: `high` stabilised the one unstable target at 3/3 and 2/2, and `xhigh`
+bought **ZERO** additional targets for double the output. A setting measured that carefully is not a
+preference, and exposing it in `.env` would invite a value nobody measured. It is a module constant
+with the measurement written beside it.
+
+### 25 MUTATIONS, ALL RED — AND ONE OF THEM FOUND A HOLE IN THE GUARD IT WAS WRITTEN FOR
+
+Every mutation names the specific test it must turn red; `PYTHONDONTWRITEBYTECODE=1` on every run
+(the standing rule); the unmutated control green at 1,616 + 27.
+
+**M7 SURVIVED on the first pass, and the mechanism is the entry's best lesson.** It writes into a
+byte-pinned schema in place — the exact hazard `cache_control.py`'s copy discipline exists for. The
+guard was the obvious one: deepcopy the catalogue, translate, compare. **It passed while the
+corruption was present.** The plugin schemas are MODULE-LEVEL constants, so an earlier test in the
+same file had already triggered the pollution, and the "before" snapshot faithfully captured the
+ALREADY-POLLUTED state. **The guard compared corruption against itself and reported success.**
+
+The fix is to compare against `look_tools_v6.json` — a file on disk, which no test that ran first can
+pollute — and that makes the assertion independent of execution order.
+
+**RULED AS A NEW FACE OF THE STANDING RULE, AND THE DISTINCTION IS THE POINT.** Every previously
+recorded instance of "a check that can pass without exercising its guard" is a check that EXAMINED
+LESS THAN IT CLAIMED — a filter that silently excluded the subject (DEC-50), a glob that matched
+nothing (`test_module_line_ceiling.py`'s positive control), a model refusing at the prompt layer so
+the guard never ran (DEC-12's own CHECK 3). **Every one of those is answered by the same fix: report
+the cutoff and the admitted count.** M7 is not that. It examined exactly what it claimed to examine,
+it ran the real translation over the real catalogue, and the admitted count was correct. **What was
+wrong was the REFERENCE: the "before" snapshot was taken from state the defect had already reached,
+so the comparison was corruption against itself.** No count and no cutoff report would have caught
+it, because nothing was missing.
+
+**THE GENERAL FORM: a guard whose reference is derived from LIVE PROCESS STATE can have that reference
+corrupted before it is read, and it then certifies the defect.** The fix is not a bigger sample or a
+louder cutoff — it is an EXTERNAL reference the defect cannot reach: a file on disk, a pinned
+snapshot, a value computed before the process could be polluted. This is why the byte-pinned
+catalogue snapshots are load-bearing beyond their stated job of catching model-visible drift: they are
+the only description of the catalogue that a running process cannot edit.
+
+**AND IT WAS FOUND ONLY BECAUSE THE MUTATION WAS RUN.** The guard was written deliberately, for the
+exact hazard, by someone who had just read `cache_control.py`'s copy note — and it was green while the
+hazard was live. That is DEC-88's one-line lesson arriving from the opposite direction: there, only a
+LIVE RUN could see a property no guard asserted; here, only a MUTATION could see that an asserted
+property was being checked against poisoned ground.
+
+The other 24 name real failures: the rename dropped (①'s measured silent failure), both keys present,
+`strict` and `type` omitted, a nonsense key, the subscript softened to `.get()`, the derivation order
+swapped and the derivation removed, the cached counter dropped, the SUBTRACTION dropped, the clamp
+removed, an unknown cached rate discounted, the fetched price drifted, `item_id` carried instead of
+`call_id`, the replay's pairing key lost, the order flush removed, the kernel's block vocabulary
+abandoned, `store=True`, the effort drifted to `xhigh`, the default flipped to the non-ruled provider,
+an unknown name silently answered by another vendor, the environment value echoed into an exception,
+and provider-specific persona text introduced on one path.
+
+### A THIRD DIFFERENCE FOUND DURING THE BUILD, RECORDED BECAUSE IT SHAPED A DECISION
+
+**The two vendor SDKs disagree about WHEN a missing key fails.** `AsyncAnthropic` constructs fine and
+defers to the first call; `AsyncOpenAI` REFUSES TO CONSTRUCT. Neither behaviour is imposed on the
+other: forcing them into one would either turn Anthropic's late failure into a startup crash — a
+behaviour change nobody asked for — or swallow OpenAI's precise early error for a vaguer later one.
+What `build_reasoner` guarantees is that OUR warning, naming the exact variable, is emitted FIRST, so
+the log reads identically either way.
+
+An UNRECOGNISED provider name is different and RAISES, at composition time. DEC-18's rule — never
+silently answer with a different vendor than the one that was asked for — is still binding, and **with
+no degraded mode available it can only be honoured by refusing to build**: there is no such thing as a
+Mut'his with no reasoner, where there is very much such a thing as a Mut'his with no search provider.
+The failure lands exactly where `assert_zone_invariant()` puts a broken configuration. Nothing from
+the environment is echoed into the log OR the exception message — a user who pastes a key into
+`MUTHIS_REASONER` must not have it printed back at them.
+
+### WHAT IS NOT DONE, AND IS DELIBERATELY SULTAN'S
+
+**The default is NOT changed.** `MUTHIS_REASONER` is unset and `DEFAULT_REASONER = "claude"`, pinned by
+a test so the ruling cannot drift into an ordering. The second provider ships INTEGRATED, not DEFAULT,
+and the switch is Sultan's after a live run on his own hardware. No live run was performed here; every
+figure in this entry is either DEC-88/89/90's or a fake-stream assertion.
+
+### THE ONE-LINE LESSON
+
+**A guard's reference can be corrupted by the very thing it is checking for.** M7's assertion was
+correct in form, examined exactly what it claimed, and was green in the presence of the defect —
+because it snapshotted state the defect had already reached. Only a reference outside the process was
+outside the blast radius.
 
 ---
