@@ -11,6 +11,30 @@ advance precisely so that a breach is a decision and not a debate.
 budget.py remains the SOVEREIGN consumer of these numbers (Law 10). This
 module computes only what TurnComplete carries; it owns no ledger, no ceiling,
 and no policy.
+
+────────────────────────────────────────────────────────────────────────────
+THERE ARE TWO COST MODELS HERE, AND WHICH ONE APPLIES IS A MEASUREMENT
+────────────────────────────────────────────────────────────────────────────
+A provider counts cached tokens in one of two directions, and **the direction
+is not inferable from documentation, from an SDK's type definitions, or from
+the other provider** (DEC-88 ruling 2 — BINDING on every future integration:
+a cost model is MEASURED, never inherited).
+
+  · EXCLUSIVE — `input_tokens` is the UNCACHED REMAINDER. Cached tokens must be
+    ADDED BACK or the turn is under-priced. Measured on `claude-sonnet-4-6`
+    (DEC-60): under-reports 25x on a read and 301x on a write, which is Rule 10
+    failing OPEN — the ledger shows headroom that does not exist.
+    → `estimate_cost_usd`
+
+  · INCLUSIVE — `input_tokens` is the WHOLE prompt and the cached count is a
+    BREAKDOWN of it, not an addition to it. Cached tokens must be SUBTRACTED
+    and re-priced. Measured on `gpt-5.6-luna` (DEC-88 ③): identical cold and
+    warm, and `total_tokens == input + output`.
+    → `estimate_inclusive_cost_usd`
+
+**APPLYING EITHER FORMULA TO THE OTHER PROVIDER DOUBLE-COUNTS EVERY CACHED
+TURN.** The two live measurements that produced these directions are the only
+reason this module can be trusted, and a third provider buys its own.
 """
 
 from __future__ import annotations
@@ -26,6 +50,21 @@ logger = logging.getLogger("muthis.cloud.pricing")
 PRICE_TABLE_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-opus-4-7": (5.00, 25.00),
+    # FETCHED 2026-08-05 from the vendor's own published documentation and
+    # recorded in DEC-90 — never quoted from memory, and never from a console,
+    # so any negotiated rate or credit balance is unreflected here.
+    "gpt-5.6-luna": (0.20, 1.20),
+}
+
+# The PUBLISHED cached-input price, for INCLUSIVE providers only (see the module
+# docstring). It is a table rather than a multiplier on purpose: the Anthropic
+# path DERIVES its cached price from CACHE_READ_MULTIPLIER because that is how
+# that vendor states it, and re-using the multiplier here would be inheriting a
+# cost model — the exact thing DEC-88 ruling 2 forbids. The two happen to agree
+# at 0.1x today; that agreement is a coincidence of two price lists, not a rule,
+# and writing the price down keeps it from becoming one.
+CACHED_INPUT_PRICE_USD_PER_MTOK: dict[str, float] = {
+    "gpt-5.6-luna": 0.02,  # DEC-90, same fetch as the row above
 }
 
 
@@ -87,13 +126,17 @@ def estimate_cost_usd(
     cache_write_5m: int = 0,
     cache_write_1h: int = 0,
 ) -> float:
-    """Turn cost in USD from ALL THREE input counters plus output.
+    """THE EXCLUSIVE MODEL. Turn cost in USD from ALL THREE input counters plus
+    output — for a provider whose `input_tokens` is the UNCACHED REMAINDER.
 
     `input_tokens` is the UNCACHED REMAINDER (measured, see the block above), so
     the cached tokens must be added back at their own rates or the turn is
     under-priced. With no cache activity every cache argument is 0 and the
     arithmetic reduces EXACTLY to the pre-caching formula — which is what lets a
     non-caching provider keep today's behaviour untouched (the DEC-34 shape).
+
+    DO NOT CALL THIS FOR AN INCLUSIVE PROVIDER: its cached tokens are ALREADY
+    inside `input_tokens`, so adding them back charges for them twice.
     """
     in_price, out_price = PRICE_TABLE_USD_PER_MTOK.get(model, (3.00, 15.00))
     billable_input = (
@@ -103,3 +146,45 @@ def estimate_cost_usd(
         + cache_write_1h * CACHE_WRITE_1H_MULTIPLIER
     )
     return (billable_input * in_price + output_tokens * out_price) / 1_000_000
+
+
+def estimate_inclusive_cost_usd(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    *,
+    cached_tokens: int = 0,
+) -> float:
+    """THE INCLUSIVE MODEL — the exact inverse of the function above.
+
+    `input_tokens` is the WHOLE prompt and `cached_tokens` is a BREAKDOWN of it
+    (measured on `gpt-5.6-luna`, DEC-88 ③), so the cached portion is SUBTRACTED
+    from the full-rate input and re-priced at its own published rate. With
+    nothing cached the arithmetic reduces EXACTLY to input+output, so a provider
+    that stops caching — or a turn that misses the cache — keeps costing what it
+    always did.
+
+    TWO UNKNOWNS, BOTH RESOLVED AGAINST THE LEDGER'S FAVOUR, which is
+    `split_cache_creation`'s rule applied to the other direction: an unpriced
+    MODEL falls back to the table's default (an over-estimate for this vendor,
+    so Rule 10 fails CLOSED), and an unpriced CACHED rate is charged at the FULL
+    input rate rather than at any discount this module cannot justify. A
+    discount taken on faith makes the ledger under-report, and a ledger that
+    under-reports does not stop a session that has already breached the
+    sovereign ceiling.
+    """
+    in_price, out_price = PRICE_TABLE_USD_PER_MTOK.get(model, (3.00, 15.00))
+    if model not in PRICE_TABLE_USD_PER_MTOK:
+        logger.warning("no price row for model %r — pricing input at %.2f/MTok", model, in_price)
+    cached_price = CACHED_INPUT_PRICE_USD_PER_MTOK.get(model)
+    if cached_price is None and cached_tokens > 0:
+        logger.warning(
+            "no cached-input price for model %r — charging %d cached tokens at the "
+            "FULL input rate", model, cached_tokens)
+        cached_price = in_price
+    # Clamped, never trusted: a counter larger than the total would otherwise
+    # produce a NEGATIVE uncached remainder and a credit in the ledger.
+    cached = max(0, min(cached_tokens, input_tokens))
+    uncached = input_tokens - cached
+    billable_input = uncached * in_price + cached * (cached_price or 0.0)
+    return (billable_input + output_tokens * out_price) / 1_000_000

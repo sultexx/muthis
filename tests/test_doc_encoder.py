@@ -186,6 +186,13 @@ ALLOWED_THIRD_PARTY = frozenset({
     "PIL", "anthropic", "dotenv", "httpx", "mss", "numpy", "onnxruntime",
     "pynput", "pypdf", "sounddevice", "tokenizers", "trafilatura", "websockets",
     "huggingface_hub",
+    # The SECOND reasoner's SDK, admitted deliberately (DEC-91). It sits beside
+    # `anthropic` for the same reason and at the same layer — `cloud/` is the
+    # reasoner path, and each provider's wrapper is the ONLY module in `src/`
+    # permitted to import its vendor SDK. This guard firing on the integration
+    # is the allow-list working: a new dependency is an edit HERE, never a
+    # side-effect of a feature commit.
+    "openai",
 })
 
 # Named for the message only — the allow-list is what enforces.
