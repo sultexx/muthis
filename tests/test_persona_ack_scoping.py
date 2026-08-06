@@ -74,14 +74,18 @@ BEFORE_SHA256 = "70a186e5b4ac12d94ba159fd5fb2e9a14812f4f8a7f0d1573345329988f4476
 # proves every byte after it. Nothing is unpinned, so the guarantee is the same
 # one the `==` gave — only the accounting is now per-ruling.
 #
-# Contents: the identity law (2026-08-05) — Mut'his never identifies as any
-# vendor's model. Its own additive proof lives in test_persona_identity_law.py.
-# Verified before pinning, never pasted from a failure message: the tail was
-# printed verbatim and is 741 characters — the SAME delta length the identity
-# law's own prefix-hash proof measures independently — and contains that law and
-# nothing else.
+# Contents, in order: the identity law (2026-08-05, 741 chars) and the
+# EXECUTE-FIRST law (2026-08-06, 862 chars). Each has its own additive proof —
+# test_persona_identity_law.py and test_persona_execute_first.py respectively.
+#
+# Verified before re-pinning, never pasted from a failure message. The old pin
+# c5a73861…de41b covered the identity law alone; the new tail was proven EQUAL to
+# that exact 741-character tail plus the new clause and nothing else, with the old
+# tail re-hashed against the old pin in the same check. So the re-pin is an
+# APPEND that was demonstrated, not a baseline that was refreshed to make a test
+# pass — the distinction this file's docstring exists to protect.
 APPENDED_SINCE_DEC84_SHA256 = (
-    "c5a73861200c1708ff59504fe1af68afb8a18031c6af903316552371b01de41b")
+    "894768b32318888cb35d2f053ab0f9425f0d73217421be16011fbea86b1df4e4")
 
 
 def _prompt() -> str:
