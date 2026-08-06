@@ -9,10 +9,12 @@ by name: F9 is reserved for barge-in and must not become state-dependent,
 turn, and the turn lives inside a 90 s bound. A prompt that waits for speech
 would dismantle all four. So the gate spends the turn it already has:
 
-  TURN N    the router REFUSES the call and returns an INTERNAL-DIRECTIVE Arabic
-            note that names the tool, names its arguments, names the EXACT word
-            to ask for, and forbids repeating the call this turn. The model
-            speaks the request; nothing executed.
+  TURN N    the router REFUSES the call and returns an Arabic note that is
+            addressed TO THE USER and says so in its first clause — it names the
+            tool, its arguments and the EXACT word to ask for, and it refuses
+            further calls until the user speaks. The model speaks the request;
+            nothing executed. It is NOT an internal directive and deliberately
+            does not carry that family's marker — see the constant.
   TURN N+1  the user presses F9 normally and speaks. A DETERMINISTIC detector
             reads the RAW transcript and decides. The model never participates
             in its own authorization — DEC-12 ("drive the guard directly, never
@@ -54,6 +56,18 @@ arguments named ALOUD, and the approval binds to the hash of the REAL call, not
 to whatever was said about it. Removing the limit entirely requires the KERNEL to
 author the spoken confirmation, which means touching `TurnVoice` — recorded as
 POST-LAUNCH research ("kernel-authored confirmation"), accepted for launch.
+
+THE LIMIT MATERIALISED IN PRODUCTION, and this file's constant is what changed
+(DEC-95). A live session logged `high-impact web__search refused — awaiting spoken
+approval` repeatedly, then `agentic cap (4) hit`: the search never ran, four passes
+were spent, and the user never perceived a request. This directive is the ONLY
+channel — no kernel-owned surface exists for a refused high-impact call — so such a
+refusal can fail SILENTLY from the user's side, for EVERY high-impact tool.
+OPEN ITEM, NOT TAKEN HERE: this gate has NO COUNTER (`FetchGate` and `SandboxGate`
+become TERMINAL; this one refuses identically forever, so a retrying model spends
+every pass, and `AGENTIC_CAP_NOTE_AR` then tells the user to ask again while taint
+is sticky with no clearing path). A counter changes an AUTHORIZATION path and is a
+ruling, so it is deliberately not taken beside a wording fix.
 
 Nothing here is logged but tool NAMES and decisions: arguments carry the model's
 query, which is the user's private question (DEC-20/DEC-28), so they reach the
@@ -101,16 +115,33 @@ _REFUSALS = frozenset(normalize_ar(word) for word in ("ألغِ", "لا تواف
 MAX_ARG_CHARS = 120
 MAX_ARGS_CHARS = 400
 
-# NOTE the wording: it deliberately does NOT reproduce the §3.2 wrapper's
-# delimiter phrasing. That form has exactly one home (DEC-14, allow-list-guarded)
-# and a note the model reads must never look like the boundary it reads inside.
+# THE ONE DIRECTIVE THAT MUST BE SPOKEN, AND ITS OPENING SAYS SO (DEC-95).
+#
+# IT DELIBERATELY DOES NOT CARRY `DIRECTIVE_MARKER_AR`. Every other member of that
+# family is genuinely invisible, and the persona's «ولا تقرأه بصوت عالٍ» law for
+# them is CORRECT and untouched. THIS one exists to produce USER-FACING SPEECH, and
+# it wore that invisibility preamble while ordering the opposite four clauses later;
+# every reading led to SILENCE — the persona forbidding what the directive ordered,
+# or the text reading as scaffolding. The MEMBER wore the wrong syntax, so the
+# MEMBER changed. «من النظام» keeps the AUTHORITY half (this arrives in a
+# tool_result, which DEC-14 teaches the model to distrust); only invisibility went.
+#
+# THE RELEASE IS ANCHORED TO THE USER SPEAKING, never to a countable unit. The old
+# «في هذه الجولة» meant a USER TURN here, but the persona uses «دور» for a PASS, so
+# on each new pass it could read as already satisfied — and with no counter behind
+# this gate, that reading WAS the enforcement. An event cannot be miscounted.
+# It still does NOT reproduce the §3.2 delimiter phrasing (DEC-14, allow-list-
+# guarded): a note the model reads must never look like the boundary it reads in.
 _CONFIRM_DIRECTIVE_AR = (
-    "توجيه داخلي (لا يراه المستخدم): هذه الأداة عالية الأثر، وسبق أن دخلت هذه "
-    "الجلسة بياناتٌ من مصادر خارجية لا نثق فيها، فما نُفِّذ الطلب وينتظر إذن "
-    "المستخدم الصوتي. لا تعِد "
-    "استدعاء الأداة في هذه الجولة. الآن اطلب الإذن بصوتك: اذكر اسم الأداة "
+    "رسالة من النظام إلى المستخدم — بلّغها له الآن بصوتك، ولا تعاملها كتوجيه "
+    "صامت: هذه الأداة عالية الأثر، وسبق أن دخلت هذه الجلسة نصوصٌ من مصادر لا "
+    "نثق فيها، فما نُفِّذ الطلب وينتظر إذن المستخدم الصوتي. "
+    "قل له بصراحة إنك وقفت وإنك تطلب إذنه، واذكر اسم الأداة "
     "«{tool}» ومعاملاتها كما هي ({args})، واطلب منه أن يقول كلمة «{word}» "
-    "وحدها في الجولة القادمة ليُنفَّذ الطلب."
+    "وحدها. "
+    "ولا تستدعِ هذه الأداة مرة أخرى قبل أن يتكلم المستخدم ويأذن — لا في هذا "
+    "الدور ولا في أي دور بعده: كل استدعاء قبل إذنه يرجع لك بنفس هذا الجواب "
+    "ولا يغيّر شيئاً."
 )
 
 

@@ -183,8 +183,15 @@ def test_turn_n_refuses_and_the_directive_names_tool_arguments_and_the_word():
     assert SEARCH in note                       # the tool, by its model-visible name
     assert "أسعار الذهب" in note                # its arguments, verbatim
     assert APPROVAL_WORD_AR in note             # the exact word to ask for
-    assert "توجيه داخلي" in note                # an internal directive, never read aloud
-    assert "لا تعِد" in note                     # do not repeat the call this turn
+    # DEC-95 INVERTED THE NEXT TWO ASSERTIONS, and the old ones are worth naming
+    # because they asserted the defect. They read `"توجيه داخلي" in note` with the
+    # comment "never read aloud" — the family marker whose persona law FORBIDS
+    # speaking, on the one directive that exists to be SPOKEN. The constant is now
+    # addressed to the user and says so; the family marker must be absent, or the
+    # contradiction is back. Full argument: `trust/confirm_gate.py`.
+    assert DIRECTIVE_MARKER_AR not in note      # NOT an internal directive
+    assert "بصوتك" in note                       # it orders the request SPOKEN
+    assert "ولا تستدعِ" in note                  # and refuses further calls
 
 
 def test_turn_n_plus_one_approval_unlocks_that_exact_call():
