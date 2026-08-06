@@ -150,13 +150,19 @@ def test_the_scope_has_exactly_ONE_definition_site():
         "the probe no longer appears in the clause — it is aimed at nothing")
     holders = sorted(p.name for p in SRC.rglob("*.py")
                      if _COPY_PROBE in p.read_text(encoding="utf-8"))
-    # `persona_rules.py` is a DELIBERATE EXCLUSION, and the reason is the design
-    # rather than an inconvenience: DEC-20's pattern is LAYERED pressure — the
-    # persona is layer ONE (a permanent law the model carries into every turn)
+    # The PERSONA's own file is a DELIBERATE EXCLUSION, and the reason is the
+    # design rather than an inconvenience: DEC-20's pattern is LAYERED pressure —
+    # the persona is layer ONE (a permanent law the model carries into every turn)
     # and these directives are layer TWO (the same law at the point of use). The
     # persona stating it in its own words is the layering working; a KERNEL
     # module restating it would be two copies of one fact.
-    assert holders == ["ack_scope.py", "persona_rules.py"], (
+    #
+    # It is `persona_laws.py` and no longer `persona_rules.py` because the <=300
+    # line law split the milestone laws out of that file (a MOVE ONLY — the
+    # composed prompt is byte-identical across it). THIS GUARD FIRED ON THAT MOVE,
+    # which is the behaviour wanted: the law's home is pinned, so relocating it is
+    # a decision someone states here rather than a thing that happens quietly.
+    assert holders == ["ack_scope.py", "persona_laws.py"], (
         f"the ack scope is written out in {holders} — outside the persona it "
         "must be defined once and imported, or the two wordings drift")
 
