@@ -11098,3 +11098,66 @@ unwritten until its content arrived verbatim.
   named in a schema, and no field is reserved for it.
 
 ---
+
+## DEC-97 (2026-08-08) — **THE CONFIRM GATE NEVER BECOMES TERMINAL.** An authorization path with no counter, recorded with its measured evidence — OPEN, needs its own ruling
+
+Recorded on Sultan's instruction, deliberately as an OPEN ITEM rather than as work. **Adding a
+counter changes an AUTHORIZATION path**, which is a ruling and not a tidy-up, so DEC-95's fix
+commit (`702f9d1`) changed the directive's WORDING and left the mechanism alone.
+
+### THE GAP
+
+`ConfirmGate.refusal_for` re-places the same pending with the same fingerprint on every call and
+returns the same refusal **forever**. There is no per-turn counter and no terminal state.
+
+**Both sibling gates have one, which is what makes the absence a gap rather than a design.**
+`FetchGate` (DEC-22) counts to three and then returns `FETCH_GATE_EXHAUSTED_AR`; `SandboxGate`
+counts runs the same way. Their own comment states the reason exactly, and it describes what
+was then measured here: *"a model that keeps fetching until the agentic cap spends the user's
+budget and ends the turn with nothing said."*
+
+### THE MEASURED EVIDENCE
+
+From a live research session:
+
+```
+[confirm-gate] high-impact web__search refused — awaiting spoken approval   (repeatedly)
+[orchestrator] agentic cap (4) hit — stopping cleanly
+```
+
+- **Four passes spent**, the search never executed, and the answer came from the model's own
+  knowledge.
+- Driven on the real router, the shape reproduces exactly: call 1 succeeds and taints; calls
+  2, 3 and 4 return `provenance="kernel:confirm"`, `is_error=True`, byte-identical text.
+- **The terminal surface then MISDIRECTS.** `AGENTIC_CAP_NOTE_AR` says «اكتفيت بهذا القدر
+  الآن، إذا تبي أكمل **اسألني من جديد**» — *ask me again* — while taint is sticky and the log
+  states there is **no clearing path by design**. So following the system's own final spoken
+  instruction reproduces the identical failure, indefinitely.
+
+### WHY IT IS NOT DECIDED HERE
+
+**A counter on this gate is not the same object as a counter on the other two.** `FetchGate`
+and `SandboxGate` bound a RESOURCE — pages opened, containers run — and exhausting them denies
+more of a thing the user already got. This gate bounds an **AUTHORIZATION**, and every
+terminal state it could take is a decision about what happens to a request the user has not yet
+answered:
+
+- go terminal for the turn and stay refused — the safe reading, and it costs the user the turn;
+- go terminal and tell the model to ask ONCE and stop — closer to the intent, but it makes the
+  gate depend on the model having actually spoken, which is the DEC-16 messenger limit again;
+- leave it and fix the terminal SURFACE instead — the `AGENTIC_CAP_NOTE_AR` misdirection is a
+  separate defect and may be the cheaper half.
+
+**The third option is why this is not a mechanical fix.** DEC-95 already found one open surface
+defect of the same family — a correct outcome the user cannot interpret — and the counter and
+the surface may be one ruling rather than two.
+
+### WHAT IS ALREADY IN PLACE
+
+The DEC-95 rewording tells the model that **a retry returns the same refusal and changes
+nothing**, so the loop now has text standing in it where it previously had none. That is
+mitigation, not a mechanism, and it is carried by the same messenger the whole path depends on.
+The evidence above and this reasoning are recorded in `trust/confirm_gate.py`'s docstring so
+the next person to touch that gate reads it before deciding.
+
+---
