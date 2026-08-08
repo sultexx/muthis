@@ -11161,3 +11161,160 @@ The evidence above and this reasoning are recorded in `trust/confirm_gate.py`'s 
 the next person to touch that gate reads it before deciding.
 
 ---
+
+## DEC-98 (2026-08-08) — **THE EFFORT COMPARISON.** Four settings on the full 25; `high` STAYS; `xhigh` measured-and-rejected; and TWO corrections to DEC-89 that only a fourth setting could produce — MEASURED + RULED (Sultan)
+
+**Sultan reported that pointing quality feels WEAKER.** 300 calls later, the first thing the numbers
+say is that **pointing accuracy has NOT regressed** — so the reported symptom has another cause, and
+it is recorded at the end as the next thing to look for rather than guessed at here.
+
+Probe: `scripts/probe_effort.py` (`7cafab2`). Model `gpt-5.6-luna`, `openai 2.53.0`. Zero `src/`
+changes. **4 settings × 3 runs × 25 targets = 300 calls, ≈ $0.15 total.**
+
+### THE APPARATUS PROVED ITSELF BEFORE ANY NUMBER WAS TRUSTED
+
+Two checks, in order, and neither was in the brief:
+
+1. **DEC-88's stale-fixture trap FIRED EXACTLY AS DESIGNED.** Two `targets.py` copies survived; the
+   neutralised one refuses to load (`raise SystemExit('stale D-1 fixture — use the corrected copy')`)
+   and names where the corrected one lives. *A stale ground truth that survives is a measurement
+   waiting to lie* — and this is the first time that neutralisation has been TESTED by someone
+   actually finding it.
+2. **The corrected copy was VERIFIED rather than trusted**: re-scoring DEC-88's recorded baseline
+   predictions through `d1_classify.py` reproduces **23 HIT / 2 NEAR / 0 MISS** exactly.
+3. **THE POSITIVE CONTROL, now built into the probe.** `high` is already measured on this exact set,
+   so a sweep whose `high` misses 23/0/2 marks every other number suspect. **This sweep: 22 / 23 / 24
+   HIT per run, straddling the recorded 23.** The ruler is the same one. Without it, the four columns
+   below would be four numbers with nothing behind them.
+
+### THE TABLE — 3 runs × 25 targets = 75 calls per setting
+
+| setting | HIT / NEAR / MISS | first useful | total | reasoning | output | $/turn |
+|---|---|---|---|---|---|---|
+| **medium** | 69 / 0 / 6 | **1.61 s** | 2.10 s | 61 | 117 | $0.00034 |
+| **high** | 69 / 1 / 5 | 1.90 s | 2.44 s | 110 | 166 | $0.00040 |
+| **xhigh** | 68 / 2 / 4 | 2.27 s | 2.82 s | 210 | 264 | $0.00051 |
+| **max** | 69 / 1 / 3 | **3.35 s** | 4.18 s | 430 | 484 | $0.00077 |
+
+**Buckets are uniform and uninteresting, which is itself the finding.** XL and XS are 100% HIT at
+every setting. Every M-bucket MISS is `crisp 0/0/3` — that is **#15 alone, at all four**. Effort
+moves nothing in any bucket.
+
+**LATENCY TO FIRST USEFUL OUTPUT IS MONOTONIC IN EFFORT**: 1.61 → 1.90 → 2.27 → 3.35 s. Measured by
+STREAMING, because a non-streaming call can only ever report the total and **the total is not the
+complaint**. `max` is **2.1× slower to start** than `medium` for the same hit count.
+
+### THREE ROWS WERE THE PROBE'S DEFECT, NOT THE MODEL'S
+
+`xhigh` r1 #22, `max` r2 #23, `max` r3 #23 ended with no terminal event; the probe left `response`
+as `None`, the `.usage` access raised into the catch-all, and the row read `AttributeError`.
+**Separated out rather than counted as misses** — and fixed in the committed script as its own
+outcome, `NO_TERMINAL_EVENT`. *A probe that misfiles its own defect as the subject's is the
+measurement equivalent of DEC-35*, and it happened inside the commit whose whole purpose was to
+measure carefully.
+
+**They cluster on `max`, which is a risk signal for that setting in its own right** and is why its
+apparent edge below cannot be taken at face value.
+
+### THE CLEAN SUBSET — the 23 targets with 3 valid runs at EVERY setting
+
+| setting | HIT | first useful |
+|---|---|---|
+| medium | 65/69 = 94.2% | 1.55 s |
+| high | 65/69 = 94.2% | 1.90 s |
+| xhigh | 65/69 = 94.2% | 2.25 s |
+| **max** | **66/69 = 95.7%** | 3.29 s |
+
+**`max` is the only setting whose sole failure is #15** — the one-off wobbles that cost the others a
+target (#13 at `medium`, #7 at `high`, #12 at `xhigh`) all vanish there.
+
+**THE TWO READINGS DISAGREE AT THE TOP AND THE DISAGREEMENT WAS NOT RESOLVED BY THE PROBE.** On the
+full 75, `medium`/`high`/`max` tie at 92.0% and `medium` wins on latency; on the clean 69, `max`
+leads by ONE target. The entire gap is whether #22 and #23 are in — the two targets carrying the
+non-terminating streams, concentrated on `max`. **Choosing the reading that fits a conclusion is how
+a measurement becomes an argument**, so both are recorded and the ruling is taken against both.
+
+### CORRECTION 1 TO DEC-89 — THE BELIEF HOLDS, THE DRIFT EVIDENCE DOES NOT
+
+**#15 MISSES 3/3 at ALL FOUR settings, `max` included.** The FIXED WRONG BELIEF is confirmed, and
+`max` was its last chance to be overturned.
+
+Truth spans x 1201–1300 (centre 1250). Mean predicted **centre-x**: `medium` 1456.5 · `high` **1466.0**
+· `xhigh` 1458.2 · `max` **1449.3**.
+
+**DEC-89 recorded that MORE effort displaces it FURTHER right, never less, and used the monotonic
+drift as evidence for the structural reading. That monotonicity is NOT REPRODUCED**: `high` is the
+furthest right and `max` is the LEAST wrong — while still missing by ~200 px. The conclusion survives;
+the argument offered for it does not. **Recorded because a finding whose stated evidence has been
+falsified will be re-derived by someone eventually, and they should find this line first.**
+
+### CORRECTION 2 TO DEC-89 — INSTABILITY IS A PROPERTY OF THE SET, NOT OF THE SETTING
+
+| setting | unstable targets | always-MISS |
+|---|---|---|
+| medium | **#13**, #23 | #15 |
+| high | **#7**, #23 | #15 |
+| xhigh | **#12**, #22*, #23 | #15 |
+| max | #22*, #23* | #15 |
+
+\* includes a `NO_TERMINAL_EVENT` row, not a model failure.
+
+**#10 is stable H/H/H at ALL FOUR settings, `medium` included.** DEC-89 measured #10 at 1/3 on
+default and 3/3 at `high` and concluded that *"`high` stabilises the one unstable target"* — **wording
+that credits the SETTING with a stabilisation this sweep shows was the TARGET moving.** Each of #13,
+#7 and #12 wobbles at exactly one setting and is stable at the other three, and **only #23 wobbles
+everywhere**. The unstable member moves; the count does not.
+
+### THE RULING (Sultan) — `high` STAYS, `xhigh` IS MEASURED-AND-REJECTED
+
+- **`high` STAYS. No change.** Quality is effectively tied at 92.0% across three settings.
+- **`max` REJECTED.** Its clean-subset edge is ONE target and rests on the same targets whose streams
+  failed to terminate under it — not a reliable difference. It also **doubles time-to-first-word
+  (3.35 s against 1.90 s), which is Sultan's original complaint**, at roughly double the cost.
+- **`medium` CONSIDERED AND DECLINED.** It is 0.29 s faster and cheaper, and it is tempting. But
+  quality is ruled first, and **a third of a second does not justify risk on paths this sweep did not
+  measure** — the Navigator, step reasoning, and tool selection. **A change with no measured gain is
+  not an improvement.**
+- **`xhigh` is the one unambiguous result: LAST on BOTH readings**, 50% dearer than `high`, 0.37 s
+  slower to start, buying nothing. **Recorded as measured-and-rejected so nobody proposes it again** —
+  DEC-90 rejected it once already and this is the second, wider measurement agreeing.
+
+### THE FIXTURE NOW HAS A STABLE HOME — `C:\Users\sultb\Desktop\muthis_grounding\`
+
+The authoritative ground truth for **every pointing measurement this project has made or will make**
+was living in a session temp directory that can be cleaned at any time. Moved beside the corpus:
+
+```
+muthis_grounding\shots\                 the 4 screenshots (vscode, fusion, desktop, github)
+muthis_grounding\targets.py             the 25 targets + CORRECTED ground truth + bucket()
+muthis_grounding\d1_classify.py         D-1's own HIT/NEAR/MISS ruler, extracted verbatim
+muthis_grounding\baseline_results.json  the Claude baseline the control is measured against
+```
+
+**VERIFIED AFTER THE MOVE, TWICE — before and after deleting the originals — because a move that
+breaks the fixture silently is worse than leaving it where it was.** Both re-scores reproduce
+23 HIT / 2 NEAR / 0 MISS from the new path, with 25 targets and the four shot names intact.
+OUTSIDE the repo, as D-1's precedent requires. **Minor: the neutralised stale copy still points at
+"the 2026-08-05 provider probe's scratchpad" and that pointer is now dangling — harmless, because
+that file REFUSES TO LOAD and can never silently mislead a measurement, and this entry is now the
+authority on where the fixture lives.**
+
+### THE OPEN ITEM — THE REPORTED SYMPTOM IS NOT IN THIS DATA
+
+**This sweep does not reproduce a pointing-quality regression at any setting.** So "feels weaker" has
+another cause. **Two candidates, both measurable from a LIVE LOG, and neither measured here:**
+
+1. **TIME-TO-FIRST-WORD.** `luna` emits a reasoning item BEFORE any text (DEC-90), while Claude begins
+   immediately. A turn that is identical in total time still *starts* later, and starting later is
+   what a user perceives as slower — and possibly as worse.
+2. **THE DRAW NOT HAPPENING AT ALL** in those turns. **`[overlay_autohide] … elapsed with no new
+   highlight — hiding overlay` SETTLES THIS**, because `orchestrator.py` arms it at exactly one site
+   and only when `any(call.name in DRAW_TOOLS for call in result.tool_calls)`. Its ABSENCE from a
+   turn's log means no draw call was received at all. **Precisely: it is keyed on RECEIVED draw
+   calls, not on `gate.drawn`, so it proves the model ASKED to draw — not that a rectangle
+   rendered.** That is the right discriminator for "did it point at all", and it is not evidence
+   about what the user saw.
+
+**Measure neither now.** Recorded so the next session looks at the log before it looks at the model.
+
+---
