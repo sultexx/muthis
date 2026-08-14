@@ -11318,3 +11318,122 @@ another cause. **Two candidates, both measurable from a LIVE LOG, and neither me
 **Measure neither now.** Recorded so the next session looks at the log before it looks at the model.
 
 ---
+
+## DEC-99 (2026-08-14) — **THE STEP-VERIFICATION GATE.** Navigator v2 is FEASIBLE; the ADVANCE RULE, derived from the ONE measured failure; and the governing metric REPLACED BY THE CONTROL THAT FOUND IT — MEASURED + RULED (Sultan)
+
+Navigator v2 was **DEFERRED at T4** because v1 does not verify the user performed a step. It is
+now opened, on measurement rather than on appetite. Report:
+[`docs/reports/p0_navigator_v2.md`](docs/reports/p0_navigator_v2.md). Probe:
+`scripts/probe_step_verification.py`. Model `gpt-5.6-luna` at the ruled `high`, **zero `src/`
+changes, 1,663 green**. **260 calls over TWO independent sweeps, ≈$0.05 total.**
+
+### THE NUMBERS — and the table Sultan wrote BEFORE them
+
+| | measured | gate |
+|---|---|---|
+| detection, CLEAR | **80/80 = 100%** | ≥90% |
+| detection, SUBTLE | **20/20 = 100%** | ≥90% |
+| false advance, declared negatives | **0/100 = 0.0%** (95% up 2.95%) | ≤5% |
+| cost / latency per verification | **$0.000194 / 2.22 s median** | — |
+
+**Both sweeps replicate exactly** — 50/50 detection and 0/50 false advance in each, `unclear`
+identical at 3. **Row one: v2 is FEASIBLE.**
+
+### BUT THE GOVERNING EVIDENCE IS THE CONTROL, NOT THE TABLE
+
+**Three of the five declared negatives are "a different application is on screen" — the easy
+half of the negative space.** A verifier can pass all of it while being a DIFFERENCE-DETECTOR
+rather than a FRAME-READER. So the probe built a control the brief did not ask for: **CLEAR
+pairs played BACKWARDS**, the completed frame as BEFORE and the uncompleted frame as AFTER,
+under the original step — so the result is ABSENT from the AFTER frame while the frames still
+differ by EXACTLY the amount the step describes. **A frame-reader answers `no`; a
+difference-detector answers `yes`.**
+
+It produced **the only false advance in 260 calls: 1/40, pair-level 1 of 4.** Nine runs on that
+pair answered `no`, citing the empty canvas and the absent Bodies folder. The tenth:
+
+> *"the rectangular shaded profile from BEFORE is no longer visible … **This is consistent with
+> the sketch having been used to create a solid body, though the resulting body is not visibly
+> apparent in the current view.**"*
+
+**It advanced on an INFERENCE FROM A DISAPPEARANCE, while admitting the outcome was not visible.**
+
+### RULING 1 (Sultan) — NAVIGATOR v2 PROCEEDS
+
+Detection is at ceiling on both kinds and the declared-negative rate is zero. **The signal
+EXISTS.** Design opens; this entry is not a design.
+
+### RULING 2 (Sultan) — THE ADVANCE RULE, AND IT IS LAW, NOT A NOTE
+
+> **Advance only on POSITIVE EVIDENCE of the step's RESULT. Absence of the precondition is
+> NEVER evidence.**
+
+Derived directly from the single measured failure, and it names a class rather than an
+instance: **a step that is UNDONE, CANCELLED or Ctrl+Z'd** produces exactly this shape, and in
+a parametric CAD workflow that is not exotic. **It is structurally guardable**, which is why it
+is the rule and a confidence threshold is not.
+
+**THE THRESHOLD WAS AVAILABLE AND IS DECLINED.** That one advance carried self-reported
+confidence **72 against a median of 97–99** for every correct answer on the same pair — the
+signal separated the failure perfectly, at **n=1**. Gating on it would be precisely *"the model
+believes the step is done"*, which the binding condition rules out. **Recorded as an
+OBSERVATION that must buy its own measurement**, so nobody re-derives it from this entry as a
+finding. *A rule about what COUNTS AS EVIDENCE is guardable; a threshold on a self-report is a
+belief with a number attached.*
+
+### RULING 3 (Sultan) — THE GOVERNING METRIC IS REPLACED
+
+**v2's false-advance metric is the REVERSED-CONTROL rate, not the easy negatives.** Stated so it
+survives the next reader:
+
+> **A design that scores 0% on "a different app is open" and fails on a reverted step has
+> measured the wrong thing.**
+
+The declared-negative rate stays in the record as context. It is no longer the number that
+decides anything.
+
+### WHAT THIS DOES **NOT** RESOLVE — deferred, and named so none of it is assumed settled
+
+1. **WHEN DOES THE VERIFICATION WINDOW LOOK.** *The first question the v2 design session must
+   answer.* Every number above was produced from a pair a human had already chosen correctly.
+   **It is NOT a prompt problem** — no wording, persona or threshold touches it. Look too early
+   and a correct `no` is indistinguishable from a user who has not started; look too late and
+   the intermediate state is gone. **The 100% detection figure is CONDITIONAL on a capture
+   moment this gate never had to find.**
+2. **LIVE CAPTURE.** No mechanism exists, was written, or was tested. **No SessionMode change,
+   no frame persistence, no privacy surface was touched** — deliberately, so a failing gate
+   would have cost nothing.
+3. **THE REAL COST OF A WINDOW.** §6's figures are ONE isolated call. A real window carries plan
+   context, fires on top of a running turn, and may retry — **a lower bound on both.**
+4. **SECOND PROVIDER.** The Anthropic account is out of credit (verified live at gate start), so
+   this is a **SINGLE-PROVIDER** result. DEC-93's rule applies: a second reasoner buys its own
+   measurement.
+5. **ARABIC, PERSONA, AND A TUNED PROMPT.** English step text and a neutral symmetric English
+   instruction, chosen to isolate the vision question. **The Arabic phrasing a real
+   `navigator__plan` emits is unmeasured**, and a conservative prompt is an untested lever.
+6. **COVERAGE, WHICH RUNS CANNOT FIX.** Five negative pairs, three of them correlated. Clean at
+   the call level; **up to 45.1% at the PAIR level.** *Repeated runs buy stability and buy
+   nothing about whether five pairs represent the negative space.*
+7. **THE REVERSED RATE IS AN EXISTENCE PROOF, NOT A CALIBRATION** — n=40, 95% upper 11.3%. It
+   proves the failure class is real; it does not size it.
+8. **TWO PAIRS WERE NEVER CONSTRUCTED.** Twelve specified, ten built. The frames for the other
+   two do not exist and **were left unbuilt rather than invented.**
+
+### TWO THINGS THE APPARATUS EARNED, WORTH CARRYING
+
+- **THE RULED EFFORT WAS READ BACK, NOT ASSUMED.** `reasoning_tokens` returned 0, which has two
+  very different causes — *`high` ran and declined to think*, or *`high` never arrived*. The API
+  echoed **`high` on 260/260**, so the first is true: **the model does not deliberate on this
+  task shape at any setting.** The opposite of pointing (DEC-89/98) — **v2 cannot buy accuracy
+  by spending effort**, and without the read-back this entry would have described a provider
+  default as the ruled setting.
+- **A MANIFEST THAT WAS WRONG, CAUGHT BY CHECKING.** The fixture's own notes recorded three
+  screenshots as MISSING and forbade fabricating them. They were on disk under Arabic filenames
+  the earlier pass could not see. Recovering them **restored the DISTRACTION kind entirely** —
+  three of the five negatives. *The manifest was the artefact; the disk was the fact.*
+
+**The fixture lives OUTSIDE the repo** with its labels, D-1's precedent. **The probe is committed
+as the regression harness** for v2 and for any future provider, exactly as `probe_effort.py`
+became for pointing.
+
+---
