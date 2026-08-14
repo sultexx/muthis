@@ -11437,3 +11437,355 @@ as the regression harness** for v2 and for any future provider, exactly as `prob
 became for pointing.
 
 ---
+
+## DEC-100 (2026-08-14) — **THE CONSERVATIVE PROMPT, AND A CEILING ARGUMENT REFUTED BY ITS OWN FRAME.** T₁ 43.3% → 100%; the failure REMOVED, not relocated; and the coverage that must travel with the number — MEASURED + RULED (Sultan)
+
+DEC-99 §"WHAT THIS DOES NOT RESOLVE" item 5 named **a conservative prompt as an untested lever**.
+This entry spends it, and it is the LAST test before the automatic path would have closed. Probe:
+`scripts/probe_step_verification.py`, **loaded UNMODIFIED and its `INSTRUCTION` constant rebound at
+runtime** by an out-of-repo wrapper — tool schema, forced call, three-value enum, `high` effort, the
+real `downscale_to_max_width`, `_scored` and pricing are the SAME OBJECTS that produced the neutral
+numbers. **The probe was never edited, so the instrument DEC-99 rests on still reproduces
+byte-for-byte.** Model `gpt-5.6-luna` at the ruled `high`, echoed back **120/120**. **Zero `src/`
+changes, 1,663 green.** Rows outside the repo: `muthis_stepverify/timing/rows_timing.json` (neutral)
+and `rows_conservative.json`.
+
+### THE ARGUMENT THIS REFUTES — recorded as a REFUTATION, not as a footnote
+
+Sultan's claim, made from the neutral measurement, was that **mode B was a PERCEPTUAL CEILING no
+model could cross — that the information was not in the pixels**, and that the false-advance floor
+was therefore **66.7% regardless of model**.
+
+**It is wrong, and the evidence is the sharpest available: THE SAME FRAME, RE-DESCRIBED.** Step 2
+(fillet), neutral instruction, **10/10 `yes`**:
+
+> *"…a 5.00 mm radius, and **the body visibly has rounded top edges** compared with the sharp-edged
+> body in BEFORE."*
+
+The identical frame under the conservative instruction, **10/10 `no`**:
+
+> *"…a 5.00 mm radius preview, and visible OK/Cancel controls. **The rounded geometry is only a live
+> preview** and the operation has not been confirmed/committed."*
+
+**The model could always see the dialog. It was never told the dialog was DECISIVE.** The missing
+piece was the **RULE**, not the perception, and the ceiling arithmetic built on that premise does not
+hold. *A ceiling asserted from one prompt is a property of the prompt until a second prompt tests it.*
+
+### THE NUMBERS — per moment, never pooled
+
+| moment | neutral | **conservative** | gate |
+|---|---|---|---|
+| T₀ control (same frame twice) | 30/30 = 100% | **30/30 = 100%** | apparatus sound |
+| **T₁ started, NOT complete** | 13/30 = **43.3%** | **30/30 = 100%** | ≥95% — **MET** |
+| T₂ just completed | 30/30 = 100% | **30/30 = 100%** | must hold |
+| T₃ completed, TRACES GONE | 30/30 = 100% | **30/30 = 100%** | must hold |
+
+**False advance 17/30 → 0/30. Pairs that EVER advanced 3/3 → 0/3. Zero `unclear` anywhere.**
+
+**T₂ AND T₃ DID NOT MOVE A SINGLE CALL.** That was the distinction Sultan required to be checked, and
+it is the one that matters: **a conservative rule that fixes T₁ at their expense has MOVED the
+failure, not removed it.** Here neither moved. **The failure was REMOVED.**
+
+Cost and latency unchanged — **$0.00021 per verification, median 2.02 s against 1.95 s.** The rule is
+free.
+
+### THE MECHANISM SHOWING ITSELF — reasoning tokens 17 → 2
+
+DEC-99 established that this task shape does not deliberate at any setting. Under the conservative
+rule the mean falls further, **17 → 2**: **the reframe turned a JUDGEMENT into something closer to a
+LOOKUP.** That is consistent with what the evidence sentences do — every one of the 30 T₁ answers now
+names the pending confirmation as the **REASON**, where the neutral prompt named it as a **CAVEAT
+appended to a `yes`**. *"…although the dialog is still awaiting confirmation" → **yes*** became
+*"…OK/Cancel buttons awaiting confirmation. The solid is only a pending preview and has not been
+committed" → **no***.
+
+### WHAT THE RULE ACTUALLY SAYS — the operative clauses, so it is reproducible
+
+The change reframes the QUESTION rather than warning about the answer: it does not ask *"did the step
+complete?"* and hope for caution.
+
+> Judge whether the AFTER frame shows the application in a **SETTLED state** in which the step's
+> **RESULT is already committed**. … If the AFTER frame shows a modal dialog, a command panel or an
+> input field open and awaiting confirmation, answer `no` — **even when the canvas already shows the
+> finished shape**, because applications render a pending result as a preview before it is committed.
+> **A preview is not a result.** Answer `yes` only when the result is present AND nothing is still
+> awaiting confirmation.
+
+It names **no application, no tool and no step** from the fixture, so it measures the RULE and not a
+fixture-shaped hint.
+
+### THE LIMIT — it TRAVELS WITH THE NUMBER AND IS NOT SOFTENED
+
+**30 negative calls, but only 3 DISTINCT negative pairs, and all three are ONE SHAPE: a modal command
+panel with a live preview and an unconfirmed OK.** Call-level 95% upper bound 9.5%; treated as 3
+independent pairs, **a clean sweep still admits a true pair-level failure rate up to 63.2%.**
+
+**A MID-STEP WITH NO MODAL DIALOG IS UNREPRESENTED, AND THE RULE SAYS NOTHING ABOUT IT** — a value
+typed directly on canvas, a drag in progress, an open menu. The rule keys on a disqualifier that
+those states do not present. **The gate as specified is MET; the COVERAGE IS NARROW.** Both halves
+are the finding.
+
+The fixture is native 1920×1080 PNG through ONE production downscale — **cleaner than P0's
+twice-resampled JPEGs, so these rates are NOT comparable to DEC-99's.**
+
+### WHAT THIS CHANGES FOR NAVIGATOR v2
+
+**The automatic path is NOT closed.** The gate is met on the tested shape, and DEC-99's advance rule
+survives contact: the conservative instruction is that rule expressed as an instruction, and it holds
+0/30 where the neutral one failed 17/30.
+
+**But the rule is validated against exactly ONE kind of mid-step, and widening that is the FIRST
+thing the v2 design session must do** — ahead of any capture mechanism, because a rule that only
+recognises modal dialogs will advance on every mid-step that does not raise one. **DEC-99's item 1
+("WHEN does the window look") is no longer the only open question; "WHAT COUNTS AS NOT-SETTLED"
+now sits beside it.**
+
+**Nothing was built.** No capture mechanism, no verification window, no `SessionMode` change, no
+routing. This entry is a measurement, not a design.
+
+---
+
+## DEC-101 (2026-08-14) — **QWEN 3.8-MAX EVALUATED AND CLOSED ON DATA POLICY.** Not tested, and the reason is what could NOT be established; a privacy law FAILS CLOSED — CLOSED (Sultan), re-openable by evidence
+
+**Sultan's condition was explicit: if a provider is incompatible with the constitution, close it
+immediately and do not experiment.** Compatibility here is **UNESTABLISHED — neither proven nor
+disproven — and an unestablished privacy property FAILS CLOSED, NOT OPEN.** The artefact at stake is
+**screenshots of Sultan's own screen, the most sensitive data this project handles**, so the burden
+sits on the provider's documentation and the documentation does not carry it.
+
+**The provider was read, never inferred and never taken from press coverage.** Alibaba Model Studio,
+international endpoint `dashscope-intl.aliyuncs.com` (the Singapore region). **No key was obtained,
+no call was made, no provider was added, no routing was designed.**
+
+### THE THREE DOCUMENTED FACTS THAT DECIDE IT
+
+1. **COLLECTION IS STATED IN THE TERMS, RETENTION IS NOT.** The service-specific terms state
+   *"You confirm we will collect your user content"* (您确认我们会收集您的用户内容), where input +
+   output together ARE "user content". **No retention period for user content appears anywhere** — not
+   in the privacy notice, the FAQ, the service terms (EN or ZH), or the Product Terms. **No documented
+   control disables it, and no zero-retention option exists in any Model Studio documentation.** The
+   only retention PERIOD found is telemetry, not content: *"Basic and advanced monitoring data is
+   retained for 30 days by default,"* and basic monitoring is *"automatically enabled … and cannot be
+   disabled."*
+2. **THE NO-TRAINING CLAIM IS DOCUMENTATION, NOT A CONTRACTUAL TERM.** *"Alibaba Cloud protects data
+   privacy and will never use your data for model training"* appears in help pages. **The Product
+   Terms of Service v3.8.0 contain NO Model Studio / Bailian / DashScope section at all** — while the
+   privacy notice points to those very terms for data-handling detail. **That is a circular
+   reference.** The Data Processing Addendum does not prohibit training use either.
+3. **THE PROVIDER'S OWN TERMS INSTRUCT USERS NOT TO SEND WHAT THIS PROJECT WOULD SEND.**
+   *"请确保您的输入不包含个人信息，如您在输入中包含个人数据，我们不可避免地将收集该等信息"* —
+   **"Please ensure your input does not contain personal information. If you include personal data in
+   your input, we will inevitably collect such information."**
+
+### THE TWO FINDINGS THAT MAKE IT DECISIVE — neither was asked for
+
+- **EVERY INPUT IMAGE IS INSPECTED SERVER-SIDE BEFORE INFERENCE.** Alibaba's own error-code page
+  documents `400-DataInspectionFailed` — *"Input xxx data may contain inappropriate content"*,
+  blocking specific input types (**prompts, images**) **before they reach model inference** — plus
+  `400-CustomRoleBlocked` and `400-IPInfringementSuspect` (*"Input data is suspected of being involved
+  in IP infringement"*, over prompts **or images**). **A screenshot is therefore processed by a
+  content-safety system IN ADDITION to the model, and whether that inspection retains the image is
+  stated nowhere.**
+- **A FULL-DESKTOP SCREENSHOT IS CLOSE TO THE WORST POSSIBLE ARTEFACT AGAINST FACT 3** — window
+  titles, filenames, taskbar applications, message badges, account name and avatar, licence strings.
+  **A probe would not have sent test images. It would have sent Sultan's real desktop — the same
+  exposure the experiment was meant to avoid deciding blind.**
+
+### THE EIGHT ITEMS THAT COULD NOT BE ESTABLISHED — the reason for the closure
+
+1. Any **retention period for user content** on the international endpoint.
+2. Whether user-content retention **can be disabled** — no documented control.
+3. Whether the **content-safety pre-check retains** the inspected image, or for how long.
+4. Whether **"never use your data for model training" is contractually binding** — documentation only;
+   no Model Studio section in the Product Terms; the DPA does not prohibit it.
+5. Any **zero-retention or no-logging option** — none found.
+6. Whether International-scope inference runs **in Singapore specifically** or at any non-mainland
+   global node. Singapore's single scope is defined as *"International (global nodes excluding Chinese
+   mainland)"* — a guarantee of NOT-mainland-China, **not** a guarantee of Singapore-only; and it is
+   **not configurable** on this endpoint (*"The Singapore region supports only one service deployment
+   scope"*).
+7. **Second-source confirmation** that input/output conversation logging is China (Beijing) only — a
+   load-bearing claim carried by one page.
+8. The English `bailian-service-notes` page **served content once then returned 404** on re-fetch; the
+   Chinese version served consistently. The English service terms could not be re-verified.
+
+**What the two endpoints differ in: NOTHING documented.** `/apps/anthropic` is the Anthropic-compatible
+Messages API only (`POST /v1/messages`; `GET /v1/models` returns 404; image and video understanding
+supported); `/compatible-mode/v1` is the OpenAI-compatible surface on the same host, same region, same
+service. **No document states any difference in retention, logging or processing between them.** They
+differ in wire protocol and available surface.
+
+### THE REOPENING CONDITION — stated precisely, because this is closed ON EVIDENCE
+
+**ANY ONE of the following would make Qwen worth re-opening:**
+
+1. **A documented retention period for user content WITH a control to disable it**; or
+2. **A zero-retention tier**; or
+3. **The no-training guarantee as a CONTRACTUAL TERM** — in the Product Terms or a DPA, not a help page.
+
+> **It is CLOSED ON EVIDENCE, NOT ON SUSPICION, AND IT CAN BE RE-OPENED BY EVIDENCE.**
+
+Nothing here is a judgement about the MODEL. Qwen 3.8-Max's capability was never measured and is not
+in question; **this closure is about the data policy of the endpoint that serves it, and it would apply
+identically to any provider whose terms read this way.** DEC-93's rule still stands for whoever
+re-opens it: **a second reasoner buys its own measurement.**
+
+### SOURCES — read, not inferred
+
+[Regions & access domains](https://www.alibabacloud.com/help/en/model-studio/regions/) ·
+[Singapore regional access](https://help.aliyun.com/en/model-studio/singapore-regional-access-information) ·
+[Security certifications & privacy notice](https://www.alibabacloud.com/help/en/model-studio/privacy-notice) ·
+[Model Studio FAQ](https://www.alibabacloud.com/help/en/model-studio/faq-about-alibaba-cloud-model-studio) ·
+[Service-specific terms (ZH)](https://help.aliyun.com/zh/model-studio/bailian-service-notes) ·
+[Model monitoring](https://www.alibabacloud.com/help/en/model-studio/model-telemetry) ·
+[Anthropic-compatible Messages API](https://www.alibabacloud.com/help/en/model-studio/anthropic-api-messages) ·
+[Error codes](https://www.alibabacloud.com/help/en/model-studio/error-code) ·
+[Product Terms of Service v3.8.0](https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-product-terms-of-service-v-3-8-0) ·
+[Data Processing Addendum](https://www.alibabacloud.com/help/en/legal/latest/fe2cxg) ·
+[EEA DPA](https://www.alibabacloud.com/help/en/legal/latest/ae8upq)
+
+---
+
+## DEC-102 (2026-08-14) — **"IT GOES AWAY" IS TWO DEFECTS, NOT ONE COMPLAINT.** A missing `restore` erases the chip 7 s into every drawing step; and PROGRESS is defined so that working on a step AGES the mode — BOTH OPEN, mechanisms recorded, no values proposed
+
+Sultan reported two complaints that were being treated as one: *"I have to call it after every step"*
+(a detection question, answered by DEC-99/DEC-100) and **"it goes away"**. This entry is the second.
+The measurement was **code-reading only, zero `src/` changes, 1,663 green**, and it was **approved on
+2026-08-14 and then left unrecorded** — recorded now because an unrecorded live defect is one that
+gets rediscovered from scratch. **Nothing here is fixed and no value is proposed.** The two defects
+are independent, have different shapes, and need different rulings.
+
+### DEFECT 1 — THE MISSING `restore`. A WIRING GAP, NOT A NUMBER. **OPEN.**
+
+`overlay.hide()` erases the mode chip — `window_commands.py:131-132`, `mode.clear()`, under the
+ghosting branch. **`hide()` has three callers and only ONE of them puts the chip back:**
+
+| caller | restores? |
+|---|---|
+| `frame_capture.py:52` — the hide→settle→capture chokepoint | **YES**, `:62-64` `restore_mode_indicator` |
+| `orchestrator.py:177` — barge-in | **no** |
+| `overlay_autohide.py:93` — the **7 s** auto-hide (`DEFAULT_OVERLAY_TIMEOUT_S = 7.0`, `:45`) | **no** |
+
+`orchestrator.py:227-228` arms that timer **at speech end on any turn that drew** (`any(call.name in
+DRAW_TOOLS ...)`). **A Navigator step is a drawing turn — pointing at the thing is the whole point.**
+So **≈7 seconds after Mut'his finishes speaking each step, the chip is erased**, and nothing redraws
+it until the next capture, i.e. **the user's next F9**.
+
+**THE MODE IS ALIVE IN THE KERNEL THE WHOLE TIME. ONLY ITS ON-SCREEN EVIDENCE IS GONE.** That is
+exactly the shape of the reported complaint, and it happens **on every drawing step of every
+walkthrough** — far more often than the 15-minute expiry below.
+
+`mode_indicator.py` already splits the lifecycle for this: **`clear()` erases the canvas but KEEPS the
+remembered text**, and `restore()` redraws it — the element was designed to survive a hide. The chip
+is redrawn only by `on_change` (`composition.py:285` → `_mode_indicator_seam`), which fires on
+enter / leave / `record_progress` and therefore **never during idling**.
+
+**A PRECISION WORTH KEEPING, because it explains why this hid for so long.** `mode_transition.py:62`
+records the accepted consequence that an expired mode is discovered *"with the indicator already
+gone"*. **That sentence is TRUE, but not for the reason it gives.** Expiry alone would leave the chip
+on screen until the user's next turn, because nothing fires `on_change` while idling. It is *already
+gone* only because **the auto-hide erased it minutes earlier, for an unrelated reason.** *A correct
+observation resting on the wrong mechanism is how a defect survives a careful docstring.*
+
+**THE RULING NEEDED IS A WIRING ONE** — which `hide()` callers owe a `restore`, and whether that is the
+caller's duty or belongs at the one place that already knows (`FrameCapture` does it today). **Sultan's.**
+
+### DEFECT 2 — THE PROGRESS DEFINITION. **OPEN.**
+
+`MODE_IDLE_TIMEOUT_S = 900.0` (`mode_transition.py:122`) — **15 minutes, hard-coded.** `timeout_s` is a
+keyword for tests only; `turn_prelude.py:118` calls `is_idle_expired(self._session_mode)` with **no
+override**, and there is **no env or config path** to it.
+
+**WHAT RENEWS IT IS NARROWER THAN "THE USER IS ACTIVE".** `last_progress_at` is re-stamped in exactly
+two places: `SessionMode.enter` (`session_mode.py:186`) and `record_progress` (`:205-207`).
+**`record_progress` has ONE call site in all of `src/`** — `mode_transition.py:273` — reached **only
+after the bounds check at `:271-272` succeeds.** Those requests arrive only from `navigator_service`:
+`navigator__plan` → `ENTER`, `navigator__step` advance/back/jump → `_move`, `done` → `LEAVE`.
+
+**PROGRESS IS THEREFORE A SUCCESSFUL MODEL-ISSUED NAVIGATOR VERB, AND NOTHING ELSE.** Not a turn. Not
+an F9. Not an utterance. Not a look or a point. **Not a side question** — a deliberate, documented
+exclusion (`session_mode.py:199-201`). **And not a REFUSED move**: a bounds failure returns at `:272`
+*before* the stamp, so **"advance" at the last step AGES the mode instead of renewing it.**
+
+> **The clock measures TIME SINCE THE LAST COMMITTED STEP CHANGE, not time since the user was
+> present.** Fifteen minutes of active conversation with no successful `navigator__step` expires the
+> mode exactly as fifteen minutes of silence does.
+
+**AND THE TURN THAT KILLS THE MODE IS THE USER'S OWN RETURN.** There is no timer — expiry is a pure
+predicate evaluated lazily, which is Law 11 / DEC-47 **by design and is not the defect**. It is
+evaluated at the very top of the turn: `run_turn` → `begin_turn` (`orchestrator.py:189`) →
+`is_idle_expired` as the **first statement** (`turn_prelude.py:118`), **ahead of the exit word,
+verbosity and the frame directive.** So the user works silently past the bound, presses F9, says *"done,
+what's next"* — **and that utterance expires the mode before it is read.** `frame` is then `None`, so
+no directive line is prepended (`turn_prelude.py:136-142`): **the model is never told a walkthrough
+was running.** *Silence during execution is the very thing that ages the mode, and it is never
+progress.*
+
+**THE RULING NEEDED IS A DEFINITION ONE** — what should count as progress, and whether mode persistence
+should track step commitment or user presence. **Sultan's. No value is proposed here**, deliberately:
+the number is downstream of the definition, and choosing it first would settle the definition by
+accident.
+
+### WHAT THIS ENTRY IS NOT
+
+**Nothing was built or changed.** No `SessionMode` change, no capture mechanism, no overlay edit, no
+timeout touched. Both defects are recorded **OPEN with their mechanisms**, and both rulings are
+Sultan's.
+
+---
+
+## DEC-103 (2026-08-14) — **GROK 4.6 RECORDED AS A FUTURE CANDIDATE ONLY; and DEC-101's DURABLE LESSON: THE DATA-POLICY GATE COMES FIRST** — RECORDED (Sultan), nothing tested
+
+**No test, no provider, no routing, no architecture change.** This entry exists so a candidate is not
+rediscovered, and so the ORDER of evaluation is fixed before the next one arrives.
+
+### GROK 4.6 — VENDOR CLAIMS, ATTRIBUTED, NOT CAPABILITY FINDINGS
+
+Released **12 August 2026** by xAI. What its vendor says about it:
+
+- positioned for **long-running agents** and **ambitious interactive and visual work**;
+- refined with RL across **domain-specific environments including computer-aided design (CAD)** —
+  reported as **the first time xAI names CAD as a training environment** for a Grok model;
+- list pricing **$2 / $6 per million input / output tokens**;
+- claimed to match GPT-5.6 Sol on the Artificial Analysis Intelligence Index.
+
+**EVERY LINE ABOVE IS A CLAIM BY THE PARTY SELLING THE MODEL, AND IS RECORDED AS ONE.** The CAD claim
+is the reason this project would ever look — Mut'his's measured fixtures are Fusion — **and that is
+exactly why it must not be over-read.** *A vendor naming your domain is a reason to MEASURE, never a
+measurement.* Note for the record, so the parallel is not misread later: **DEC-101 measured no
+capability at all** — it closed Qwen on data policy alone and explicitly declined to treat its model's
+capability as in question. The parallel here is to that PRINCIPLE, not to any figure in that entry.
+
+### THE GATE ORDER — the durable lesson, and it is a rule, not a note
+
+> **ANY future reasoner candidate passes the DATA-POLICY GATE *BEFORE* ANY CAPABILITY MEASUREMENT.**
+
+The gate is DEC-101's four questions: **a documented retention period · a control to disable it · a
+zero-retention option · and whether the no-training guarantee is CONTRACTUAL** rather than a help page.
+
+**Qwen was closed on data policy AFTER we had already planned to measure it.** That ordering **cost
+nothing only because the measurement had not yet run** — and the thing that would have been sent is
+not a test image but **Sultan's real desktop**. Next time the ordering may not be free. *Capability is
+worth nothing from a provider the constitution cannot accept, and the measurement is the expensive
+half.*
+
+**GPT-5.6 Sol IS THE CHEAPEST CANDIDATE PROCEDURALLY, WHATEVER ITS PRICE** — it sits in a provider
+family whose data terms are already accepted, so **its gate is already passed and only the measurement
+remains.** Procedural cost, not token cost, is what makes a candidate cheap under this rule.
+
+### IF A CANDIDATE IS EVER MEASURED — the protocol, fixed in advance
+
+**Only if Coverage Expansion later exposes a genuine MODEL-capability limitation** — and nothing so far
+does; DEC-100 met its gate on the tested shape, and its open item is **coverage**, not model power.
+Then any candidate is evaluated against **the SAME fixtures under the SAME A/B protocol:**
+
+- the **25 pointing targets** (`Desktop\muthis_grounding\`, D-1's baseline);
+- the **12 WHEN-TO-LOOK frames** (`Desktop\muthis_stepverify\timing\`, DEC-100's fixture);
+- **same prompt, same preprocessing, same run count, same evaluation script — MODEL AS THE ONLY
+  VARIABLE.**
+
+That is DEC-100's method generalised: it changed exactly one constant by **rebinding it at runtime
+rather than editing the probe**, so the instrument kept reproducing the numbers it was being compared
+against. **A comparison is worth only what its single variable is worth.**
+
+---
