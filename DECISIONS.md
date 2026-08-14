@@ -11789,3 +11789,68 @@ rather than editing the probe**, so the instrument kept reproducing the numbers 
 against. **A comparison is worth only what its single variable is worth.**
 
 ---
+
+## DEC-104 (2026-08-14) — **DEC-102's TWO RULINGS, BOTH CLOSED.** The chip is restored while the mode lives; and **LIVENESS is renewed by ACTIVITY while the STEP advances on PROGRESS** — TWO CLOCKS, TWO QUESTIONS — RULED (Sultan), NEITHER IMPLEMENTED
+
+**DEC-102 recorded two OPEN defects and deliberately proposed nothing. This entry closes
+both.** **Nothing is implemented here** — zero `src/` changes, 1,663 green. The restore is
+not wired, no caller is chosen, and **no timeout value is proposed.**
+
+### RULING 1 (Sultan) — THE MISSING `restore`: **YES.** A WIRING ruling.
+
+> **The mode chip is restored after the auto-hide, while the mode is still active.**
+
+**THE ARGUMENT IS A STATE/UX MISMATCH, NOT A TIMING PREFERENCE.** The chip is **the user's
+ONLY visible evidence that the mode is running.** Kernel state surviving while its sole
+user-facing indicator vanishes is not a tuning question about how long a hint should linger
+— **it is the product telling the user something false about its own state.** DEC-102's
+mechanism stands: `overlay_autohide.py:93` → `window_commands.py:131-132` `mode.clear()`,
+with no restore, ~7 s after speech end on every drawing turn.
+
+**WHICH CALLER OWES THE RESTORE IS NOT DECIDED HERE, AND THAT IS DELIBERATE.** `hide()` has
+three callers and only `frame_capture.py:52` restores (`:62-64`); whether the duty belongs
+to each caller, to the auto-hide alone, or to the one place that already knows, **is the
+design session's question.** Recording the ruling without the mechanism keeps the decision
+where it belongs instead of settling it by whichever line is easiest to change.
+
+**A PRECISION FOR WHOEVER IMPLEMENTS IT.** The object is `SessionMode` and its indicator —
+**there is no "TeachMode" type and deliberately so** (`session_mode.py` is a GENERAL
+primitive, *"deliberately NOT a 'Teach Mode'"*, with Navigator as its first CONSUMER). The
+chip is already built to survive a hide: `mode_indicator.py`'s `clear()` erases the canvas
+but **KEEPS the remembered text**, and `restore()` redraws it. **The gap is a call, not a
+capability.**
+
+### RULING 2 (Sultan) — F9 RENEWS THE DEADLINE: **YES** — and the wording is CORRECTED
+
+**A CORRECTION IS RECORDED AS A CORRECTION.** The proposal was that *F9 counts as
+PROGRESS*. **That was wrong, and the fix is structural rather than cosmetic:**
+
+> **The LIVENESS deadline is renewed by ACTIVITY. The STEP advances on PROGRESS.
+> TWO CLOCKS, TWO QUESTIONS.**
+
+**PROGRESS MEANS THE STEP MOVED, AND F9 NEVER MEANS THAT.** Conflating the two has exactly
+two possible outcomes and both are defects: **either the step counter LIES** — "step 3 of 5"
+advancing because the user pressed a key — **or the deadline is renewed by something that
+moved nothing**, which is the same unrenewed clock wearing a different name. *A single clock
+answering two questions must give a wrong answer to one of them.*
+
+**THE SIDE-QUESTION EXCLUSION STAYS, AND IS NOW CONSISTENT RATHER THAN CONTRADICTORY.**
+`session_mode.py:199-201` documents that a side question answered mid-mode does not call
+`record_progress` — which read as a *deliberate oddity* under one clock and is simply
+**correct under two**: a side question **does not move the step** (so it must not touch
+progress) but **IS activity** (so it renews liveness). **The exclusion was never the bug;
+the missing second clock was.**
+
+**AND THIS FORECLOSES THE TRAP DEC-102 NAMED.** DEC-102 withheld a timeout value on the
+grounds that *the number is downstream of the definition, and choosing it first would settle
+the definition by accident.* **With liveness now defined first, that can no longer happen** —
+a number chosen later renews a clock whose meaning is already fixed. **The value stays
+unproposed, now by sequence rather than by caution.**
+
+### WHAT REMAINS OPEN
+
+**Both rulings are unimplemented by design.** The wiring change, the second clock, and what
+counts as ACTIVITY at the code level are the design session's, not this entry's. **DEC-102's
+two items are CLOSED as questions and OPEN as work.**
+
+---
