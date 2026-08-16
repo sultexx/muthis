@@ -11854,3 +11854,145 @@ counts as ACTIVITY at the code level are the design session's, not this entry's.
 two items are CLOSED as questions and OPEN as work.**
 
 ---
+
+## DEC-105 (2026-08-16) — **COVERAGE EXPANSION. The boundary is NAMED — "mid-steps whose unsettled state is actually RENDERED" — and the APPLICATION framing is REFUTED by this sweep's own numbers** — MEASURED + RULED (Sultan)
+
+DEC-100 validated the conservative rule against **exactly one shape**: a modal command panel
+with a live preview and an unconfirmed OK. This is the measurement that says where it stops.
+Apparatus: `scripts/probe_step_verification.py` **unchanged**, and the conservative
+`INSTRUCTION` **IMPORTED from the DEC-100 runner rather than retyped**, so byte-identity with
+the run that scored 120/120 is a property of the import and not of a copy-paste. Model
+`gpt-5.6-luna` at the ruled `high`, echoed back **120/120**. **12 cases × 10 runs = 120 calls**
+(80 scored + 40 control), ≈$0.028, median 1.84 s. **Zero `src/` changes, 1,663 green.** Fixture
+and rows outside the repo at `muthis_stepverify\coverage\`.
+
+### THE CRITERION RAN BEFORE THE CALLS, AND IT REJECTED THE FIRST CAPTURE
+
+> **If a command panel, an OK or a Cancel appears anywhere in T₁, the frame is the wrong
+> test.** It re-tests DEC-100's validated shape, and a high score would mean *"this app puts
+> panels behind everything"* rather than *"the rule generalises."*
+
+The first capture failed it on **three of four shapes** — drag raised MOVE/COPY, the
+canvas-typed value raised OFFSET FACE, the armed tool raised HOLE (Cancel live, OK greyed).
+**Nothing was spent.** Sultan chose re-capture over running it with the confound declared,
+on the standing rule that **a cheap pass counted as coverage is worse than a failure.**
+
+### THE FUSION FINDING, WHICH THAT REJECTION PRODUCED
+
+> **FUSION PUTS A PANEL BEHIND ALMOST EVERYTHING.**
+
+A drag, a value typed on canvas and an armed tool **all** raise a command panel with an
+unconfirmed OK. This is a claim about the APPLICATION, not the model or the rule, and it
+inverts what looked like a limitation: **the conservative rule already covers Fusion
+ENTIRELY, and the boundary does not fall inside Fusion at all — it falls on OTHER
+APPLICATIONS.** That is why the re-capture moved outside Fusion, and it is recorded here
+rather than separately because it **explains the result rather than standing apart from it**.
+
+### THE NUMBERS — PER SHAPE, AND THE POOLED FIGURE IS REJECTED
+
+| shape | application | T₁ correct | T₂ correct |
+|---|---|---|---|
+| **rename** — inline edit box | File Explorer | **10/10 = 100%** | 10/10 |
+| **drag** — file mid-flight | File Explorer | **10/10 = 100%** | 10/10 |
+| **menu** — dropdown open | Fusion | **10/10 = 100%** | 10/10 |
+| **typing** — cell mid-edit | Excel | **0/10 = 0%** | 10/10 |
+
+Controls **0/40**. Every T₂ **10/10**. Zero `unclear` anywhere. Pairs that ever advanced: **1 of 4.**
+
+**THE POOLED 25% (10/40) IS REJECTED AND IS NOT THE RESULT.** It averages one total failure
+with three perfect passes and **describes no shape that exists**. The probe's own decision-table
+line computes on it and therefore reads "row 2"; that arithmetic is correct and the
+*interpretation* is not. **The middle row is where this lands, and only the per-shape view can
+say so.**
+
+### THE TYPING FAILURE IS THE FINDING, AND THE MECHANISM IS WHAT MAKES IT DECISIVE
+
+10/10, unanimous, confidence 99, the same reasoning every run:
+
+> *"cell A1 is selected and visibly contains the value 123; the formula bar also shows 123.
+> **No modal dialog, command panel, or active input field awaiting confirmation is visible, so
+> the entry appears committed and Excel is settled.**"*
+
+**THE MODEL APPLIED THE RULE CORRECTLY AND REACHED THE WRONG ANSWER.** It checked for the
+disqualifier, found none, and concluded settled — *which is precisely what the rule
+instructs.* Excel **was** in edit mode: a caret in the cell, `Enter` rather than `Ready` in the
+status bar, greyed ribbon controls, active formula-bar confirm/cancel icons. **None of it was
+perceivable.**
+
+So the rule's premise — that the unsettled state is nameable — **is FALSE for this shape**, and
+it fails in the direction that matters: silently, confidently, and without any wording that
+could repair it. **A rule cannot be extended by prose to name something that is not drawn.**
+
+### THE THREE PASSES, READ STRICTLY RATHER THAN BANKED
+
+**rename — THE ONE CLEAN WIN.** All ten runs name the STATE first: *"the filename is in an
+**active inline rename text field**, so the rename is still awaiting confirmation and is not
+yet committed."* A genuine not-settled detection with no panel present. The value mismatch
+(`fina_` vs `final_`) appears as a secondary clause and never as the primary reason.
+
+**menu — PARTLY READS AS A T₀, exactly as flagged in advance.** Every run names BOTH *"the
+Modify dropdown menu open … still awaiting a selection"* AND *"the solid remains unchanged."*
+The open menu **is** named as a state disqualifier in all ten — so it is not purely a cheap
+pass — but the second reason would apply equally to a **not-started** frame.
+
+**drag — SOFTER THAN ITS NUMBER.** Only **four of ten** name the drag in flight (*"consistent
+with an in-progress drag rather than a committed move"*), and one of those hedges it. The other
+six answer on result-absence — *"no lab2 folder is open or visible, there is no evidence the
+file was moved"* — because BEFORE and AFTER are both the source folder, so the destination is
+**never on screen**. One run says it outright: *"**The File Explorer view is settled**, but the
+requested destination change is not shown."* **A correct `no` for a T₀ reason.**
+
+> **THE HONEST READING: one shape proves the rule EXTENDS, two pass substantially on
+> RESULT-ABSENCE, and one fails outright.** Three 100%s are not three demonstrations.
+
+### THE TWO CAVEATS PRE-REGISTERED BEFORE THE NUMBERS, AND HOW BOTH RESOLVED
+
+Recorded here because pre-registering them is why neither can now be used as an excuse — and
+because **both resolved favourably and were reported rather than quietly dropped.**
+
+1. **The spreadsheet's formula-bar confirm/cancel icons** were flagged as a possible weaker
+   cousin of the modal disqualifier. **Resolved in the OPPOSITE direction to the one expected:**
+   the model did not lean on them — it reported that **no such affordance was visible at all.**
+2. **`menu`'s step was an INFERENCE** (`Shell`, from the open menu plus one added timeline
+   feature and no external geometry change), and its T₀/T₂ were near-identical in the viewport,
+   so its result risked being invisible. **Both resolved favourably:** the inference was
+   correct — the model reads `Shell` in the menu — and **T2_MENU scored 10/10**, though at
+   median confidence **90.5 against 99 elsewhere**, consistent with a subtle result detected
+   rather than an obvious one.
+
+### RULING (Sultan) — THE BOUNDARY, WITH ITS REFUTATION ATTACHED
+
+> **THE AUTOMATIC PATH COVERS MID-STEPS WHOSE UNSETTLED STATE IS ACTUALLY RENDERED.**
+
+**It is NOT "applications with modal confirmation", and this sweep refutes that framing
+directly — the refutation is recorded WITH the ruling so a future reader meets the reason
+rather than re-deriving it:**
+
+> **File Explorer has no modal confirmation and PASSED TWICE. Excel has no modal confirmation
+> and FAILED. MODALITY IS NOT THE VARIABLE.**
+
+The rendered framing names the **measured mechanism** — *is the unsettled state DRAWN?* — and
+it is **testable before shipping rather than discoverable only live**: look at a frame and ask
+whether there is anything to name. The application framing is not merely less precise; it
+would have predicted this sweep's results **wrongly in both directions.**
+
+### POWER AND LIMITS, STATED SO THE THREE 100%s ARE NOT OVER-READ
+
+- **ONE PAIR PER SHAPE**, ten runs each. At 0/10 the exact 95% upper bound is **25.9% per
+  shape** — wide.
+- **THREE CLEAN SHAPES ARE THREE CLEAN *PAIRS*, NOT THREE CLEAN *CLASSES*.** Repeated runs buy
+  stability and buy nothing about whether one pair represents its shape (DEC-99's rule, one
+  level up).
+- **The failure is the more robust half of this result.** 10/10 in one direction *with a
+  mechanism visible in the evidence* is far harder to explain away than 0/10 in the other.
+- Three shapes come from **two non-Fusion applications**, so the rule is no longer measured in
+  a single app — but two applications is not "ordinary work" either.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**Nothing is implemented and nothing is designed.** No capture mechanism, no verification
+window, no `SessionMode` change, no routing, no provider. DEC-104's two rulings remain
+unimplemented. This is a measurement and a boundary, and the v2 design session owns what is
+built on it.
+
+---
