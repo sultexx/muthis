@@ -37,8 +37,10 @@ from muthis.overlay.domain_badge import BOTTOM_MARGIN_PX, DOMAIN_BADGE_TAG, Doma
 from muthis.overlay.mode_indicator import (
     MODE_INDICATOR_TAG, TOP_MARGIN_PX, ModeIndicator,
 )
+from muthis.overlay.sidekick_window import SidekickOverlay
 from muthis.overlay.style import OverlayStyle
 from muthis.overlay.window_commands import dispatch_command
+from muthis.overlay_autohide import AutoHideController
 
 SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 INDICATOR_PY = SRC / "muthis" / "overlay" / "mode_indicator.py"
@@ -126,6 +128,12 @@ class _DispatchOverlay:
 
     async def hide(self) -> None:
         self._dispatch(("hide",))
+
+    async def hide_for_capture(self) -> None:
+        # Mirrors `SidekickOverlay.hide_for_capture` (DEC-104 ruling 1) — the
+        # ONE hide that leaves the chip erased, because a grab follows it.
+        # `FrameCapture` reaches this by getattr, exactly as production does.
+        self._dispatch(("hide", False))
 
     def clear_status_light(self) -> None:
         self.states.append("cleared")
@@ -363,6 +371,172 @@ def test_clear_caption_does_NOT_clear_the_indicator_but_DOES_clear_the_badge():
     overlay.clear_caption()
     assert not canvas.has(DOMAIN_BADGE_TAG), "the badge no longer inherits it"
     assert canvas.has(MODE_INDICATOR_TAG), "the indicator was cleared at end of turn"
+
+
+# ─── DEC-104 ruling 1 — THE HIDE THAT IS NOT A CAPTURE ──────────────────────
+#
+# The defect DEC-102 measured: `overlay_autohide.py` fires 7 s after speech end
+# on EVERY drawing step of EVERY walkthrough, its hide reached
+# `window_commands`' ghosting branch, and the only `restore_mode_indicator` in
+# the tree sat in `FrameCapture.capture` — so the chip stayed dead until the
+# next F9. The mode was alive in the kernel the whole time; its only on-screen
+# evidence was not. Every test below drives the REAL controller, the REAL
+# dispatcher and a REAL `ModeIndicator` — never a hand-written ("hide",).
+
+
+def _auto_hide_fires(overlay) -> None:
+    """Drive the REAL `AutoHideController` to completion on a zero-length timer,
+    so the hide that reaches the dispatcher is the production one
+    (`overlay_autohide.py`'s `_hide_after_timeout`), not a tuple we typed."""
+    async def _drive() -> None:
+        controller = AutoHideController(overlay, timeout_s=0)
+        controller.schedule()
+        await controller.task
+
+    asyncio.run(_drive())
+
+
+def test_the_chip_survives_the_AUTO_HIDE_and_is_still_there_NEXT_turn():
+    """TEST 1 — THE DEFECT ITSELF, and it is invisible to any single-turn
+    assertion. The auto-hide fires AFTER the turn's capture, so a test that
+    stopped at the capture would find the chip present and pass while the
+    product went blank a moment later; and the NEXT turn's capture restores it,
+    so a test that only looked at end-of-turn-two would pass too. The
+    discriminating observations are therefore both taken here — right after each
+    auto-hide, and again at the top of the following turn (`carried_in`), which
+    is the state the previous turn actually handed over. That is T3's lesson."""
+    canvas, overlay, _mode, authority, frames = _graph()
+    authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
+                                        plan=Plan.build("t", STEP_TEXTS)))
+    carried_in, after_auto_hide = [], []
+    for turn_index in range(3):
+        if turn_index:                  # what the PREVIOUS turn left standing
+            carried_in.append(canvas.drawn(MODE_INDICATOR_TAG))
+        _turn(frames)                   # the turn's capture: hide → grab → restore
+        _auto_hide_fires(overlay)       # 7 s after speech end, every drawing step
+        after_auto_hide.append(canvas.drawn(MODE_INDICATOR_TAG))
+
+    assert all(after_auto_hide), (
+        f"the auto-hide erased the mode's evidence: {after_auto_hide}")
+    assert all(carried_in), (
+        f"the chip did not survive INTO the next turn: {carried_in}")
+    assert len({tuple(d) for d in after_auto_hide}) == 1, "the text changed by itself"
+
+
+def test_the_chip_is_ABSENT_from_every_frame_the_provider_is_SENT():
+    """TEST 2 — THE GUARD AGAINST RESTORING TOO EARLY, and the reason the
+    unified restore is safe. Capture hides DELIBERATELY: T6's
+    `diag_navigator_sent_frame.png` shows the chip absent and Sultan verified it
+    by eye, so a design that restored immediately in all three cases would break
+    a proven invariant. The assertion is taken INSIDE the grab, off the same
+    canvas the dispatcher draws on — the frame's own content, not the order of
+    the source lines — and it is taken three times with the chip restored in
+    between, so the restore is proven not to leak into ANY grab."""
+    canvas, overlay, _mode, authority, _frames = _graph()
+    authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
+                                        plan=Plan.build("t", STEP_TEXTS)))
+    in_the_frame = []
+
+    async def _grab_and_look():
+        in_the_frame.append(canvas.drawn(MODE_INDICATOR_TAG))
+        return b"raw"
+
+    frames = FrameCapture(overlay=overlay, screen_capture=_grab_and_look,
+                          downscale=_downscale, auto_hide=_NoAutoHide(), settle_s=0)
+    for _turn_index in range(3):
+        asyncio.run(frames.capture(TurnResult()))
+        _auto_hide_fires(overlay)       # the chip is BACK between captures …
+
+    assert in_the_frame == [[], [], []], (
+        f"the provider was sent a frame containing our own chip: {in_the_frame}")
+    assert canvas.drawn(MODE_INDICATOR_TAG), "… and standing again afterwards"
+
+
+def test_an_ENDED_mode_is_not_resurrected_by_the_AUTO_HIDE_restore():
+    """TEST 3 — the unified restore must be unable to bring back a mode that is
+    OVER. It is, and not by asking anything: an ended mode has already been sent
+    an EMPTY text, which FORGETS (DEC-104), so `restore()` draws nothing. The
+    capture path already had this property; the auto-hide path is new and gets
+    it for free — which is the point of unifying rather than re-implementing."""
+    canvas, overlay, _mode, authority, frames = _graph()
+    authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
+                                        plan=Plan.build("t", STEP_TEXTS)))
+    _turn(frames)
+    _auto_hide_fires(overlay)
+    assert canvas.has(MODE_INDICATOR_TAG), "positive control: a LIVE mode is drawn"
+
+    authority.request(TransitionRequest(kind="leave"))
+    _auto_hide_fires(overlay)
+    assert not canvas.has(MODE_INDICATOR_TAG), "the auto-hide resurrected an ended mode"
+    _turn(frames)
+    _auto_hide_fires(overlay)
+    assert not canvas.has(MODE_INDICATOR_TAG), "… and it returned a turn later"
+
+
+def test_barge_in_restores_a_LIVE_mode_and_draws_NOTHING_when_there_is_none():
+    """TEST 4 — BOTH DIRECTIONS IN ONE DRIVE, through the REAL
+    `Orchestrator.interrupt_turn` and the REAL composition wiring. F9 tears down
+    the TURN, not the MODE (Sultan's ruling), so a live walkthrough keeps its
+    chip; but a one-directional assertion would pass just as happily on a build
+    that drew a chip which should not exist, so the no-mode case is asserted on
+    either side of the live one. `interrupt_turn` costs `orchestrator.py` ZERO
+    lines — it already calls `hide()`, and the duty now travels with it."""
+    from muthis import composition
+
+    canvas = _FakeCanvas()
+    overlay = _DispatchOverlay(canvas)
+    orchestrator = composition._build_orchestrator(
+        object(), object(), overlay, object(), object(), object())
+    authority = ModeAuthority(mode=orchestrator._prelude.session_mode)
+
+    asyncio.run(orchestrator.interrupt_turn())
+    assert not canvas.has(MODE_INDICATOR_TAG), "a barge-in drew a chip with no mode"
+
+    authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
+                                        plan=Plan.build("t", STEP_TEXTS)))
+    asyncio.run(orchestrator.interrupt_turn())
+    assert canvas.drawn(MODE_INDICATOR_TAG), "the barge-in erased a live mode's evidence"
+
+    authority.request(TransitionRequest(kind="leave"))
+    asyncio.run(orchestrator.interrupt_turn())
+    assert not canvas.has(MODE_INDICATOR_TAG), "the barge-in resurrected an ended mode"
+
+
+class _QueueSpy:
+    """`SidekickOverlay` minus Tk: only the queue hop is stubbed, so the command
+    under test is the byte-for-byte one production enqueues."""
+
+    def __init__(self) -> None:
+        self.commands: "list[tuple]" = []
+
+    def _enqueue(self, command: tuple) -> None:
+        self.commands.append(command)
+
+
+def test_the_real_overlays_two_hides_differ_ONLY_in_the_chip_coming_back():
+    """THE SEAM'S FAIL-OPEN, CLOSED. `FrameCapture` reaches the capture hide by
+    getattr — the idiom that file already uses for the restore — so an overlay
+    LACKING the verb falls back to the restoring hide and would put the chip in
+    a frame. There is exactly one production overlay, and this takes BOTH of its
+    real hides (no Tk: only `_enqueue` is stubbed) and runs them through the
+    REAL dispatcher against a REAL widget, so the verb's existence and the two
+    hides' difference are one assertion instead of a source scan."""
+    spy = _QueueSpy()
+    asyncio.run(SidekickOverlay.hide_for_capture(spy))
+    asyncio.run(SidekickOverlay.hide(spy))
+    capture_hide, plain_hide = spy.commands
+
+    canvas = _FakeCanvas()
+    indicator = ModeIndicator(canvas, style=OverlayStyle())
+    indicator.show("navigator ١/٣")
+
+    dispatch_command(capture_hide, rect=_Noop(), pointer=_Noop(),
+                     animator=_Noop(), mode=indicator)
+    assert not canvas.has(MODE_INDICATOR_TAG), "the capture hide brought the chip back"
+
+    dispatch_command(plain_hide, rect=_Noop(), pointer=_Noop(),
+                     animator=_Noop(), mode=indicator)
+    assert canvas.has(MODE_INDICATOR_TAG), "the plain hide did not restore the chip"
 
 
 # ─── D-3: it disturbs nothing it is not allowed to disturb ──────────────────

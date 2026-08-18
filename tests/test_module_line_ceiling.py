@@ -100,7 +100,15 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # 274 -> 298 as the composition root gained the DEC-37-shaped seam that
     # feeds it. Neither had a declared number before, which is exactly the state
     # `broker/docs/service.py` was in when it crossed the law in silence.
-    ("overlay/sidekick_window.py", 296),
+    # 296 -> 300, DECLARED (DEC-104 ruling 1, Gate A): FOUR lines — the
+    # `hide_for_capture` verb, which is how the ONE hide that must NOT bring the
+    # mode chip back says so. THE FILE NOW HAS ZERO HEADROOM and the next
+    # arrival here needs an EXTRACTION first, not a sentence. Measured after the
+    # write, and it is the gate's real cost: the alternative encoding (a keyword
+    # on `hide()`) was +0 lines here and was REJECTED on measurement — it breaks
+    # 20 test files' overlay fakes, which is churn in twenty places to save four
+    # lines in one. Flagged to Sultan in the Gate A report, not decided quietly.
+    ("overlay/sidekick_window.py", 300),
     ("composition.py", 298),
     # NEWLY under pressure at T4 (DEC-78's Navigator servicing): 271 -> 293 as
     # the mode-verb detection arm landed. Pinned HERE, in T5's first commit, by

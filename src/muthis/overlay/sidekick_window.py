@@ -83,9 +83,13 @@ class SidekickOverlay:
 
     async def hide(self) -> None:
         """Clear the rectangle, the pointer, AND any drawn shapes, and cancel
-        any in-flight glide. Called before EVERY capture (ghosting fix).
-        Non-blocking."""
+        any in-flight glide. The mode chip comes BACK (DEC-104: the reason for
+        this hide has ended). Non-blocking."""
         self._enqueue(("hide",))
+
+    async def hide_for_capture(self) -> None:
+        """The ONE hide that does NOT restore the mode chip — see window_commands."""
+        self._enqueue(("hide", False))
 
     async def draw_shapes(self, shapes: Sequence[Shape]) -> None:
         """Draw a LIST of ALREADY-PHYSICAL geometric shapes (line / arrow /
@@ -144,8 +148,8 @@ class SidekickOverlay:
         self._enqueue(("show_mode_indicator", text))
 
     def restore_mode_indicator(self) -> None:
-        """Redraw the indicator the ghosting hide erased — sent from the ONE
-        capture chokepoint, which is what carries it ACROSS turns."""
+        """Redraw the chip after a GRAB — the capture chokepoint's own restore,
+        the one hide whose reason outlives it (DEC-104; window_commands)."""
         self._enqueue(("restore_mode_indicator",))
 
     def clear_caption(self) -> None:

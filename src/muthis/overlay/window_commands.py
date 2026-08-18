@@ -99,8 +99,10 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
             mode.show(command[1])
     elif action == "restore_mode_indicator":
         # The cross-turn half: redraw what the ghosting hide erased. Sent from
-        # the ONE hide->settle->capture chokepoint, right where the status dot
-        # is already relit after a grab.
+        # the hide->settle->capture chokepoint, right where the status dot is
+        # already relit after a grab — that is the ONE hide whose reason for
+        # hiding outlives the hide itself, so it restores HERE rather than in
+        # the "hide" branch below (DEC-104 ruling 1; see that branch).
         if mode is not None:
             mode.restore()
     elif action == "clear_caption":
@@ -119,6 +121,26 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
         # Ghosting path: kill any in-flight glide and clear the pointer, the
         # rectangle, the shapes AND the caption bar, so no frame — and no
         # readable self-text — survives into the next capture.
+        #
+        # DEC-104 RULING 1 — THE MODE CHIP'S RESTORE IS UNIFIED HERE. Three
+        # callers hide the overlay and only ONE of them ever brought the chip
+        # back, so a walkthrough lost its own on-screen evidence 7 s after every
+        # drawing step while the mode was still alive in the kernel: the product
+        # saying something false about itself. Handing the duty back to the
+        # callers is the very shape that produced the defect, so a future caller
+        # of hide() must inherit the restore WITHOUT KNOWING IT EXISTS.
+        #
+        # `command[1]` is therefore the caller's REASON, never a policy — the
+        # question is not who restores, it is when the reason for hiding ends:
+        #   * auto-hide removes the OVERLAY after speech, not the mode's
+        #     evidence, so its reason is over the moment it fires;
+        #   * barge-in tears down the TURN, not the MODE, likewise;
+        #   * only the hide-for-a-GRAB says False, because ITS reason ends after
+        #     the pixels are taken — the chip must be ABSENT from the frame the
+        #     provider sees — and `FrameCapture` restores it there, unchanged.
+        # A bare ("hide",) means "the reason ended": restoring is the default,
+        # which is what makes the inheritance above true.
+        reason_ended = command[1] if len(command) > 1 else True
         animator.cancel()
         pointer.clear()
         rect.clear()
@@ -128,8 +150,14 @@ def dispatch_command(command: tuple, *, rect, pointer, animator, shapes=None,
             caption.clear()
         if badge is not None:  # ghosting covers the badge too — Claude must
             badge.clear()      # never see the sources it was shown last turn
-        if mode is not None:   # ghosting covers the indicator too; its text is
-            mode.clear()       # REMEMBERED, and restored after the grab
+        if mode is not None:
+            # Ghosting ALWAYS erases the chip; only the redraw is conditional,
+            # so the frame-safety half can never depend on the reason. An ENDED
+            # mode has already FORGOTTEN its text (the kernel sends show("")),
+            # so a restore here draws NOTHING — it cannot resurrect one.
+            mode.clear()
+            if reason_ended:
+                mode.restore()
         if dimmer is not None:  # ghosting: a capture never sees a dimmed screen
             dimmer.hide()
     return True

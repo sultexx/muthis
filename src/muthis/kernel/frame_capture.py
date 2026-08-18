@@ -49,7 +49,15 @@ class FrameCapture:
         order is load-bearing (cancel + clear + hide → settle → capture)."""
         self._auto_hide.cancel()  # drop any stale auto-hide before the explicit hide
         self._overlay.clear_status_light()  # ghost the corner dot — Claude never sees it
-        await self._overlay.hide()
+        # DEC-104 ruling 1: a plain hide() now brings the mode chip straight
+        # back, because for every OTHER caller the reason for hiding has already
+        # ended. A capture is the one hide whose reason has NOT — the chip must
+        # be ABSENT from the frame the provider sees — so it asks for the
+        # capture flavour and does its own restore below, at the same instant as
+        # the dot. Duck-typed like that restore: an overlay without the verb
+        # falls back to the plain hide it has always been given.
+        hide = getattr(self._overlay, "hide_for_capture", self._overlay.hide)
+        await hide()
         await asyncio.sleep(self._settle_s)
         sent = await self._downscale(await self._screen_capture())
         self._overlay.set_state("thinking")  # dot reappears (thinking) after the grab

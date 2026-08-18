@@ -20,11 +20,16 @@ split in two:
   * GHOSTING still applies — `hide()` erases it from the canvas, because a
     capture must never show Claude our own overlay (it would then reason about
     a mode indicator it had drawn for itself);
-  * but the TEXT IS REMEMBERED, and `restore()` redraws it after the grab. The
-    hide→settle→capture chokepoint (`FrameCapture.capture`) is the ONE site that
-    calls it, and it is the SAME site that already relights the status dot after
-    a grab — so persistence across turns costs one call in a method whose job
-    that already is, and no second lifecycle exists.
+  * but the TEXT IS REMEMBERED, and `restore()` redraws it. WHO calls that, and
+    WHEN, is DEC-104 ruling 1 and it changed: the duty is now UNIFIED at the
+    hide itself (`window_commands.dispatch_command`), which restores the chip
+    for every hide whose reason has ENDED — the 7 s auto-hide after speech and
+    a barge-in both remove the OVERLAY, never the mode. Only the hide taken FOR
+    A GRAB defers it, because a capture must not show Claude our own chip; that
+    one restores at `FrameCapture.capture`, at the same instant as the status
+    dot. Before the ruling the capture site was the ONLY caller that restored,
+    so the chip died 7 s into every drawing step while the mode was still live.
+    There is still no second LIFECYCLE — the memory below is the whole of it.
   * `clear_caption` does NOT touch it. That is the whole carried warning, and it
     is written as an explicit non-branch in `window_commands.dispatch_command`
     so a future reader sees a decision rather than an omission.
