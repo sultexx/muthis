@@ -11996,3 +11996,306 @@ unimplemented. This is a measurement and a boundary, and the v2 design session o
 built on it.
 
 ---
+
+## DEC-106 (2026-08-18) — **THE STEP-VERIFICATION STATE MACHINE.** Three outcomes, four states, every transition on a CYCLE BOUNDARY; and **UNOBSERVABLE → NO ADVANCE → FALLBACK as a DECLARED CAPABILITY BOUNDARY, not an implementation defect** — MEASURED + RULED (Sultan), NOTHING IMPLEMENTED
+
+DEC-99 asked whether the before/after difference carries signal. DEC-100 found the rule that reads
+it. DEC-105 found where that rule stops. **This entry is the design those three paid for**, and it
+is recorded only because the measurement that could have refuted it was run first. **Zero `src/`
+changes, 1,663 green (1636 + 27). No capture mechanism, no verification window, no `SessionMode`
+change, no routing.**
+
+Apparatus: `scripts/probe_step_verification.py` **loaded UNMODIFIED**, with five module attributes
+rebound at run time (`INSTRUCTION`, `ANSWERS`, `TOOL`, `_scored`, `report`). `_one` — the call, the
+timing, the usage read, the truncation branch, the deterministic argument parse — the real
+`downscale_to_max_width` and the pricing are **the same objects that produced DEC-99's, DEC-100's
+and DEC-105's numbers.** DEC-100's conservative `INSTRUCTION` is **IMPORTED from its runner and its
+load-bearing sentences asserted verbatim at run time**, so "one variable" is CHECKED rather than
+claimed. DEC-100's and DEC-105's case manifests are reused **BYTE-UNCHANGED**. Model
+`gpt-5.6-luna` at the ruled `high`, echoed back **240/240** and **80/80**. 320 calls, ≈$0.084.
+Fixtures and rows outside the repo at `muthis_stepverify\{timing,coverage,observability}\`.
+
+### THE CONTRACT — THREE OUTCOMES, AND THE REASON THE THIRD EXISTS
+
+| outcome | meaning | transition |
+|---|---|---|
+| **`RESULT_PROVEN`** | positive visual evidence of the expected result | **ADVANCE** |
+| **`RESULT_NOT_PROVEN_OBSERVABLE`** | the result SHOULD be visible from this evidence and is not present yet | **hold — retry next cycle** |
+| **`RESULT_UNOBSERVABLE`** | the result cannot be established from this viewpoint at all | **FALLBACK** |
+
+**SULTAN'S REASONING, AND IT IS THE ENTRY'S FOUNDATION RATHER THAN ITS PREAMBLE:**
+
+> **"Not proven" is EPISTEMIC. "Did not happen" is a claim about the external world — and a
+> verifier must not make the second from one frame.**
+
+The earlier binary framing forced exactly that claim: with two outcomes, *"I cannot see the
+destination folder"* and *"the file is not in the destination folder"* collapse into the same
+answer, and the verifier asserts something about a machine it cannot see. **The third outcome is
+not a hedge added for safety — it is the removal of a lie the binary contract required.**
+
+**AND THE DISTINCTION WAS ALREADY IN THE EVIDENCE BEFORE ANYONE ASKED FOR IT.** DEC-105's coverage
+sweep produced, unprompted, *"the File Explorer view is settled, but the requested destination
+change is not shown"* — category 3 in the model's own words, under an instruction that gave it no
+way to say so. **The contract was found in the data, not imposed on it.**
+
+### THE STATE MACHINE — FOUR STATES, EVERY TRANSITION ON A CYCLE BOUNDARY
+
+- **AWAITING** → `[F9]` → **VERIFYING** → `RESULT_PROVEN` → **ADVANCED** → **AWAITING** (next step)
+- **VERIFYING** → `RESULT_NOT_PROVEN_OBSERVABLE` → **AWAITING** (same step)
+- **VERIFYING** → `RESULT_UNOBSERVABLE` → **FALLBACK** → `[user declares completion]` → **AWAITING** (next step)
+
+Written out as transitions, because an arrow line can be misread and a table cannot — **the four
+states are `AWAITING`, `VERIFYING`, `ADVANCED`, `FALLBACK`; the three `RESULT_*` values are
+OUTCOMES that label edges, never states:**
+
+| # | from | trigger | to | step pointer |
+|---|---|---|---|---|
+| 1 | `AWAITING` | **F9 — the cycle boundary** | `VERIFYING` | unchanged |
+| 2 | `VERIFYING` | outcome `RESULT_PROVEN` | `ADVANCED` | unchanged |
+| 3 | `ADVANCED` | — | `AWAITING` | **advances to the NEXT step** |
+| 4 | `VERIFYING` | outcome `RESULT_NOT_PROVEN_OBSERVABLE` | `AWAITING` | **stays on the SAME step** |
+| 5 | `VERIFYING` | outcome `RESULT_UNOBSERVABLE` | `FALLBACK` | unchanged |
+| 6 | `FALLBACK` | **the user declares completion** | `AWAITING` | **advances to the NEXT step** |
+
+**THERE IS NO TRANSITION 7.** `FALLBACK` has exactly one exit and it is the user's — see invariant
+⑤. And **no row in this table is triggered by elapsed time.**
+
+### THE INVARIANTS — FIVE, EACH WITH THE MEASUREMENT OR PRECEDENT BEHIND IT
+
+**① `ADVANCED` IS REACHABLE ONLY FROM `VERIFYING` CARRYING REPRESENTED POSITIVE EVIDENCE — and an
+advance without evidence must be UNREPRESENTABLE, NOT REJECTED.** This is the `SessionMode`
+precedent applied exactly: **nesting was made impossible to EXPRESS rather than blocked by a
+check.** A guard that rejects a bad advance is a guard someone can forget to call; a transition
+that cannot be constructed without its evidence is a property of the type. *The difference matters
+most in the case nobody anticipated, which is the only case a guard is for.*
+
+**② NO TRANSITION READS CONFIDENCE, ABSENCE OF A DISQUALIFIER, OR DISAPPEARANCE OF A PRECONDITION.
+All three are MEASURED failure modes, not hypothetical ones:**
+- **confidence** — DEC-105's Excel case was wrong 10/10 at **confidence 99**, and is wrong at
+  confidence 99 again in this sweep. Self-reported confidence is the *"the model believes"*
+  quantity Sultan ruled out of the decision at DEC-99, and it has now been measured being
+  maximally wrong twice.
+- **absence of a disqualifier** — the same case: *"No modal dialog, command panel, or active input
+  field awaiting confirmation is visible, so the entry appears committed."* **The rule was applied
+  CORRECTLY and reached the wrong answer.**
+- **disappearance of a precondition** — DEC-99's original failure class, and the reason the advance
+  rule demands positive evidence of the RESULT. This sweep shows the model refusing it explicitly
+  (see THE CUE below), which is what makes it safe to state as an invariant rather than a hope.
+
+**③ EVERY TRANSITION IS TRIGGERED BY A CYCLE BOUNDARY. NO TIMER, NO POLLING, NO BACKGROUND
+OBSERVER.** **A background observer is a LIFECYCLE OUTSIDE THE KERNEL, which Law 11 forbids
+outright** (`CONTRIBUTING.md` acceptance condition 4), and the chain is already established twice:
+**DEC-47 rejected background ingestion on exactly this ground**, and **DEC-65 built the Navigator's
+idle timeout to be evaluated LAZILY at the start of the next turn — never by a background timer —
+citing both.** This invariant adds no new law; it places the verification machine inside one that
+already holds.
+
+**④ THE MACHINE LIVES INSIDE THE MODE AND DIES WITH IT.** No persistence, no privilege. **A mode
+grants NO privilege and LOOK-only does not move in any mode** (DEC-65). Verification state that
+outlived its mode would be state with no owner.
+
+**⑤ `FALLBACK` NEVER RETURNS TO `VERIFYING` FOR THE SAME STEP.** **What is unobservable does not
+become observable by looking again.** A retry loop on an unobservable result is precisely the hang
+this contract exists to prevent, and re-entering `VERIFYING` from `FALLBACK` would rebuild it inside
+the machine that was designed to remove it.
+
+### THE TWO RULINGS
+
+**RULING 1 — F9 IS THE OBSERVATION TRIGGER *UNDER THE CURRENT CONSTITUTION*, and the qualifier is
+the ruling.** Mut'his is LOOK-ONLY with zero control over the user's session; it has no event stream
+from the user's applications and acquiring one is not a design choice available to it. **F9 is
+therefore not a compromise chosen over event-driven observation — it is the only cycle boundary that
+exists.** This is recorded as **CORRECT-UNDER-THE-CONSTITUTION, NOT as a permanent rejection of
+event-driven observation**: if that is ever revisited it is **a separate, measured, constitutional
+decision** and must read as one, exactly as *"in Debug mode, give the sandbox network"* must
+(DEC-65).
+
+**RULING 2 — THE CAPABILITY BOUNDARY, DECLARED:**
+
+> **UNOBSERVABLE RESULT → NOT AUTOMATICALLY VERIFIABLE → NO ADVANCE → F9 FALLBACK.**
+
+**This is a DECLARED CAPABILITY BOUNDARY, not an implementation defect.** The distinction is the
+whole point: a defect is something a later version fixes, and this is not that. A result the
+verifier cannot see is not a gap in the verifier — **it is a fact about the viewpoint**, and a
+system that pretended otherwise would be inventing evidence. This is the DEC-47 robots pattern and
+the DEC-67 evidence-pointing pattern for a third time: **a limit stated honestly becomes a
+behaviour, and the kernel never synthesises what it cannot establish.**
+
+### THE UX RULINGS
+
+**① FALLBACK SPEAKS, AND IT DISTINGUISHES TWO THINGS THE USER MUST NEVER SEE CONFLATED:**
+
+> **"I cannot verify this from this screen"** — a statement about MUT'HIS.
+>
+> **"Your action failed"** — a statement about THE USER.
+
+Saying the second when the first is true blames the user for the verifier's viewpoint. **It is also
+the exact error the three-outcome contract was created to stop the machine making internally**, so
+letting it back in at the speech layer would surrender the ruling where the user actually meets it.
+
+**② THE STEP EXPLANATION IS NOT REPEATED AFTER `NOT_PROVEN`.** The step stays active and the next
+F9 attempts again. **`NOT_PROVEN` means the user is mid-step, and re-explaining a step to someone
+already performing it is noise that reads as distrust.** The state machine already carries the
+information — the step did not advance — and repetition adds nothing it does not already say.
+
+### ONE OBSERVABLE END PER STEP — A BINDING CONSTRAINT ON THE RESULT FIELD
+
+**THE RULING, AND IT COMES FROM AN ANSWER THAT WAS NOT AN ERROR.** One run of the `file` case
+answered category 2 where the fixture expected category 3:
+
+> *"The source file muthis_test.txt is no longer present, **which positively establishes removal
+> from Source**, but Destination is not open or visible, **so the move's completed arrival in
+> Destination is not proven**."*
+
+**EVERY CLAUSE IS TRUE.** The step named TWO ENDS — *"Move muthis_test.txt from Source to
+Destination"* — and **the two ends have different observability: departure is provable from these
+frames, arrival is not.** The contract has three labels and this state is HALF OF TWO OF THEM. **It
+is not a defect in the model, in the contract, or in the fixture; it is a defect in the STEP TEXT.**
+
+> **BINDING: ONE OBSERVABLE END PER STEP. The expected result is written as
+> "the file is in Destination" — never "moved from Source to Destination".**
+
+**Recorded now, against the `result` field Step does not yet have**, so it is honoured when that
+field is added rather than rediscovered live. A two-ended result makes an unobservable step
+partially observable, and **partial observability has no label in a three-outcome contract by
+design** — adding a fourth would reintroduce the ambiguity the third outcome removed.
+
+**AN HONEST CONSEQUENCE FOR THIS SWEEP'S OWN NUMBER:** the `file` case as measured USES the
+forbidden two-ended form, so its 9/10 was scored against a step shape this ruling now bans. Under
+the one-ended phrasing r7's defensible alternative disappears. **That means the 9/10 may UNDERSTATE
+the firing rate — it is not re-measured here and it is not claimed.**
+
+### Q1 — DOES THE THIRD OUTCOME REGRESS CATEGORY 1? **NO.**
+
+The danger was specific: the instruction that scored 100% was BINARY, and a third outcome is an exit
+that costs nothing.
+
+| fixture | category 1, three-way | binary reference |
+|---|---|---|
+| `timing\` T₂ + T₃ | **60/60 = 100%** | DEC-100: 60/60 |
+| `coverage\` four T₂ | **39/40 = 97.5%** | DEC-105: 40/40 |
+| **combined** | **99/100 = 99.0%** | **100/100 = 100%** |
+
+**ONE CALL LOST IN ONE HUNDRED**, 95% upper bound on the loss rate **4.7%**, and both facts about it
+matter: it fell on `T2_MENU` — **the pair DEC-105 PRE-REGISTERED as the least-visible result**
+(median confidence 88 here, 90.5 there, against 99 everywhere else) — and **it went to RETRY, not to
+a fallback and not to a false advance**, which is the cheapest of the three failure modes. Its
+reasoning is the advance rule working strictly: *"no clearly visible open cavity from this
+back/side view and no positive visual evidence that the body has been hollowed and committed."*
+
+**THE THIRD OUTCOME DID NOT BECOME AN EASY EXIT — 0 of 120 calls on the timing fixture used it, and
+it was never used on a genuinely visible result.** Undisputed mid-steps held **50/50**.
+
+### Q2 — DOES CATEGORY 3 FIRE WHEN IT SHOULD? **YES — AND THE FIRING RATE IS THE REPORTED QUANTITY.**
+
+**THE ASYMMETRY THAT MAKES THIS GOVERNING, AND IT RUNS OPPOSITE TO EVERY EARLIER MEASUREMENT IN THIS
+SERIES.** Neither misclassification between categories 2 and 3 can produce a false advance — safety
+holds by construction either way. **What a model that never reaches for category 3 produces instead
+is an INFINITE LOOP:** never proven, so never advanced; never unobservable, so never fallen back.
+The user presses F9 forever. **That is a HANG, and it is worse than a premature fallback.** Accuracy
+would have hidden this; the firing rate is what exposes it.
+
+| case | what is hidden | fired | 95% LOWER bound |
+|---|---|---|---|
+| **`C3_TAB`** — result on a non-active sheet | Sheet2's grid | **10/10 = 100%** | 74.1% |
+| **`C3_FILE`** — destination never opened | Destination's contents | **9/10 = 90%** | 60.6% |
+| **`C3_FOLD`** — below the fold | row 100 | **9/10 = 90%** | 60.6% |
+| **`C3_DRAG`** — destination never on screen | lab2's contents | **9/10 = 90%** | 60.6% |
+
+**ALL FOUR: 37/40 = 92.5% fired · 3/40 = 7.5% took the loop branch (95% upper 18.3%) · ZERO false
+advances · PAIRS THAT NEVER REACHED FOR CATEGORY 3: 0 of 4.** That last figure is the one the hang
+depends on.
+
+**`C3_DRAG` IS ALSO A CORRECTION TO HOW DEC-105 WAS READ.** Under the binary contract that pair
+answered `no` 10/10 and was banked as a pass; DEC-105 already recorded that only 4 of 10 named the
+drag in flight while six answered on result-absence. **Under three outcomes it answers
+`RESULT_UNOBSERVABLE` 9/10.** Its binary pass was carried by result-absence, and the three-way
+contract **classifies it correctly instead of banking it as a demonstration.**
+
+### THE MATCHED TRIPLE — THE STRONGEST CONTROL IN THE SWEEP
+
+The SAME TWO FRAMES, asked three questions, produce three answers:
+
+| frames | question | answer |
+|---|---|---|
+| T₀ → T₂ | *"Empty the Source folder."* | **`RESULT_PROVEN` 10/10** |
+| T₀ → T₀ | *"Empty the Source folder."* | **`NOT_PROVEN_OBSERVABLE` 10/10** |
+| T₀ → T₂ | *"Move muthis_test.txt … to Destination."* | **`RESULT_UNOBSERVABLE` 9/10** |
+
+**THE LABEL TRACKS THE QUESTION, NOT THE PIXELS.** A model using category 3 as an easy exit would
+have used it on either of the first two. **It used it on neither.** Identical controls: UNOBSERVABLE
+24/30, NOT_PROVEN 6/30, **PROVEN 0/30** — the apparatus is sound.
+
+### THE CUE — WHAT THE MODEL NAMES WHEN IT DECLARES SOMETHING UNOBSERVABLE
+
+**Sultan's requirement, and not decoration: a category the model cannot justify is one it will apply
+inconsistently.** The cue is **singular and specific in every single firing — the location where the
+result would appear is not in the frame.** Never a hedge, never confidence language.
+
+- **tab** — *"cell A1 on Sheet2 — the location where 990 would appear — is not visible."* Two runs
+  beat the distractor outright: *"Although cell A1 is visible, it is A1 on Sheet1."*
+- **fold** — always the row range: *"only rows 1–28 are shown"*, *"cell A100 is below the visible
+  area."*
+- **file** — *"Source is empty, but the Destination folder is not open or visible."* **ALL TEN name
+  the empty source AND none treats it as evidence of arrival**, and three make the insufficiency
+  explicit rather than implicit: *"which is consistent with a move, but…"*, *"which suggests the
+  file may have been removed from the source, but…"*, and r7's *"positively establishes removal from
+  Source, but…"* **DEC-99's failure class — absence of the precondition read as evidence of the
+  outcome — NOT happening, in the model's own words.**
+
+**A PRE-REGISTERED CAVEAT THAT RESOLVED AT NO COST, reported because pre-registering it is why it
+cannot now be used as an excuse.** `fold_T2`'s vertical scrollbar thumb is materially SHORTER than
+`fold_T0`'s — a weak cue that SOMETHING exists below the fold while saying nothing about WHAT. **The
+scrollbar is never named. Not once in 80 calls.** The model reads row numbers, not the thumb. A
+model that advanced on it would have been a finding worth more than the case it came from.
+
+**WHEN IT ERRS, IT ERRS IN THE LABEL AND NOT IN THE PERCEPTION.** All three loop answers name the
+correct cue and file it under category 2 — *"Cell A100 is not visible, so the requested value cannot
+be verified"* → filed `NOT_PROVEN_OBSERVABLE`. That is a wording problem, not a perceptual ceiling.
+**Stated as an observation and NOT as a prediction that wording will fix it** — DEC-105's Excel case
+is the standing proof that some of these cannot be repaired by prose.
+
+### EVERY MEASURED LIMIT — STATED, NOT SOFTENED
+
+- **THE EXCEL CASE IS UNTOUCHED AND THE PRE-REGISTERED HYPOTHESIS IS REFUTED.** I predicted the
+  third outcome would convert DEC-105's silent false advance into a fallback. **It did not:** still
+  `RESULT_PROVEN`, still **10/10**, still confidence 99, same mechanism — *"no modal dialog or
+  active input confirmation state visible, indicating the entry is committed."* **ALL TEN FALSE
+  ADVANCES IN THE 240-CALL Q1 SWEEP ARE THAT ONE CASE.** **DEC-105's boundary stands exactly where
+  it was named — mid-steps whose unsettled state is ACTUALLY RENDERED — and this contract does not
+  widen it by a single pixel**, because the problem is a state the application never draws.
+- **CATEGORY 1 IS 99/100, NOT 100/100.** One call was lost that the binary instruction did not lose.
+  It is one call, it landed on the pre-registered least-visible pair, and it went to retry — but
+  **the three-way contract is not free, and this is what it cost.**
+- **THE COST OF THE THIRD OUTCOME IS DELIBERATION, NOT ACCURACY.** Reasoning tokens **45–65** against
+  DEC-100's **2**: 46.9 (timing), 65.0 (coverage), 44.9 (observability). **The reframe turned a
+  lookup back into a judgement.** Latency 1.96 / 2.36 / 2.31 s against DEC-100's 2.02 s and
+  DEC-105's 1.84 s; ≈$0.00026 per verification.
+- **THE PER-CASE BOUNDS ARE WIDE, AND ONE PAIR PER CASE IS STILL ONE PAIR.** At 9/10 the exact 95%
+  LOWER bound is **60.6%** on three of the four category-3 cases (74.1% on the fourth). **Repeated
+  runs buy stability and buy nothing about whether one pair represents its shape** — DEC-99's rule,
+  one level up, and it applies here exactly as it applied at DEC-105.
+- **THREE OF FOUR CATEGORY-3 PAIRS MISSED AT LEAST ONCE.** 0 of 4 never fired, which is the figure
+  the hang turns on — but a pair that misses once is a pair with a hole in it, and three have one.
+- **THE OBSERVABILITY STEP TEXT IS SULTAN'S, NOT INFERRED — a declared departure from the P0 /
+  DEC-100 / DEC-105 method.** Those fixtures inferred each step from its frames. **These frames carry
+  no trace of the action BY CONSTRUCTION — that is what makes them category 3** — so inferring would
+  have meant inventing a result, and a guessed result that turned out to be VISIBLE would have
+  quietly stopped being a category-3 case while still being reported as one. The manifest refuses to
+  run unconfigured rather than substitute a default.
+- **NOT MEASURED: anything downstream of the classification.** No capture mechanism, no cadence, no
+  cost of verifying every step of a real walkthrough, and **no measurement of the FALLBACK path with
+  a real user** — the UX rulings above are rulings, not findings.
+
+### WHAT THIS ENTRY DOES AND DOES NOT DO
+
+**It records a DESIGN and closes the question the three preceding entries opened.** The state
+machine is **no longer provisional**: the contract, the four states, the five invariants, the two
+rulings, the two UX rulings and the result-field constraint are DECIDED.
+
+**NOTHING IS IMPLEMENTED.** No `SessionMode` change, no `Step.result` field, no capture mechanism,
+no verification window, no routing, no provider. **DEC-104's two rulings also remain unimplemented.**
+The v2 design session owns what is built on this, and **the one-observable-end constraint is binding
+on it from now rather than from the day it is rediscovered live.**
+
+---
