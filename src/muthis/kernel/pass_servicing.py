@@ -39,7 +39,8 @@ import logging
 from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
-from .deferral_notes import NAV_VERIFY_TOOL, verification_note
+from .deferral_notes import NAV_VERIFY_TOOL
+from .verification_notes import verification_note
 from .navigator_service import service_navigator_call
 
 logger = logging.getLogger("muthis.orchestrator")

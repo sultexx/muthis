@@ -40,8 +40,9 @@ from muthis.composition import mount_navigator_verify
 from muthis.kernel.budget import Budget
 from muthis.kernel.deferral_notes import (
     NAV_ONE_PER_PASS_AR, NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_TOOLS,
-    NAV_VERIFY_TOOL, VERIFY_READ_AR,
+    NAV_VERIFY_TOOL,
 )
+from muthis.kernel.verification_notes import VERIFY_READ_AR
 from muthis.kernel.navigator_service import service_navigator_call
 from muthis.kernel.step_verification import OUTCOMES, RESULT_PROVEN
 from muthis.kernel.highlight_gate import (

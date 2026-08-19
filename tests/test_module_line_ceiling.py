@@ -153,7 +153,7 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # content moved: DECLARING it IS the change, as at `confirm_gate.py` and
     # `persona_laws.py`. The next note family needs an EXTRACTION before it needs
     # a sentence.
-    ("kernel/deferral_notes.py", 283),
+    ("kernel/deferral_notes.py", 207),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.

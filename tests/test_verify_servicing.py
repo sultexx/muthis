@@ -32,8 +32,10 @@ import pytest
 
 from muthis.cloud.protocol import ToolCall
 from muthis.kernel.deferral_notes import (
-    NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_VERIFY_TOOL, VERIFY_NO_EVIDENCE_AR,
-    VERIFY_NO_STEP_AR, VERIFY_READ_AR, verification_note,
+    NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_VERIFY_TOOL,
+)
+from muthis.kernel.verification_notes import (
+    VERIFY_NO_EVIDENCE_AR, VERIFY_NO_STEP_AR, VERIFY_READ_AR, verification_note,
 )
 from muthis.kernel.navigator_service import service_navigator_call
 from muthis.kernel.pass_servicing import service_pass_calls
