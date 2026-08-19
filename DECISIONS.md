@@ -12593,3 +12593,300 @@ remain unimplemented.** The build session owns what is made of this — and the 
 binding on it from now rather than from the day they are met live.
 
 ---
+
+## DEC-108 (2026-08-19) — **THE VERIFIER'S CALL SITE: THE NAV ARM IN `pass_servicing.py`.** The kernel needs NO FRAME, because it validates REPRESENTATION and never TRUTH; and **CATALOG v8 EXTENDS — the additive guard shape returns** — RULED (Sultan) FROM A MEASURED TRACE, NOTHING IMPLEMENTED
+
+DEC-106 ruled the state machine. DEC-107 designed the field it verifies against, and Gate 1 shipped
+that field (`c2824cf`). Gate 2 is the machine itself, and it could not be designed until one
+question was settled by MEASUREMENT rather than by preference: **where in the turn does a verifier
+live?**
+
+The answer was measured before it was ruled. A READ-ONLY lifecycle trace was run at `108ddc4` — one
+F9 from key-down to servicing, every step with a file and a line; eight candidate insertion points
+with what each has and what each lacks; and the ceiling cost of every candidate measured on
+scratchpad copies. **The trace proposed no call site and recommended nothing** — that separation is
+the reason this ruling rests on facts rather than on the order the facts were presented in. **Zero
+`src/` changes, 1,696 + 27 green, tree clean.**
+
+### THE FOUR RULINGS THE DESIGN INHERITS — CLOSED BEFORE THE TRACE, AND THEY CONSTRAINED WHAT IT MEASURED
+
+**① THE MACHINE LIVES IN A NEW MODULE, `kernel/step_verification.py`.** It produces the three-way
+outcome from its inputs and **NOTHING ELSE** — it grants itself no mode-transition authority and no
+plan advancement. Transition authority stays where it is, in `mode_transition.py`.
+**`mode_transition` REJECTED as its home:** a mode-transition authority is not a step-verification
+concern — the same conflation DEC-104 separated into two clocks. **`session_mode` REJECTED:** the
+primitive stores and never interprets (DEC-66), and verification is a judgement about content.
+
+**② THE CALL SITE WAS NOT DECIDED — that is what the trace exists to answer.**
+
+**③ `navigator__verify` IS A SEPARATE TOOL, CATALOG v8 — not new semantics on `navigator__step`.**
+Three verbs, three responsibilities: **`plan` defines** the plan and the expected result ·
+**`verify` establishes the result's state** · **`step` advances.** The MODEL decides the three-way
+outcome; **the KERNEL validates STRUCTURAL REPRESENTATION ONLY** and never interprets
+`expected_result` or the evidence semantically. The contract is **FAIL-CLOSED: `RESULT_PROVEN` must
+be UNREPRESENTABLE without structurally-required evidence.** **The kernel validates representation,
+not truth.**
+
+**④ VERIFICATION FIRES ONLY AT F9, and ONLY when an active step needs it.** Side questions and
+unrelated requests inside Teaching Mode consume no verification call. F9 remains the cycle boundary
+and the observation trigger (DEC-106); **no event observer, no new signal.**
+
+### THE MEASURED ORDER — ONE F9, END TO END, EVERY ANCHOR READ AT `108ddc4`
+
+| # | site | what happens between this row and the next |
+|---|---|---|
+| 1 | `activation.py:106` `on_press` | **F9 DOWN**, on the KEYBOARD thread, no asyncio. Opens the mic (`:131` → `_open_recording` `:133-139`) and chirps only if the stream really opened |
+| 2 | `activation.py:163` `on_activate` | **F9 UP**, bridged to the loop thread by `call_soon_threadsafe`. Sets `_is_processing` (`:175`), launches ONE turn task (`:178`) |
+| 3 | `orchestrator.py:142` `handle_activation` | `:149` mic → `:155` STT. **Both failures return EARLY with an Arabic line and no provider call** (`:152`, `:158`) |
+| 4 | `orchestrator.py:186` `run_turn` | **`:189` the prelude is the FIRST statement** → `:197` fresh draw gate → `:198` `new_turn_voice()` → `:200` the WS handshake opens early → `:202` the 90 s bound |
+| 5 | `turn_prelude.py:100` `begin_turn` | `:118` idle expiry → `:130` the liveness stamp (**after** the check, DEC-104 ruling 2) → `:134` the exit word on RAW text → `:139` verbosity → **`:147-152` the mode frame, the plan and the current step read, the directive prepended** |
+| 6 | `orchestrator.py:237` `_run_turn_pipeline` | `:239` `UserInput` → **`:240` THE CAPTURE** → `:242` fresh gate → `:246` the agentic loop (`MAX_AGENTIC_ITERATIONS = 4`) → `:247` the budget gate before *every* call |
+| 7 | `frame_capture.py:44` `capture` | `:50` cancel auto-hide → `:51` clear the dot → `:59-60` `hide_for_capture` (the mode chip must be **absent** from the frame) → `:61` 50 ms settle → **`:62` capture then downscale** → `:63`/`:70-72` dot + chip restored → `:73-74` dims and scales onto `result` → `:75` return |
+| 8 | `orchestrator.py:253` `self._pass.consume(...)` | the frame is handed in as an ARGUMENT |
+| 9 | `turn_pass.py:139` `consume` | `:161` the DEC-16 detector on raw text **before** the provider → `:170` `tool_choice` → **`:178` THE PROVIDER CALL** |
+| 10 | `claude_agent.py:149` `run` | `:165-167` the frame becomes a base64 image block; the text block follows |
+| 11 | `turn_pass.py:179-241` the dispatch | `:185` draw · `:189` refresh · `:192` router-serviced · **`:215` `NAV_TOOLS`, first-wins at `:226`** · `:228` `run_code` · `:234` the LOOK-only violation |
+| 12 | `turn_pass.py:249-254` → `:259-260` | usage, cost, `record_turn` → **THE SYNC POINT: apply the ONE buffered draw** → `:261-267` speak |
+| 13 | `turn_pass.py:272` `service_pass_calls` | **servicing happens AFTER the audio is already moving** |
+| 14 | `pass_servicing.py:63` | `:88-97` precondition **then** read → `:101` `run_code` → **`:109-112` THE NAV ARM** |
+| 15 | `navigator_service.py:183` `service_navigator_call` | `:192-194` — `plan` → `_start`, everything else → `_move` |
+| 16 | `orchestrator.py:262-277` | history appended → **`:272` the refresh RE-CAPTURE** → `:273` pairing → `:282` loop exit on `stop_reason != "tool_use"` |
+
+### THE FRAME — THE DECISIVE FACT, AND IT DECIDES LESS THAN IT LOOKED LIKE IT WOULD
+
+**THE OBJECT IS THE LOCAL `screenshot` AT `orchestrator.py:240`, AND IT IS THE POST-DOWNSCALE
+BYTES.** `FrameCapture.capture` returns `sent.sent_bytes` (`frame_capture.py:75`), produced at `:62`
+by `await self._downscale(await self._screen_capture())`. **The physical-pixel image is never bound
+to a name and never returned** — it exists only as the anonymous inner expression at `:62` and is
+discarded there. The `DownscaledImage` wrapper (`turn.py:37-52`) is discarded too; only
+`sent_width`/`sent_height`/`scale_x`/`scale_y` survive, onto `result` (`:73-74`).
+
+**THE CONSEQUENCE, MEASURED:** there is no pre-downscale image reachable anywhere downstream. Every
+candidate site can only ever see **the exact bytes the provider received** at
+`claude_agent.py:165-167`.
+The failure this trace was commissioned to close — *a verifier reading a screen the model never saw*
+— **is closed BY CONSTRUCTION for the initial frame**, and it is closed by an absence rather than by
+a rule: there is nothing else to read.
+
+**THE REFRESH-PASS TRAP, WHICH THAT CONSTRUCTION DOES NOT CLOSE.** On a serviced refresh pass
+`orchestrator.py:272` takes a **SECOND** capture into `fresh`; `:273-275` puts it inside the pairing
+message; and **`:292` sets `screenshot = None`.** From that pass onward the live frame lives ONLY in
+`self.history`, and a site reading `screenshot` reads `None` — **not a stale image, which is the
+mercy in it.** Two captures in one turn already exist in this pipeline and they are two different
+screens. Recorded because it is invisible from every candidate's signature and would have been
+discovered by a verifier that silently stopped seeing anything on exactly the passes a refresh was
+asked for.
+
+### THE RULING — THE CALL SITE IS THE NAV ARM IN `pass_servicing.py` (`:109-112`)
+
+**FOUR GROUNDS, and the first is the one that changed which column of the trade-off table decides.**
+
+**① THE KERNEL NEEDS NO FRAME, SO THE ABSENCE OF ONE AT THIS SITE IS NOT A DEFECT.** Under ruling ③
+the model forms its judgement on the frame it received at `turn_pass.py:178`, and returns the
+OUTCOME through the tool; the kernel then validates **structural representation, not truth.**
+Nothing in that chain requires the kernel to hold the image. **The frame is the MODEL's input, not
+the verifier's** — so "has no frame access", which reads as disqualifying in a column headed *what
+it does not have*, stops being a disqualifier at all. The trace flagged this rather than resolving
+it, and that was right: it is a consequence of ③ and therefore a ruling, not a measurement.
+
+**② ROOM IS AMPLE, AGAINST A BREACH EVERYWHERE ELSE THAT LOOKED NATURAL.** `pass_servicing.py` is
+**117** lines today; the floor (one import, one call) takes it to 119 with **181 left**, and the
+full seam lands around **121**. Measured on the same scratchpad copies that measured the breach in
+`orchestrator.py`.
+
+**③ IT IS WHERE THE NAVIGATOR VERBS ARE SERVICED TODAY**, so the third verb lands beside its two
+siblings **with no new pattern** — the arm at `:109-112` is already the kernel's answer to "a mode
+verb arrived", already `prelude`-guarded, already inert when unwired (`:110`, the stub-first shape
+this file's other seams use).
+
+**④ IT RUNS AFTER THE SYNC POINT.** `service_pass_calls` is called at `turn_pass.py:272`, after the
+ONE buffered draw is applied (`:259-260`) and after the speech is moving (`:261-267`), so work there
+**delays neither the draw nor the speech.** This is the property `pass_servicing.py` was extracted
+to hold (DEC-73), and a verification call is exactly the kind of work that would otherwise sit in
+front of the user's audio.
+
+**THE NEW COUPLING THE TRACE FLAGGED IS NOT INCURRED.** The trace listed, honestly, that
+`service_pass_calls`' signature (`:63-73`) has no `screenshot` parameter and that adding one is new
+coupling at `turn_pass.py:272-275`. **Under ground ① no parameter is added, because none is
+needed.** The site's one listed cost is retired by the ruling that admits it.
+
+### THE REJECTIONS, WITH THEIR OWN GROUNDS
+
+**P1 (`orchestrator.py:240-246`, post-capture / pre-loop) and P2 (`orchestrator.py:253-278`,
+post-`consume`) — REJECTED ON THE CEILING, AND THIS IS A RULING RATHER THAN AN INCONVENIENCE.**
+`orchestrator.py` is at **299/300**. Measured line by line on the copy: **the IMPORT ALONE takes it
+to exactly 300 — at the limit, zero headroom — and the FIRST LINE THAT USES IT REACHES 301.** The
+law's binding form is *split, never compress* (AGENTS.md; CONTRIBUTING.md acceptance condition 1),
+so the breach cannot be bought back by packing lines. **Any orchestrator-sited verifier is therefore
+an EXTRACTION DECISION FIRST** — a separate ruling, taken on its own terms, before a line of Gate 2
+is written. P2 carries a second, independent cost: after a serviced refresh its `screenshot` is
+`None` (`:292`), so the one thing P2 has over P1 is the thing that disappears exactly when a refresh
+was asked for.
+
+**P5 (`navigator_service.py`, a third verb arm at `:192-194`) — REJECTED ON THAT MODULE'S OWN
+STANDING LAW.** The module is *a TRANSLATION LAYER, AND NOTHING ELSE* — **"It decides nothing —
+every allow/refuse ruling lives in `ModeAuthority`"** (`:6-8`) — and it **NEVER RAISES**, because
+its arguments are model-authored JSON and may be anything (`:27-31`). **Verification is a decision
+about representation**, and a fail-closed contract is precisely a decision the site must be able to
+make and refuse. Putting it there would either break the law or hollow out the verifier; ① already
+placed the machine in its own module, and this is why the CALL does not belong here either.
+
+**P3 (`turn_pass.py:215-227`, the NAV arm mid-stream) — it has the frame, and that is not enough.**
+It runs **BEFORE the sync point (`:259`)**, so every millisecond spent verifying there is a
+millisecond of delay on the draw and on the speech. It is the site that ground ④ names by contrast.
+`turn_pass.py` is also pinned at **293**, admitting the floor with five lines left and the full seam
+with three.
+
+**`mode_transition.py` — confirmatory only.** At **298** it admits the floor with zero left and
+breaches as a seam; ① had already rejected it on the conflation ground, and the measurement agrees
+with the argument rather than carrying it.
+
+### THE ACTIVE-STEP CONDITION (④) — WHERE IT IS EVALUATED, AND THE SPLIT THAT SATISFIES IT
+
+**RULED: `turn_prelude.py:147-152`.**
+
+```
+:147  frame = self._session_mode.frame
+:149  step  = frame.plan.current_step if frame.plan is not None else None
+```
+
+**Both values are ALREADY COMPUTED THERE** to build the directive line, so the condition costs **zero
+new computation**. It sits **BEFORE the capture** (`orchestrator.py:240`) and **BEFORE any provider
+call** (`turn_pass.py:178`) — so a verification that is not needed is never paid for — and **AFTER
+both deterministic exits** (`:118` idle expiry, `:134` the exit word), so a mode that just expired or
+was just exited is already gone and `frame` is `None`. **It is correct there, not merely early.**
+
+**THE LIMIT THE TRACE STATED IS THE DESIGN, NOT A SHORTFALL.** `begin_turn` knows only that **AN
+ACTIVE STEP EXISTS**. Whether *this* utterance is a step attempt or a side question is a judgement
+about CONTENT — the primitive's to store and never to make (①, DEC-66), and the model's under ③.
+
+**SO THE SPLIT IS:** **the KERNEL gates whether `navigator__verify` is OFFERED AT ALL** — no active
+step, no tool — **and the MODEL decides whether to CALL it.** A side question inside Teaching Mode
+simply does not call it. **④ is satisfied with no semantic judgement anywhere in the kernel**, and
+the two halves are enforced by different means on purpose: the kernel's half is structural
+(offer/withhold), the model's half is a persona-guided choice, and neither can be quietly moved into
+the other.
+
+### THE FAIL-CLOSED CONTRACT — WHAT "VALIDATES REPRESENTATION, NOT TRUTH" MEANS AT THE BOUNDARY
+
+**`RESULT_PROVEN` MUST BE UNREPRESENTABLE WITHOUT STRUCTURALLY-REQUIRED EVIDENCE.** The kernel does
+not ask whether the evidence is *good*; it asks whether the outcome could be expressed at all
+without it. A payload claiming the strongest outcome while carrying nothing to point at **is not
+refused by a check — it cannot be built.** That is the `SessionMode` method (nesting made impossible
+to EXPRESS rather than blocked) and DEC-107 Gate 4's method (immutability structural in `src/`,
+AST-proven in the tests), applied a third time, and the reason is the same each time: **a guard that
+rejects a bad value is a guard someone can forget to call.**
+
+**THE THREE-WAY OUTCOME IS UNCHANGED (DEC-106):** `RESULT_PROVEN` → advance ·
+`NOT_PROVEN_OBSERVABLE` → retry · `RESULT_UNOBSERVABLE` → fallback. **Fail-closed means the DEFAULT
+under any malformation is one of the two NON-ADVANCING outcomes** — never the advance. DEC-106's
+invariant ① (`ADVANCED` reachable only from a verification carrying represented positive evidence)
+is what this contract makes structural rather than aspirational.
+
+**AND THE KERNEL STILL READS NOTHING.** DEC-66 is unbroken: presence and shape, never meaning. It
+does not compare the evidence to `expected_result`, does not count the ends of a sentence, and does
+not judge whether what the model described is what the screen showed. **The model is the judge; the
+kernel is the form the judgement must arrive in.**
+
+**THE SHAPE OF THE EVIDENCE FIELD IS NOT DECIDED HERE.** What is decided is that the outcome and its
+evidence must be structurally inseparable. The build session owns the schema, under DEC-107's
+standing three-way distinction (MISSING → invalid, loud, and OURS · UNOBSERVABLE → valid, falls back
+· OVER-BROAD → allowed, persona-guided).
+
+### CATALOG v8 — AN EXTENSION, SO THE ADDITIVE GUARD SHAPE RETURNS
+
+**v7 REVISED. v8 APPENDS.** `navigator__verify` is a NEW tool; no existing schema changes. So the
+guard returns to the form v2, v3, v4 and v6 used and that v5 and v7 could not: **`v8[:len(v7)] ==
+v7` and `len(v8) == len(v7) + 1`**, with **v7 kept as the deeper anchor** exactly as v6 was kept
+through v7 and v4 through v5 — the DEC-57 method, **two anchors at different depths cannot both be
+re-based by accident.**
+
+**v7's BLAST-RADIUS PIN IS UNAFFECTED AS A STATEMENT.**
+`test_v7_REVISES_v6_and_the_BLAST_RADIUS_is_one_tool` says the v7 revision was confined to
+`navigator__plan`; an APPEND does not touch that claim, and the changed-set form it was written in
+(`[t["name"] for t, o in zip(catalog, v6) if t != o] == [NAV_PLAN_TOOL]`) is precisely the form that
+keeps the unrevised sibling `navigator__step` pinned while a third verb arrives after it.
+
+**ONE MECHANICAL CONSEQUENCE, NAMED SO IT IS NOT DISCOVERED — AND IT IS WHERE THE STANDING NOTE
+BELOW WILL BE TESTED.** Every historical catalog pin builds through a helper that mounts a FIXED set
+of plugins in production order — `_v4_router()` in `test_doc_mount.py`, `_v7_router()` in
+`test_navigator_mount.py` — which is why v6 and v7 could append whole plugins without disturbing the
+older pins. **v8 is different: its new verb belongs to the SAME `NavigatorPlugin` the v7 helper
+already mounts.** If the third verb is added as a third descriptor there, `_v7_router()` starts
+producing TWELVE tools and both v7-era pins (`test_v7_catalog_byte_pins_the_navigator_tools`, which
+asserts `len(catalog) == 11` and byte-equality with `look_tools_v7.json`, and the blast-radius test,
+which asserts `len(catalog) == len(v6) == 11`) go RED — **not because anything they protect was
+violated, but because the object they build moved under them.** Two honest resolutions exist: mount
+the verb as its own plugin (v6's precedent, leaving `_v7_router()` frozen), or re-base the v7 pins
+to compare SNAPSHOT FILE against SNAPSHOT FILE, the shape
+`test_v6_still_EXTENDS_v5_as_the_DEEPER_ANCHOR` already uses. **The build session chooses. What it
+may not do is delete or loosen them** — see the standing note.
+
+**TOOL COUNT GOES ELEVEN → TWELVE, against `MAX_TOOLS = 24`** (`router_surfaces.py:44`), so the cap
+check is untouched, and `navigator__verify` satisfies the DEC-11 name guard
+(`^[a-zA-Z0-9_-]{1,128}$`) by construction, since the `__` separator is derived, never typed.
+
+### TWO CONSEQUENCES OF THE P4 RULING, MEASURED AND NAMED — NOT DECIDED HERE
+
+**① THE VERB MUST JOIN `NAV_TOOLS`, OR IT NEVER REACHES THE CALL SITE AT ALL.** `NAV_TOOLS =
+frozenset({NAV_PLAN_TOOL, NAV_STEP_TOOL})` lives at `deferral_notes.py:167` and is what routes a
+mode verb into `nav_call` at `turn_pass.py:215`. A third verb absent from that set **falls through
+to the LOOK-only `else` at `:234`**, is refused as a contract violation, takes the pointer ack and
+hard-terminates the turn — **the DEC-39 failure, named in that arm's own comment (`:220-223`) as the
+M2 bug the ordering rule was written from.** The same set is what pairs the result by name
+(`tool_result_pairing.py:177`), so the two halves must move together.
+
+**② ONE NAVIGATOR VERB PER PASS — NOT PER TURN — AND THAT IS THE EXISTING LAW, NOT A NEW LIMIT.**
+`turn_pass.py:226` takes the FIRST navigator call of the pass; a second in the same pass is answered
+`NAV_ONE_PER_PASS_AR` by name (`tool_result_pairing.py:183-186`). So **`verify` and `step` in ONE
+pass cannot both be serviced** — the second gets the one-per-pass note. Across the agentic loop
+(`MAX_AGENTIC_ITERATIONS = 4`) verify-then-advance in the SAME TURN is available on consecutive
+passes, which is DEC-106's cycle shape and not a departure from it. Stated because a design that
+assumed "verify and advance together" would meet this at the first live run and read it as a bug.
+
+### TWO STANDING NOTES, ONE FROM EACH GATE — RECORDED HERE BECAUSE BOTH GENERALISE PAST THIS FIELD
+
+**① A GUARD DELETED TO MAKE PROGRESS TEACHES THAT GUARDS YIELD.** Gate 1's read ban was upheld
+SCOPED TO THE PRIMITIVES rather than made tree-wide, and the reasoning is the durable part: **a
+tree-wide ban would have been a guard Gate 2 must DELETE in order to build the verifier.** The cost
+of that is never the one deletion — it is the precedent that a guard standing between the project
+and its next milestone is a thing that moves. **A guard whose correct scope is known must be written
+at that scope on the day it is written**, because the day it obstructs is the day its deletion looks
+reasonable. The v8 consequence named above is the first live test of this note: two v7-era pins will
+go red for a reason that has nothing to do with what they protect.
+
+**② THE CRLF GOTCHA RUNS IN BOTH DIRECTIONS, AND IT HAS NOW BITTEN IN EACH.** `src/` is **CRLF**.
+- **OUT:** a `\n` anchor matches **ZERO** times in a CRLF file. Gate 1's mutation run reported **four
+  of eleven mutations NOT APPLIED** for exactly that reason. **Translate the anchor, never normalise
+  the file** — and note that **without the applied-assertion those four would have read as silent
+  passes**, which is the whole reason a mutation harness asserts that its own edit landed.
+- **IN:** **`pathlib.read_text()` NORMALISES CRLF to `\n` on the way in.** Gate 2's first ceiling
+  measurement failed its anchor assertion for exactly that reason — a check written against the
+  bytes on disk, run against a string that no longer has them.
+**The two are mirrors, and a fix aimed at one direction makes the other worse:** normalising the
+file to satisfy an out-anchor corrupts the tree; re-reading in binary to satisfy an in-anchor breaks
+every existing scan. Match the anchor to the reader, each time, and assert that the edit applied.
+
+### ONE CORRECTION TO THE TRACE, MADE WHILE VERIFYING IT INTO THIS RECORD
+
+The trace placed the navigator dispatch at `navigator_service.py:151` with the verb arms at `:160`
+and `:162`. **The dispatch is `service_navigator_call` at `:183-194`**, and `:151-162` is the tail of
+`_start` plus the head of `_move`. The scratchpad copy the trace measured is byte-identical to the
+tree, so this was a citation slip and not a stale read. **It changes nothing in the ruling** — P5's
+rejection rests on the module's standing law at `:6-8` and `:27-31`, and both of those citations
+verify exactly. Corrected here so the wrong line never travels into an implementation brief.
+
+### WHAT THIS ENTRY DOES AND DOES NOT DO
+
+**IT RECORDS A DESIGN.** The four inherited rulings, the measured lifecycle order, the frame fact
+and the refresh trap, **the call site (`pass_servicing.py:109-112`) with its four grounds**, the
+P1/P2/P3/P5 rejections with theirs, the active-step split, the fail-closed contract and catalog v8's
+extension shape are **DECIDED**.
+
+**NOTHING IS IMPLEMENTED.** No `kernel/step_verification.py`, no `VERIFYING` state, no
+`navigator__verify` schema, no `look_tools_v8.json`, no `NAV_TOOLS` edit, no persona law, no guard,
+no measurement harness. **DEC-104's and DEC-106's remaining rulings are also still unimplemented.**
+The build session owns what is made of this — and the two named consequences and the two standing
+notes are binding on it from now rather than from the day they are met live.
+
+---
