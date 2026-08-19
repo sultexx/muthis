@@ -12299,3 +12299,297 @@ The v2 design session owns what is built on this, and **the one-observable-end c
 on it from now rather than from the day it is rediscovered live.**
 
 ---
+
+## DEC-107 (2026-08-19) — **`expected_result` — THE FIELD THE ADVANCE RULE HAS BEEN VERIFYING AGAINST WITHOUT EVER HAVING.** Authored WITH THE PLAN, FREE TEXT the kernel never reads, IMMUTABLE for the whole cycle; and **CATALOG v7, this project's SECOND REVISION** — RULED (Sultan), NOTHING IMPLEMENTED
+
+DEC-106 ruled the advance rule: **ADVANCE only on positive visual evidence of the EXPECTED
+result.** `Step` has no such field. Every number this series has produced — DEC-100's 100%,
+DEC-105's four shapes, DEC-106's 92.5% — was measured against a step text that lived in a fixture
+manifest and reached the model as a runner argument. **In production there is no manifest.**
+
+This entry adds the field. It is recorded before anything is built because three of its four
+properties are settled by ARGUMENT rather than by measurement, and the fourth is a limit that must
+be declared WITH the decision instead of discovered under it. **Zero `src/` changes, 1,651 + 27
+green. No schema edited, no catalog file touched, `navigator_service.py` unopened.**
+
+### WHY THE FIELD MUST EXIST AT ALL — "EXPECTED" MEANS WRITTEN IN ADVANCE
+
+The advance rule compares what is on screen against the expected result. **With no prior
+description there is nothing to compare against**, and the comparison degenerates into the model
+looking at the screen and then deciding that what it sees is the expected result. That is not a
+weak verification — **it is not a verification at all**, because the proposition and its evidence
+are drawn from the same frame. Every rate in DEC-100, DEC-105 and DEC-106 was obtained against a
+description that existed BEFORE the after-frame was shown; a production path without one does not
+measure worse than those numbers, **it measures something else entirely.**
+
+### WHO AUTHORS IT — THE MODEL, WITH THE PLAN, BEFORE ANY VERIFICATION FRAME EXISTS
+
+**RULED: `navigator__plan` carries it. The describer describes BEFORE seeing the answer.**
+
+The alternative — authoring the expected result at VERIFICATION time, when the frames are already
+in hand — is rejected **on measured grounds rather than on principle**. Every measurement in this
+series had its step text INFERRED FROM THE FRAMES, and every one of them recorded that as an
+honest limit at the time:
+
+| fixture | how the step text was obtained | what was recorded about it |
+|---|---|---|
+| P0 `cases.py` | inferred from the frames | stated for itself; the spoken instructions were never captured |
+| `timing\` (DEC-100) | inferred from the frames | *"STEP TEXT IS INFERRED FROM THE FRAMES, exactly as P0's `cases.py` records for itself"* — plus **two authoring rules**, both declared load-bearing |
+| `coverage\` (DEC-105) | inferred from the frames | carried forward unchanged |
+| `observability\` (DEC-106) | **SUPPLIED BY SULTAN** | a **declared departure from the method** — these frames carry no trace of the action BY CONSTRUCTION, so inferring would have meant inventing a result |
+
+**The last row is the argument.** The one fixture where inference was impossible is the one where
+inference would have been most dangerous: a guessed result that happened to be VISIBLE would have
+quietly stopped being a category-3 case while still being reported as one, and the manifest was
+made to **refuse to run unconfigured rather than substitute a default**. Authoring at verification
+time is that hazard promoted from a fixture accident to the production design.
+
+**A SECOND, INDEPENDENT REASON, and it is structural rather than epistemic.** DEC-106's machine
+enters `VERIFYING` from `AWAITING` on F9. A field authored inside `VERIFYING` would be state
+created by the transition that consumes it, which makes invariant ① — *`ADVANCED` is reachable
+only from `VERIFYING` CARRYING REPRESENTED POSITIVE EVIDENCE* — unenforceable by construction:
+there is no evidence to carry into a comparison whose other half was written a microsecond earlier.
+
+### THE FIELD IS FREE TEXT, STORED AND NEVER INTERPRETED (DEC-66)
+
+**RULED: an opaque string. Not an enum, not a structure, not a typed assertion.** Three reasons,
+and they are independent — any one of them carries it.
+
+**① AN OPAQUE STRING CANNOT TEMPT THE KERNEL; A STRUCTURE INVITES EXACTLY THAT.** DEC-66's law is
+that the kernel STORES, NUMBERS and BOUNDS-CHECKS and **never INTERPRETS TEXT**, and it is enforced
+today as an ABSENCE OF MEANS: `test_no_method_anywhere_READS_step_text` fails on **any `.text`
+access at all** in `session_mode.py` or `plan.py`. A field shaped as `{"target": …, "state": …}`
+would make `expected_result.state == "committed"` a one-line reading that looks like
+bounds-checking and is interpretation — and the existing guard, which keys on the attribute name
+`text`, would not see it. **Retention is not comprehension**, and a structure is an invitation to
+confuse them.
+
+**② EVERY MEASURED NUMBER WAS OBTAINED WITH FREE TEXT.** DEC-100's 100%, DEC-105's four shapes,
+DEC-106's 99/100 and 37/40 all ran against a prose sentence. A structured field would measure
+something this project has never measured, and the rates would carry over by assumption alone —
+**the DEC-93 property: a number whose correct value depends on behaviour is measured, never
+inherited.**
+
+**③ WHAT FAILED WAS NEVER THE SHAPE — IT WAS THE PHRASING.** DEC-106's `C3_FILE` r7 is the whole
+case: *"The source file muthis_test.txt is no longer present, which positively establishes removal
+from Source, but Destination is not open or visible, so the move's completed arrival in Destination
+is not proven."* **Every clause true, both labels defensible**, because the step named TWO ENDS with
+different observability. **A structure does not prevent that** — `{"from": "Source", "to":
+"Destination"}` is the same defect with brackets. **A CONSTRAINT prevents it**, and the constraint
+already exists as DEC-106's binding ONE OBSERVABLE END PER STEP. Structure would have been a fix
+aimed at a failure that never occurred.
+
+### THE IMMUTABILITY CONSTRAINT — SULTAN'S, AND IT CLOSES THE LAST HOLE IN THE CONTRACT
+
+> **`expected_result` is authored WITH THE PLAN, before any verification frame exists, and is
+> IMMUTABLE FOR THE WHOLE VERIFICATION CYCLE.**
+
+**Not re-derived, not re-worded, not after a look, and not on `advance`, `back`, `jump` or a
+plan-edit.**
+
+**WHY IT IS LOAD-BEARING AND NOT HYGIENE.** Without it, "authored in advance" holds only for the
+first F9. A model that may re-phrase the expected result after a look can bring it into agreement
+with whatever it just saw, and the comparison closes on itself exactly as it would have with no
+field at all — **verification becomes circular one cycle late, and every measured number in this
+series becomes an illusion while still being reported.** The failure leaves no trace: the field is
+present, non-empty, and matches the screen.
+
+**IT IS ENFORCED STRUCTURALLY. A POST-CREATION WRITE MUST BE UNREPRESENTABLE, NOT REJECTED BY A
+CHECK.** This is DEC-106 invariant ①'s method and the `SessionMode` precedent applied a second
+time: **nesting was made impossible to EXPRESS rather than blocked** — one slot, `enter` REPLACES
+in a single assignment, and no collection literal exists in any function body, so *"pop back to the
+previous mode"* cannot be reached for without first building the means. A guard that rejects a bad
+write is a guard someone can forget to call.
+
+**FROZEN IS NOT ENOUGH, AND THIS IS THE SHARPEST FINDING OF THE ENTRY.** `Step` is already
+`@dataclasses.dataclass(frozen=True)` — DEC-66 bought that shape deliberately so a later field
+would be additive at every call site — **but `dataclasses.replace` is on the DEC-65/66 ALLOW-LIST**
+(`test_the_primitives_call_nothing_but_their_own_methods` permits exactly `dataclass`, `replace`,
+`_clock`, `_on_change`) and `plan.py` calls it six times. **Every one of those six targets a
+`Plan`; not one targets a `Step`.** So `dataclasses.replace(step, expected_result=…)` is a legal
+write path TODAY that the existing allow-list would pass in silence, because `replace` is permitted
+there for `Plan`'s sake. **The immutability guard is therefore a NEW, ARGUMENT-AWARE scan and NOT a
+reuse of the name allow-list** — recorded now, because the tempting implementation is to assume the
+existing guard already covers it, and it does not.
+
+**THE SINGLE CREATION SITE IS WHAT MAKES THE PROOF POSSIBLE.** `Step(...)` is constructed at
+**exactly one place in the codebase — `Plan.with_step_inserted`.** The field arrives there and
+nowhere else, so the AST guard's claim is narrow enough to be true: *one construction, zero
+subsequent writes.*
+
+**THE AST GUARD IS SEPARATE, TEST-ONLY EVIDENCE — Sultan's ruling: NO AST PARSING AT RUNTIME. THE
+STRUCTURE IS THE PREVENTION; THE GUARD IS THE PROOF.** It proves that no alternative write path
+exists ANYWHERE in `src/` — not merely in the primitives — because a write from a caller is the
+same defect at a different address.
+
+**AND IT NEEDS A POSITIVE CONTROL, OR IT PASSES WHILE EXAMINING NOTHING.** The house style already
+exists and is followed rather than invented: `test_no_method_anywhere_READS_step_text` asserts
+`len(attributes) > 5` with the reason written out — *"a guard that examined nothing must never look
+like one that passed"* — and the allow-list guard asserts `len(called) > 2` citing DEC-50. **The
+control here is stronger than a count, and it is the one Sultan named: it must prove the CREATION
+path DOES write `expected_result`.** A scan that found no writes because the field was never
+plumbed in at all would otherwise be indistinguishable from a scan that found no writes because the
+structure forbids them — **the same absence, two opposite meanings.**
+
+### THE THREE-WAY DISTINCTION — RECORDED EXPLICITLY, BECAUSE CONFLATING THESE IS THE LIKELY FUTURE ERROR
+
+| the expected result is… | verdict | where it is caught | why |
+|---|---|---|---|
+| **MISSING** | **INVALID PLAN** | the **schema boundary**, early and loud. The step never enters `Plan` | a step with no expected result cannot be verified by any rule; admitting it defers the failure to the first F9 |
+| **PRESENT but VISUALLY UNOBSERVABLE** | **VALID PLAN** | **verification time** → `RESULT_UNOBSERVABLE` → F9 fallback | a **DECLARED CAPABILITY BOUNDARY** (DEC-106 ruling 2), not a defect. A fact about the viewpoint |
+| **PRESENT but SEMANTICALLY OVER-BROAD or TWO-ENDED** | **ALLOWED** by the structural contract | **authoring guidance** and **measurement** — never the kernel | the kernel does not read it (DEC-66). C3_FILE r7 is the measured instance |
+
+**① MISSING → INVALID, AND THE LOUD FAILURE MUST BE OURS.** `required` in a tool schema is a
+declaration to the provider, and **DEC-91 measured what a provider does with a declaration it does
+not honour: nothing, in silence.** A half-ported catalogue — `parameters` missing, `input_schema`
+alone, an outright nonsense key, `strict` omitted although the SDK types it Required — was
+**accepted with no error at all**, and the result was *"a capability lost for the whole process, in
+silence, with a green suite."* The remedy adopted there is the remedy here: DEC-91's field accesses
+are SUBSCRIPTS, not `.get()`, because **"defaulting the missing field would re-create, inside our
+own code, the exact silence the module exists to close."** An empty-string default for
+`expected_result` is that sentence verbatim, one milestone later.
+
+**② UNOBSERVABLE → VALID, AND THIS IS NOT A LOOPHOLE.** A plan is rejected for what it FAILS TO
+STATE, never for what the screen fails to show. Whether a stated result is observable is not
+knowable at authoring time — it depends on a frame that does not exist yet — so an authoring-time
+observability gate would have to GUESS, and a wrong guess rejects a valid plan for a reason the
+author cannot act on. DEC-106 already routes this correctly at the only moment it is decidable.
+
+**③ OVER-BROAD → ALLOWED, AND THAT IS THE PRICE OF DEC-66.** The kernel checks presence and
+nothing else — it has no way to count the ends of a sentence without reading it, and reading it is
+the law it must not break. **So the one-observable-end constraint is enforced by the persona and
+OBSERVED by measurement, and it is enforced NOWHERE ELSE.** Recorded as an accepted, named residual
+rather than left to be discovered as a gap.
+
+### THE FOUR GATES
+
+**GATE 1 — STRUCTURAL, IN THE KERNEL: PRESENT AND NON-EMPTY. NOTHING MORE.** No meaning, no
+counting of ends, no word checks, no length heuristic. **DEC-66 unbroken** — and the guard that
+protects it is already written: any new `.text`-shaped read lands in the same AST scan, which is
+extended to `expected_result` rather than duplicated for it.
+
+**GATE 2 — AN AUTHORING LAW IN THE PERSONA. IT GUIDES; IT NEVER ENFORCES.** Three clauses:
+
+- **DESCRIBE WHAT WILL BE SEEN, NOT WHAT WILL BE DONE.**
+- **ONE OBSERVABLE END** (DEC-106, binding).
+- **NO PRECISE VALUE A FRAME CANNOT SETTLE.**
+
+**THE METHOD IS DEC-41's, and it is used because it has caught things:** `persona.py`
+BYTE-IDENTICAL (git-verified) with the law landing in `persona_rules.py`; **the DELTA pinned, not
+the prompt**, with a SECOND anchor kept further back so a commit that mangles an earlier rule AND
+re-bases the newer baseline fails one check and not two; **checked against the LIVE §3.2
+constants** rather than a copy, so a law can never reproduce the delimiter wording it is read
+inside; and **the LAW asserted, not its words** — every anchor with `count(...) == 1`, since M2's
+sixth guard hole was two words that occur elsewhere, so deleting a whole law stayed green.
+
+**THE MEASURED PROVENANCE OF THE THREE CLAUSES — AND ONE CORRECTION TO HOW IT HAS BEEN
+COMPRESSED.** The `timing\` fixture declared TWO authoring rules and gave each a DIFFERENT stated
+mechanism, and the two have since been spoken as one:
+
+1. **"EACH STEP NAMES THE RESULT, NEVER THE ACTION'S UI."** *"Round the top edges with a fillet"*,
+   never *"set the fillet radius to 5 mm"*. **Its mechanism is the value-match one:** a step phrased
+   around the CONTROL is **genuinely SATISFIED by T₁** — the radius IS set in T₁'s field — which
+   turns the designed trap into a true positive and destroys the measurement by mislabelling it.
+   This is clause 1 of the law.
+2. **"NO NUMBER APPEARS THAT THE FRAME CANNOT SETTLE."** A committed fillet radius is not
+   measurable from a screenshot. **Its mechanism is different and narrower:** naming a dimension
+   would let T₃ fail for *"I cannot confirm the radius"* — **a reason that has nothing to do with
+   timing**, on a moment the decision table gates. This is clause 3 of the law.
+
+**AND CLAUSE 3 IS "A VALUE THE FRAME CANNOT SETTLE", NEVER "NO DIGITS".** The `observability\`
+fixture's own step texts are *"Enter the value 990 in cell A1 of Sheet2"* and *"Enter the value 100
+in cell A100"* — **digits, deliberately, in Sultan's own step text.** A cell's displayed contents
+ARE settleable from a frame; those particular frames simply do not contain the location. A law
+written as *"never name a number"* would be **contradicted by this project's own category-3
+fixture** on the day it shipped.
+
+**GATE 3 — MEASUREMENT OF COMPLIANCE, PRINTED AS AN OBSERVATION AND NEVER SCORED.** How often an
+authored result carries two ends, or describes an action instead of a result. **The Checks /
+Observations split is T6's and it is a SEPARATE-OBJECTS property, not a convention:**
+`scripts/diag_navigator.py` keeps `Checks` and `Observations` as separate objects and hands the
+observation phase only the latter, **so a spoken reply cannot become a verdict even by accident —
+the conflation that produced M1's false negative.** A compliance figure that entered the check
+register would make the kernel a judge of prose through the back door, which is Gate 1's whole
+prohibition arriving as a test.
+
+**GATE 4 — IMMUTABILITY: STRUCTURAL IN `src/`, AST-PROVEN IN THE TESTS.** As ruled above, with the
+positive control.
+
+### CATALOG v7 — IT REVISES RATHER THAN EXTENDS, AND IT INHERITS v5's GUARD SHAPE
+
+`steps` stops being an array of strings: each item carries the step text AND its expected result,
+**both `required`.** That edits an EXISTING tool's schema, so **v7 is the project's SECOND REVISION
+after v5** — v2, v3, v4 and v6 each APPENDED and left every earlier schema byte-identical.
+
+**THE GUARD CHANGES SHAPE RATHER THAN BEING DELETED — v5's ruling, applied a second time.** It pins
+the **BLAST RADIUS**: the change is confined to `navigator__plan`, every other tool byte-identical
+to v6, computed as a CHANGED SET (`[t["name"] for t, o in zip(catalog, v6) if t != o] ==
+["navigator__plan"]`) rather than as a prefix comparison.
+
+**AND THE CHANGED-SET FORM MATTERS MORE HERE THAN IT DID AT v5, for a reason worth naming.** v5's
+revision touched BOTH tools of its pair, so a prefix check over the seven that predated `doc_rag`
+was sufficient. **v7 touches ONE of two: `navigator__step` is its sibling, is not revised, and sits
+AFTER the revised tool in the catalog.** A prefix check would leave the sibling unpinned — and the
+sibling is precisely the tool a plausible implementation would edit next, since `advance` is the
+verb that consumes what `plan` now declares. **The changed set pins both sides at once.**
+
+**v6 IS KEPT AS THE DEEPER ANCHOR.** `test_v6_EXTENDS_v5_leaving_every_earlier_schema_byte_identical`
+stays frozen exactly as `test_v4_still_EXTENDS_v3_as_a_historical_anchor` was kept through v5 — the
+DEC-57 method: **two anchors at different depths cannot both be re-based by accident.**
+
+**TOOL COUNT STAYS ELEVEN, against `MAX_TOOLS = 24`**, so the cap check and the DEC-11 name guard
+(`^[a-zA-Z0-9_-]{1,128}$`) are untouched; `navigator__plan`'s name does not change. The v7 snapshot
+is built through the REAL production mounts, as every snapshot since v3 has been, so the pin states
+what PRODUCTION shows the model rather than what a hand-rolled router would.
+
+**ONE `src/` CONSEQUENCE, NAMED SO IT IS NOT DISCOVERED:** `Plan.with_step_inserted` is the single
+`Step` construction site, so it gains the field as a required argument. `Plan.build` is its only
+caller. **No other kernel signature moves.**
+
+### TWO LIMITS, DECLARED WITH THE DECISION RATHER THAN DISCOVERED LATER
+
+**LIMIT 1 — A STEP WHOSE RESULT IS INHERENTLY OFF-FRAME IS ACCEPTED AT AUTHORING AND ALWAYS FALLS
+BACK AT VERIFICATION.** This is correct behaviour under the three-way distinction, and it has a
+cost that the measurements understate: **the production fallback rate will be HIGHER than DEC-106's
+figures suggest.** DEC-106's fixtures were built to make category 3 fire on demand — three
+deliberately-unobservable pairs — and its category-1 sets were built from mid-steps that are
+genuinely rendered. **Neither sampled a real user's plan**, where a step like *"save the file to
+your Downloads folder"* is off-frame for as long as the folder stays closed. The rate is not
+predicted here and it is not bounded; it is stated as a direction, and it is the reason the fallback
+path's UX rulings (DEC-106) are load-bearing rather than decorative.
+
+**LIMIT 2 — THE EXCEL CASE IS UNTOUCHED BY EVERY WORD OF THIS ENTRY.** DEC-105's cell-edit failure
+is not an expected-result problem and no phrasing of the field repairs it: **the result IS
+positively established — `123` is in the cell — while the STATE is unsettled and the application
+never draws the difference.** The model applies the advance rule CORRECTLY against a disqualifier
+that is never rendered, at confidence 99, 10/10, twice. **DEC-105's boundary stands exactly where it
+was named — mid-steps whose unsettled state is ACTUALLY RENDERED — and a mandatory `expected_result`
+does not move it by a pixel.** Stated because the field is the obvious place to reach for a fix, and
+reaching there would be **prose aimed at something that is not drawn**, which DEC-105 already ruled
+impossible.
+
+### THE ORDER — v7 AND THE FIELD FIRST, THE VERIFICATION STATE MACHINE SECOND
+
+**RULED: STUB-FIRST.** Prove that `navigator__plan` **creates** the field, **stores** it, **rejects
+its absence**, and **holds it immutable** — *before it has any consumer in a verifier.*
+
+This is DEC-66's own ordering discipline (*the fields are not built now; the shape that can receive
+them is*) and the AGENTS.md stub-first law, applied to the field that entry named and deferred.
+**Merging the two would be two milestones in one, and `doc_rag` is what that costs when it goes
+wrong:** M3 needed **five live SOP runs** to close, four of them failing with the SAME symptom and
+**three DIFFERENT causes**, and **three of the four late defects lived in the DETERMINISTIC half —
+the half `pytest` already owns.** A field with no consumer is verifiable entirely by `pytest`; a
+field and its verifier landing together is a live-only diagnosis with two candidate causes for every
+symptom.
+
+### WHAT THIS ENTRY DOES AND DOES NOT DO
+
+**IT RECORDS A DESIGN.** The field, its author, its type, its immutability, the three-way
+distinction, the four gates, catalog v7's revision shape and the build order are **DECIDED**.
+
+**NOTHING IS IMPLEMENTED.** No `Step` field, no schema edit, no `look_tools_v7.json`, no persona
+law, no AST guard, no measurement harness, no verifier. **DEC-104's and DEC-106's rulings also
+remain unimplemented.** The build session owns what is made of this — and the two limits above are
+binding on it from now rather than from the day they are met live.
+
+---
