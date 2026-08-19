@@ -39,6 +39,7 @@ import logging
 from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
+from .deferral_notes import NAV_VERIFY_TOOL, verification_note
 from .navigator_service import service_navigator_call
 
 logger = logging.getLogger("muthis.orchestrator")
@@ -106,10 +107,28 @@ async def service_pass_calls(
     # what leaves a step's one pointing intact. A None prelude keeps this
     # arm INERT rather than absent: the stub-first shape every seam here
     # already uses, so an unwired build degrades quietly instead of raising.
+    # DEC-108 Gate 2B: the THIRD verb is serviced HERE, beside its two siblings,
+    # and the ruling's four grounds are all visible at this line. It needs NO
+    # FRAME — the model judged the screen it was shown and returns the outcome
+    # through the tool, while the kernel validates REPRESENTATION and never
+    # truth — so no `screenshot` parameter joins the signature above and the
+    # coupling the trace flagged is never incurred. This site runs AFTER the
+    # sync point, so a verification delays neither the draw nor the speech.
+    #
+    # THE VERB DOES NOT ROUTE THROUGH `service_navigator_call`. That module is a
+    # TRANSLATION LAYER that decides nothing and never raises; verification is a
+    # decision about representation, and P5 was rejected on exactly that law.
+    # `mode.current_step` is 0 whenever there is no plan or no current step —
+    # including no mode at all — so "an active step exists" is ONE existing read
+    # and no new state.
     nav_result: Optional[tuple[ToolCall, str]] = None
     if nav is not None and prelude is not None:
-        nav_result = (nav, service_navigator_call(
-            nav, authority=prelude.authority, mode=prelude.session_mode))
+        mode = prelude.session_mode
+        note = (verification_note(nav.args, has_active_step=mode.current_step > 0)
+                if nav.name == NAV_VERIFY_TOOL
+                else service_navigator_call(nav, authority=prelude.authority,
+                                            mode=mode))
+        nav_result = (nav, note)
     return PassServiced(read_results=tuple(read_results),
                         run_result=run_result, nav_result=nav_result)
 

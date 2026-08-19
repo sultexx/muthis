@@ -312,19 +312,23 @@ def test_a_verify_call_gets_NO_POINTER_ACK_no_gate_flip_and_no_violation(
     assert "LOOK-only violation" not in caplog.text
 
 
-def test_the_verb_moves_NOTHING_at_gate_2A_because_it_has_no_consumer_yet():
-    """The honest state of this gate, asserted rather than described. The
-    machine exists and the verb is answered; NOTHING reads the outcome, no state
-    is kept and no step advances. Gate 2B is where that changes, and this test
-    is what makes the change visible when it does."""
-    mode = SessionMode()
+def test_the_call_site_landed_at_P4_and_NO_state_machine_came_with_it():
+    """THE GATE LINE, MOVED ONCE AND ASSERTED BOTH WAYS. Gate 2A pinned that no
+    call site existed; Gate 2B lands it at P4 and nothing else — the arm is in
+    `pass_servicing.py`, and there is still no `VERIFYING` state anywhere in the
+    primitives, because the four-state machine is Gate 2C's."""
     kernel = pathlib.Path(__file__).resolve().parent.parent / "src" / "muthis" / "kernel"
     servicing = (kernel / "pass_servicing.py").read_text(encoding="utf-8")
 
-    assert mode.active is False
-    assert "step_verification" not in servicing, (
-        "the call site landed — that is Gate 2B, after Sultan's review")
-    assert "VERIFYING" not in (kernel / "session_mode.py").read_text(encoding="utf-8")
+    assert "verification_note" in servicing, "the P4 arm is gone"
+    # The frame's ABSENCE is asserted against the real SIGNATURE in
+    # test_verify_servicing.py, never against this text: the arm's comment names
+    # `screenshot` on purpose, to record why none is taken, and a text scan would
+    # fail on the very sentence that keeps it out (the test_high_impact.py
+    # precedent, met again here).
+    for primitive in ("session_mode.py", "plan.py", "mode_transition.py"):
+        assert "VERIFYING" not in (kernel / primitive).read_text(encoding="utf-8"), (
+            f"a verification STATE appeared in {primitive} — that is Gate 2C")
 
 
 # ═══ THE COMPOSITION ROOT — the DEC-39 order, pinned ═════════════════════════
