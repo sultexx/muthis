@@ -39,15 +39,17 @@ from muthis.cloud.protocol import TextDelta, ToolCall, TurnComplete
 from muthis.composition import mount_navigator_verify
 from muthis.kernel.budget import Budget
 from muthis.kernel.deferral_notes import (
-    NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_TOOLS, NAV_VERIFY_TOOL,
+    NAV_ONE_PER_PASS_AR, NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_TOOLS,
+    NAV_VERIFY_TOOL, VERIFY_READ_AR,
 )
+from muthis.kernel.navigator_service import service_navigator_call
+from muthis.kernel.step_verification import OUTCOMES, RESULT_PROVEN
 from muthis.kernel.highlight_gate import (
     HIGHLIGHT_ACK_TEXT_AR, SHAPES_ACK_TEXT_AR, loop_tool_choice,
 )
 from muthis.kernel.orchestrator import Orchestrator
 from muthis.kernel.router_surfaces import MAX_TOOLS
 from muthis.kernel.session_mode import SessionMode
-from muthis.kernel.step_verification import OUTCOMES
 from muthis.kernel.turn import DownscaledImage
 from muthis.kernel.tool_router import ToolRouter
 from muthis_plugins.navigator_verify import NavigatorVerifyPlugin
@@ -61,6 +63,11 @@ MAIN_PY = (pathlib.Path(__file__).resolve().parent.parent / "src" / "muthis"
 PACKAGE = (pathlib.Path(__file__).resolve().parent.parent / "src"
            / "muthis_plugins" / "navigator_verify")
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+PLAN_ARGS = {"title": "توصيل الشبكة",
+             "steps": [{"text": "افتح الإعدادات",
+                        "expected_result": "نافذة الإعدادات ظاهرة"},
+                       {"text": "اختر الشبكة",
+                        "expected_result": "قائمة الشبكات ظاهرة"}]}
 
 
 def _v8_router() -> ToolRouter:
@@ -249,6 +256,47 @@ class _VerifyReasoner:
                 assistant_content=[{"type": "text", "text": "شرح"}])
 
 
+class _VerifyThenStepReasoner:
+    """Pass 1 emits `verify` AND `step` together; pass 2 emits `step` alone."""
+
+    def __init__(self, *, both_in_one_pass: bool) -> None:
+        self.calls: "list[tuple]" = []
+        self._both = both_in_one_pass
+
+    async def run(self, user_input, screenshot, history, tool_choice="auto"):
+        self.calls.append((user_input.text, tool_choice))
+        verify_args = {"outcome": "RESULT_PROVEN", "evidence": "الإعدادات ظاهرة"}
+        step_args = {"action": "advance"}
+        if len(self.calls) == 1:
+            content = [{"type": "tool_use", "id": "ver_1",
+                        "name": NAV_VERIFY_TOOL, "input": verify_args}]
+            yield ToolCall(name=NAV_VERIFY_TOOL, args=verify_args,
+                           tool_use_id="ver_1")
+            if self._both:
+                yield ToolCall(name=NAV_STEP_TOOL, args=step_args,
+                               tool_use_id="stp_1")
+                content.append({"type": "tool_use", "id": "stp_1",
+                                "name": NAV_STEP_TOOL, "input": step_args})
+            yield TurnComplete(
+                input_tokens=10, output_tokens=5, cost_usd=0.0001,
+                stop_reason="tool_use", model="claude-sonnet-4-6",
+                assistant_content=content)
+        elif len(self.calls) == 2 and not self._both:
+            yield ToolCall(name=NAV_STEP_TOOL, args=step_args,
+                           tool_use_id="stp_1")
+            yield TurnComplete(
+                input_tokens=10, output_tokens=5, cost_usd=0.0001,
+                stop_reason="tool_use", model="claude-sonnet-4-6",
+                assistant_content=[{"type": "tool_use", "id": "stp_1",
+                                    "name": NAV_STEP_TOOL, "input": step_args}])
+        else:
+            yield TextDelta("تمام.")
+            yield TurnComplete(
+                input_tokens=5, output_tokens=5, cost_usd=0.0001,
+                stop_reason="end_turn", model="claude-sonnet-4-6",
+                assistant_content=[{"type": "text", "text": "شرح"}])
+
+
 class _Overlay:
     def __init__(self) -> None:
         self.shown: "list" = []
@@ -283,12 +331,21 @@ def _orchestrator(reasoner, tmp_path, mode):
 
 def test_a_verify_call_gets_NO_POINTER_ACK_no_gate_flip_and_no_violation(
         tmp_path, caplog):
-    """THE FOUR NEGATIVES, in one drive through the REAL orchestrator — the four
-    faces of the SAME defect, an id nobody answered, and asserting one would
-    leave the other three free. This is the test that would have caught the M2
-    bug, written BEFORE the verb can be reached rather than after."""
+    """THE FOUR NEGATIVES, RE-ASSERTED NOW THAT THE VERB IS MOUNTED AND SERVICED.
+
+    They passed at Gate 2A against a verb the model could not reach; MOUNTING is
+    exactly the change that could break them, because a mounted verb is one the
+    model will actually emit. Four faces of the SAME defect — an id nobody
+    answered — and asserting one would leave the other three free.
+
+    The walkthrough is started through the REAL servicing path first, so the
+    drive exercises the arm with an ACTIVE STEP rather than the empty case."""
     mode = SessionMode()
     orchestrator = _orchestrator(_VerifyReasoner(), tmp_path, mode)
+    service_navigator_call(
+        ToolCall(name=NAV_PLAN_TOOL, args=PLAN_ARGS, tool_use_id="n0"),
+        authority=orchestrator._prelude.authority,
+        mode=orchestrator._prelude.session_mode)
 
     with caplog.at_level("ERROR"):
         asyncio.run(orchestrator.run_turn("تحقّق"))
@@ -303,13 +360,17 @@ def test_a_verify_call_gets_NO_POINTER_ACK_no_gate_flip_and_no_violation(
 
     # (1) NOT the pointer ack — the draw branch never saw it.
     assert answer["content"] not in (HIGHLIGHT_ACK_TEXT_AR, SHAPES_ACK_TEXT_AR)
-    # (2) the id WAS answered, by name, so nothing is left orphaned.
-    assert answer["type"] == "tool_result" and answer["content"]
+    # (2) answered BY NAME with the SERVICED verification note — not merely
+    #     non-empty: the P4 arm, reached through the real orchestrator.
+    assert answer["type"] == "tool_result"
+    assert answer["content"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN)
     # (3) the draw gate never flipped, so the loop was never terminated.
     assert orchestrator._highlight_gate.drawn is False
     assert loop_tool_choice(orchestrator._highlight_gate) == "auto"
     # (4) no LOOK-only violation was logged.
     assert "LOOK-only violation" not in caplog.text
+    # And Gate 2B's own limit: the strongest outcome moved no step.
+    assert mode.current_step == 1
 
 
 def test_the_call_site_landed_at_P4_and_NO_state_machine_came_with_it():
@@ -331,35 +392,120 @@ def test_the_call_site_landed_at_P4_and_NO_state_machine_came_with_it():
             f"a verification STATE appeared in {primitive} — that is Gate 2C")
 
 
+def test_verify_and_step_in_ONE_pass_leave_the_second_unserviced(tmp_path):
+    """FIRST-WINS IS PER PASS, NOT PER TURN — RECORDED HERE, NEVER ENFORCED.
+
+    Sultan's ruling: the persona handles the ordering and the kernel must not,
+    because an ordering rule between two verbs is a semantic judgement about
+    turn shape. So this asserts the EXISTING first-wins behaviour reaching the
+    third verb unchanged — the second navigator id gets the one-per-pass note,
+    which claims nothing and asks for a retry — and asserts NO refusal, NO
+    special-casing and NO ordering check was added for it.
+
+    The failure mode if the model ignores the authoring clause is ONE WASTED
+    PASS inside the cap of 4, not a defect. The clause itself lands at Gate 2C
+    with the state machine's persona work."""
+    mode = SessionMode()
+    orchestrator = _orchestrator(
+        _VerifyThenStepReasoner(both_in_one_pass=True), tmp_path, mode)
+    service_navigator_call(
+        ToolCall(name=NAV_PLAN_TOOL, args=PLAN_ARGS, tool_use_id="n0"),
+        authority=orchestrator._prelude.authority,
+        mode=orchestrator._prelude.session_mode)
+
+    asyncio.run(orchestrator.run_turn("تحقّق ثم تقدّم"))
+
+    answers = {block["tool_use_id"]: block["content"]
+               for message in orchestrator.history
+               if message["role"] == "user" and isinstance(message["content"], list)
+               for block in message["content"]
+               if block.get("type") == "tool_result"}
+
+    assert answers["ver_1"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN), (
+        "the FIRST navigator call of the pass is the one serviced")
+    assert answers["stp_1"] == NAV_ONE_PER_PASS_AR, (
+        "the second id must get the ordinary one-per-pass note — not a refusal "
+        "invented for the verify verb")
+    assert mode.current_step == 1, "the unserviced advance moved the step anyway"
+
+
+def test_verify_then_step_across_TWO_passes_are_BOTH_serviced(tmp_path):
+    """The other half of the same ruling, and the reason no ordering rule is
+    needed in the kernel: across passes the model gets both, so the authoring
+    clause is guidance rather than a constraint the kernel must enforce."""
+    mode = SessionMode()
+    orchestrator = _orchestrator(
+        _VerifyThenStepReasoner(both_in_one_pass=False), tmp_path, mode)
+    service_navigator_call(
+        ToolCall(name=NAV_PLAN_TOOL, args=PLAN_ARGS, tool_use_id="n0"),
+        authority=orchestrator._prelude.authority,
+        mode=orchestrator._prelude.session_mode)
+
+    asyncio.run(orchestrator.run_turn("تحقّق"))
+
+    answers = {block["tool_use_id"]: block["content"]
+               for message in orchestrator.history
+               if message["role"] == "user" and isinstance(message["content"], list)
+               for block in message["content"]
+               if block.get("type") == "tool_result"}
+
+    assert answers["ver_1"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN)
+    assert answers["stp_1"] != NAV_ONE_PER_PASS_AR, "the second pass was deferred"
+    assert mode.current_step == 2, "the ADVANCE is what moves the step, not the verify"
+
+
+def test_the_kernel_holds_NO_ordering_rule_between_the_three_verbs():
+    """The ruling as an ABSENCE. `pass_servicing.py` branches on the verb's NAME
+    and on nothing else — no "verify must precede step", no remembered previous
+    verb, no per-turn ordering state. A future edit that added one would be the
+    kernel making a semantic judgement about turn shape."""
+    servicing = (pathlib.Path(__file__).resolve().parent.parent / "src" / "muthis"
+                 / "kernel" / "pass_servicing.py").read_text(encoding="utf-8")
+    tree = ast.parse(servicing)
+    names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+
+    for ordering_word in ("previous", "last_verb", "verified", "pending_verify",
+                          "must_verify", "order", "sequence", "history"):
+        assert ordering_word not in names, (
+            f"pass_servicing.py grew ordering state: {ordering_word}")
+
+
 # ═══ THE COMPOSITION ROOT — the DEC-39 order, pinned ═════════════════════════
 
-def test_the_composition_root_has_NOT_mounted_the_verify_verb_yet():
-    """DEC-39 AS A DELIBERATE ORDER RATHER THAN AN OMISSION — and it is the one
-    ambiguity in Gate 2A's brief, resolved toward this project's own law.
+def test_the_composition_root_mounts_the_verify_verb_LAST_and_AFTER_the_navigator():
+    """THE PIN GATE 2A SET, FLIPPED — and it is flipped in the commit that earns
+    it, one commit AFTER the servicing arm landed, so DEC-39's ordering is a fact
+    of the history rather than a claim in a comment.
 
-    `deferral_notes.py` states it in the source: the constant and the arm that
-    reads it "land BEFORE the mount that makes the tools reachable". A verb
-    mounted now would be model-visible with no servicing arm behind it, and
-    `service_navigator_call` would answer it as a malformed `step` — the exact
-    class of half-wired surface DEC-39 was written from. Gate 2B adds ONE line
-    to `main.py` and flips this test, which is where it belongs."""
+    ORDER IS THE ASSERTION twice over: the verify mount must follow the navigator
+    mount, or v8 stops being v7 with one descriptor APPENDED and the additive
+    guard silently becomes a revision."""
     tree = ast.parse(MAIN_PY.read_text(encoding="utf-8"))
-    mounted = {getattr(node.func, "id", "") for node in ast.walk(tree)
-               if isinstance(node, ast.Call)}
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    verify_lines = [c.lineno for c in calls
+                    if getattr(c.func, "id", "") == "mount_navigator_verify"]
+    navigator_lines = [c.lineno for c in calls
+                       if getattr(c.func, "id", "") == "mount_navigator"]
 
-    assert "mount_navigator" in mounted, "the navigator mount vanished"
-    assert "mount_navigator_verify" not in mounted, (
-        "the composition root mounted the verify verb — Gate 2A ships the "
-        "structure only; the mount follows the call site (DEC-39)")
+    assert verify_lines, "the composition root no longer mounts the verify verb"
+    assert navigator_lines, "the navigator mount vanished"
+    assert min(verify_lines) > max(navigator_lines), (
+        "the verify mount must FOLLOW the navigator mount — it is the twelfth "
+        "tool and the catalog's additive shape depends on it being last")
+    for call in calls:
+        if getattr(call.func, "id", "") == "mount_navigator_verify":
+            assert len(call.args) == 2, "mount_navigator_verify's call shape changed"
+            assert getattr(call.args[1].func, "id", "") == "NavigatorVerifyPlugin", (
+                "the root hands the mount something other than a real plugin")
 
 
-def test_the_mount_helper_EXISTS_and_is_the_one_line_gate_2B_will_add():
-    """The helper is production code and is driven here, so Gate 2B's remaining
-    work is a call rather than a design."""
-    router = _v7_router()
-    mount_navigator_verify(router, NavigatorVerifyPlugin())
-
-    assert [d.name for d in router.descriptors()][-1] == NAV_VERIFY_TOOL
+def test_the_production_root_offers_the_model_TWELVE_tools():
+    """The composition root's OWN catalog, rebuilt here through the same mount
+    calls in the same order — the `_v8_router()` helper IS that catalog, and the
+    AST test above is what ties it to `main.py`. A root that mounted the verb
+    somewhere else would satisfy one of these two and not both."""
+    assert len(_catalog()) == 12
+    assert [tool["name"] for tool in _catalog()][-1] == NAV_VERIFY_TOOL
 
 
 @pytest.mark.parametrize("path", sorted(PACKAGE.glob("*.py")))

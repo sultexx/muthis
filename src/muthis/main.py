@@ -58,11 +58,12 @@ from .cloud.selection import build_reasoner  # noqa: E402 — the .env reasoner 
 from .composition import (  # noqa: E402 — build helpers extracted (≤300 law, DEC-21 #2)
     _build_broker_graph, _build_doc_rag, _build_orchestrator, _build_sandbox,
     _log_docker_fallback_decision, _pointer_anim_ms, _size_sent_image,
-    mount_doc_rag, mount_navigator, mount_web_research,
+    mount_doc_rag, mount_navigator, mount_navigator_verify, mount_web_research,
 )
 from .earcons import EarconPlayer  # noqa: E402
 from .file_reader import FileReader  # noqa: E402
 from muthis_plugins.navigator import NavigatorPlugin  # noqa: E402
+from muthis_plugins.navigator_verify import NavigatorVerifyPlugin  # noqa: E402
 from muthis_plugins.sandbox_exec import SandboxExecPlugin  # noqa: E402
 from .hotkey import DEFAULT_HOTKEY, HotkeyListener  # noqa: E402
 from .logging_policy import configure_logging  # noqa: E402
@@ -126,6 +127,13 @@ async def run() -> None:
     # is DEC-39's REQUIREMENT: a mounted-but-unserviced tool takes the
     # POINTER ack and hard-terminates the turn.
     mount_navigator(router, NavigatorPlugin())
+    # DEC-108 Gate 2B: navigator__verify joins the catalog — v8, the SEVENTH
+    # model-visible change and an EXTENSION. Its own plugin, so `_v7_router()`
+    # keeps building v7 and no earlier pin moves under it; mounted LAST so v8
+    # is v7 with ONE descriptor appended; and mounted AFTER its servicing arm
+    # landed at P4, which is the same DEC-39 requirement as the line above —
+    # here the arm shipped a commit earlier, so the order is in the history.
+    mount_navigator_verify(router, NavigatorVerifyPlugin())
     model_tools = [descriptor.schema for descriptor in router.descriptors()]
     _log_docker_fallback_decision()
 
