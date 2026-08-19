@@ -95,6 +95,18 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     ("kernel/orchestrator.py", 299),
     ("turn_voice.py", 300),
     ("persona.py", 209),
+    # 240 -> 285 (DEC-107 Gate 1's authoring law), and pinned by Sultan's ruling
+    # for a reason the two precedents below do not carry. `persona_laws.py` had
+    # NO AGENTS.md row AT ALL — `broker/docs/service.py`'s condition exactly, and
+    # `trust/confirm_gate.py`'s — but this file is the worse case of the three:
+    # EVERY milestone law is appended to it by design, which makes it the
+    # fastest-growing module in the project, and it now has FIFTEEN lines of
+    # headroom. The ≤300 law above still catches a breach; what was missing is
+    # the DRIFT guard, and drift is the state that precedes one. Nothing was
+    # extracted and no content moved — DECLARING it IS the change, exactly as at
+    # `confirm_gate.py`. The next law needs an EXTRACTION before it needs a
+    # sentence, and this pin is what will say so.
+    ("persona_laws.py", 285),
     # NEWLY under pressure at T3 (DEC-65's indicator), and pinned for that
     # reason: 280 -> 296 as the overlay gained its third persistent element, and
     # 274 -> 298 as the composition root gained the DEC-37-shaped seam that
