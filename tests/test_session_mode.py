@@ -91,13 +91,19 @@ def test_an_unentered_mode_is_inactive_and_reports_an_empty_frame():
     assert mode.idle_seconds() == 0.0
 
 
-def test_entering_stores_the_frame_and_stamps_the_idle_clock():
+def test_entering_stores_the_frame_and_stamps_BOTH_clocks_from_one_reading():
+    """Entering is a step change AND a user who is unmistakably present, so both
+    clocks start — from ONE clock reading, because two clocks that began at
+    different instants is a wrongness nobody would think to look for. An
+    UNSTAMPED activity clock would read 0.0 and expire the mode on turn one."""
     clock = _Clock()
     mode = SessionMode(clock=clock)
     mode.enter("navigator")
     assert mode.active is True
     assert mode.name == "navigator"
     assert mode.frame is not None and mode.frame.last_progress_at == 1000.0
+    assert mode.frame.last_activity_at == 1000.0
+    assert mode.idle_seconds() == 0.0, "a fresh mode was born already idle"
 
 
 def test_step_and_total_are_DERIVED_from_the_plan_not_stored_beside_it():
@@ -113,7 +119,10 @@ def test_step_and_total_are_DERIVED_from_the_plan_not_stored_beside_it():
     mode.record_progress(plan=plan.advanced())
     assert (mode.current_step, mode.total_steps) == (2, 3)
     assert {f.name for f in dataclasses.fields(ModeFrame)} == {
-        "name", "plan", "last_progress_at"}, "a step/total field was stored"
+        "name", "plan", "last_progress_at",
+        # DEC-104 ruling 2's second clock. The assertion's POINT is unchanged:
+        # no step/total field may be stored beside the plan.
+        "last_activity_at"}, "a step/total field was stored"
 
 
 def test_a_mode_may_run_without_a_plan():
@@ -190,14 +199,62 @@ def test_the_module_has_no_way_to_accumulate_frames():
 
 # ─── Idle time is REPORTED; expiry is T2's and belongs to no timer ───────────
 
-def test_idle_time_grows_and_progress_resets_it():
+def test_idle_time_grows_and_ACTIVITY_resets_it_while_PROGRESS_does_NOT():
+    """THIS TEST USED TO ASSERT THE DEFECT (DEC-104 ruling 2 replaces it). It
+    read "idle time grows and PROGRESS resets it" — which was true of the code
+    and is exactly the conflation DEC-102 measured: with one clock, "idle" meant
+    time since the last COMMITTED STEP CHANGE, so a present user whose turn moved
+    no step aged the mode. Both directions are asserted here, in one drive,
+    because asserting only that activity resets it would pass just as happily on
+    a build where progress ALSO reset it — and then the two clocks would be one
+    clock with two names."""
     clock = _Clock()
     mode = SessionMode(clock=clock)
     mode.enter("navigator")
     clock.now += 42.0
     assert mode.idle_seconds() == 42.0
-    mode.record_progress()
-    assert mode.idle_seconds() == 0.0
+
+    mode.record_progress()                  # the step moved …
+    assert mode.idle_seconds() == 42.0, "progress was repurposed as liveness"
+    assert mode.frame is not None and mode.frame.last_progress_at == 1042.0
+
+    mode.record_activity()                  # … and now the user turned up
+    assert mode.idle_seconds() == 0.0, "activity did not renew liveness"
+    assert mode.frame.last_progress_at == 1042.0, "activity moved the step clock"
+
+
+def test_activity_on_an_inactive_mode_can_never_resurrect_one():
+    """The `record_progress` guarantee, held by the second clock too: a stray
+    stamp from a turn that runs with no mode must not create one."""
+    mode = SessionMode()
+    mode.record_activity()
+    assert mode.active is False and mode.frame is None
+
+
+def test_record_activity_is_a_CLOCK_and_cannot_become_a_TRANSITION():
+    """WHY IT MAY BYPASS THE SINGLE AUTHORITY, asserted rather than asserted-in-
+    prose. The authority exists to own the conditions, the bounds checks and the
+    refusal notes; a liveness stamp has none of those to bypass. The property is
+    STRUCTURAL: it takes no argument, so it cannot carry a mode, a plan or a
+    step, and it can therefore change nothing the indicator draws."""
+    assert list(inspect.signature(SessionMode.record_activity).parameters) == ["self"]
+
+    clock = _Clock()
+    drawn: "list[tuple]" = []
+    mode = SessionMode(clock=clock, on_change=lambda m: drawn.append(
+        (m.active, m.name, m.current_step, m.total_steps)))
+    mode.enter("navigator", plan=Plan.build("deploy", ("build", "test")))
+    before = (mode.active, mode.name, mode.current_step, mode.total_steps)
+    notified = len(drawn)
+
+    clock.now += 5.0
+    mode.record_activity()
+
+    assert (mode.active, mode.name, mode.current_step,
+            mode.total_steps) == before, "a liveness stamp moved the mode"
+    assert len(drawn) == notified, (
+        "the stamp fired the observer — nothing the indicator draws changed, so "
+        "a redraw here is work with no fact behind it")
 
 
 def test_mode_persistence_is_INDEPENDENT_of_step_progress():
@@ -344,7 +401,11 @@ def test_the_public_surface_is_pinned():
     surface = {name for name in dir(SessionMode) if not name.startswith("_")}
     assert surface == {"active", "frame", "name", "plan", "current_step",
                        "total_steps", "idle_seconds", "enter", "leave",
-                       "record_progress"}, f"surface changed: {sorted(surface)}"
+                       "record_progress",
+                       # DECLARED, DEC-104 ruling 2: the liveness stamp. It is
+                       # the second CLOCK, not a second transition — see the
+                       # guard below that proves it cannot enter, leave or move.
+                       "record_activity"}, f"surface changed: {sorted(surface)}"
 
 
 def test_the_frame_is_read_only_from_outside_and_frozen_within():

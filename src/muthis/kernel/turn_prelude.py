@@ -117,6 +117,17 @@ class TurnPrelude:
         # Mut'his speaks only after F9, so it is discovered here, silently.
         if is_idle_expired(self._session_mode):
             self._authority.request(TransitionRequest(kind=EXPIRE))
+        # DEC-104 ruling 2 — THE LIVENESS STAMP, AND ITS POSITION IS THE WHOLE
+        # POINT. It sits AFTER the expiry check above and never before it:
+        # expiry asks whether the user was away BEFORE this turn, so a stamp
+        # taken first would renew the deadline on the very turn meant to test it
+        # and NO mode could ever expire. This turn renews the clock for the NEXT
+        # one. Every user turn is activity — a side question, a refused move, a
+        # turn that moves no step at all; PROGRESS is the other clock and is
+        # stamped only by a committed step change, through the authority. This
+        # is a liveness stamp and not a transition (see `record_activity`), so
+        # it has no conditions, no bounds and no refusal to route past.
+        self._session_mode.record_activity()
         # EXIT 1 — the DETERMINISTIC exit word, on the RAW transcript, with the
         # model uninvolved. A confused or injected model must never be able to
         # trap the user in a mode, so this path consults nothing it says.

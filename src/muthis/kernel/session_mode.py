@@ -38,9 +38,20 @@ create an intermediate state nobody owns — the undefined THIRD state DEC-24
 closed at `broker.py:92`, where a granted plugin and a denied plugin saw the
 same absent seam. The contract there was made BINARY; so is this one.
 
-IDLE TIME, NOT EXPIRY. `last_progress_at` is stamped from an INJECTED clock and
-`idle_seconds()` REPORTS elapsed time. There is no threshold here, no timeout
-constant, and nothing anywhere near a timer. DEC-65 puts the timeout on IDLE
+TWO CLOCKS, TWO QUESTIONS (DEC-104 ruling 2), both stamped from the INJECTED
+clock. `last_progress_at` answers **DID THE STEP MOVE** and is stamped by
+`enter` and `record_progress` — exactly the events it always was.
+`last_activity_at` answers **IS THE USER STILL HERE** and is stamped by `enter`
+and `record_activity`, which the turn prelude calls once per user turn. NEITHER
+IS DERIVABLE FROM THE OTHER, and that gap is the whole defect DEC-102 measured:
+with only the first clock, "idle" meant time since the last COMMITTED STEP
+CHANGE, so a turn that moved no step — a side question, or a refused "advance"
+at the last step — AGED the mode while the user was sitting right there, and the
+turn that killed it was the user's own return.
+
+IDLE TIME, NOT EXPIRY. `idle_seconds()` REPORTS elapsed time. There is no
+threshold here, no timeout constant, and nothing anywhere near a timer. DEC-65
+puts the timeout on IDLE
 TIME rather than turn count — a user may spend ten minutes on one step without
 producing a turn, so counting turns measures the wrong thing — and has it
 evaluated LAZILY at the start of the next turn (T2), NEVER by a background
@@ -99,7 +110,10 @@ class ModeFrame:
 
     name: str
     plan: Optional[Plan] = None
-    last_progress_at: float = 0.0
+    # TWO CLOCKS, TWO QUESTIONS (DEC-104 ruling 2). Kept as separate fields
+    # because neither answer can be recovered from the other one.
+    last_progress_at: float = 0.0   # did the STEP move
+    last_activity_at: float = 0.0   # is the USER still here
 
 
 class SessionMode:
@@ -163,14 +177,19 @@ class SessionMode:
         return 0 if plan is None else plan.total
 
     def idle_seconds(self) -> float:
-        """Seconds since progress was last recorded; 0.0 when inactive.
+        """Seconds since the USER was last here; 0.0 when inactive.
+
+        READS `last_activity_at`, NOT `last_progress_at` (DEC-104 ruling 2). The
+        NAME did not change, because the name was never the wrong part: "idle"
+        always meant the user, and the defect was that it measured the step. A
+        turn that moves no step is still a user who is present.
 
         REPORTS, and decides nothing. There is no threshold in this module —
         DEC-65's inactivity exit is evaluated lazily at the next turn's start
         by the T2 authority, never here and never by a timer."""
         if self._frame is None:
             return 0.0
-        return self._clock() - self._frame.last_progress_at
+        return self._clock() - self._frame.last_activity_at
 
     # ─── Storage — no evaluation, no refusal, no note (all T2's) ─────────────
 
@@ -182,8 +201,14 @@ class SessionMode:
         at which the slot is empty in between. That is DEC-65's exit-and-enter
         as a single evaluated decision, made unrepresentable-otherwise rather
         than merely discouraged."""
-        self._frame = ModeFrame(
-            name=name, plan=plan, last_progress_at=self._clock())
+        # BOTH clocks start here, from ONE reading: entering is a step change AND
+        # a user who is unmistakably present. Two readings could differ, and two
+        # clocks that start at different instants is a subtle wrongness nobody
+        # would look for; an UNSTAMPED activity clock would read 0.0 and expire
+        # the mode on its very first turn.
+        now = self._clock()
+        self._frame = ModeFrame(name=name, plan=plan,
+                                last_progress_at=now, last_activity_at=now)
         self._on_change(self)
 
     def leave(self) -> None:
@@ -193,7 +218,15 @@ class SessionMode:
         self._on_change(self)
 
     def record_progress(self, *, plan: Optional[Plan] = None) -> None:
-        """Re-stamp the idle clock, and store the plan the caller computed.
+        """Re-stamp the PROGRESS clock, and store the plan the caller computed.
+
+        STAMPED ON EXACTLY THE EVENTS IT ALWAYS WAS (DEC-104 ruling 2 leaves
+        this untouched): a committed step change, and nothing else. It answers
+        "did the step move", that answer is still wanted, and it is NOT
+        repurposed into a liveness signal — the second clock exists so it does
+        not have to be. It deliberately does NOT stamp `last_activity_at`
+        either: the turn this runs inside already stamped that at its start, and
+        one clock with two stamp sites is how two answers drift into one.
 
         A no-op when no mode is active, so a stray call can never resurrect
         one. MODE PERSISTENCE IS INDEPENDENT OF STEP PROGRESS (DEC-65): a side
@@ -206,6 +239,29 @@ class SessionMode:
             plan=self._frame.plan if plan is None else plan,
             last_progress_at=self._clock())
         self._on_change(self)
+
+    def record_activity(self) -> None:
+        """Re-stamp the LIVENESS clock: the user produced a turn.
+
+        THE SECOND CLOCK (DEC-104 ruling 2). Every user turn is activity — a
+        side question, a refused move, a turn that moves no step at all — which
+        is precisely the class that used to AGE the mode while the user sat
+        right there. The side-question exclusion above STAYS and is now
+        CONSISTENT rather than contradictory: a side question does not move the
+        step, so it must not touch progress, but it IS activity, so it renews
+        liveness. The exclusion was never the bug; the missing clock was.
+
+        DELIBERATELY NOT A TRANSITION, which is why it does not go through the
+        single authority, and the property is STRUCTURAL rather than promised:
+        it takes no argument, so it cannot carry a mode, a plan or a step; it is
+        a no-op when nothing is active, so it cannot create one; it touches ONE
+        field; and it fires NO observer, because nothing the indicator draws has
+        changed. There are no conditions, no bounds and no refusal note here to
+        bypass — which is the whole of what that authority protects."""
+        if self._frame is None:
+            return
+        self._frame = dataclasses.replace(
+            self._frame, last_activity_at=self._clock())
 
 
 __all__ = ["ModeFrame", "SessionMode"]

@@ -29,7 +29,8 @@ from muthis.kernel.mode_surfaces import (
     MAX_STEP_TEXT_CHARS, MODE_EXIT_WORDS, detect_mode_exit, mode_directive_line,
 )
 from muthis.kernel.mode_transition import (
-    ENTER, MODE_IDLE_TIMEOUT_S, ModeAuthority, TransitionRequest, is_idle_expired,
+    ADVANCE, ENTER, MODE_IDLE_TIMEOUT_S, ModeAuthority, TransitionRequest,
+    is_idle_expired,
 )
 from muthis.kernel.plan import Plan
 from muthis.kernel.session_mode import SessionMode
@@ -190,11 +191,152 @@ def test_an_inactive_mode_never_expires_even_when_it_reports_idle_time():
 def test_the_expired_mode_leaves_no_directive_behind_it():
     """The accepted consequence, stated in DEC-65 and checked here: expiry is
     not announced. It is DISCOVERED — the frame simply stops decorating the
-    turn, and T3's indicator is already gone."""
+    turn. (This docstring used to end "and T3's indicator is already gone",
+    which was true for the WRONG reason and is now false: the chip was erased by
+    the 7 s auto-hide, never by expiry, and DEC-104 ruling 1 fixed that.)"""
     clock = _Clock()
     prelude, _mode = _guiding_prelude(clock)
     clock.now += MODE_IDLE_TIMEOUT_S
     assert DIRECTIVE_MARKER_AR not in prelude.begin_turn("وش الخطوة؟")
+
+
+# ─── DEC-104 ruling 2 — TWO CLOCKS, TWO QUESTIONS ───────────────────────────
+#
+# THE MEASURED DEFECT (DEC-102): `last_progress_at` was re-stamped ONLY by
+# `enter` and a SUCCESSFUL model-issued move — not by a turn, an F9, an
+# utterance, a side question, or a REFUSED move. So the clock measured time
+# since the last COMMITTED STEP CHANGE, not time since the user was present, and
+# the turn that killed the mode was the user's own return: expired before the
+# directive was assembled, after which the model was never told a walkthrough
+# had been running. `last_activity_at` is the second clock and `is_idle_expired`
+# reads it. Everything below is driven THROUGH `begin_turn` and the authority,
+# never by calling a mutator, because a turn is the thing under test.
+
+
+def test_a_turn_that_moves_NO_step_renews_liveness_and_the_mode_SURVIVES():
+    """TEST 1 — THE DEFECT ITSELF. Four turns, each after 675 s of thinking: no
+    single gap reaches the 900 s bound, but the total is three times it. With
+    ONE clock the mode dies on turn two, because nothing in those turns moved a
+    step. The step is asserted UNMOVED at the end, so this cannot be passing by
+    quietly advancing something."""
+    clock = _Clock()
+    prelude, mode = _guiding_prelude(clock)
+    started_at = clock.now
+
+    for turn in range(4):
+        clock.now += MODE_IDLE_TIMEOUT_S * 0.75      # long, but inside the bound
+        prelude.begin_turn("وش رايك في هذي؟")
+        assert mode.active is True, f"the mode died on turn {turn + 1}"
+
+    assert clock.now - started_at > MODE_IDLE_TIMEOUT_S * 2, (
+        "the drive did not actually outlast the bound, so it proves nothing")
+    assert mode.current_step == 1, "a liveness stamp moved the step"
+
+
+def test_a_side_question_renews_liveness_AND_does_not_move_the_step():
+    """TEST 2 — BOTH DIRECTIONS IN ONE DRIVE. The side-question exclusion STAYS
+    and is now CONSISTENT rather than contradictory: a side question does not
+    move the step, so it must not touch progress, but it IS activity, so it
+    renews liveness. A one-directional assertion passes while half the ruling is
+    broken — renewing liveness on a turn that also stamped progress would make
+    the step counter lie, and that is the failure this pair exists to catch."""
+    clock = _Clock()
+    prelude, mode = _guiding_prelude(clock)
+    progress_at_entry = mode.frame.last_progress_at
+
+    clock.now += 600.0
+    prelude.begin_turn("ليش هذي الخطوة أصلاً؟")      # a question, not a step
+
+    assert mode.idle_seconds() == 0.0, "the side question did not renew liveness"
+    assert mode.frame.last_progress_at == progress_at_entry, (
+        "the side question stamped PROGRESS — the step counter would now lie")
+    assert mode.current_step == 1, "the side question moved the step"
+
+
+def test_a_REFUSED_move_renews_liveness_but_stamps_no_progress():
+    """TEST 3 — THE CASE THAT WAS AGEING THE MODE, and the sharpest one: the
+    user IS working the walkthrough, the model IS trying to advance, and the
+    request is refused at the last step. Its turn is activity; its move is not
+    progress. Driven to the end of the plan first, so the refusal is the real
+    AT_END one rather than a hand-made outcome."""
+    clock = _Clock()
+    prelude, mode = _guiding_prelude(clock)
+    for _ in range(2):
+        prelude.authority.request(TransitionRequest(kind=ADVANCE))
+    assert mode.current_step == 3, "the drive never reached the last step"
+    progress_at_last_move = mode.frame.last_progress_at
+
+    for turn in range(4):
+        clock.now += MODE_IDLE_TIMEOUT_S * 0.75
+        prelude.begin_turn("التالي")                  # the user's turn: activity
+        outcome = prelude.authority.request(TransitionRequest(kind=ADVANCE))
+        assert outcome.applied is False, "positive control: the move must REFUSE"
+        assert mode.active is True, f"a refused move aged the mode out on {turn + 1}"
+
+    assert mode.frame.last_progress_at == progress_at_last_move, (
+        "a REFUSED move stamped progress — a bound failure would read as a step")
+    assert mode.idle_seconds() == 0.0
+
+
+@pytest.mark.parametrize("name", ["turn_prelude.py", "session_mode.py",
+                                  "mode_transition.py"])
+def test_the_second_clock_introduced_no_scheduler_on_any_module_of_its_path(name):
+    """TEST 4 — STRUCTURAL, and it has to be. A BEHAVIOURAL test cannot tell
+    "there is no timer" from "there is a timer that has not fired yet", so the
+    absence is asserted over the source of every module the new clock touches:
+    the stamp site, the field's home and the predicate. Expiry stays evaluated
+    LAZILY at turn start — a background lifecycle is Law 11's bar, and DEC-47
+    and DEC-65 both already refused one."""
+    source = (PRELUDE_PY.parent / name)
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    names = ({node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} |
+             {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)})
+    for scheduling in ("sleep", "call_later", "call_soon", "call_at", "Timer",
+                       "create_task", "ensure_future", "Thread", "to_thread",
+                       "run_in_executor", "after", "schedule", "alarm"):
+        assert scheduling not in names, f"{name} schedules: {scheduling}"
+    imported = {node.names[0].name.split(".")[0] for node in ast.walk(tree)
+                if isinstance(node, (ast.Import, ast.ImportFrom)) and node.names}
+    assert not (imported & {"asyncio", "threading", "sched", "signal"}), (
+        f"{name} imported a scheduling module")
+
+
+def test_last_progress_at_is_stamped_on_EXACTLY_the_events_it_always_was():
+    """TEST 5 — THE FIRST CLOCK, PINNED, so the second cannot quietly change it.
+    Two events stamp progress and no others: entering, and a move the authority
+    APPLIED. A turn does not, a side question does not, a refused move does not
+    — which is the same list as before ruling 2, and that is the point."""
+    clock = _Clock()
+    prelude, mode = _guiding_prelude(clock)
+    stamped_by_enter = mode.frame.last_progress_at
+    assert stamped_by_enter == clock.now, "entering no longer stamps progress"
+
+    clock.now += 10.0
+    assert prelude.authority.request(
+        TransitionRequest(kind=ADVANCE)).applied is True
+    stamped_by_move = mode.frame.last_progress_at
+    assert stamped_by_move == clock.now, "an applied move no longer stamps progress"
+
+    # …and NONE of these three, each driven the way it really happens.
+    clock.now += 10.0
+    prelude.begin_turn("وش الخطوة؟")                                  # a turn
+    prelude.begin_turn("ليش هذي الخطوة؟")                             # a side question
+    assert mode.frame.last_progress_at == stamped_by_move, (
+        "a turn or a side question stamped the progress clock")
+
+    clock.now += 10.0                       # the second applied move: the control
+    assert prelude.authority.request(       # that the assertion above is not
+        TransitionRequest(kind=ADVANCE)).applied is True   # passing because
+    assert mode.frame.last_progress_at == clock.now        # NOTHING can stamp
+    stamped_at_the_end = clock.now
+
+    clock.now += 10.0
+    prelude.begin_turn("التالي")            # a real turn carrying a refused move
+    assert prelude.authority.request(
+        TransitionRequest(kind=ADVANCE)).applied is False, "positive control: AT_END"
+    assert mode.frame.last_progress_at == stamped_at_the_end, (
+        "a REFUSED move stamped the progress clock")
+    assert mode.idle_seconds() == 0.0, "…while its turn still renewed liveness"
 
 
 # ─── The per-turn directive line, and the BINDING CONSTRAINT ────────────────

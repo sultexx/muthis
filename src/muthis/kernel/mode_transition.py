@@ -59,7 +59,10 @@ still goes through `request()`. A background timer is a lifecycle outside the
 kernel, which Law 11 forbids and which DEC-47 already rejected for background
 ingestion. ACCEPTED CONSEQUENCE, recorded rather than discovered: **the mode does
 not announce its own expiry** — Mut'his speaks only after F9, so an expired mode
-is discovered at the next turn, with the indicator already gone.
+is discovered at the next turn. **This once added "with the indicator already
+gone": TRUE FOR THE WRONG REASON, and now false.** The chip was erased by the 7 s
+auto-hide, never by expiry (DEC-102); DEC-104 ruling 1 fixed that, so it is still
+on screen when the expiring turn arrives and the `leave()` here takes it down.
 
 A MODE STILL GRANTS NO PRIVILEGE. This module reads two booleans about kernel
 state; it holds no capability, raises no taint and touches no grant, and a guard
@@ -169,6 +172,11 @@ def is_idle_expired(mode: SessionMode,
                     *, timeout_s: float = MODE_IDLE_TIMEOUT_S) -> bool:
     """Has the mode been idle past its bound? A PURE PREDICATE — it decides
     nothing and mutates nothing, so the one mutation path stays `request()`.
+
+    ON THE LIVENESS CLOCK, NOT THE PROGRESS ONE (DEC-104 ruling 2): `idle_seconds`
+    now reads `last_activity_at`, so this asks "has the USER been away", never
+    "has the STEP been still". This LINE did not change — the reporter it reads
+    was corrected — and the timeout VALUE did not change either.
 
     On IDLE TIME, never turn count (DEC-65): a user may spend ten minutes on one
     step without producing a turn, so counting turns measures the wrong thing."""
