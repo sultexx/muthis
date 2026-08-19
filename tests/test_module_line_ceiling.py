@@ -117,6 +117,17 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # crossed the law in silence. Declaring it is the fix; extracting is a
     # separate decision if a later task needs the room.
     ("kernel/turn_pass.py", 293),
+    # 269 -> 300 at `702f9d1` (2026-08-06), UNDECLARED, landing the file exactly
+    # ON the limit — where nothing read it for thirteen days. AGENTS.md said
+    # `~269`, which was TRUE WHEN WRITTEN at `1520c26` and went stale at that
+    # move: the failure is a row that stopped being re-read, not a typo. Neither
+    # DEC-104 gate touched this file; its docs sweep is what found it. Pinned
+    # HERE, alone, by Sultan's ruling and on the `turn_pass.py` precedent — an
+    # UNPINNED file at the ceiling is exactly the state `broker/docs/service.py`
+    # was in when it crossed the law in silence, and this one has NO headroom at
+    # all, so the next line breaches. Nothing extracted, no content touched:
+    # declaring it IS the change, and extracting is a separate decision.
+    ("trust/confirm_gate.py", 300),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.
