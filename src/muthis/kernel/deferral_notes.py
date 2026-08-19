@@ -164,7 +164,13 @@ PRECONDITION_TOOLS = frozenset({DOC_OPEN_TOOL})
 # land BEFORE the mount that makes the tools reachable.
 NAV_PLAN_TOOL = namespaced_name("navigator", "plan")
 NAV_STEP_TOOL = namespaced_name("navigator", "step")
-NAV_TOOLS = frozenset({NAV_PLAN_TOOL, NAV_STEP_TOOL})
+# DEC-108 Gate 2A: the THIRD verb joins the set BEFORE the mount that makes it
+# reachable — the same ordering as the two above, for the same reason, one
+# milestone later. It is INERT here by design: nothing services it yet, so a
+# call would be answered like any unserviced mode verb rather than taking the
+# pointer ack. What it must never do is fall to the LOOK-only `else`.
+NAV_VERIFY_TOOL = namespaced_name("navigator", "verify")
+NAV_TOOLS = frozenset({NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_VERIFY_TOOL})
 
 # ONE note for both verbs and every unserviced id: the state achieved is
 # identical (nothing moved, nothing broke) and the valid next move is identical,
@@ -184,6 +190,7 @@ __all__ = [
     "NAV_PLAN_TOOL",
     "NAV_STEP_TOOL",
     "NAV_TOOLS",
+    "NAV_VERIFY_TOOL",
     "DOC_OPENED_ASK_NEXT_AR",
     "DOC_OPEN_TOOL",
     "DOC_QUERY_TOOL",

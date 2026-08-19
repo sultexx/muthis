@@ -30,7 +30,7 @@ from .broker.search import build_search_provider
 # composition_mounts.py when this file measured 320/300 with T4's mount. The
 # re-export keeps every existing importer — main.py, the tests, the diag
 # scripts — working unchanged (the turn.py precedent).
-from .composition_mounts import mount_doc_rag, mount_navigator, mount_web_research  # noqa: F401
+from .composition_mounts import mount_doc_rag, mount_navigator, mount_navigator_verify, mount_web_research  # noqa: F401
 from .cloud.protocol import CloudReasoner  # the CONTRACT, never a vendor (DEC-88)
 from .file_reader import FileReader, stage_file_gate
 from .kernel.budget import Budget

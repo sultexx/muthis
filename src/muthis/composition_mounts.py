@@ -152,4 +152,41 @@ def mount_navigator(router: ToolRouter, plugin) -> None:
     )
 
 
-__all__ = ["mount_doc_rag", "mount_navigator", "mount_web_research"]
+def mount_navigator_verify(router: ToolRouter, plugin) -> None:
+    """Mount `navigator__verify` — catalog **v8**, and an EXTENSION.
+
+    THE SAME NAMESPACE, A SEPARATE MOUNT, AND THE SEPARATION IS THE RULING
+    (DEC-108). The verb belongs to the navigator family and is exposed under its
+    namespace, but it arrives through its OWN plugin so that `mount_navigator`'s
+    object — the one every v7-era catalog pin builds — stays exactly what it was.
+    Adding a third descriptor to `NavigatorPlugin` would have reddened those
+    pins for a reason unrelated to what they protect, and the tempting repair
+    (re-basing them to compare file against file) changes what they ASSERT.
+
+    MOUNTED LAST, so v8 is v7 with ONE descriptor APPENDED and the additive
+    guard shape returns after two revisions (v5, v7). Every earlier schema stays
+    byte-identical by construction rather than by care.
+
+    THE FLAGS ARE `mount_navigator`'s, unchanged, and for stronger reasons: a
+    verb that only REPORTS ingests nothing (`taint=False` — its arguments are
+    the model's own words about a frame already in the context) and grants
+    nothing (NO CAPABILITY, so `high_impact`'s capability arm cannot fire and no
+    spoken approval can ever stand in front of a verification).
+
+    `kernel_serviced=True` on the descriptor: the plugin declares the schema and
+    the KERNEL owns the effect (DEC-73). **This mount is NOT in the composition
+    root yet.** DEC-39's ordering law — the servicing arm lands BEFORE the mount
+    that makes a tool reachable — is why: Gate 2A builds the structure, Gate 2B
+    wires the call site, and only then does the composition root call this."""
+    router.mount(
+        plugin,
+        ctx=PluginContext(),
+        namespace="navigator",
+        provenance="navigator",
+        taint=False,
+        impact=RouteImpact(read_only_hint=True),
+    )
+
+
+__all__ = ["mount_doc_rag", "mount_navigator", "mount_navigator_verify",
+           "mount_web_research"]

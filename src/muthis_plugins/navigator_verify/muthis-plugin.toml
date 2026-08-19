@@ -1,0 +1,24 @@
+# The Navigator's THIRD verb as a core native plugin (DEC-108 Gate 2A,
+# kernel-serviced). Its own package because the v7 catalog pins build through a
+# helper that mounts the two-verb NavigatorPlugin: a third descriptor there
+# would redden those pins for a reason unrelated to what they protect, and
+# weakening a pin to make progress teaches that guards yield.
+
+[plugin]
+name    = "navigator_verify"
+version = "1.0.0"
+sdk     = ">=2.0.0a1,<3"
+kind    = "native"
+entry   = "muthis_plugins.navigator_verify.plugin:NavigatorVerifyPlugin"
+
+[descriptions]
+ar = "يبلّغ عن حالة نتيجة الخطوة الحالية كما تظهر على الشاشة — النواة وحدها هي التي تقرّر ما يترتّب على ذلك"
+en = "Reports the state of the current step's result as shown on screen — the kernel alone decides what follows"
+
+# NONE. A mode grants no privilege, ever (DEC-65's hard invariant), and a verb
+# that only REPORTS grants less than the two that move a pointer.
+[capabilities]
+required = []
+
+[tools.verify]
+read_only = true
