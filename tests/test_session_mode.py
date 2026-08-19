@@ -39,6 +39,15 @@ from muthis.kernel.plan import Plan
 from muthis.kernel.session_mode import ModeFrame, SessionMode
 from muthis.kernel.turn_prelude import TurnPrelude
 
+
+def _specs(*texts: str) -> "tuple[dict, ...]":
+    """Well-formed steps for `Plan.build`. `expected_result` is MANDATORY
+    (DEC-107) and has no default anywhere, so every plan here states one; each
+    is derived from its own text and is therefore distinct."""
+    return tuple({"text": text, "expected_result": f"{text} is visible"}
+                 for text in texts)
+
+
 SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 MODE_PY = SRC / "muthis" / "kernel" / "session_mode.py"
 PLAN_PY = SRC / "muthis" / "kernel" / "plan.py"
@@ -111,7 +120,7 @@ def test_step_and_total_are_DERIVED_from_the_plan_not_stored_beside_it():
     kernel SPEAKS and the number it DRAWS come apart (DEC-15's reason for
     keeping `external` off `RouteImpact`)."""
     mode = SessionMode()
-    plan = Plan.build("deploy", ("build", "test", "ship"))
+    plan = Plan.build("deploy", _specs("build", "test", "ship"))
     mode.enter("navigator", plan=plan)
     assert (mode.current_step, mode.total_steps) == (1, 3)
 
@@ -150,7 +159,7 @@ def test_entering_while_active_REPLACES_in_one_assignment_with_nothing_to_pop_ba
     intermediate state nobody owns, the undefined THIRD state DEC-24 closed at
     `broker.py:92`."""
     mode = SessionMode()
-    mode.enter("navigator", plan=Plan.build("a", ("one",)))
+    mode.enter("navigator", plan=Plan.build("a", _specs("one")))
     mode.enter("review")
 
     assert mode.name == "review"
@@ -243,7 +252,7 @@ def test_record_activity_is_a_CLOCK_and_cannot_become_a_TRANSITION():
     drawn: "list[tuple]" = []
     mode = SessionMode(clock=clock, on_change=lambda m: drawn.append(
         (m.active, m.name, m.current_step, m.total_steps)))
-    mode.enter("navigator", plan=Plan.build("deploy", ("build", "test")))
+    mode.enter("navigator", plan=Plan.build("deploy", _specs("build", "test")))
     before = (mode.active, mode.name, mode.current_step, mode.total_steps)
     notified = len(drawn)
 
@@ -263,7 +272,7 @@ def test_mode_persistence_is_INDEPENDENT_of_step_progress():
     and the mode is untouched by that."""
     clock = _Clock()
     mode = SessionMode(clock=clock)
-    plan = Plan.build("deploy", ("build", "test"))
+    plan = Plan.build("deploy", _specs("build", "test"))
     mode.enter("navigator", plan=plan)
     clock.now += 600.0                      # ten minutes on one step
 
@@ -274,7 +283,7 @@ def test_mode_persistence_is_INDEPENDENT_of_step_progress():
 
 def test_progress_on_an_inactive_mode_can_never_resurrect_one():
     mode = SessionMode()
-    mode.record_progress(plan=Plan.build("x", ("a",)))
+    mode.record_progress(plan=Plan.build("x", _specs("a")))
     assert mode.active is False and mode.frame is None
 
 

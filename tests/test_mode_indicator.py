@@ -47,6 +47,10 @@ INDICATOR_PY = SRC / "muthis" / "overlay" / "mode_indicator.py"
 SURFACES_PY = SRC / "muthis" / "kernel" / "mode_surfaces.py"
 COMPOSITION_PY = SRC / "muthis" / "composition.py"
 STEP_TEXTS = ("افتح الإعدادات", "اختر الشبكة", "احفظ")
+# DEC-107: a step is a text AND the result the user will SEE. The indicator
+# reads only the text, which is exactly why the result is given a DIFFERENT
+# value here — an indicator that ever showed it would fail these assertions.
+STEP_SPECS = tuple({"text": t, "expected_result": f"نتيجة {t}"} for t in STEP_TEXTS)
 
 
 class _FakeCanvas:
@@ -198,7 +202,7 @@ def test_no_model_authored_step_text_reaches_the_indicator():
     reads, never on the element the user watches."""
     mode = SessionMode()
     ModeAuthority(mode=mode).request(TransitionRequest(
-        kind=ENTER, mode_name="navigator", plan=Plan.build("t", STEP_TEXTS)))
+        kind=ENTER, mode_name="navigator", plan=Plan.build("t", STEP_SPECS)))
     text = mode_indicator_text(mode)
     for step_text in STEP_TEXTS:
         assert step_text not in text, "model-authored text reached the indicator"
@@ -241,7 +245,7 @@ def test_the_REAL_composition_root_wires_the_seam_end_to_end():
 
     mode = orchestrator._prelude.session_mode
     ModeAuthority(mode=mode).request(TransitionRequest(
-        kind=ENTER, mode_name="navigator", plan=Plan.build("t", STEP_TEXTS)))
+        kind=ENTER, mode_name="navigator", plan=Plan.build("t", STEP_SPECS)))
 
     assert overlay.shown, "the composition root never wired the indicator seam"
     assert "navigator" in overlay.shown[-1] and "١" in overlay.shown[-1]
@@ -295,7 +299,7 @@ def test_a_mode_without_a_plan_shows_its_name_and_no_step_numbers():
 def test_ending_the_mode_FORGETS_it_so_a_later_restore_cannot_resurrect_it():
     canvas, _overlay, mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     _turn(frames)
     assert canvas.has(MODE_INDICATOR_TAG)
 
@@ -313,7 +317,7 @@ def test_the_indicator_survives_THREE_turns_after_being_drawn_ONCE():
     one and fails here."""
     canvas, _overlay, _mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     drawn_per_turn = []
     for _turn_index in range(3):
         _turn(frames)                              # hide → grab → relight → restore
@@ -328,7 +332,7 @@ def test_the_capture_never_sees_the_indicator_and_the_restore_is_AFTER_the_grab(
     grabbed the chip must be gone, and it must be back immediately after."""
     canvas, overlay, _mode, authority, _frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     seen = {}
 
     async def _grab_and_look():
@@ -350,7 +354,7 @@ def test_a_progress_change_mid_session_redraws_immediately():
     the ONE mutation point."""
     canvas, _overlay, _mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     _turn(frames)
     assert "١" in canvas.drawn(MODE_INDICATOR_TAG)[0]
 
@@ -364,7 +368,7 @@ def test_clear_caption_does_NOT_clear_the_indicator_but_DOES_clear_the_badge():
     is exactly why the arrangement cannot transfer to a cross-turn element."""
     canvas, overlay, _mode, authority, _frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     overlay.show_domain_badge(("example.com",))
     assert canvas.has(DOMAIN_BADGE_TAG) and canvas.has(MODE_INDICATOR_TAG)
 
@@ -407,7 +411,7 @@ def test_the_chip_survives_the_AUTO_HIDE_and_is_still_there_NEXT_turn():
     is the state the previous turn actually handed over. That is T3's lesson."""
     canvas, overlay, _mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     carried_in, after_auto_hide = [], []
     for turn_index in range(3):
         if turn_index:                  # what the PREVIOUS turn left standing
@@ -434,7 +438,7 @@ def test_the_chip_is_ABSENT_from_every_frame_the_provider_is_SENT():
     between, so the restore is proven not to leak into ANY grab."""
     canvas, overlay, _mode, authority, _frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     in_the_frame = []
 
     async def _grab_and_look():
@@ -460,7 +464,7 @@ def test_an_ENDED_mode_is_not_resurrected_by_the_AUTO_HIDE_restore():
     it for free — which is the point of unifying rather than re-implementing."""
     canvas, overlay, _mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     _turn(frames)
     _auto_hide_fires(overlay)
     assert canvas.has(MODE_INDICATOR_TAG), "positive control: a LIVE mode is drawn"
@@ -493,7 +497,7 @@ def test_barge_in_restores_a_LIVE_mode_and_draws_NOTHING_when_there_is_none():
     assert not canvas.has(MODE_INDICATOR_TAG), "a barge-in drew a chip with no mode"
 
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     asyncio.run(orchestrator.interrupt_turn())
     assert canvas.drawn(MODE_INDICATOR_TAG), "the barge-in erased a live mode's evidence"
 
@@ -570,7 +574,7 @@ def test_it_never_consumes_the_per_turn_draw_gate():
     gate = HighlightGate()
     canvas, overlay, _mode, authority, frames = _graph()
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("t", STEP_TEXTS)))
+                                        plan=Plan.build("t", STEP_SPECS)))
     _turn(frames)
     authority.request(TransitionRequest(kind="advance"))
     assert gate.drawn is False, "the indicator flipped the draw gate"

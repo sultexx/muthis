@@ -84,8 +84,18 @@ _FINISHED_AR = (
 
 _BAD_STEPS_AR = (
     f"{DIRECTIVE_OPEN_AR} ما بدأ أي مسار لأن الخطوات وصلت ناقصة أو بصيغة غير "
-    "مفهومة، فما تغيّر شي وما صار خطأ. أعِد الطلب مرة واحدة بقائمة خطوات نصية "
-    "قصيرة، أو أكمل الشرح بلا مسار إن كانت المهمة خطوة واحدة.)"
+    "مفهومة، فما تغيّر شي وما صار خطأ. أعِد الطلب مرة واحدة وكل خطوة فيها نصّها "
+    "ونتيجتها المتوقّعة، أو أكمل الشرح بلا مسار إن كانت المهمة خطوة واحدة.)"
+)
+
+# DEC-107's boundary, and it is a SEPARATE note on purpose: "you sent no steps"
+# and "one of your steps is incomplete" are different mistakes with different
+# repairs, and a model told only the first would resend the same payload.
+_BAD_RESULT_AR = (
+    f"{DIRECTIVE_OPEN_AR} ما بدأ أي مسار لأن فيه خطوة بلا نصّ أو بلا نتيجة "
+    "متوقّعة، فما تغيّر شي وما صار خطأ. كل خطوة لازم تحمل نصّها ونتيجتها "
+    "المتوقّعة — وش يقدر المستخدم يشوفه على الشاشة إذا خلّص الخطوة. أعِد الطلب "
+    "مرة واحدة بالخطوات كاملة.)"
 )
 
 _BAD_ACTION_AR = (
@@ -95,28 +105,50 @@ _BAD_ACTION_AR = (
 )
 
 
-def _clean_steps(raw: Any) -> tuple[str, ...]:
-    """Model-authored JSON, defensively narrowed to bounded single-line strings.
-
-    A non-string entry is DROPPED, never coerced: a coerced `{"a": 1}` would
-    become a step the user is told to perform."""
-    if not isinstance(raw, (list, tuple)):
-        return ()
-    steps = [" ".join(item.split())[:MAX_STEP_CHARS]
-             for item in raw if isinstance(item, str) and item.strip()]
-    return tuple(steps[:MAX_STEPS])
-
-
-def _title(raw: Any) -> str:
+def _one_line(raw: Any) -> str:
+    """A model-authored string, narrowed to ONE bounded line — or empty."""
     return " ".join(raw.split())[:MAX_STEP_CHARS] if isinstance(raw, str) else ""
 
 
+def _clean_step(item: Any) -> Optional[dict]:
+    """ONE model-authored step, defensively narrowed — or None if what arrived
+    is not a step.
+
+    `.get()` HERE AND SUBSCRIPTS IN `plan.py`, AND THE DIFFERENCE IS THE POINT.
+    This is the model boundary, where a missing key is ORDINARY INPUT that must
+    become a spoken note; `Plan.build` is our own construction, where a missing
+    key is a programming error and DEC-91's loud `KeyError` is correct. The same
+    absence means two different things on the two sides of this function.
+
+    NOTHING IS COERCED AND NOTHING IS DEFAULTED. A `{"text": ...}` with no
+    result is refused rather than filled in with `""` — an empty expected result
+    would satisfy every structural check downstream while carrying no
+    description at all, which is the silence DEC-107 Gate 1 exists to close."""
+    if not isinstance(item, dict):
+        return None
+    text = _one_line(item.get("text"))
+    expected_result = _one_line(item.get("expected_result"))
+    if not text or not expected_result:
+        return None
+    return {"text": text, "expected_result": expected_result}
+
+
 def _start(args: dict, authority: ModeAuthority) -> str:
-    """`navigator__plan` — build the plan, then ask to ENTER with it."""
-    steps = _clean_steps(args.get("steps"))
-    if not steps:
+    """`navigator__plan` — build the plan, then ask to ENTER with it.
+
+    ONE INCOMPLETE STEP INVALIDATES THE WHOLE PLAN (DEC-107). The v6 discipline
+    DROPPED a malformed entry and started a shorter walkthrough, which is silent
+    partial acceptance: the model asked for five steps, the user got four, and
+    nothing anywhere said so. A plan is refused whole, and the model is told
+    which repair to make."""
+    raw = args.get("steps")
+    if not isinstance(raw, (list, tuple)) or not raw:
         return _BAD_STEPS_AR
-    title = _title(args.get("title"))
+    cleaned = [_clean_step(item) for item in raw]
+    if None in cleaned:
+        return _BAD_RESULT_AR
+    steps = cleaned[:MAX_STEPS]
+    title = _one_line(args.get("title"))
     outcome = authority.request(TransitionRequest(
         kind=ENTER, mode_name=title or "المسار", plan=Plan.build(title, steps)))
     if not outcome.applied:

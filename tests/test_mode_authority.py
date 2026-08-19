@@ -56,7 +56,14 @@ ALL_REASONS = (NO_MODE, UNNAMED_MODE, NO_PLAN, AT_END, AT_START, UNKNOWN_STEP,
 MUTATORS = ("enter", "leave", "record_progress")
 
 
-def _guiding(steps=("stage", "commit", "push")) -> "tuple[SessionMode, ModeAuthority]":
+def _specs(*texts: str) -> "tuple[dict, ...]":
+    """Well-formed steps for `Plan.build`. `expected_result` is MANDATORY
+    (DEC-107) and has no default anywhere, so every plan here states one; each
+    is derived from its own text and is therefore distinct."""
+    return tuple({"text": text, "expected_result": f"{text} is visible"}
+                 for text in texts)
+
+def _guiding(steps=_specs("stage", "commit", "push")) -> "tuple[SessionMode, ModeAuthority]":
     mode = SessionMode()
     authority = ModeAuthority(mode=mode)
     authority.request(TransitionRequest(
@@ -118,7 +125,7 @@ def test_every_kind_crosses_the_same_point_and_returns_a_decision(kind):
     no special paths. Each is a request, and each comes back as a decision."""
     _mode, authority = _guiding()
     outcome = authority.request(TransitionRequest(
-        kind=kind, mode_name="review", step_id="s2", plan=Plan.build("p", ("a",))))
+        kind=kind, mode_name="review", step_id="s2", plan=Plan.build("p", _specs("a"))))
     assert isinstance(outcome.applied, bool)
     assert outcome.applied or outcome.note_ar, "a refusal was swallowed"
 
@@ -154,7 +161,7 @@ def test_a_blocking_condition_refuses_a_MODEL_request_transiently():
     mode = SessionMode()
     authority = ModeAuthority(mode=mode, conditions=_Blocking())
     authority.request(TransitionRequest(kind=ENTER, mode_name="navigator",
-                                        plan=Plan.build("d", ("a", "b"))))
+                                        plan=Plan.build("d", _specs("a", "b"))))
     assert mode.active is False, "a blocked ENTER still started a mode"
 
 
@@ -223,7 +230,7 @@ def test_an_unknown_reason_falls_back_to_the_note_that_CLAIMS_NOTHING():
     (ADVANCE, AT_END), (BACK, AT_START), (JUMP, UNKNOWN_STEP),
 ])
 def test_a_bounds_refusal_names_its_own_reason_and_carries_the_REAL_numbers(kind, reason):
-    mode, authority = _guiding(("only",))
+    mode, authority = _guiding(_specs("only"))
     outcome = authority.request(TransitionRequest(kind=kind, step_id="s404"))
     assert outcome.applied is False and outcome.reason == reason
     assert "1" in outcome.note_ar, "the note lost the kernel's own numbers"

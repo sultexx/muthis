@@ -390,7 +390,9 @@ async def check_indicator_and_exits(checks: Checks, orchestrator,
     provider sees. The script does not judge that image; it saves it."""
     prelude = orchestrator._prelude          # the object PRODUCTION built, not one made here
     authority, mode = prelude.authority, prelude.session_mode
-    plan = Plan.build("النسخ الاحتياطي", ("افتح الإعدادات", "اختر النسخ", "شغّل النسخة"))
+    plan = Plan.build("النسخ الاحتياطي",
+                      [{"text": t, "expected_result": f"نتيجة {t}"}
+                       for t in ("افتح الإعدادات", "اختر النسخ", "شغّل النسخة")])
 
     for name, end_the_mode in (
         ("E1 the deterministic exit WORD ends the mode",

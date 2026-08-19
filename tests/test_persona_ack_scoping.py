@@ -84,8 +84,16 @@ BEFORE_SHA256 = "70a186e5b4ac12d94ba159fd5fb2e9a14812f4f8a7f0d1573345329988f4476
 # tail re-hashed against the old pin in the same check. So the re-pin is an
 # APPEND that was demonstrated, not a baseline that was refreshed to make a test
 # pass — the distinction this file's docstring exists to protect.
+#
+# RE-PINNED AGAIN for the STEP-RESULT law (DEC-107 Gate 1, 904 chars), by the
+# same standard and never from the failure message: the old 1,603-character tail
+# was re-hashed against the old pin 894768b3…1df4e4 and PASSED, and the new
+# 2,507-character tail was proven byte-EQUAL to that exact tail plus the 904
+# characters of the new law and nothing else. The law's own additive proof is in
+# test_persona_step_result_law.py, which pins the prompt BEFORE it at 12,259
+# characters — a second, independent anchor on the same change.
 APPENDED_SINCE_DEC84_SHA256 = (
-    "894768b32318888cb35d2f053ab0f9425f0d73217421be16011fbea86b1df4e4")
+    "0f115ee4822e162f54c57796cac2ec9f3e70469a4f6c8055a5f30ac8d71d2301")
 
 
 def _prompt() -> str:

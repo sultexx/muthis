@@ -57,7 +57,7 @@ ANTHROPIC_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 
 # The byte-pinned catalogue, on disk — the one reference a process-global
 # mutation cannot reach. See the no-mutation test for why that matters.
-V6_SNAPSHOT = pathlib.Path(__file__).parent / "snapshots" / "look_tools_v6.json"
+V7_SNAPSHOT = pathlib.Path(__file__).parent / "snapshots" / "look_tools_v7.json"
 
 
 class _StubFetcher:
@@ -87,7 +87,7 @@ def test_the_guard_is_looking_at_the_REAL_catalogue():
     half-port gets through in the first place."""
     catalogue = _production_catalogue()
     assert len(catalogue) == 11, (
-        f"the production catalogue is {len(catalogue)} tools, expected the v6 "
+        f"the production catalogue is {len(catalogue)} tools, expected the v7 "
         "eleven — this guard's subject has moved and every assertion below is "
         "now measuring something else")
     assert {"highlight_target", "sandbox__run_code", "navigator__plan"} <= {
@@ -168,8 +168,8 @@ def test_translation_NEVER_mutates_the_byte_pinned_catalogue():
     # The canonical form is `test_navigator_mount.py`'s, letter for letter — two
     # guards comparing against one file must agree on how it is written.
     live = json.dumps(_production_catalogue(), ensure_ascii=False, indent=2) + "\n"
-    assert live.encode("utf-8") == V6_SNAPSHOT.read_bytes(), (
-        "the model-visible catalogue no longer matches look_tools_v6.json AFTER "
+    assert live.encode("utf-8") == V7_SNAPSHOT.read_bytes(), (
+        "the model-visible catalogue no longer matches look_tools_v7.json AFTER "
         "a translation — the translation wrote into a byte-pinned schema and "
         "changed what EVERY provider sees, for the rest of the process")
 

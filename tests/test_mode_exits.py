@@ -60,7 +60,8 @@ def _guiding_prelude(clock=None) -> "tuple[TurnPrelude, SessionMode]":
     prelude = TurnPrelude(session_mode=mode)
     prelude.authority.request(TransitionRequest(
         kind=ENTER, mode_name="navigator",
-        plan=Plan.build("deploy", ("افتح الملف", "شغّل الاختبار", "ارفع التغيير"))))
+        plan=Plan.build("deploy", [{"text": t, "expected_result": f"نتيجة {t}"}
+                              for t in ("افتح الملف", "شغّل الاختبار", "ارفع التغيير")])))
     return prelude, mode
 
 

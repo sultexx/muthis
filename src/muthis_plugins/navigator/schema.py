@@ -7,7 +7,16 @@ here rather than after a live failure. `jump` takes the STEP NUMBER the user and
 the model both already say aloud ("go back to step two"), and the KERNEL maps
 that number to the step's stable id. A step id is a fact the kernel owns; routing
 it through the model would make the model the carrier of a truth that is not its
-own, which is the pattern this project has now rejected nine times."""
+own, which is the pattern this project has now rejected nine times.
+
+CATALOG v7 (DEC-107, Gate 1) REVISES `plan`: a step is now an OBJECT carrying
+both the instruction and the RESULT the user should be able to SEE once the step
+is done, and BOTH are `required`. The result is authored HERE, with the plan,
+before any verification frame exists — "expected" means written in advance, and a
+description produced after the answer is visible verifies nothing. HOW to phrase
+it is a PERSONA law and is deliberately not restated here: two copies of one rule
+drift apart, and the schema's job is to make the field unskippable, not to teach
+it."""
 
 from __future__ import annotations
 
@@ -30,9 +39,30 @@ NAVIGATOR_PLAN_SCHEMA: dict[str, Any] = {
             },
             "steps": {
                 "type": "array",
-                "items": {"type": "string"},
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": (
+                                "The step itself: one action the user performs."
+                            ),
+                        },
+                        "expected_result": {
+                            "type": "string",
+                            "description": (
+                                "What the user will be able to SEE on screen "
+                                "once this step is done. Write it now, with the "
+                                "plan, before you have looked at anything."
+                            ),
+                        },
+                    },
+                    "required": ["text", "expected_result"],
+                },
                 "description": (
-                    "The ordered steps, each one action the user performs."
+                    "The ordered steps. Every step carries both its text and "
+                    "its expected result; a step missing either is not a plan "
+                    "I can start."
                 ),
             },
         },

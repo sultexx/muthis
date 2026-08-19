@@ -38,7 +38,10 @@ from muthis.kernel.turn import DownscaledImage
 from muthis.kernel.turn_prelude import TurnPrelude
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
-STEPS = ["افتح الإعدادات", "اختر الشبكة", "احفظ"]
+STEP_TEXTS = ["افتح الإعدادات", "اختر الشبكة", "احفظ"]
+# CATALOG v7 (DEC-107): a step is an OBJECT, and `expected_result` is MANDATORY.
+STEPS = [{"text": text, "expected_result": f"{text} — النتيجة ظاهرة"}
+         for text in STEP_TEXTS]
 PLAN_ARGS = {"title": "توصيل الشبكة", "steps": STEPS}
 
 
@@ -100,7 +103,7 @@ def test_jump_resolves_the_spoken_NUMBER_to_the_stable_id():
     _service(_call(NAV_STEP_TOOL, "n2", {"action": "jump", "step_number": 3}), prelude)
     current = prelude.session_mode.plan.current_step
     assert prelude.session_mode.current_step == 3
-    assert current is not None and current.text == STEPS[2]
+    assert current is not None and current.text == STEP_TEXTS[2]
 
 
 def test_a_jump_after_a_DELETE_lands_on_the_step_the_number_now_names():
@@ -116,7 +119,7 @@ def test_a_jump_after_a_DELETE_lands_on_the_step_the_number_now_names():
 
     _service(_call(NAV_STEP_TOOL, "n2", {"action": "jump", "step_number": 2}), prelude)
     landed = prelude.session_mode.plan.current_step
-    assert landed is not None and landed.text == STEPS[2], (
+    assert landed is not None and landed.text == STEP_TEXTS[2], (
         "the jump resolved against a stale position rather than the live plan")
     assert prelude.session_mode.current_step == 2
 
@@ -135,15 +138,76 @@ def test_an_out_of_range_or_malformed_jump_is_refused_and_moves_nothing(number):
 
 @pytest.mark.parametrize("args", [
     {}, {"steps": "not a list"}, {"steps": []}, {"steps": [1, 2, 3]},
-    {"steps": ["  ", ""]}, {"title": 5, "steps": ["a"]}, None,
+    {"steps": ["  ", ""]}, None,
+    # v7's own malformed shapes (DEC-107).
+    {"steps": ["a bare string is no longer a step"]},
+    {"steps": [{"text": "a step with no declared result"}]},
+    {"steps": [{"expected_result": "a result with no step"}]},
+    {"steps": [{"text": "x", "expected_result": "   "}]},
+    {"steps": [{"text": "x", "expected_result": None}]},
+    {"steps": [{"text": "x", "expected_result": ["not", "a", "string"]}]},
+    {"title": 5, "steps": [{"text": "a", "expected_result": "b"}]},
 ])
 def test_malformed_plan_arguments_become_a_note_never_an_exception(args):
+    """The module's standing law — model-authored JSON may be anything and none
+    of it raises — now carrying v7's shapes."""
     prelude = _prelude()
     note = _service(_call(NAV_PLAN_TOOL, "n1", args), prelude)
+
     assert isinstance(note, str) and note
-    if args in ({}, {"steps": "not a list"}, {"steps": []}, {"steps": [1, 2, 3]},
-                {"steps": ["  ", ""]}, None):
-        assert prelude.session_mode.active is False, "a bad plan started a mode"
+    started = args == {"title": 5, "steps": [{"text": "a", "expected_result": "b"}]}
+    assert prelude.session_mode.active is started, (
+        "only a WELL-FORMED steps payload may start a mode; a bad title is not "
+        "a bad plan, and falls back to the default mode name")
+
+
+@pytest.mark.parametrize("bad", [
+    {"text": "الخطوة الثانية"},                       # no result at all
+    {"text": "الخطوة الثانية", "expected_result": ""},  # present but empty
+])
+def test_ONE_incomplete_step_invalidates_the_WHOLE_plan(bad):
+    """DEC-107's boundary, and the v6 behaviour it replaces is the point.
+
+    v6 DROPPED a malformed entry and started a shorter walkthrough — silent
+    partial acceptance: the model asked for three steps, the user got two, and
+    nothing anywhere said so. That is DEC-91's failure in our own code, where
+    the provider accepts what it does not understand and returns no error. The
+    plan is now refused WHOLE, before anything enters `Plan`."""
+    prelude = _prelude()
+    steps = [STEPS[0], bad, STEPS[2]]
+
+    note = _service(_call(NAV_PLAN_TOOL, "n1",
+                          {"title": "t", "steps": steps}), prelude)
+
+    assert prelude.session_mode.active is False, (
+        "an incomplete step started a mode — the walkthrough is now shorter "
+        "than the one the model authored, and nothing said so")
+    assert prelude.session_mode.plan is None
+    assert "توجيه داخلي" in note and "ما تغيّر شي" in note, "the note law (DEC-58)"
+    assert "نتيجة" in note, (
+        "the note does not name the MISSING FIELD — a model told only 'bad "
+        "steps' resends the same payload")
+
+
+def test_the_note_for_an_incomplete_step_DIFFERS_from_the_note_for_no_steps():
+    """Two different mistakes need two different repairs. One note for both
+    would tell a model that sent a well-shaped list with one field missing to
+    go and send a list."""
+    empty = _service(_call(NAV_PLAN_TOOL, "n1", {"steps": []}), _prelude())
+    incomplete = _service(_call(NAV_PLAN_TOOL, "n2",
+                                {"steps": [{"text": "a"}]}), _prelude())
+
+    assert empty != incomplete
+
+
+def test_a_well_formed_plan_STORES_the_expected_result_verbatim():
+    """The positive control for this boundary: the field survives the trip from
+    model JSON into the kernel's own record, unread and unaltered."""
+    prelude = _prelude()
+    _service(_call(NAV_PLAN_TOOL, "n1", PLAN_ARGS), prelude)
+
+    assert [s.expected_result for s in prelude.session_mode.plan.steps] == [
+        step["expected_result"] for step in STEPS]
 
 
 @pytest.mark.parametrize("action", ["teleport", "", None, 7, "ADVANCE"])
@@ -155,13 +219,19 @@ def test_an_unknown_action_is_refused_and_names_the_valid_ones(action):
     assert prelude.session_mode.current_step == 1
 
 
-def test_the_step_list_is_bounded_and_entries_are_flattened():
+def test_the_step_list_is_bounded_and_BOTH_entries_are_flattened():
+    """The kernel's own bounds, applied to both halves of a v7 step. A result
+    carrying a newline would break the directive line exactly as a step text
+    would, so it is narrowed by the same rule rather than by a second one."""
     prelude = _prelude()
-    _service(_call(NAV_PLAN_TOOL, "n1",
-                   {"title": "t", "steps": [f"خطوة\n{i}" for i in range(40)]}), prelude)
+    _service(_call(NAV_PLAN_TOOL, "n1", {"title": "t", "steps": [
+        {"text": f"خطوة\n{i}", "expected_result": f"نتيجة\n{i}"}
+        for i in range(40)]}), prelude)
     plan = prelude.session_mode.plan
+
     assert plan.total == MAX_STEPS
     assert all("\n" not in step.text for step in plan.steps)
+    assert all("\n" not in step.expected_result for step in plan.steps)
 
 
 # ─── The servicer CANNOT bypass the one evaluation point ───────────────────

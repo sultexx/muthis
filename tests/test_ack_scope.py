@@ -274,7 +274,8 @@ def test_the_SECOND_pass_of_a_navigator_answer_receives_the_ack_scope(tmp_path):
         session_mode=mode)
     orchestrator._prelude.authority.request(TransitionRequest(
         kind=ENTER, mode_name="تغيير الخلفية",
-        plan=Plan.build("تغيير الخلفية", ("افتح الإعدادات", "انقر النظام", "احفظ"))))
+        plan=Plan.build("تغيير الخلفية", [{"text": t, "expected_result": f"نتيجة {t}"}
+                    for t in ("افتح الإعدادات", "انقر النظام", "احفظ")])))
 
     asyncio.run(orchestrator.run_turn("التالي"))
 

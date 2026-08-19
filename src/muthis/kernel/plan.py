@@ -37,6 +37,32 @@ bought early because it is unrecoverable later without a full re-index, and a
 plan is WORSE — it lives in RAM and dies with the session, so there is no
 re-index to fall back on at all.
 
+`expected_result` IS THE FIRST OF THOSE FIELDS TO ARRIVE (DEC-107, Gate 1), and
+the shape above is what made it a two-line change. It is what the user should be
+able to SEE when the step is done, and it exists because a verifier needs
+something WRITTEN IN ADVANCE to compare a screen against: with no prior
+description the comparison closes on itself — the screen is read, and whatever
+it shows becomes the expected result. It is FREE TEXT and is read NOWHERE in
+this file, exactly as `text` is not.
+
+IMMUTABLE FOR THE WHOLE VERIFICATION CYCLE, AND THE PREVENTION IS THE SHAPE.
+A model that could re-word the expected result AFTER a look would bring it into
+agreement with what it just saw, which is the same circularity one cycle late —
+and it leaves no trace, because the field is still present, still non-empty, and
+now matches the screen. So there is NO WRITE PATH: `Step` is frozen (assignment
+raises), it is CONSTRUCTED AT EXACTLY ONE SITE in this file, and every edit below
+carries existing `Step` OBJECTS through by identity — reordering, deleting and
+moving the pointer rebuild the PLAN and never a STEP. `dataclasses.replace` is
+called six times here and every one of them targets a `Plan`.
+
+WHY THAT LAST SENTENCE IS A GUARD AND NOT A PROMISE: `replace` is on this
+module's allow-list for `Plan`'s sake, so `replace(step, expected_result=...)`
+is a construction Python would accept. It is forbidden by an ARGUMENT-AWARE AST
+guard over all of `src/` (`tests/test_step_expected_result.py`) rather than by a
+runtime check — the structure prevents, the guard proves, and no AST is parsed
+in production. The SessionMode precedent: nesting was made impossible to express
+rather than blocked.
+
 THIS MODULE STORES, NUMBERS AND BOUNDS-CHECKS. IT NEVER INTERPRETS TEXT.
 Retention is not comprehension, and this project already runs on that
 distinction: `turn_hooks` holds opaque callables the router never inspects
@@ -62,7 +88,7 @@ Pure stdlib, no sibling imports; importable in isolation.
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional, Sequence
+from typing import Mapping, Optional, Sequence
 
 # The prefix is what makes an id UNUSABLE as an index (see the docstring):
 # "s4" is not 4, so the positional shortcut fails loudly instead of quietly.
@@ -71,14 +97,18 @@ STEP_ID_PREFIX = "s"
 
 @dataclasses.dataclass(frozen=True)
 class Step:
-    """ONE step: a stable IDENTITY, and the text that belongs to it.
+    """ONE step: a stable IDENTITY, the text that belongs to it, and the RESULT
+    the user should be able to SEE once it is done.
 
     FROZEN and keyword-constructible so a later field — step state, DEC-67's
-    citation reference — is additive at every existing call site. `text` is
-    OPAQUE here: stored, returned whole, never read."""
+    citation reference — is additive at every existing call site. BOTH strings
+    are OPAQUE here: stored, returned whole, never read. `expected_result` is
+    additionally IMMUTABLE for the whole verification cycle (DEC-107) — written
+    once, at the single construction site below, and never rewritten."""
 
     id: str
     text: str
+    expected_result: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -138,18 +168,30 @@ class Plan:
     # ─── What the kernel STORES — every edit returns a NEW plan ──────────────
 
     @classmethod
-    def build(cls, title: str, step_texts: Sequence[str] = ()) -> "Plan":
+    def build(cls, title: str, steps: Sequence[Mapping[str, str]] = ()) -> "Plan":
         """A fresh plan with ids assigned in order, the FIRST step current.
 
         An empty plan has no current step, which is the honest state rather
-        than a pointer at nothing."""
+        than a pointer at nothing.
+
+        EACH ENTRY IS A MAPPING CARRYING `text` AND `expected_result`, AND THE
+        FIELDS ARE SUBSCRIPTED RATHER THAN `.get()`-ed — DEC-91's remedy, chosen
+        for DEC-91's reason. A missing key is a caller that built a malformed
+        step, and a `KeyError` here is the loud failure a default would replace
+        with silence: defaulting `expected_result` to `""` would re-create,
+        inside our own code, exactly the silence DEC-107 Gate 1 exists to close.
+        A PAIR would have been shorter and was refused — `("ab", …)` unpacks
+        from a two-character STRING without complaint, and named keys make a
+        later third field additive at the producer (DEC-66's own argument)."""
         plan = cls(title=title)
-        for text in step_texts:
-            plan = plan.with_step_inserted(text)
+        for step in steps:
+            plan = plan.with_step_inserted(
+                step["text"], expected_result=step["expected_result"])
         first_id = plan.steps[0].id if plan.steps else None
         return dataclasses.replace(plan, current_step_id=first_id)
 
-    def with_step_inserted(self, text: str, *, at: Optional[int] = None) -> "Plan":
+    def with_step_inserted(self, text: str, *, expected_result: str,
+                           at: Optional[int] = None) -> "Plan":
         """A NEW plan carrying one more step; appended when `at` is None.
 
         `at` is a 0-based POSITION and is the ONE place a position is legal,
@@ -157,8 +199,15 @@ class Plan:
         rather than refusing — there is no wrong step to land on. Every
         existing id keeps its meaning, and the current step is untouched: the
         step that was current before this call is still current after it, even
-        though its POSITION may have moved."""
-        step = Step(id=f"{STEP_ID_PREFIX}{self.next_step_id_number}", text=text)
+        though its POSITION may have moved.
+
+        `expected_result` IS KEYWORD-ONLY AND HAS NO DEFAULT. Both halves are
+        deliberate: no default, because a step with no expected result is an
+        INVALID step and admitting one defers the failure to the first
+        verification; keyword-only, because this is THE ONE place the field is
+        ever written, and a name at the write site is what the AST guard reads."""
+        step = Step(id=f"{STEP_ID_PREFIX}{self.next_step_id_number}", text=text,
+                    expected_result=expected_result)
         position = len(self.steps) if at is None else max(0, min(at, len(self.steps)))
         steps = self.steps[:position] + (step,) + self.steps[position:]
         return dataclasses.replace(
