@@ -140,6 +140,20 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # all, so the next line breaches. Nothing extracted, no content touched:
     # declaring it IS the change, and extracting is a separate decision.
     ("trust/confirm_gate.py", 300),
+    # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
+    # function that chooses between them), which makes it the fastest-growing
+    # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's
+    # ruling, on the `turn_pass.py` precedent — an UNPINNED file at 283 is the
+    # state `broker/docs/service.py` was in when it crossed the law in silence.
+    # AND THE GROWTH IS BY DESIGN, WHICH IS WHY THE PIN MATTERS HERE: this
+    # module's own docstring says the note set "grows every milestone (+33
+    # measured per capability)" and that separating it "puts the growth in a
+    # module that exists to hold it" — a file designed to grow is exactly the one
+    # whose next arrival must meet a declared number. Nothing extracted and no
+    # content moved: DECLARING it IS the change, as at `confirm_gate.py` and
+    # `persona_laws.py`. The next note family needs an EXTRACTION before it needs
+    # a sentence.
+    ("kernel/deferral_notes.py", 283),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.

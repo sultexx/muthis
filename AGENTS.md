@@ -589,6 +589,11 @@ in DECISIONS.md (DEC-43).
   2026-08-06, UNDECLARED and read by nothing for thirteen days; this file said `~269`, which was TRUE WHEN
   WRITTEN and went stale at that move. DEC-104 Gate B's docs sweep found it, and Sultan ruled the pin, taken
   ALONE in its own commit on the `turn_pass.py` precedent — nothing extracted, no content touched).
+  `kernel/deferral_notes.py` **283 — SEVENTEEN LINES LEFT** (208 → 283 in DEC-108 Gate 2B alone, the
+  fastest-growing module of that milestone; pinned by Sultan's ruling in its own mechanical commit.
+  **This file is DESIGNED to grow** — its own docstring records that the note set gains ~33 lines per
+  capability and that the split exists to "put the growth in a module that exists to hold it" — which is
+  precisely why its next arrival must meet a declared number rather than a green suite).
   **THE SWEEP'S OTHER FIND RAN THE OPPOSITE WAY, and both directions matter:** `persona_rules.py` was declared
   298/300 with a "the next persona law needs a SPLIT" warning against a real 137, DEC-100 having already taken
   that split into `persona_laws.py`. **Drift is dangerous in both directions — one hides a breach, the other
