@@ -106,7 +106,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # extracted and no content moved — DECLARING it IS the change, exactly as at
     # `confirm_gate.py`. The next law needs an EXTRACTION before it needs a
     # sentence, and this pin is what will say so.
-    ("persona_laws.py", 285),
+    # 285 -> 244, DECLARED (DEC-108 Gate 2C): the NAVIGATOR's authoring laws
+    # moved to `persona_laws_navigator.py` under the law, VERBATIM, with the
+    # composed prompt proven byte-identical by hash. The pin met the next
+    # arrival exactly as it said it would — "the next law needs an EXTRACTION
+    # before it needs a sentence" — and the arrival became one.
+    ("persona_laws.py", 244),
     # NEWLY under pressure at T3 (DEC-65's indicator), and pinned for that
     # reason: 280 -> 296 as the overlay gained its third persistent element, and
     # 274 -> 298 as the composition root gained the DEC-37-shaped seam that

@@ -256,11 +256,16 @@ def test_persona_py_is_untouched_and_no_clause_leaked_into_it():
     persona = (SRC / "persona.py").read_text(encoding="utf-8")
     assert ANCHORS["one_observable_end"] not in persona, "the law leaked into persona.py"
 
-    laws = (SRC / "persona_laws.py").read_text(encoding="utf-8")
-    assert ANCHORS["one_observable_end"] in laws, "the law is not in persona_laws.py"
+    # DEC-108 Gate 2C moved this law to `persona_laws_navigator.py` under the
+    # ≤300-line law — VERBATIM, with the composed prompt proven byte-identical.
+    # The PROPERTY is unchanged and is still what is asserted: exactly ONE
+    # holder, and never `persona.py`. Only the home's name moved.
+    laws = (SRC / "persona_laws_navigator.py").read_text(encoding="utf-8")
+    assert ANCHORS["one_observable_end"] in laws, (
+        "the law is not in persona_laws_navigator.py")
 
     holders = sorted(p.name for p in SRC.rglob("*.py")
                      if ANCHORS["immutable"] in p.read_text(encoding="utf-8"))
-    assert holders == ["persona_laws.py"], (
+    assert holders == ["persona_laws_navigator.py"], (
         f"the immutability clause is written out in {holders} — it must have "
         "exactly one home")

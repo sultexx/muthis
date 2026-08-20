@@ -584,7 +584,9 @@ in DECISIONS.md (DEC-43).
   `composition.py` **298** and `overlay/sidekick_window.py` **300** (pinned at T3 at 296; +4 at DEC-104
   Gate A for the `hide_for_capture` verb — **ZERO HEADROOM LEFT, the next arrival there needs an
   EXTRACTION before it needs a sentence**) ·
-  `persona.py` **209**.
+  `persona.py` **209** · `persona_laws.py` **244** (285 → 244 at DEC-108 Gate 2C: the NAVIGATOR's
+  authoring laws moved VERBATIM to `persona_laws_navigator.py`, composed prompt proven
+  BYTE-IDENTICAL by hash — the pin met its next arrival and turned it into an extraction).
   `trust/confirm_gate.py` **300 — ZERO HEADROOM, the next line breaches** (269 → 300 at `702f9d1`,
   2026-08-06, UNDECLARED and read by nothing for thirteen days; this file said `~269`, which was TRUE WHEN
   WRITTEN and went stale at that move. DEC-104 Gate B's docs sweep found it, and Sultan ruled the pin, taken
