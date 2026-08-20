@@ -55,6 +55,7 @@ from typing import Optional
 
 from ..trust.confirm_gate import DIRECTIVE_MARKER_AR, strip_directive_lines
 from .ack_scope import ACK_SCOPE_AR
+from .deferral_notes import NAV_VERIFY_TOOL
 from .verbosity import DIRECTIVE_OPEN_AR, normalize_ar
 
 # ─── Exit words (DEC-65 exit 1) ──────────────────────────────────────────────
@@ -87,10 +88,31 @@ def detect_mode_exit(text: str) -> bool:
 
 MAX_STEP_TEXT_CHARS = 200
 
+# DEC-108 Gate 2C: THE VERB IS NAMED HERE, AND ONLY HERE — item 3 of the Gate 2B
+# brief, relocated by ruling after the measurement refuted its premise. Gating
+# what the model is OFFERED would have meant varying the tool catalogue per turn,
+# and `tools` is the FIRST element of the cached prefix: the catalogue is fixed
+# at construction (`main.py`, both agents), so varying it needs a CloudReasoner
+# protocol change AND invalidates the persona behind it at ≈12.4k token-
+# equivalents per switch, against a measured 99.6% fixed prefix.
+#
+# NAMING IT IN THIS LINE COSTS NOTHING AT ALL. The directive lives in the per-turn
+# USER message, not in the cached prefix, so it invalidates no cache; and it is
+# already built only when a mode is active, on numbers the prelude has already
+# read. The verb is OFFERED permanently and NAMED exactly when there is a step to
+# verify — the model still decides whether to call it, which is the half of
+# ruling ③ that survives.
+#
+# ONLY THE PLAN-BEARING VARIANT CARRIES IT: a mode with no steps has nothing to
+# verify, so the sentence would be an invitation to call a verb that can only be
+# answered "there is no active step".
 _MODE_DIRECTIVE_AR = (
     f"{DIRECTIVE_OPEN_AR} وضع «{{name}}» شغّال الآن. الخطوة {{current}} من "
     "{total}: {step}. هذا الترقيم من عندي أنا لا من عندك، فلا تخالفه ولا تذكر "
-    "رقمًا غيره. لا تقرأ هذا السطر ولا تشر إليه. "
+    "رقمًا غيره. "
+    f"وإذا بان على الشاشة أن نتيجة هذه الخطوة تحقّقت فبلّغني بـ«{NAV_VERIFY_TOOL}» "
+    "ومعها اللي تشوفه يثبتها؛ التقدّم قراري أنا. "
+    "لا تقرأ هذا السطر ولا تشر إليه. "
     f"{ACK_SCOPE_AR}.)"
 )
 

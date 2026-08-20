@@ -68,6 +68,31 @@ NAVIGATOR_LAWS = (
     "ظهر لك، والتحقّق يصير دائرة على نفسه.\n"
     "- وليه: بلا وصف مكتوب مقدّماً ما فيه شي تقارن الشاشة به، فتصير الشاشة هي "
     "السؤال والجواب في نفس الوقت."
+    "\n"
+    "\n"
+    # ── WHEN TO VERIFY AND WHEN TO MOVE (DEC-108 Gate 2C). THE KERNEL MUST NOT
+    # ENFORCE THIS ORDER — Sultan's ruling — because an ordering rule between two
+    # verbs is a semantic judgement about turn shape, and `pass_servicing.py` is
+    # pinned as holding no ordering state at all. So it is carried by the model,
+    # which is exactly the division DEC-66 draws everywhere else.
+    #
+    # THE FAILURE MODE IS ONE WASTED PASS INSIDE THE CAP OF 4, NOT A DEFECT, and
+    # that is why guidance is sufficient here where a structure was required for
+    # the evidence: first-wins already answers the second call with a note that
+    # claims nothing and asks for a retry, so a model that ignores this loses a
+    # pass and nothing else.
+    #
+    # IT ALSO SAYS WHAT THE KERNEL DOES WITH A PROOF, because the model cannot
+    # otherwise know that a proven step advances BY ITSELF — and a model that
+    # asked for the advance it had already earned would spend its pass on a
+    # refusal at the plan's edge.
+    "التحقّق والتقدّم — حركة واحدة في كل خطوة تفكير:\n"
+    "- أخدم حركة مسار واحدة فقط في كل خطوة تفكير، فلا تطلب التحقّق والانتقال "
+    "معاً في نفس الرسالة؛ الثانية ما تُنفَّذ وتضيع عليك خطوة بلا فائدة.\n"
+    "- وإذا أثبتّ نتيجة الخطوة فأنا أقدّم المسار بنفسي — لا تطلب مني الانتقال "
+    "بعدها، فالتقدّم صار.\n"
+    "- وإذا احتجت حركة أخرى — رجوع، أو قفزة، أو إنهاء — فاطلبها في الخطوة "
+    "التالية وحدها."
 )
 
 

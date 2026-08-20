@@ -355,7 +355,16 @@ def test_the_directive_is_always_ONE_line_however_long_the_step_text():
     its second line sitting in the transcript the approval detector reads."""
     line = mode_directive_line("navigator", 2, 5, "أولاً\nثانياً\n" + "ط" * 400)
     assert "\n" not in line
-    assert len(line) < MAX_STEP_TEXT_CHARS + 400
+    # THE BOUND IS NOW EXACT RATHER THAN GENEROUS, and that is a strengthening
+    # taken because DEC-108 Gate 2C added a sentence to the frame: a magic
+    # "+400" had to be raised every time the directive grew, which is a guard
+    # that loosens on a schedule. Two directives differing ONLY in step text
+    # must differ by exactly the step-text budget, so the frame may grow and the
+    # BOUNDED-STEP-TEXT property still fails the moment it stops holding.
+    short = mode_directive_line("navigator", 2, 5, "ط")
+    assert len(line) - len(short) == MAX_STEP_TEXT_CHARS, (
+        "the step text is no longer bounded to MAX_STEP_TEXT_CHARS (+ the "
+        "ellipsis) — a long step can now grow the directive without limit")
 
 
 def test_CASE_A_a_real_composed_directive_is_stripped_and_the_approval_lands():
