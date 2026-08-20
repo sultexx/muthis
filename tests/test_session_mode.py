@@ -51,8 +51,21 @@ def _specs(*texts: str) -> "tuple[dict, ...]":
 SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
 MODE_PY = SRC / "muthis" / "kernel" / "session_mode.py"
 PLAN_PY = SRC / "muthis" / "kernel" / "plan.py"
+# DEC-108 Gate 2C: `ModeFrame` moved to its own module under the ≤300-line law,
+# and it JOINS the primitives rather than escaping them — it is the record that
+# holds a `Plan`, so every absence-of-means guard below applies to it for the
+# same reason it applied when the class lived one file over.
+MODE_FRAME_PY = SRC / "muthis" / "kernel" / "mode_frame.py"
 COMPOSITION_PY = SRC / "muthis" / "composition.py"
-PRIMITIVES = (MODE_PY, PLAN_PY)
+PRIMITIVES = (MODE_PY, MODE_FRAME_PY, PLAN_PY)
+# The two scans below have POSITIVE CONTROLS that require a module with
+# substance — "the scan admitted more than N attribute accesses / calls" — and a
+# bare frozen record has neither. Lowering a control so a record can pass it
+# would be weakening a guard to make progress, so `mode_frame.py` is held to a
+# STRONGER claim instead (see the test at the end of this block): it defines NO
+# FUNCTION AT ALL, which makes "no method reads step text" and "calls nothing it
+# does not define" structural rather than scanned.
+PRIMITIVES_WITH_METHODS = (MODE_PY, PLAN_PY)
 
 
 class _Clock:
@@ -310,7 +323,12 @@ def test_the_module_holds_no_expiry_decision_and_no_timer():
 # ─── 2. THE INVARIANTS, asserted as an ABSENCE OF MEANS ─────────────────────
 
 @pytest.mark.parametrize("path,expected", [
-    (MODE_PY, {"__future__", "dataclasses", "time", "typing", "plan"}),
+    # `mode_frame` is the DECLARED addition (DEC-108 Gate 2C): the slot now
+    # imports the record it holds. The allow-list is EXTENDED by declaration,
+    # which is exactly what an exact-equality guard exists to force.
+    (MODE_PY, {"__future__", "dataclasses", "time", "typing", "plan",
+               "mode_frame"}),
+    (MODE_FRAME_PY, {"__future__", "dataclasses", "typing", "plan"}),
     (PLAN_PY, {"__future__", "dataclasses", "typing"}),
 ])
 def test_the_primitives_import_nothing_that_could_persist_log_or_grant(path, expected):
@@ -359,7 +377,7 @@ def test_neither_primitive_has_a_logger_at_all(path):
             f"{path.name} gained a log surface: {logging_symbol}")
 
 
-@pytest.mark.parametrize("path", PRIMITIVES)
+@pytest.mark.parametrize("path", PRIMITIVES_WITH_METHODS)
 def test_no_method_anywhere_READS_step_text(path):
     """DEC-66: the kernel STORES, NUMBERS and BOUNDS-CHECKS; it never
     INTERPRETS. Retention is not comprehension — `turn_hooks` holds opaque
@@ -377,7 +395,7 @@ def test_no_method_anywhere_READS_step_text(path):
         f"{sorted({node.lineno for node in reads})} — storage became interpretation")
 
 
-@pytest.mark.parametrize("path", PRIMITIVES)
+@pytest.mark.parametrize("path", PRIMITIVES_WITH_METHODS)
 def test_the_primitives_call_nothing_but_their_own_methods(path):
     """THE ALLOW-LIST, not a deny-list — DEC-21-E's lesson, where a deny-list
     passed a bypass silently and the allow-list caught it with zero
@@ -401,6 +419,28 @@ def test_the_primitives_call_nothing_but_their_own_methods(path):
         "nothing must never look like a guard that passed (DEC-50)")
     assert called <= permitted, (
         f"{path.name} calls methods it does not define: {sorted(called - permitted)}")
+
+
+def test_the_frame_record_defines_NO_FUNCTION_AT_ALL():
+    """THE RECORD'S OWN GUARD, and it is STRONGER than the two scans it stands
+    in for.
+
+    `mode_frame.py` holds a `Plan`, whose step text is MODEL-AUTHORED — so
+    "no method here reads it" matters exactly as much as it did when the class
+    lived in `session_mode.py`. A bare frozen record cannot satisfy those
+    scans' positive controls, and lowering a control so a record can pass is
+    weakening a guard to make progress. So the claim is raised instead: this
+    module defines NO FUNCTION AND NO METHOD, which makes reading anything
+    unrepresentable rather than merely unobserved."""
+    tree = _tree(MODE_FRAME_PY)
+    functions = [node for node in ast.walk(tree)
+                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+
+    assert len(classes) == 1, "the record module grew a second class"
+    assert not functions, (
+        f"mode_frame.py defines {[f.name for f in functions]} — a record that "
+        "gained behaviour must rejoin the scans it was excused from")
 
 
 def test_the_public_surface_is_pinned():

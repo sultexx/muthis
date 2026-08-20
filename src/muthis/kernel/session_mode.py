@@ -92,28 +92,13 @@ import dataclasses
 import time
 from typing import Callable, Optional
 
+from .mode_frame import ModeFrame
 from .plan import Plan
 
 
 def _ignore_change(mode: "SessionMode") -> None:
     """The default observer: a real callable, never None, so `SessionMode` has
     exactly one notification path rather than one plus an absence check."""
-
-
-@dataclasses.dataclass(frozen=True)
-class ModeFrame:
-    """The kernel's frame for ONE active mode — a VALUE, replaced whole.
-
-    It carries no reference to another frame and no collection of them, which
-    is one half of why nesting is unrepresentable; the other half is that
-    `SessionMode` holds exactly one of these."""
-
-    name: str
-    plan: Optional[Plan] = None
-    # TWO CLOCKS, TWO QUESTIONS (DEC-104 ruling 2). Kept as separate fields
-    # because neither answer can be recovered from the other one.
-    last_progress_at: float = 0.0   # did the STEP move
-    last_activity_at: float = 0.0   # is the USER still here
 
 
 class SessionMode:
