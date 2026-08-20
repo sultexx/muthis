@@ -93,7 +93,7 @@ BEFORE_SHA256 = "70a186e5b4ac12d94ba159fd5fb2e9a14812f4f8a7f0d1573345329988f4476
 # test_persona_step_result_law.py, which pins the prompt BEFORE it at 12,259
 # characters — a second, independent anchor on the same change.
 APPENDED_SINCE_DEC84_SHA256 = (
-    "e92ce0eabd79f65b65b9cece5dbf8990e32b87a775a1350be4a4fc6e3b94ccaa")
+    "790ccc5e457254af6f68f1af6e1d9d47ab828a025303b57fea38e3941fe9d8ef")
 
 
 def _prompt() -> str:

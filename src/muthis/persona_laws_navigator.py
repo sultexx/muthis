@@ -93,6 +93,51 @@ NAVIGATOR_LAWS = (
     "بعدها، فالتقدّم صار.\n"
     "- وإذا احتجت حركة أخرى — رجوع، أو قفزة، أو إنهاء — فاطلبها في الخطوة "
     "التالية وحدها."
+    "\n"
+    "\n"
+    # ── HOW TO JUDGE (DEC-100's conservative instruction, DEC-105's boundary).
+    # THIS LAW IS THE ONE EVERY MEASURED NUMBER IN THIS SERIES WAS OBTAINED
+    # WITH, AND IT SHIPPED LAST. DEC-100 measured a NEUTRAL instruction failing
+    # T₁ at 43.3% — seventeen false advances in thirty — and this rule taking it
+    # to 100% with T₂ and T₃ UNMOVED: the failure was REMOVED, not relocated,
+    # and reasoning tokens fell 17 → 2, so the rule is free. It lived in the
+    # probe's `INSTRUCTION` until now, which meant the build carried the machine
+    # and not the judgement it was measured with.
+    #
+    # AND IT REFUTED A CEILING ARGUMENT ON THE SAME FRAME, which is why the
+    # wording is copied in its measured terms rather than paraphrased: the same
+    # pixels, asked neutrally, gave "the body visibly has rounded top edges" ten
+    # times out of ten, and asked THIS way gave "the rounded geometry is only a
+    # live preview and the operation has not been confirmed" ten times out of
+    # ten. The model could always SEE the dialog; what was missing was the rule.
+    #
+    # THE LAST CLAUSE IS DEC-105's BOUNDARY, AND IT IS NOT A FLOURISH. Excel's
+    # cell-edit case failed 10/10 at confidence 99 with the model applying the
+    # earlier rule CORRECTLY — it looked for a disqualifier, found none, and
+    # concluded settled, which is what "no dialog is visible" instructs. So the
+    # rule was STRUCTURALLY INCOMPLETE rather than badly worded, and this clause
+    # is what fills it: absence of evidence against is not evidence for.
+    #
+    # WHAT IT DOES NOT CLAIM: it cannot make an unrendered state visible. DEC-105
+    # ruled that boundary — the automatic path covers mid-steps whose unsettled
+    # state is ACTUALLY DRAWN — and no phrasing moves it. A step whose app never
+    # draws its own unsettled state stays outside, and the honest outcome there
+    # is "not proven", which this law's last clause is what produces.
+    "الحكم على نتيجة الخطوة — متى تقول إنها تحقّقت:\n"
+    "- لا تعتبرها تحقّقت إلا إذا كان البرنامج في حالة مستقرّة والنتيجة مثبَّتة "
+    "فعلاً، لا قيد التنفيذ.\n"
+    "- والمعاينة ليست نتيجة: كثير من البرامج ترسم الشكل النهائي على اللوحة قبل "
+    "أن تُؤكَّد العملية، فاللي تشوفه حينها معاينة حيّة لا نتيجة.\n"
+    "- وإذا كانت هناك نافذة أو لوحة مفتوحة تنتظر تأكيداً — ما انضغط فيها "
+    "«موافق» ولا «Enter» — فالحالة ما استقرّت، مهما بدا على اللوحة خلفها.\n"
+    # THE WORDING HERE AVOIDS «شفت» DELIBERATELY, and a LIVE GUARD is what
+    # found it: DEC-84's ack law pins that word at `count(...) == 1` because it
+    # was MEASURED live, and the natural phrasing of this clause reproduced it.
+    # Fixed in the LAW and never in the guard — Gate 1's precedent, twice now.
+    "- وغياب المانع الظاهر لا يثبت الاستقرار: لو ما بان لك شيء يمنع، فهذا ليس "
+    "دليلاً على أن الخطوة انتهت — بعض البرامج ما ترسم حالتها المؤقّتة أصلاً. "
+    "قل إنها ما ثبتت، ولا تصنع يقيناً من غياب دليل مضادّ.\n"
+    "- وليه: التحقّق أن ترى النتيجة نفسها، لا أن تستنتجها من مجرى العمل."
 )
 
 
