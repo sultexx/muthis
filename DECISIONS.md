@@ -12890,3 +12890,147 @@ The build session owns what is made of this — and the two named consequences a
 notes are binding on it from now rather than from the day they are met live.
 
 ---
+
+## DEC-109 (2026-08-20) — **A RULING REVERSED BY ITS OWN MEASUREMENT: the verb is OFFERED PERMANENTLY, and "offered" becomes NAMED IN THE DIRECTIVE.** DEC-108's active-step gate assumed a cheap mechanism; the mechanism is a signed contract and a cache premise — REVERSED (Sultan), and Gate 2C BUILT
+
+DEC-108 ruled the split that satisfies DEC-106 ruling ④: *the KERNEL gates whether
+`navigator__verify` is OFFERED AT ALL — no active step, no tool — and the MODEL decides whether to
+CALL it.* Gate 2B was to build it. **It stopped instead**, and this entry records why, because the
+premise that failed was mine and a future reader must meet the reason rather than re-derive it.
+
+**THE RULING IS REVERSED AS SPECIFIED. The verb is offered permanently; the catalogue is not varied
+per turn.** Item 3 is NOT cancelled — it MOVES to the persona surface, where the same property costs
+nothing.
+
+### WHAT THE MEASUREMENT FOUND, AND WHY IT DECIDES
+
+**THE CATALOGUE IS FIXED AT CONSTRUCTION.** `main.py:141` builds the agent with `tools=model_tools`;
+`claude_agent.py` sends `cacheable_tools(self._tools)` on every call and `luna_agent.py` additionally
+TRANSFORMS the list at construction (`to_vendor_catalogue`). Varying it per turn therefore requires
+one of two things, and neither is a line:
+
+- **a `CloudReasoner` PROTOCOL change** — a contract documented in AGENTS.md with TWO implementors,
+  whose per-call shape both vendors would have to honour; or
+- **mutation of a private field from the kernel**, which is the same coupling with the argument
+  removed.
+
+**AND `tools` IS THE FIRST ELEMENT OF THE CACHED PREFIX.** `cache_control.py` records the measured
+premise the caching design rests on: *"the persona and the tool catalog are byte-identical across
+every pass of every turn, which is exactly the cacheable shape. Measured on one pass: 10,828 input
+tokens of which 10,785 (99.6%) is fixed overhead — the persona alone 61%."* Because the tools come
+FIRST, changing them invalidates the persona behind them. At `CACHE_READ_MULTIPLIER = 0.10` against
+`CACHE_WRITE_5M_MULTIPLIER = 1.25`, a prefix switch costs **≈12.4k token-equivalents** (10,785 ×
+1.15). The cost is BOUNDED — the gate flips only at walkthrough boundaries, roughly two writes per
+walkthrough, not per turn — and it is real.
+
+### THE FOUR GROUNDS FOR THE REVERSAL (Sultan)
+
+**① THE COST EXCEEDS THE BENEFIT.** A signed contract with two implementors and a measured cache
+premise, weighed against an occasional wasted pass inside a cap of 4.
+
+**② THE MODEL ALREADY DECIDES — the half of ruling ③ that survives.** The kernel was never going to
+judge whether *this* utterance is a step attempt; that was always the model's. Withholding the tool
+would have removed a choice the model was making correctly.
+
+**③ THE EFFECT GATE BUILT AT GATE 2B ALREADY FAILS SAFE.** A `navigator__verify` with no active step
+is answered with a note that claims nothing and names the verb that would apply. Nothing can be
+advanced by a verb that has no step to advance.
+
+**④ THE SECOND READING IS THE CORRECT MECHANISM.** *"Offered"* as **NAMED IN THE DIRECTIVE LINE**
+costs nothing at all: the directive lives in the per-turn USER message, not in the cached prefix, and
+`turn_prelude.py:147-153` already builds it from the plan and current step it has already read. It is
+TELLING rather than GATING — and telling is what ruling ④ actually needed.
+
+**THE ECONOMIC ARGUMENT IS NOW A TEST, not a memory.** `navigator__verify`'s name must NOT appear in
+the composed persona: the relocation's whole justification fails loudly the day an edit puts it into
+the cached prefix.
+
+### THE STANDING LESSON, AND IT IS NOT ABOUT THIS FIELD
+
+**A RULING'S MECHANISM IS A CLAIM, AND A CLAIM CAN BE MEASURED.** DEC-108's gate was ruled from a
+trace that measured the LIFECYCLE and never measured the CATALOGUE's construction — so "gate the
+offer" read as a small kernel edit and was in fact a cross-vendor contract change. The trace was
+right about everything it looked at; the ruling reached one step past it. **The instruction that
+caught this is the standing one — on ANY ambiguity, STOP and log — applied to a mechanism rather than
+to a wording**, and the gate that stopped delivered items 1 and 2 in full rather than stalling on
+the third.
+
+### WHAT GATE 2C BUILT ON TOP OF THE REVERSAL
+
+**THE FOUR-STATE MACHINE (DEC-106), and a proven step now ADVANCES BY ITSELF.** `AWAITING` ·
+`VERIFYING` · `ADVANCED` · `FALLBACK`, six transitions, every one triggered by a cycle boundary or by
+a verification and NONE by a timer.
+
+- **The transitions are PURE FUNCTIONS in `step_verification.py`, and the machine still applies
+  nothing** (DEC-108 ruling ①). A guard asserts its public surface holds no applier.
+- **INVARIANT ① TRAVELS IN THE SIGNATURE.** `after_verification` takes the RECORD, never a bare
+  outcome string, so `ADVANCED` cannot be asked for without holding a verification that carries its
+  evidence — Gate 2A's unrepresentability CARRIED rather than re-checked.
+- **INVARIANT ④ IS STRUCTURAL:** the state lives on `ModeFrame`, so `leave()` empties the one slot
+  and the machine goes with it, having no home of its own.
+- **INVARIANT ⑤ HAS ONE ENFORCEMENT POINT, NOT TWO.** `FALLBACK`'s only exit is a committed step
+  change, so the reset RIDES ON `record_progress` — where transitions 3 (advanced → next step) and 6
+  (the user declares completion) both already arrive. One reset, one home, neither forgettable
+  separately.
+- **INVARIANT ② IS AN ABSENCE OF INPUTS:** the functions see a state string and a two-field record,
+  so confidence, the absence of a disqualifier and the disappearance of a precondition are
+  UNREADABLE rather than unread. All three are MEASURED failure modes (DEC-99, DEC-105, DEC-106).
+- **THE STAMP IS NOT A TRANSITION** — `record_activity`'s argument, one field on. The ADVANCE goes
+  through the authority like every other one, which is why a proven LAST step is refused at the
+  plan's edge and receives the AUTHORITY's own note. **`mode_transition.py` cost ZERO lines.**
+
+**BOTH DEC-106 UX RULINGS SHIPPED INSIDE THE NOTES.** The step explanation is **not repeated** after
+`NOT_PROVEN` — a repeat reads as *"you did it wrong"* when the honest state is *"I have not seen it
+yet"* — and the **FALLBACK SPEAKS**, separating a limit in Mut'his's viewpoint from a failure by the
+user. It never quotes `expected_result`: the kernel never reads it, so the note cannot leak what the
+kernel does not hold.
+
+### THREE MECHANICAL EXTRACTIONS, EACH TAKEN BEFORE THE WORK THAT NEEDED IT
+
+The ≤300-line law was met three times in one gate, and every time the arrival became an extraction
+rather than a breach:
+
+| file | before → after | what the pin met |
+|---|---|---|
+| `kernel/deferral_notes.py` | 283 → **207** | pinned one commit earlier; Gate 2C's notes were the next arrival, and the verification family left for `kernel/verification_notes.py` |
+| `kernel/session_mode.py` | 309 (measured) → **287** | `ModeFrame` left for `kernel/mode_frame.py` — the value/slot seam `router_registry.py` already took |
+| `persona_laws.py` | 285 → **244** | the navigator's AUTHORING laws left for `persona_laws_navigator.py`, composed prompt proven BYTE-IDENTICAL by hash |
+
+**AND ONE GUARD WAS RAISED RATHER THAN LOWERED WHERE IT COULD NOT FOLLOW.** Two scans over the
+primitives — *no method reads step text*, *calls nothing it does not define* — have POSITIVE CONTROLS
+requiring a module with substance, and a bare frozen record has none. Lowering a control so a record
+can pass it is weakening a guard to make progress. `mode_frame.py` is held to a STRONGER claim
+instead: **it defines NO FUNCTION AT ALL**, which makes reading step text unrepresentable rather than
+merely unobserved — and the test says, in its own failure message, that a record which gains
+behaviour must rejoin the scans it was excused from.
+
+**A SECOND GUARD WAS STRENGTHENED FOR THE SAME REASON.** The directive line's length bound was a
+magic `MAX_STEP_TEXT_CHARS + 400` that had to be raised every time the frame grew — a guard that
+loosens on a schedule. It now asserts that two directives differing ONLY in step text differ by
+EXACTLY the step-text budget, so the frame may grow and the bounded-step-text property still fails
+the moment it stops holding.
+
+### FIRST-WINS: RECORDED AT GATE 2B, RULED AND SHIPPED HERE
+
+**THE PERSONA CARRIES IT; THE KERNEL MUST NOT.** An ordering rule between two verbs is a semantic
+judgement about turn shape, and `pass_servicing.py` is pinned as holding no ordering state at all.
+The authoring clause states three things: one navigator move per thinking step · **a PROOF advances
+the walkthrough BY ITSELF** (without which the model would spend its next pass asking for the advance
+it had already earned) · any other move — `back`, `jump`, `done` — goes in the next step. **The
+failure mode if the model ignores it is ONE WASTED PASS inside the cap of 4, not a defect** — which
+is exactly why guidance suffices here where a STRUCTURE was required for the evidence.
+
+### WHAT IS BUILT, AND WHAT IS NOT
+
+**BUILT:** the four-state machine and its wiring; the five verification notes with both UX rulings;
+the directive-line clause; the first-wins authoring clause; three extractions; `deferral_notes.py`
+pinned at 283 and then declared to 207 as the extraction moved it.
+
+**NOT BUILT, AND DELIBERATELY:** no per-turn catalogue filtering, no `CloudReasoner` protocol change,
+no confidence gate anywhere (declined three times now — DEC-99 at n=1, DEC-105 at 10/10 confidence
+99, and again here by invariant ②), and no measurement of the machine against a live provider. **The
+rates in DEC-100/105/106 were measured on a PROBE, not on this build**, and DEC-107's Limit 1 stands
+unchanged: the production fallback rate will exceed what those figures suggest, and it is still not
+bounded.
+
+---
