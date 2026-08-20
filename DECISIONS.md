@@ -13034,3 +13034,123 @@ unchanged: the production fallback rate will exceed what those figures suggest, 
 bounded.
 
 ---
+
+## DEC-110 (2026-08-20) — **THE JUDGEMENT LAW SHIPPED LAST, AND THE LIVE RUN IS A FIRST MEASUREMENT RATHER THAN A CONFIRMATION.** A rule that lives in the measuring instrument is not shipped by measuring with it; and production sends ONE frame where every number came from a PAIR — RULED (Sultan), the law BUILT and the limit DECLARED BEFORE the run
+
+Navigator v2 was structurally complete at Gate 2C and the live SOP was the next step. **It was
+stopped.** Two findings from the pre-run report block it, and both are recorded here BEFORE the run
+rather than after it, because each would otherwise be diagnosed backwards from a live symptom.
+
+### FINDING ① — THE RULE THAT PRODUCED EVERY NUMBER WAS NEVER SHIPPED
+
+**DEC-100's conservative instruction took T₁ from 43.3% to 100%**, with T₂ and T₃ unmoved and
+reasoning tokens falling 17 → 2. It was ruled load-bearing and every rate since — DEC-105's four
+shapes, DEC-106's 99/100 and 37/40 — was measured with it in force. **It lived in the probe's
+`INSTRUCTION` and nowhere else.** Measured against the composed persona at Gate 2C's close: **ZERO
+occurrences of any of its load-bearing ideas in 13,529 characters.**
+
+**HOW A LOAD-BEARING RULE GOES UNSHIPPED THROUGH THREE GATES, and it is not carelessness.** Each gate
+shipped a different half of the same subject and each was complete on its own terms:
+
+| gate | what it shipped | what it did not |
+|---|---|---|
+| DEC-107 Gate 1 | how to **WRITE** an expected result | how to judge one |
+| DEC-108 Gate 2C part 3 | **WHEN** to verify and when to move | how to judge one |
+| — | — | **how to JUDGE, which no gate owned** |
+
+**THE DURABLE LESSON, AND IT GENERALISES PAST THIS FIELD:**
+
+> **A RULE THAT LIVES IN THE MEASURING INSTRUMENT IS NOT SHIPPED BY MEASURING WITH IT.** DEC-100
+> recorded its instruction as an APPARATUS property — *"the probe was NOT edited; a wrapper rebound
+> `INSTRUCTION` at run time"* — which is exactly the discipline that made the measurement clean, and
+> exactly what kept the rule out of the product. **The cleanliness of the instrument and the
+> completeness of the build are two different questions, and answering the first well can hide the
+> second.**
+
+**THE ASYMMETRY THAT MAKES IT DANGEROUS:** a missing MACHINE fails loudly — nothing advances. A
+missing JUDGEMENT RULE fails as *wrong advances that look like model error*, and the measurement it
+would have been checked against was taken with the rule present. **A live false advance would have
+been read as a model failure when it was a shipping failure.**
+
+### WHAT SHIPPED — FOUR CLAUSES, IN THEIR MEASURED TERMS
+
+**① SETTLED AND COMMITTED.** The neutral reading is what failed T₁ seventeen times in thirty.
+**② A PREVIEW IS NOT A RESULT** — the clause that refuted a perceptual-ceiling argument ON THE SAME
+FRAME: neutral, *"the body visibly has rounded top edges"* ten times out of ten; this rule, *"the
+rounded geometry is only a live preview and the operation has not been confirmed"*, ten times out of
+ten. **The model could always SEE the dialog; the missing piece was the rule.**
+**③ AN OPEN PANEL AWAITING CONFIRMATION IS NOT SETTLED**, whatever the canvas shows behind it.
+**④ THE ABSENCE OF A VISIBLE DISQUALIFIER ESTABLISHES NOTHING** — DEC-105's boundary, and a clause
+rather than a flourish: Excel failed **10/10 at confidence 99** with the model applying ③ CORRECTLY.
+It looked for a disqualifier, found none, concluded settled. **The rule was STRUCTURALLY INCOMPLETE,
+not badly worded**, and ④ is what fills it.
+
+**② AND ④ ARE SEPARATELY REQUIRED, mutation-verified as such:** ② catches a result that IS drawn and
+is not committed; ④ catches a state that is NOT drawn at all. Neither implies the other, and a build
+carrying one fails the other's measured case.
+
+**IT DOES NOT MOVE DEC-105's BOUNDARY.** A step whose application never draws its unsettled state
+stays outside the automatic path; the honest outcome there is *not proven*, which ④ is precisely what
+produces.
+
+**A LIVE GUARD CAUGHT A COLLISION IN THE DRAFT AND IT WAS FIXED IN THE LAW, NEVER IN THE GUARD.** The
+natural phrasing of ④ reproduced the live-measured ack «شفت», pinned at `count == 1` by DEC-84's law;
+the natural Arabic for "command panel" carries a §3.2 delimiter word. Both were reworded, and a
+mutation re-introducing the ack turns that guard RED — so neither collision can return silently.
+**That is the third time this practice has caught its own author.**
+
+### FINDING ② — DECLARED AS A LIMIT, BEFORE THE RUN
+
+> **PRODUCTION SENDS THE MODEL **ONE** FRAME. EVERY NUMBER IN THIS SERIES CAME FROM A LABELLED
+> **PAIR**.**
+
+`orchestrator.py:231` strips images from history at turn end (`strip_images_from_history`, "Bug 3:
+drop stale frame"), so each turn carries the current screen and no before-frame. The probe showed a
+BEFORE and an AFTER, explicitly labelled, and asked what changed.
+
+**WHAT SHOULD SURVIVE AND WHAT MAY NOT, stated separately because they are different claims:**
+
+- **CATEGORY 3's cue is a ONE-FRAME judgement** — *"the location where the result would appear is not
+  in the frame"* — and it asks nothing of a before-image. It should survive.
+- **CATEGORY 1's rates may not.** A difference-detector has nothing to difference against, and
+  DEC-99's reversed-pair control was built precisely to separate a frame-reader from a
+  difference-detector. Under one frame the verification rests entirely on `expected_result` as the
+  reference, which is the shape DEC-107 designed for — **and has never been measured.**
+
+**SO: DEC-106's 92.5% and 99/100 DO NOT TRANSFER TO THIS BUILD BY ASSUMPTION. The live run is a FIRST
+MEASUREMENT, not a confirmation** — and its numbers must be recorded as new, never as a check against
+the probe's.
+
+**THE IMAGE-STRIPPING DOES NOT MOVE.** It is signed behaviour with its own reason (Bug 3: a stale
+frame reaching a later turn is a model reasoning about a screen that no longer exists), and **changing
+it so a measured rate transfers would be fitting the system to the measurement** — the inverse of
+every method ruling this project has made.
+
+### WHAT THE LIVE RUN MUST SETTLE
+
+Four questions, each with a failure named so it is recognised live rather than diagnosed afterwards:
+**which outcomes actually fire** (the monoculture, in either direction) · **whether FALLBACK reads as
+a limit rather than a failure** (silence · accusation · leaking the expected result · confessing the
+mechanism) · **whether first-wins holds across passes** (readable in the log, not by ear) · and
+**whether a walkthrough advances without «تم»** (the silent v1).
+
+**AND ONE FAILURE THAT CAN BE HEARD, WHICH IS THE ONE TO WATCH FOR: THE DOUBLE ADVANCE.** A proven
+verification advances the step by itself. If the model then also asks for `advance`, the step moves
+TWICE and the plan's edge refuses only at the last step — **the user is walked past a step they never
+performed, silently.** The kernel cannot prevent it: it has no way to know whether an advance request
+came from the model's judgement or from the verification it just received. **The persona clause is
+the only thing standing there**, which is the ruled trade — guidance where a structure was required —
+and the live run is where it comes due. **The signature is a step number moving 1 → 3 in one turn.**
+
+### WHAT REMAINS UNMEASURED AND UNBOUNDED
+
+**The QUALITY of the evidence field.** The kernel checks presence and non-emptiness and never reads
+it (DEC-66), so a model that writes a plausible sentence WITHOUT LOOKING receives an advance, and
+nothing in this build distinguishes that from one that looked. Live it appears as advances that are
+correct more often than they should be — **unfalsifiable by ear.** Settling it needs the probe
+apparatus pointed at production payloads, not a live session.
+
+**And the fallback rate.** DEC-107's Limit 1 stands unchanged: no fixture sampled a real user's plan,
+the production rate will exceed DEC-106's figures, and it is still not bounded.
+
+---

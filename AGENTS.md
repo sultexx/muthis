@@ -197,7 +197,12 @@ PTT hold → mic streaming capture (record while held, flush on release) →
   `navigator__plan` + `navigator__step` — catalog **v7**, eleven tools at that point, byte-pinned (**v6 until DEC-107 Gate 1
   revised `navigator__plan`; see the `plan.py` and `navigator_service.py` rows**). **Catalog v8 — a third verb,
   `navigator__verify` — is BUILT, BYTE-PINNED and MOUNTED (DEC-108 Gates 2A + 2B), so PRODUCTION now shows the
-  model TWELVE tools.** Its servicing arm landed at P4 one commit BEFORE the mount (DEC-39's ordering, made a
+  model TWELVE tools.** **DECLARED LIMIT BEFORE THE LIVE RUN (DEC-110): production sends the model ONE frame —
+  `orchestrator.py:231` strips images from history — while EVERY number in this series came from a labelled
+  PAIR. Category 3's cue is a one-frame judgement and should survive; category 1's rates may not, because a
+  difference-detector has nothing to difference against. **DEC-106's 92.5% and 99/100 DO NOT TRANSFER BY
+  ASSUMPTION — the live run is a FIRST MEASUREMENT, not a confirmation.** The image-stripping does NOT move:
+  changing it so a rate transfers would be fitting the system to the measurement.** Its servicing arm landed at P4 one commit BEFORE the mount (DEC-39's ordering, made a
   fact of the history); **it advances nothing — the four-state machine is Gate 2C's** (see the
   `step_verification.py` row). Mut'his walks the user
   through a task step by step: the KERNEL holds the plan, draws its own progress, and points at each step, and
