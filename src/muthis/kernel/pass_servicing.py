@@ -40,7 +40,11 @@ from typing import Any, Optional
 
 from ..cloud.protocol import ToolCall
 from .deferral_notes import NAV_VERIFY_TOOL
-from .verification_notes import verification_note
+from .mode_transition import ADVANCE, TransitionRequest
+from .step_verification import (
+    ADVANCED, after_advance, after_verification, verification_from,
+)
+from .verification_notes import VERIFY_NO_STEP_AR, verification_note
 from .navigator_service import service_navigator_call
 
 logger = logging.getLogger("muthis.orchestrator")
@@ -60,6 +64,39 @@ class PassServiced:
     read_results: tuple[tuple[ToolCall, str], ...] = ()
     run_result: Optional[tuple[ToolCall, str]] = None
     nav_result: Optional[tuple[ToolCall, str]] = None
+
+
+def _serviced_verification(call: ToolCall, prelude: Any) -> str:
+    """ONE `navigator__verify`, serviced: the outcome, the transition DEC-106's
+    machine makes of it, and the note that reports what actually happened.
+
+    THE ADVANCE GOES THROUGH THE AUTHORITY LIKE EVERY OTHER ONE. This function
+    decides nothing about whether the step MAY move — it hands `ADVANCE` to the
+    single evaluation point and reports what came back, exactly as
+    `navigator_service.py` does for the model's own `advance`. A proven LAST
+    step is refused at the bound and gets the authority's own note; the
+    verification does not become a special path around it.
+
+    AND `ADVANCED` IS NEVER RESTED IN. On a successful advance the reset rides
+    on `record_progress` (one home, both step-changing transitions); on a
+    refused one the state is put back to `after_advance()` here, so no frame
+    ever holds an edge.
+
+    Never raises: the payload is model-authored and arrives already narrowed."""
+    mode = prelude.session_mode
+    if mode.current_step <= 0:            # 0 with no plan AND with no mode
+        return VERIFY_NO_STEP_AR
+    verification = verification_from(call.args)
+    state = after_verification(mode.verification, verification)
+    if state != ADVANCED:
+        mode.record_verification(state)
+        return verification_note(verification, state=state, advanced=False)
+    outcome = prelude.authority.request(TransitionRequest(kind=ADVANCE))
+    if not outcome.applied:
+        mode.record_verification(after_advance())
+        return outcome.note_ar or verification_note(
+            verification, state=after_advance(), advanced=False)
+    return verification_note(verification, state=after_advance(), advanced=True)
 
 
 async def service_pass_calls(
@@ -124,11 +161,10 @@ async def service_pass_calls(
     # and no new state.
     nav_result: Optional[tuple[ToolCall, str]] = None
     if nav is not None and prelude is not None:
-        mode = prelude.session_mode
-        note = (verification_note(nav.args, has_active_step=mode.current_step > 0)
+        note = (_serviced_verification(nav, prelude)
                 if nav.name == NAV_VERIFY_TOOL
                 else service_navigator_call(nav, authority=prelude.authority,
-                                            mode=mode))
+                                            mode=prelude.session_mode))
         nav_result = (nav, note)
     return PassServiced(read_results=tuple(read_results),
                         run_result=run_result, nav_result=nav_result)

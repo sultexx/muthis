@@ -141,6 +141,98 @@ class StepVerification:
         return self.claimed
 
 
+# ─── The FOUR STATES and the SIX TRANSITIONS (DEC-106, built at Gate 2C) ─────
+#
+# THE STATES ARE STATES AND THE OUTCOMES LABEL EDGES — DEC-106 wrote the machine
+# out as transitions rather than as an arrow line for exactly this reason, and
+# the two vocabularies are kept apart here: `OUTCOMES` above are what the MODEL
+# represents, `STATES` below are where the KERNEL is.
+#
+# EVERY TRANSITION IS A PURE FUNCTION OF ITS INPUTS, and that is invariant ③
+# made structural rather than promised: there is no clock in this module, no
+# import that could reach one, and nothing here can be triggered by the passage
+# of time. A transition happens because a CYCLE BOUNDARY arrived or because a
+# verification arrived — never because a timer fired (Law 11, the chain DEC-47
+# and DEC-65 already ran).
+#
+# AND NO TRANSITION READS CONFIDENCE, THE ABSENCE OF A DISQUALIFIER, OR THE
+# DISAPPEARANCE OF A PRECONDITION — invariant ②, and all three are MEASURED
+# failure modes rather than hypotheticals (DEC-99's single false advance,
+# DEC-105's Excel case at confidence 99, DEC-106's own reasoning). The functions
+# below take a state and a `StepVerification`, and that record carries exactly
+# two fields; there is nothing else here to read.
+AWAITING = "AWAITING"
+VERIFYING = "VERIFYING"
+ADVANCED = "ADVANCED"
+FALLBACK = "FALLBACK"
+
+STATES = (AWAITING, VERIFYING, ADVANCED, FALLBACK)
+
+# Where a mode starts, and where every committed step change returns it.
+INITIAL_STATE = AWAITING
+
+
+def at_cycle_boundary(state: str) -> str:
+    """TRANSITION 1 — F9 opens a verification cycle for the current step.
+
+    `AWAITING` → `VERIFYING`, and `VERIFYING` stays (a cycle that opened and
+    received nothing simply opens again — the model is not obliged to verify on
+    every turn, and a side question must cost nothing).
+
+    **`FALLBACK` STAYS `FALLBACK`, which is invariant ⑤ enforced at the ONE
+    place it could be broken.** Its single exit is the user declaring the step
+    complete, and that exit is a committed step CHANGE — never a new cycle on
+    the same step. A boundary that re-opened verification here would put the
+    user back inside a question the kernel has already declared it cannot
+    answer from this viewpoint.
+
+    Anything else — including `ADVANCED`, which is an EDGE the kernel passes
+    through and never rests in — settles to `AWAITING`: no cycle is open, so a
+    verification arriving cannot advance anything."""
+    if state == FALLBACK:
+        return FALLBACK
+    if state in (AWAITING, VERIFYING):
+        return VERIFYING
+    return AWAITING
+
+
+def after_verification(state: str, verification: StepVerification) -> str:
+    """TRANSITIONS 2, 4 and 5 — the outcome the model represented, applied.
+
+    **IT TAKES THE RECORD, NEVER A BARE OUTCOME STRING, AND THAT IS INVARIANT ①
+    CARRIED RATHER THAN RE-CHECKED.** `RESULT_PROVEN` is unrepresentable without
+    evidence (Gate 2A), so a caller cannot ask this function for `ADVANCED`
+    without holding a record that carries the evidence — there is no signature
+    here through which an evidence-free advance could even be requested.
+
+    **`ADVANCED` IS REACHABLE ONLY FROM `VERIFYING`.** A verification that
+    arrives with no cycle open — a plan started in the same turn, so the
+    boundary ran before the mode existed — changes nothing and advances nothing.
+    `FALLBACK` is unchanged for the same reason it is unchanged at a boundary."""
+    if state != VERIFYING:
+        return FALLBACK if state == FALLBACK else AWAITING
+    if verification.outcome == RESULT_PROVEN:
+        return ADVANCED
+    if verification.outcome == RESULT_UNOBSERVABLE:
+        return FALLBACK
+    return AWAITING
+
+
+def after_advance() -> str:
+    """TRANSITION 3 — `ADVANCED` → `AWAITING`, on the NEXT step.
+
+    It takes no trigger because DEC-106 gives it none: the kernel passes through
+    `ADVANCED` and rests in `AWAITING`, so the state stored on a frame is never
+    `ADVANCED`. Written as a function rather than left implicit so the
+    transition table is complete in code and a test can walk all six.
+
+    TRANSITION 6 — `FALLBACK` → `AWAITING` when the user declares completion —
+    lands at the SAME place by the same route: it is a committed step change,
+    and `SessionMode.record_progress` resets the state for every one of them.
+    One reset, one home, and neither transition can be forgotten separately."""
+    return AWAITING
+
+
 def verification_from(args: Any) -> StepVerification:
     """ONE `navigator__verify` payload, narrowed. Never raises.
 
@@ -157,8 +249,17 @@ def verification_from(args: Any) -> StepVerification:
 
 
 __all__ = [
+    "ADVANCED",
+    "AWAITING",
     "EVIDENCE_ARG",
+    "FALLBACK",
     "FAIL_CLOSED_OUTCOME",
+    "INITIAL_STATE",
+    "STATES",
+    "VERIFYING",
+    "after_advance",
+    "after_verification",
+    "at_cycle_boundary",
     "MAX_CLAIM_CHARS",
     "MAX_EVIDENCE_CHARS",
     "OUTCOMES",

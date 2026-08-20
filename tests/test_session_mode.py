@@ -144,7 +144,11 @@ def test_step_and_total_are_DERIVED_from_the_plan_not_stored_beside_it():
         "name", "plan", "last_progress_at",
         # DEC-104 ruling 2's second clock. The assertion's POINT is unchanged:
         # no step/total field may be stored beside the plan.
-        "last_activity_at"}, "a step/total field was stored"
+        "last_activity_at",
+        # DECLARED, DEC-108 Gate 2C: DEC-106's verification state. A fact
+        # about the CURRENT step's cycle, not a copy of the step NUMBER — the
+        # assertion's point is unchanged, and `current_step` is still derived.
+        "verification"}, "a step/total field was stored"
 
 
 def test_a_mode_may_run_without_a_plan():
@@ -326,9 +330,14 @@ def test_the_module_holds_no_expiry_decision_and_no_timer():
     # `mode_frame` is the DECLARED addition (DEC-108 Gate 2C): the slot now
     # imports the record it holds. The allow-list is EXTENDED by declaration,
     # which is exactly what an exact-equality guard exists to force.
+    # `step_verification` is the SECOND declared addition (DEC-108 Gate 2C):
+    # both files import ONE CONSTANT from it — the state a mode starts in —
+    # and that module is stdlib-only, so no reach is added. The allow-list is
+    # EXTENDED by declaration, which is what an exact-equality guard forces.
     (MODE_PY, {"__future__", "dataclasses", "time", "typing", "plan",
-               "mode_frame"}),
-    (MODE_FRAME_PY, {"__future__", "dataclasses", "typing", "plan"}),
+               "mode_frame", "step_verification"}),
+    (MODE_FRAME_PY, {"__future__", "dataclasses", "typing", "plan",
+                     "step_verification"}),
     (PLAN_PY, {"__future__", "dataclasses", "typing"}),
 ])
 def test_the_primitives_import_nothing_that_could_persist_log_or_grant(path, expected):
@@ -454,7 +463,13 @@ def test_the_public_surface_is_pinned():
                        # DECLARED, DEC-104 ruling 2: the liveness stamp. It is
                        # the second CLOCK, not a second transition — see the
                        # guard below that proves it cannot enter, leave or move.
-                       "record_activity"}, f"surface changed: {sorted(surface)}"
+                       "record_activity",
+                       # DECLARED, DEC-108 Gate 2C: the verification READ
+                       # surface and its STAMP. Not a third transition — the
+                       # guard below proves the stamp cannot enter, leave or
+                       # move a step, exactly as `record_activity` is proven.
+                       "verification", "record_verification",
+                       }, f"surface changed: {sorted(surface)}"
 
 
 def test_the_frame_is_read_only_from_outside_and_frozen_within():

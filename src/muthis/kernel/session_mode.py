@@ -94,6 +94,9 @@ from typing import Callable, Optional
 
 from .mode_frame import ModeFrame
 from .plan import Plan
+# DEC-106's initial verification state — a CONSTANT, not a capability, and
+# the allow-list is EXTENDED by declaration rather than relaxed.
+from .step_verification import INITIAL_STATE
 
 
 def _ignore_change(mode: "SessionMode") -> None:
@@ -161,6 +164,12 @@ class SessionMode:
         plan = self.plan
         return 0 if plan is None else plan.total
 
+    @property
+    def verification(self) -> str:
+        """Where the kernel is in DEC-106's machine, or the initial state when
+        no mode is active — a READ surface, like every other property here."""
+        return INITIAL_STATE if self._frame is None else self._frame.verification
+
     def idle_seconds(self) -> float:
         """Seconds since the USER was last here; 0.0 when inactive.
 
@@ -219,10 +228,17 @@ class SessionMode:
         survives it untouched — by design, not by patch."""
         if self._frame is None:
             return
+        # THE VERIFICATION STATE RESETS ON EXACTLY THIS EVENT, and riding on the
+        # existing stamp is the point: DEC-106's transition 3 (advanced → the next
+        # step) and transition 6 (the user declares a fallback step complete) are
+        # BOTH committed step changes, so ONE reset in ONE place serves both and
+        # neither can be forgotten separately. It is also what keeps invariant ⑤
+        # true — `FALLBACK` leaves only when the STEP does.
         self._frame = dataclasses.replace(
             self._frame,
             plan=self._frame.plan if plan is None else plan,
-            last_progress_at=self._clock())
+            last_progress_at=self._clock(),
+            verification=INITIAL_STATE)
         self._on_change(self)
 
     def record_activity(self) -> None:
@@ -247,6 +263,25 @@ class SessionMode:
             return
         self._frame = dataclasses.replace(
             self._frame, last_activity_at=self._clock())
+
+    def record_verification(self, state: str) -> None:
+        """STORE the verification state the machine computed (DEC-106).
+
+        DELIBERATELY NOT A TRANSITION — `record_activity`'s argument, one field
+        further on. The MODE does not change here, the PLAN does not change and
+        the STEP POINTER does not move: those are the authority's and stay
+        there. What changes is where the kernel stands in a question about the
+        CURRENT step, and there are no conditions, no bounds and no refusal note
+        in that to route past.
+
+        STRUCTURAL, not promised: a no-op when nothing is active, so it can never
+        create a mode; it touches ONE field and takes no plan, so it cannot move
+        a step; and the value it stores is computed by `step_verification`'s pure
+        functions and never decided here. This module keeps its own law — it
+        stores and never interprets."""
+        if self._frame is None:
+            return
+        self._frame = dataclasses.replace(self._frame, verification=state)
 
 
 __all__ = ["ModeFrame", "SessionMode"]

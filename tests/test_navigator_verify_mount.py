@@ -42,7 +42,7 @@ from muthis.kernel.deferral_notes import (
     NAV_ONE_PER_PASS_AR, NAV_PLAN_TOOL, NAV_STEP_TOOL, NAV_TOOLS,
     NAV_VERIFY_TOOL,
 )
-from muthis.kernel.verification_notes import VERIFY_READ_AR
+from muthis.kernel.verification_notes import VERIFY_ADVANCED_AR
 from muthis.kernel.navigator_service import service_navigator_call
 from muthis.kernel.step_verification import OUTCOMES, RESULT_PROVEN
 from muthis.kernel.highlight_gate import (
@@ -362,16 +362,18 @@ def test_a_verify_call_gets_NO_POINTER_ACK_no_gate_flip_and_no_violation(
     # (1) NOT the pointer ack — the draw branch never saw it.
     assert answer["content"] not in (HIGHLIGHT_ACK_TEXT_AR, SHAPES_ACK_TEXT_AR)
     # (2) answered BY NAME with the SERVICED verification note — not merely
-    #     non-empty: the P4 arm, reached through the real orchestrator.
+    #     non-empty: the P4 arm, reached through the real orchestrator, and
+    #     at Gate 2C that note reports a CONSEQUENCE rather than a reading.
     assert answer["type"] == "tool_result"
-    assert answer["content"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN)
+    assert answer["content"] == VERIFY_ADVANCED_AR
     # (3) the draw gate never flipped, so the loop was never terminated.
     assert orchestrator._highlight_gate.drawn is False
     assert loop_tool_choice(orchestrator._highlight_gate) == "auto"
     # (4) no LOOK-only violation was logged.
     assert "LOOK-only violation" not in caplog.text
-    # And Gate 2B's own limit: the strongest outcome moved no step.
-    assert mode.current_step == 1
+    # And Gate 2C's consequence, through the WHOLE turn: the proven step
+    # advanced, which is what the four negatives now protect.
+    assert mode.current_step == 2
 
 
 def test_the_call_site_landed_at_P4_and_NO_state_machine_came_with_it():
@@ -422,12 +424,14 @@ def test_verify_and_step_in_ONE_pass_leave_the_second_unserviced(tmp_path):
                for block in message["content"]
                if block.get("type") == "tool_result"}
 
-    assert answers["ver_1"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN), (
+    assert answers["ver_1"] == VERIFY_ADVANCED_AR, (
         "the FIRST navigator call of the pass is the one serviced")
     assert answers["stp_1"] == NAV_ONE_PER_PASS_AR, (
         "the second id must get the ordinary one-per-pass note — not a refusal "
         "invented for the verify verb")
-    assert mode.current_step == 1, "the unserviced advance moved the step anyway"
+    assert mode.current_step == 2, (
+        "the VERIFICATION advanced the step once; the unserviced `step` must not "
+        "have advanced it a second time")
 
 
 def test_verify_then_step_across_TWO_passes_are_BOTH_serviced(tmp_path):
@@ -450,9 +454,12 @@ def test_verify_then_step_across_TWO_passes_are_BOTH_serviced(tmp_path):
                for block in message["content"]
                if block.get("type") == "tool_result"}
 
-    assert answers["ver_1"] == VERIFY_READ_AR.format(outcome=RESULT_PROVEN)
+    assert answers["ver_1"] == VERIFY_ADVANCED_AR
     assert answers["stp_1"] != NAV_ONE_PER_PASS_AR, "the second pass was deferred"
-    assert mode.current_step == 2, "the ADVANCE is what moves the step, not the verify"
+    assert mode.current_step == 2, (
+        "the verification advanced to the LAST step and the model's own advance "
+        "was then refused at the plan's edge — both were serviced, which is what "
+        "this test is about")
 
 
 def test_the_kernel_holds_NO_ordering_rule_between_the_three_verbs():

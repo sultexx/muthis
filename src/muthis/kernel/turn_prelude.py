@@ -54,6 +54,7 @@ from .mode_transition import (
     EXIT_WORD, EXPIRE, ModeAuthority, TransitionRequest, is_idle_expired,
 )
 from .session_mode import SessionMode
+from .step_verification import at_cycle_boundary
 from .verbosity import VerbosityController
 
 
@@ -147,6 +148,17 @@ class TurnPrelude:
         frame = self._session_mode.frame
         if frame is not None:
             step = frame.plan.current_step if frame.plan is not None else None
+            # DEC-106 TRANSITION 1 — F9 opens the verification cycle for the
+            # current step, and this is THE cycle boundary: it runs before the
+            # capture, before any provider call, and AFTER both deterministic
+            # exits above, so a mode that just expired or was just exited is
+            # already gone. `frame` and `step` are read here anyway to build the
+            # directive line, so the condition costs no new computation. The
+            # function is pure and `FALLBACK` survives it untouched (invariant
+            # ⑤) — no timer, no observer, no signal but this one (Law 11).
+            if step is not None:
+                self._session_mode.record_verification(
+                    at_cycle_boundary(frame.verification))
             line = mode_directive_line(
                 frame.name, self._session_mode.current_step,
                 self._session_mode.total_steps, step.text if step else None)

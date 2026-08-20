@@ -31,35 +31,60 @@ would be invisible — the model would read a name the kernel no longer knows.
 
 from __future__ import annotations
 
-from typing import Any
-
 from .ack_scope import ACK_SCOPE_AR
-from .deferral_notes import NAV_PLAN_TOOL, NAV_STEP_TOOL
+from .deferral_notes import NAV_PLAN_TOOL
 from .step_verification import (
-    EVIDENCE_ARG, FAIL_CLOSED_OUTCOME, RESULT_PROVEN, verification_from,
+    EVIDENCE_ARG, FALLBACK, FAIL_CLOSED_OUTCOME, RESULT_PROVEN,
+    StepVerification,
 )
 
-# ─── DEC-108 Gate 2B: what a SERVICED `navigator__verify` is told ────────────
+# ─── FIVE NOTES, AND THE COUNT IS DEC-58's TEST APPLIED ─────────────────────
 #
-# THREE NOTES, AND THE COUNT IS THE ANSWER TO DEC-58-versus-DEC-70 RATHER THAN A
-# PREFERENCE. DEC-70's one-note ruling applies when the state achieved AND the
-# valid next move are identical; here neither is. A verification that was READ
-# leaves the walkthrough where it was and the next move is the ordinary one; a
-# PROVEN claim that carried no evidence was NOT licensed and the next move is to
-# verify again WITH the evidence; and a verify with no active step applies to
-# nothing at all and the next move is a different verb entirely. Three states,
-# three next moves, three notes — DEC-58's test, applied and shown.
+# DEC-70's one-note ruling applies when the state achieved AND the valid next
+# move are identical. Here there are five of each: the step ADVANCED · the step
+# HELD · the step fell back to the USER's word · a PROVEN claim arrived with no
+# evidence and was not licensed · and there was no active step to verify at all.
+# Five states, five next moves, five notes.
 #
-# NONE OF THEM REPORTS A CONSEQUENCE, because at Gate 2B there is none: the
-# outcome is derived and answered, and NOTHING advances, holds or falls back.
-# The state machine is Gate 2C's, and a note that promised its effects early
-# would be the "TRUE statement on a FALSE mechanism" this project has already
-# paid for once.
-VERIFY_READ_AR = (
-    "توجيه داخلي (لا يراه المستخدم): استلمت تحقّقك للخطوة الحالية وقرأته "
-    "«{outcome}»، وما تغيّر شي ولا صار خطأ. "
-    "التحقّق وحده لا يحرّك الخطوة — التقدّم يبقى عبر "
-    f"«{NAV_STEP_TOOL}» كالمعتاد. {ACK_SCOPE_AR}."
+# GATE 2C IS WHERE THEY GAINED CONSEQUENCES. At Gate 2B every outcome was read
+# and answered and NOTHING followed, and the notes said exactly that, because a
+# note that promised effects the machine did not yet have would be the "TRUE
+# statement on a FALSE mechanism" this project has already paid for once. The
+# machine exists now, so the notes report what it did — and the sentence that
+# said the verification moves nothing is GONE rather than left to age.
+VERIFY_ADVANCED_AR = (
+    "توجيه داخلي (لا يراه المستخدم): أثبتّ نتيجة الخطوة، فقدّمت المسار خطوةً "
+    "واحدة. اشرح الخطوة الجديدة كما هي عندي الآن، ولا تعيد شرح الخطوة السابقة "
+    "ولا تعلن رقماً لم أعطك إياه. "
+    f"{ACK_SCOPE_AR}."
+)
+
+# NOT PROVEN, and the UX ruling is inside the note: **the step explanation is
+# NOT repeated.** DEC-106 ruled it, and the reason is that a repeat reads as
+# "you did it wrong" when the honest state is "I have not seen it yet". The step
+# stays active and the NEXT F9 attempts again — no timer, no nudge, no retry
+# loop of our own making.
+VERIFY_HOLDING_AR = (
+    "توجيه داخلي (لا يراه المستخدم): ما ظهرت النتيجة بعد، فالخطوة باقية كما "
+    "هي وما صار خطأ. **لا تعيد شرح الخطوة** ولا تسأل المستخدم هل أنهاها — "
+    "أكمل إجابتك عادي، وسأعيد المحاولة في الدورة القادمة. "
+    f"{ACK_SCOPE_AR}."
+)
+
+# UNOBSERVABLE — and this is the ONE note that asks the model to SPEAK, because
+# DEC-106 ruled that the fallback is announced rather than silent. It carries
+# the distinction the ruling is built on: **"I cannot verify this from this
+# screen" is about MUT'HIS, and "your action failed" is about the USER** — a
+# capability boundary reported as a user error is the failure this wording
+# exists to prevent. It never quotes the expected result: that text is internal
+# to the plan contract, the kernel never reads it (DEC-66), and a note cannot
+# leak what the kernel never holds.
+VERIFY_FALLBACK_AR = (
+    "توجيه داخلي (لا يراه المستخدم): ما أقدر أتحقّق من هذه الخطوة من الشاشة "
+    "الحالية — هذا حدّ في رؤيتي أنا، وليس معناه أن ما فعله المستخدم فشل. "
+    "قل له ذلك بوضوح وبهذا الفرق، واطلب منه أن يخبرك حين ينتهي من الخطوة، "
+    "ثم تابع عادي. لا تذكر النتيجة المتوقّعة نصّاً. "
+    f"{ACK_SCOPE_AR}."
 )
 
 # The FAIL-CLOSED downgrade, said OUT LOUD. `RESULT_PROVEN` with no evidence is
@@ -83,34 +108,39 @@ VERIFY_NO_STEP_AR = (
 )
 
 
-def verification_note(args: Any, *, has_active_step: bool) -> str:
-    """WHICH note a SERVICED `navigator__verify` receives (DEC-108 Gate 2B, P4).
+def verification_note(verification: StepVerification, *, state: str,
+                      advanced: bool) -> str:
+    """WHICH note a SERVICED `navigator__verify` receives (DEC-108 Gate 2C, P4).
 
     `doc_deferral_note`'s shape at the same seam: the kernel already holds every
     fact this needs, so reporting it costs nothing and withholding it costs a
     retry that repeats the same mistake.
 
-    THE KERNEL VALIDATES REPRESENTATION, NOT TRUTH. The outcome is derived by
+    IT REPORTS WHAT HAPPENED, NEVER WHAT WAS ASKED FOR. `advanced` is what the
+    AUTHORITY did, not what the outcome wanted — a proven last step is refused
+    at the bound like any other advance, and its note is the authority's own.
+    So the arm passes in the applied result and this function never guesses it.
+
+    THE KERNEL VALIDATES REPRESENTATION, NOT TRUTH. The outcome was derived by
     `step_verification` from membership and presence alone; nothing here reads
     the expected result, parses the evidence or judges whether what the model
     described is what the screen showed. The one comparison made is
     STRUCTURAL — did the claim survive the derivation — and it exists so the
-    downgrade is spoken rather than silent.
-
-    Fails SAFE in both directions: no active step claims nothing, and an
-    unparseable payload arrives here already narrowed to the fail-closed
-    outcome."""
-    if not has_active_step:
-        return VERIFY_NO_STEP_AR
-    verification = verification_from(args)
+    fail-closed downgrade is spoken rather than silent."""
     if verification.claimed == RESULT_PROVEN and verification.outcome != RESULT_PROVEN:
         return VERIFY_NO_EVIDENCE_AR
-    return VERIFY_READ_AR.format(outcome=verification.outcome)
+    if advanced:
+        return VERIFY_ADVANCED_AR
+    if state == FALLBACK:
+        return VERIFY_FALLBACK_AR
+    return VERIFY_HOLDING_AR
 
 
 __all__ = [
+    "VERIFY_ADVANCED_AR",
+    "VERIFY_FALLBACK_AR",
+    "VERIFY_HOLDING_AR",
     "VERIFY_NO_EVIDENCE_AR",
     "VERIFY_NO_STEP_AR",
-    "VERIFY_READ_AR",
     "verification_note",
 ]

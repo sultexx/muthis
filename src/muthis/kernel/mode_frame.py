@@ -33,6 +33,10 @@ import dataclasses
 from typing import Optional
 
 from .plan import Plan
+# ONE name, and it is a CONSTANT rather than a capability: the verification
+# state a mode starts in and returns to. `step_verification` imports nothing but
+# the stdlib, so this record still cannot persist, log, grant or interpret.
+from .step_verification import INITIAL_STATE
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,6 +53,10 @@ class ModeFrame:
     # because neither answer can be recovered from the other one.
     last_progress_at: float = 0.0   # did the STEP move
     last_activity_at: float = 0.0   # is the USER still here
+    # DEC-106's verification state, held HERE so invariant ④ — the machine dies
+    # with its mode — is STRUCTURAL rather than a rule anyone keeps: `leave()`
+    # empties the one slot and this goes with it, having no home of its own.
+    verification: str = INITIAL_STATE
 
 
 __all__ = ["ModeFrame"]

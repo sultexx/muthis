@@ -25,14 +25,18 @@ from __future__ import annotations
 
 import ast
 import dataclasses
+import inspect
 import pathlib
 
 import pytest
 
 from muthis.kernel.step_verification import (
-    EVIDENCE_ARG, FAIL_CLOSED_OUTCOME, MAX_CLAIM_CHARS, MAX_EVIDENCE_CHARS,
-    OUTCOME_ARG, OUTCOMES, RESULT_NOT_PROVEN_OBSERVABLE, RESULT_PROVEN,
-    RESULT_UNOBSERVABLE, StepVerification, verification_from,
+    ADVANCED, AWAITING, EVIDENCE_ARG, FALLBACK, FAIL_CLOSED_OUTCOME,
+    INITIAL_STATE, MAX_CLAIM_CHARS, MAX_EVIDENCE_CHARS, OUTCOME_ARG,
+    OUTCOMES, RESULT_NOT_PROVEN_OBSERVABLE, RESULT_PROVEN,
+    RESULT_UNOBSERVABLE, STATES, StepVerification, VERIFYING,
+    after_advance, after_verification, at_cycle_boundary,
+    verification_from,
 )
 
 MODULE_PY = (pathlib.Path(__file__).resolve().parent.parent / "src" / "muthis"
@@ -334,11 +338,119 @@ def test_the_public_surface_is_pinned():
     import muthis.kernel.step_verification as module
 
     assert set(module.__all__) == {
-        "EVIDENCE_ARG", "FAIL_CLOSED_OUTCOME", "MAX_CLAIM_CHARS",
+        "ADVANCED", "AWAITING", "EVIDENCE_ARG", "FALLBACK",
+        "FAIL_CLOSED_OUTCOME", "INITIAL_STATE", "MAX_CLAIM_CHARS",
         "MAX_EVIDENCE_CHARS", "OUTCOMES", "OUTCOME_ARG",
         "RESULT_NOT_PROVEN_OBSERVABLE", "RESULT_PROVEN", "RESULT_UNOBSERVABLE",
-        "StepVerification", "verification_from",
+        "STATES", "VERIFYING", "StepVerification", "after_advance",
+        "after_verification", "at_cycle_boundary", "verification_from",
     }
-    for state_word in ("AWAITING", "VERIFYING", "ADVANCED", "FALLBACK"):
-        assert state_word not in module.__all__, (
-            "a STATE appeared in Gate 2A — the state machine is Gate 2B's")
+    # THE FOUR STATES ARRIVED AT GATE 2C AND THE SURFACE SAYS SO. What must
+    # still be absent is anything that APPLIES a transition: this module
+    # computes the next state and grants itself no authority to store it, move
+    # a step or touch a mode (DEC-108 ruling ①).
+    for applier in ("apply", "advance_step", "record", "store", "transition",
+                    "authority", "mode", "commit"):
+        assert applier not in module.__all__, (
+            f"the machine grew a way to APPLY its own transition: {applier}")
+# ─── 3. THE FOUR-STATE MACHINE (DEC-106), as a COMPLETE transition table ────
+
+def test_the_four_states_are_DEC_106s_and_the_enumeration_is_closed():
+    assert STATES == ("AWAITING", "VERIFYING", "ADVANCED", "FALLBACK")
+    assert INITIAL_STATE == AWAITING and len(set(STATES)) == 4
+
+
+def test_TRANSITION_1_a_cycle_boundary_opens_verification_for_the_current_step():
+    """F9, and nothing else. `VERIFYING` stays `VERIFYING` because the model is
+    not obliged to verify on every turn — a side question must cost nothing."""
+    assert at_cycle_boundary(AWAITING) == VERIFYING
+    assert at_cycle_boundary(VERIFYING) == VERIFYING
+
+
+def test_TRANSITION_2_PROVEN_from_VERIFYING_reaches_ADVANCED():
+    proven = StepVerification(claimed=RESULT_PROVEN, evidence="الملف ظاهر")
+
+    assert after_verification(VERIFYING, proven) == ADVANCED
+
+
+def test_TRANSITION_3_and_6_land_on_AWAITING_by_the_same_route():
+    """`ADVANCED` → `AWAITING` on the next step, and `FALLBACK` → `AWAITING`
+    when the user declares completion. Both are committed step changes, and
+    `after_advance()` is the one value both produce."""
+    assert after_advance() == AWAITING == INITIAL_STATE
+
+
+def test_TRANSITION_4_NOT_PROVEN_returns_to_AWAITING_on_the_SAME_step():
+    holding = StepVerification(claimed=RESULT_NOT_PROVEN_OBSERVABLE, evidence="")
+
+    assert after_verification(VERIFYING, holding) == AWAITING
+
+
+def test_TRANSITION_5_UNOBSERVABLE_falls_back():
+    unobservable = StepVerification(claimed=RESULT_UNOBSERVABLE, evidence="")
+
+    assert after_verification(VERIFYING, unobservable) == FALLBACK
+
+
+def test_INVARIANT_1_ADVANCED_is_reachable_ONLY_from_VERIFYING():
+    """And the signature is what makes it structural: the function takes the
+    RECORD, so there is no way to ask for `ADVANCED` without holding a
+    verification that carries its evidence."""
+    proven = StepVerification(claimed=RESULT_PROVEN, evidence="الملف ظاهر")
+    hollow = StepVerification(claimed=RESULT_PROVEN, evidence="")
+
+    for state in (AWAITING, ADVANCED, FALLBACK, "GARBAGE"):
+        assert after_verification(state, proven) != ADVANCED, state
+    assert after_verification(VERIFYING, hollow) != ADVANCED
+    parameter = inspect.signature(after_verification).parameters["verification"]
+    assert parameter.annotation == "StepVerification", (
+        f"the machine now takes {parameter.annotation!r} — a bare outcome "
+        "string would let a caller ask for ADVANCED without holding the "
+        "evidence, which is invariant ① lost at the signature")
+
+
+def test_INVARIANT_5_FALLBACK_survives_every_input_the_machine_accepts():
+    """One exit, and it is not here: no boundary and no outcome moves it. The
+    only way out is a committed step change, which resets the frame's field."""
+    for verification in (StepVerification(claimed=RESULT_PROVEN, evidence="x"),
+                         StepVerification(claimed=RESULT_UNOBSERVABLE, evidence=""),
+                         StepVerification(claimed="", evidence="")):
+        assert after_verification(FALLBACK, verification) == FALLBACK
+    assert at_cycle_boundary(FALLBACK) == FALLBACK
+
+
+def test_the_machine_is_TOTAL_over_every_state_and_every_outcome():
+    """No pair falls through. A state the machine did not expect settles to
+    `AWAITING` — non-advancing and recoverable — never to `ADVANCED`."""
+    verifications = [StepVerification(claimed=claimed, evidence=evidence)
+                     for claimed in (*OUTCOMES, "", "GARBAGE")
+                     for evidence in ("الملف ظاهر", "")]
+    for state in (*STATES, "", "GARBAGE", "verifying"):
+        assert at_cycle_boundary(state) in STATES
+        for verification in verifications:
+            result = after_verification(state, verification)
+            assert result in STATES
+            if state != VERIFYING:
+                assert result != ADVANCED
+
+
+def test_INVARIANT_3_the_machine_has_NO_CLOCK_and_no_means_to_get_one():
+    """Every transition fires on a CYCLE BOUNDARY or on a verification, never on
+    elapsed time (Law 11; the chain DEC-47 and DEC-65 already ran). Structural:
+    there is no time import and no name for one."""
+    assert not (_imports() & {"time", "datetime", "asyncio", "threading", "sched"})
+    for clock_word in ("monotonic", "sleep", "timeout", "deadline", "elapsed",
+                       "now", "timer", "expire", "expired"):
+        assert clock_word not in _names(), f"the machine gained a clock: {clock_word}"
+
+
+def test_INVARIANT_2_no_transition_can_read_confidence_or_a_disqualifier():
+    """All three forbidden inputs are MEASURED failure modes. The machine cannot
+    read them because it is never handed them — its inputs are a state string
+    and a two-field record — and it names none of them either."""
+    for forbidden in ("confidence", "certainty", "score", "threshold",
+                      "disqualifier", "precondition", "disappeared", "absent"):
+        assert forbidden not in _names(), (
+            f"the machine names a forbidden signal: {forbidden}")
+    assert {field.name for field in dataclasses.fields(StepVerification)} == {
+        "claimed", "evidence"}
