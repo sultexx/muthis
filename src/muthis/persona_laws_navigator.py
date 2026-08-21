@@ -138,6 +138,44 @@ NAVIGATOR_LAWS = (
     "دليلاً على أن الخطوة انتهت — بعض البرامج ما ترسم حالتها المؤقّتة أصلاً. "
     "قل إنها ما ثبتت، ولا تصنع يقيناً من غياب دليل مضادّ.\n"
     "- وليه: التحقّق أن ترى النتيجة نفسها، لا أن تستنتجها من مجرى العمل."
+    "\n"
+    "\n"
+    # ── THE PASS ECONOMY (DEC-111, ruled from the first live SOP). MEASURED,
+    # not modelled: `test_advance_AND_point_in_one_pass_completes_in_TWO` already
+    # proves that a navigator verb and a draw arriving in ONE assistant message
+    # are BOTH serviced — `pending_draw` and `nav_call` are separate first-wins
+    # slots — and that the turn then ends in two passes. The cost of separating
+    # them is therefore NOT structural: the kernel never asked for two passes.
+    #
+    # WHAT IT COST LIVE, AND WHY THIS IS GUIDANCE RATHER THAN HYGIENE. Three
+    # turns in Sultan's session ended on `AGENTIC_CAP_NOTE_AR` after a CORRECT
+    # draw. The mechanism is proven from the loop: once anything is drawn the
+    # next call is `tool_choice="none"` and the turn ends, so the cap note is
+    # reachable ONLY if the draw landed on the fourth pass — three passes spent
+    # before it, where v1 did the same turn in two. The user heard «اكتفيت بهذا
+    # القدر» mid-answer, and the extra round trips are the latency he reported.
+    #
+    # IT IS GUIDANCE AND NOT A PROHIBITION, and the distinction was RULED: a
+    # model that separates them is not wrong, it is slower. Writing it as a ban
+    # would forbid a shape the kernel serves correctly, and only guidance was
+    # ruled.
+    #
+    # AND IT SCOPES THE CLAUSE ABOVE RATHER THAN CONTRADICTING IT — DEC-55's
+    # lesson, measured at T7: two rules that READ as a conflict are resolved
+    # unpredictably, because the model reads LINEARLY. So the pair each rule
+    # governs is NAMED in the law's own first line rather than left to
+    # inference: verify + point BELONG TOGETHER; verify + move DO NOT.
+    "التحقّق مع الإشارة — اجمعهما؛ أمّا التحقّق مع الانتقال فلا:\n"
+    "- إذا كنت تتحقّق من نتيجة خطوة وتشير إلى الخطوة التالية في نفس الجواب، "
+    "فاجمعهما في رسالة واحدة — أخدم الاثنين معاً في خطوة تفكير واحدة، وينتهي "
+    "الدور أسرع بخطوة كاملة.\n"
+    "- وإن فصلتهما فما أخطأت: الجواب نفسه يصل، لكنه يكلّف خطوة تفكير زائدة "
+    "وينتظر المستخدم أطول بلا فائدة.\n"
+    "- والفرق عن القاعدة اللي قبلها مقصود ولا يناقضها: التحقّق والإشارة بابان "
+    "مختلفان عندي فيُخدمان معاً، أمّا التحقّق والانتقال فكلاهما حركة مسار وأنا "
+    "أخدم حركة واحدة في الخطوة الواحدة، فتضيع الثانية.\n"
+    "- وليه: كل خطوة تفكير نداء كامل، فالخطوة اللي توفّرها تصل للمستخدم وقتاً "
+    "لا كلاماً."
 )
 
 
