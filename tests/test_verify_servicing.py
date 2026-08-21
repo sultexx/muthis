@@ -113,6 +113,71 @@ def test_NOT_PROVEN_HOLDS_the_step_and_forbids_repeating_the_explanation():
         "the no-repeat ruling left the note — DEC-106's UX half is load-bearing")
 
 
+def test_the_HOLDING_note_places_the_limit_in_WHAT_MUTHIS_SEES(tmp_path=None):
+    """DEC-111's ruling, and it was written on the THIRD sighting of an OBSERVED
+    gap — never on an expected one (T4's rule). Live, the model reached for
+    «أنت ما وريتني» — a statement about what the USER did — twice in one session
+    and once in the one before.
+
+    THE RULE DID NOT CHANGE AND MUST NOT: no advance without positive evidence
+    is correct, and it is what those sessions prove working. Only the wording
+    moved, so this test asserts the WORDING and the tests above still assert the
+    behaviour."""
+    prelude = _prelude()
+
+    note = _serviced(_call({"outcome": RESULT_NOT_PROVEN_OBSERVABLE}), prelude)
+
+    assert "ما ظهر لي أنا لا في ما فعله هو" in note, (
+        "the holding note no longer places the limit in what Mut'his SEES")
+    assert "أنت ما وريتني" in note, (
+        "the phrasing the model actually reached for is no longer named — a "
+        "law that does not name the failure it corrects is guidance about "
+        "nothing (DEC-100's method)")
+
+
+def test_the_distinction_is_SEPARATELY_required_from_the_no_repeat_ruling():
+    """Two clauses, two failures, and neither implies the other: the no-repeat
+    ruling stops a reply that reads as "you did it wrong", and the distinction
+    stops the ASKING from doing the same. A note carrying one and not the other
+    fails the case the other was written from."""
+    prelude = _prelude()
+
+    note = _serviced(_call({"outcome": RESULT_NOT_PROVEN_OBSERVABLE}), prelude)
+
+    assert "لا تعيد شرح الخطوة" in note
+    assert note.index("لا تعيد شرح الخطوة") != note.index(
+        "ما ظهر لي أنا لا في ما فعله هو"), "the two clauses collapsed into one"
+
+
+def test_BOTH_non_advancing_notes_now_carry_the_SAME_distinction():
+    """THE PARITY THE RULING RESTORES. `VERIFY_FALLBACK_AR` has always said the
+    limit is in Mut'his's view and not a failure by the user; `VERIFY_HOLDING_AR`
+    did not — and it is the outcome that fires MOST often, so the note without
+    the distinction was the one the user met most."""
+    for note in (VERIFY_HOLDING_AR, VERIFY_FALLBACK_AR):
+        assert "المستخدم" in note
+    assert "ليس معناه أن ما فعله المستخدم فشل" in VERIFY_FALLBACK_AR
+    assert "ما ظهر لي أنا لا في ما فعله هو" in VERIFY_HOLDING_AR
+
+
+def test_no_verification_note_resembles_the_LIVE_untrusted_delimiters():
+    """The §3.2 guard the PERSONA laws carry, applied to the NOTES — they are
+    model-facing text read inside a tool_result, so a note that reproduced the
+    boundary's wording would be a rule that resembles the fence it is read
+    inside. Checked against the LIVE constants, never a copy."""
+    from muthis.kernel.untrusted_content import WRAP_CLOSE_AR, WRAP_OPEN_AR
+
+    boundary = {word for word in (WRAP_OPEN_AR + " " + WRAP_CLOSE_AR).split()
+                if len(word) > 3}
+    for name, note in (("HOLDING", VERIFY_HOLDING_AR),
+                       ("FALLBACK", VERIFY_FALLBACK_AR),
+                       ("ADVANCED", VERIFY_ADVANCED_AR),
+                       ("NO_EVIDENCE", VERIFY_NO_EVIDENCE_AR),
+                       ("NO_STEP", VERIFY_NO_STEP_AR)):
+        shared = sorted(word for word in boundary if word in note)
+        assert not shared, f"{name} reproduces §3.2 delimiter wording: {shared}"
+
+
 def test_UNOBSERVABLE_falls_back_and_the_note_SPEAKS_the_right_distinction():
     """TRANSITION 5 and DEC-106's other UX ruling. The fallback is ANNOUNCED,
     and it separates a limit in MUT'HIS's viewpoint from a failure by the USER —

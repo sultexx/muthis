@@ -64,10 +64,25 @@ VERIFY_ADVANCED_AR = (
 # "you did it wrong" when the honest state is "I have not seen it yet". The step
 # stays active and the NEXT F9 attempts again — no timer, no nudge, no retry
 # loop of our own making.
+# THE DISTINCTION CLAUSE BELOW WAS ADDED ON THE GAP'S THIRD SIGHTING, NEVER ON
+# AN EXPECTATION (DEC-111's ruling, T4's rule applied). `VERIFY_FALLBACK_AR` has
+# always stated that the limit is in what Mut'his can SEE and not a failure by
+# the user; this note did not, and left the ASKING entirely to the model. Live it
+# reached for *«أنت ما وريتني»* — a statement about what the USER did — twice in
+# one session and once in the one before. **The RULE did not change and must
+# not**: no advance without positive evidence is correct and is what those
+# sessions prove working. Only the wording moved.
+#
+# AND IT MATTERS MORE HERE THAN IT DOES IN THE FALLBACK, because this is the
+# outcome that FIRES MOST OFTEN: the note without the distinction is the one the
+# user meets most.
 VERIFY_HOLDING_AR = (
     "توجيه داخلي (لا يراه المستخدم): ما ظهرت النتيجة بعد، فالخطوة باقية كما "
     "هي وما صار خطأ. **لا تعيد شرح الخطوة** ولا تسأل المستخدم هل أنهاها — "
     "أكمل إجابتك عادي، وسأعيد المحاولة في الدورة القادمة. "
+    "وإن ذكرت الأمر أصلاً فاجعل الحدّ في ما ظهر لي أنا لا في ما فعله هو: "
+    "«ما ظهرت لي النتيجة على الشاشة» لا «أنت ما وريتني» — فهو غالباً عملها، "
+    "وأنا اللي ما بانت لي. "
     f"{ACK_SCOPE_AR}."
 )
 
