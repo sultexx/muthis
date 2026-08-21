@@ -13154,3 +13154,147 @@ apparatus pointed at production payloads, not a live session.
 the production rate will exceed DEC-106's figures, and it is still not bounded.
 
 ---
+
+## DEC-111 (2026-08-21) — **NAVIGATOR v2 WORKS LIVE, AND ITS ONE DEFECT WAS A PASS ECONOMY RATHER THAN A CAP.** The verify rides the draw's pass · the cap STAYS at 4 · and a note that lies about who ended the turn — RULED (Sultan) from the first live SOP
+
+The first live SOP ran on Sultan's hardware. **The central claim of the milestone is PROVEN**, and one
+real defect appeared three times with a cause the symptom did not name.
+
+### WHAT THE LIVE RUN SETTLED
+
+**QUESTION ④ IS ANSWERED: A WALKTHROUGH ADVANCES WITHOUT «تم».** Sultan asked *"وش أسوي بعد؟"* — a
+question that announces nothing — **and the step advanced.** He never said «تم» once in the session,
+and the mode chip cleared correctly at completion.
+
+**THE ADVANCE RULE HELD LIVE, in a case that did not look like a success.**
+`RESULT_NOT_PROVEN_OBSERVABLE` fired on *"ممتاز بس أنت ما وريتني المية وثمانين"*: the result should
+have been visible, was not established, so the model **asked, did not blame, and did not advance.**
+
+**THE FAILURE THAT COULD HAVE BEEN HEARD DID NOT HAPPEN.** No double advance, no step jump, and no
+`NAV_ONE_PER_PASS_AR` anywhere in the log — so no pass carried two navigator verbs, and the persona
+clause that is the only guard there held on its first live outing.
+
+### THE DEFECT — THE MECHANISM, PROVEN FROM THE LOOP
+
+Sultan described the symptom without the cause: *"it draws on the right place and the right step,
+then says «اكتفيت بهذا القدر»"*, three times, with `agentic cap (4) hit — stopping cleanly` ×3 in the
+log. **«اكتفيت بهذا القدر» is `AGENTIC_CAP_NOTE_AR` — a note, not a decision.**
+
+**THE DERIVATION IS FROM THE CODE AND ADMITS NO OTHER SHAPE.** `loop_tool_choice` returns `"none"`
+once ANY draw has been paired, so the pass after a draw cannot call a tool → `stop_reason = end_turn`
+→ the loop returns at `orchestrator.py:282`, **before** the cap line at `:294`. Therefore:
+
+> **A draw at pass k forces the turn to end at pass k+1 — so the cap note is reachable ONLY if no
+> draw was paired in passes 1–3.** Sultan saw a correct draw and then heard the note, which fixes it
+> exactly: **the draw landed on pass 4, and the explanation it would have forced was never allowed to
+> run.**
+
+**Three passes were spent before the draw, where v1 did the same turn in two** — and those same
+passes are the latency he reported. He is not seeing more thinking; he is seeing more round trips.
+
+**THE HONEST LIMIT OF THE MEASUREMENT, RECORDED AS SUCH.** Two of the three passes are constrained by
+lines that are ABSENT from the log — no `refresh limit reached` (so at most one screen refresh) and
+no `NAV_ONE_PER_PASS_AR` (so no double navigator verb in one message). **The third is not
+recoverable**: nothing logs a tool name per pass. The code-consistent candidate is a re-verification
+after a refresh, and it is named here as a CANDIDATE and never as a measurement.
+
+### THE FINDING THAT DECIDED THE RULING — THE COST IS NOT STRUCTURAL
+
+`turn_pass.py` keeps **`pending_draw` and `nav_call` as SEPARATE first-wins slots**, so a navigator
+verb and a draw arriving in ONE assistant message are BOTH serviced. **This has been driven by the
+suite since T5:** `test_advance_AND_point_in_one_pass_completes_in_TWO` asserts two passes with
+`tool_choice` going `["auto", "none"]`, the verb serviced and the overlay drawn.
+
+**The kernel never asked for two passes.** And the clause shipped at Gate 2C forbids `verify` +
+`step` — two navigator verbs — **not** `verify` + `highlight_target`. **The model was choosing to
+emit the verification alone.**
+
+### THE RULING — OPTION B. THE VERIFY RIDES THE DRAW'S PASS; THE CAP STAYS AT 4
+
+**FOUR GROUNDS.**
+
+**① IT TREATS THE CAUSE WHERE RAISING THE CAP TREATS THE SYMPTOM.** A larger cap still leaves Sultan
+waiting three round trips before the draw — which is exactly the latency he reported.
+
+**② IT RETURNS THE TURN TO v1's TWO-PASS SHAPE**, so the truncation and the delay resolve together
+rather than one at a time.
+
+**③ IT COSTS THE KERNEL NOTHING.** The mechanism is built and already tested; the change is an
+authoring clause.
+
+**④ ITS RISK IS BOUNDED AND VISIBLE.** A draw composed before the kernel rules could point at the
+next step's target — and **the user SEES that immediately**, where a silent truncation is seen by
+nobody.
+
+### WHY THE CAP IS NOT RAISED — AND THE ARGUMENT IS THE TIMEOUT, NOT A PREFERENCE
+
+**THE METHOD REASON.** The measurement could not establish WHICH passes were spent, and a number
+chosen without that becomes a definition by accident — the `PER_CHUNK_ENCODE_MS` and
+`max_output_tokens` family, twice already. **A cap is a runaway BOUND, and this project has now
+watched a bound become a constraint once** (four was sized against a two-pass turn at `f8c188f`,
+2026-07-12, and never re-derived while the catalogue went from four tools to twelve).
+
+**AND THE ARGUMENT THAT FORECLOSES OPTION A ON ITS OWN, recorded as an argument rather than a
+footnote:**
+
+> **`SESSION_TIMEOUT_S = 90.0` DID NOT MOVE, AND THE TIMEOUT PATH SPEAKS NOTHING.**
+> `orchestrator.py:204-206` sets `result.timed_out`, logs a warning, and drains — there is no
+> equivalent of `AGENTIC_CAP_NOTE_AR` on that path. **So raising the cap can convert an
+> audible-but-wrong ending into a SILENT truncation**, which is strictly worse: the user is left with
+> a turn that simply stopped, and no line in the audio says so.
+
+**COSTED, for the record** (`estimate_cost_usd`, `claude-sonnet-4-6`, against the 10,785-token cached
+prefix measured in `cache_control.py` — a FLOOR, since the persona has grown since): one warm
+tool-only pass **$0.0043**, a warm text pass **$0.0071**. A two-pass turn ≈ **$0.0114**; a four-pass
+turn ≈ **$0.0199**. Raising the cap costs nothing on turns that end early — it is a bound, not a
+budget — which is why the argument against it is the timeout and the method, never the money.
+
+### THE CLAUSE, AND THE TWO HALVES OF IT THAT WERE BOTH RULED
+
+**IT INSTRUCTS:** when verifying a step and pointing at the next one in the same answer, emit BOTH in
+one message.
+
+**IT IS GUIDANCE, NOT A PROHIBITION.** A model that separates them is not wrong — it is slower — and
+the law says so out loud. A ban would forbid a shape the kernel serves correctly. Both halves are
+guarded: the permission must be PRESENT and four ban phrasings must be ABSENT, so a mutation turning
+guidance into a prohibition goes RED on both.
+
+**IT SCOPES THE EARLIER CLAUSE RATHER THAN CONTRADICTING IT.** DEC-55's lesson was MEASURED at T7:
+two rules that READ as a conflict are resolved unpredictably, because **the model reads LINEARLY**. So
+the pair each rule governs is NAMED in the law's own first line — **verify + point BELONG TOGETHER;
+verify + move DO NOT** — and a test asserts the earlier clause is still present AND still reads
+BEFORE the clause that scopes it, so this law can never end up pointing at a rule that has left the
+prompt.
+
+### THREE THINGS RECORDED, WITH NO PROPOSAL ATTACHED
+
+**① THE CAP'S FAILURE MODE IS WRONG AT ANY VALUE, and this is DEC-58's class.**
+`AGENTIC_CAP_NOTE_AR` — *«اكتفيت بهذا القدر الآن، إذا تبي أكمل اسألني من جديد»* — was written for a
+model that would not stop. **Sultan's case is the inverse: the model was mid-answer and the LOOP
+stopped it.** The note therefore misattributes the ending to Mut'his choosing to stop. **A note that
+lies about WHO ended the turn is a note that reports the wrong state achieved**, which is exactly
+what the standing note law exists to prevent. Recorded; raising or lowering the cap does not touch
+it.
+
+**② THE LOG CANNOT ANSWER "WHICH PASSES".** No per-pass tool line exists at INFO —
+`turn_pass.py`, `orchestrator.py` and `pass_servicing.py` log only warnings and one taint line. **Any
+future cap decision that wants to be evidence-based needs that line or a diag run first**, and this
+entry is the record that says so before the question is asked again.
+
+**③ THE `VERIFY_HOLDING_AR` FINDING — the rule is right and the note is thin.** Being asked to show a
+value you have already entered is the advance rule working correctly, and it reads to a user as being
+doubted. The asymmetry is exact: **`VERIFY_FALLBACK_AR` states that the limit is in Mut'his's view
+and NOT a failure by the user** — *«هذا حدّ في رؤيتي أنا، وليس معناه أن ما فعله المستخدم فشل»* —
+**and `VERIFY_HOLDING_AR` carries no such clause.** It says the result has not appeared and forbids
+repeating the explanation, and leaves the ASKING to the model, which reached for *"you didn't show
+me"* — a statement about the USER's action. **And `NOT_PROVEN` is the outcome that fires most often,
+so the note without the distinction is the one the user meets most.** Recorded as a UX finding on the
+note's wording. **No proposal, and no change made.**
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No cap change. No timeout change. No kernel change.** The clause and these records are the whole
+of it, and the three items above are open observations rather than deferred work — none of them was
+ruled, and none should be actioned without one.
+
+---
