@@ -1,12 +1,51 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-08-05, **the SECOND REASONER is integrated —
-> DEC-91**). **`AGENTS.md` remains the full source of truth**; this is the compressed
-> map. App suite **1616 green** + 27 sdk tests — run on `.venv`, NOT `.venv-v5` (that
-> one lacks trafilatura and produces false failures).
+> Token-saving snapshot (updated 2026-08-21, **NAVIGATOR v2 is COMPLETE and
+> LIVE-VERIFIED — DEC-99 → DEC-111**). **`AGENTS.md` remains the full source of
+> truth**; this is the compressed map. App suite **1,864 green** + 27 sdk tests — run
+> on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — THE SECOND REASONER, INTEGRATED (2026-08-05, DEC-91)
+## CURRENT STATUS — NAVIGATOR v2, COMPLETE AND LIVE-VERIFIED (2026-08-21, DEC-99 → DEC-111)
+
+**A PROVEN STEP NOW ADVANCES BY ITSELF.** The live SOP had Sultan ask *«وش أسوي بعد؟»* —
+a question that announces nothing — and the step advanced. **«تم» was never said in the
+session**, the mode chip cleared at completion, `RESULT_NOT_PROVEN_OBSERVABLE` fired
+correctly, and the double advance did NOT occur. **NOT merged, NOT tagged — the merge is
+Sultan's.** Full arc, with every declared limit unsoftened, in
+[`docs/reports/navigator_v2.md`](docs/reports/navigator_v2.md).
+
+NEW MODULES, measured: `kernel/step_verification.py` (272 — the three-way outcome AND
+DEC-106's four states, applying nothing) · `kernel/verification_notes.py` (161) ·
+`kernel/mode_frame.py` (62) · `persona_laws_navigator.py` (182) ·
+`muthis_plugins/navigator_verify/` — `schema.py` (69) / `plugin.py` (47) / `__init__.py`
+(6). CHANGED: `session_mode.py` 267 → **287** · `pass_servicing.py` 117 → **173** ·
+`turn_prelude.py` 163 → **175** · `mode_surfaces.py` 247 → **269** · `main.py` 229 →
+**237** · `deferral_notes.py` 201 → 283 → **207** · `persona_laws.py` 285 → **244**.
+**`mode_transition.py` cost ZERO lines** — the stamp/transition split is why.
+
+**PINS THAT MOVED, EACH WITH ITS REASON.** `persona_laws.py` **285 → 244** and
+`deferral_notes.py` **283 → 207**: both were pinned, both met their next arrival, and
+**both arrivals became EXTRACTIONS rather than breaches** — which is the whole argument
+for declaring a count before it is needed. A third extraction (`ModeFrame`) was taken
+when `session_mode.py` measured **309/300** with the verification state written in.
+**The seven pinned files are otherwise UNTOUCHED**: `orchestrator.py` 299 ·
+`tool_router.py` 300 · `turn_pass.py` 293 · `sidekick_window.py` 300 ·
+`confirm_gate.py` 300 · `persona_laws.py` 244 · `deferral_notes.py` 207.
+
+**CATALOG v8 — TWELVE TOOLS** against `MAX_TOOLS = 24`. `navigator__verify` arrives
+through its OWN plugin so `_v7_router()` still builds v7 and no earlier pin moves under
+it; the servicing arm landed ONE COMMIT BEFORE the mount (DEC-39, made a fact of the
+history).
+
+**FOUR DECLARED LIMITS STAND** (see the report): the Excel case is untouched by
+everything in this milestone · the production fallback rate exceeds DEC-106's figures
+and is NOT bounded · **production sends ONE frame where every number came from a labelled
+PAIR, so those rates do not transfer by assumption** · and the kernel never reads the
+evidence, so a model that writes a plausible sentence WITHOUT LOOKING receives an
+advance and nothing here distinguishes it.
+
+## THE SECOND REASONER, INTEGRATED (2026-08-05, DEC-91)
 
 **Mut'his now has TWO reasoners behind ONE contract, and `cloud/protocol.py` is
 BYTE-UNTOUCHED** (git-verified). `MUTHIS_REASONER` in `.env` picks `claude` (the
