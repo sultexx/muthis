@@ -92,8 +92,19 @@ BEFORE_SHA256 = "70a186e5b4ac12d94ba159fd5fb2e9a14812f4f8a7f0d1573345329988f4476
 # characters of the new law and nothing else. The law's own additive proof is in
 # test_persona_step_result_law.py, which pins the prompt BEFORE it at 12,259
 # characters — a second, independent anchor on the same change.
+#
+# RE-PINNED AGAIN for the CODE-EXECUTION laws (DEC-113, Phase 4A, 1,104 chars),
+# by the same standard and never from the failure message: the old 4,166-character
+# tail was re-hashed against the old pin d63d76e8…42a8a and PASSED, and the new
+# 5,270-character tail was proven byte-EQUAL to that exact tail plus the 1,104
+# characters of `CODE_LAWS` and nothing else. The law's own additive proof is in
+# test_persona_code_law.py, which pins the prompt BEFORE it at 14,822 characters
+# — a second, independent anchor on the same change.
+# NOTE FOR THE NEXT APPENDER: `CODE_LAWS` is composed LAST, in `persona_rules.py`,
+# because `MILESTONE_LAWS` is concatenated BEFORE `NAVIGATOR_LAWS` — a law added
+# inside that block lands MID-PROMPT and re-bases four additive proofs at once.
 APPENDED_SINCE_DEC84_SHA256 = (
-    "d63d76e8cfb99ffa15d17331353f227b882e3403691062b668067ca34e742a8a")
+    "c9409452941315988ef030635e56fe357c3b722c4b7f76279e31c1db7620f037")
 
 
 def _prompt() -> str:

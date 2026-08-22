@@ -26,6 +26,7 @@ what a MOVE ONLY has to mean before a law may be written on top of it.
 from __future__ import annotations
 
 from .persona_laws import MILESTONE_LAWS
+from .persona_laws_code import CODE_LAWS
 
 # The block that predates every milestone law. Kept whole and unreworded.
 _CORE_TOOL_AND_SAFETY_RULES = (
@@ -131,7 +132,12 @@ _CORE_TOOL_AND_SAFETY_RULES = (
 # The composed block the persona has always imported. Core first, then the laws in
 # the order they were ruled — the model reads LINEARLY (DEC-84), so the order is
 # behaviour rather than formatting.
-TOOL_AND_SAFETY_RULES = _CORE_TOOL_AND_SAFETY_RULES + MILESTONE_LAWS
+# `CODE_LAWS` is composed LAST (DEC-113) rather than appended inside
+# `MILESTONE_LAWS`, and the reason is a proof rather than a preference: that block
+# is concatenated BEFORE `NAVIGATOR_LAWS`, so a law added there lands MID-PROMPT
+# and silently re-bases four additive prefix-hash proofs. Appended here it lands
+# at the end and every earlier proof still points at the same bytes.
+TOOL_AND_SAFETY_RULES = _CORE_TOOL_AND_SAFETY_RULES + MILESTONE_LAWS + CODE_LAWS
 
 
 __all__ = ["TOOL_AND_SAFETY_RULES"]
