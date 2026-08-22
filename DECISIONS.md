@@ -13298,3 +13298,208 @@ of it, and the three items above are open observations rather than deferred work
 ruled, and none should be actioned without one.
 
 ---
+
+## DEC-112 (2026-08-22) — **THE READER HAS A SECOND CEILING NOBODY RECONCILED: `read_local_file` DELIVERS ~242 LINES WHERE THE ARCHITECTURE PERMITS 300, SO EIGHT OF THE TEN PINNED FILES CANNOT BE READ WHOLE.** A `.py` file never reaches `doc_rag`, so its 139,664-char threshold never applied; and a SYMBOL MAP is a TRUNCATION COMPENSATOR, not a retrieval mechanism — MEASURED, and RULED (Sultan) from Phase 4A's P0
+
+**This entry is NOT about Code Intelligence. It is about THE READER**, and it constrains every
+milestone that hands the model a file.
+
+### THE ARITHMETIC WAS COMPUTED AGAINST THE WRONG PIPELINE
+
+Phase 4A's P0 opened on the premise that a Python file is *injected whole* because the injection
+threshold is **139,664 characters**. The number is real — `50,000 tokens ÷ TOKENS_PER_CHAR_CEILING
+0.358`, this file's own §DEC-47 arithmetic — **but it belongs to `doc_rag`, and a `.py` file cannot
+reach that pipeline at all**:
+
+```
+extract.py:61   SUPPORTED_SUFFIXES = frozenset({".pdf", ".md", ".markdown", ".txt"})
+ingest.py:172   if suffix not in SUPPORTED_SUFFIXES: → REFUSE, and it opens no file
+```
+
+**Python arrives through `read_local_file` ALONE**, whose cap is `MAX_RETURN_CHARS = 16_000`
+(`file_reader.py:54`) — **8.7× smaller**. And delivery is NUMBERED (`f"{i:>5} | {line}"`, 8 chars a
+line), so a file **inflates ~12% on the way out**: `turn_pass.py` is 17,385 source chars and 19,435
+delivered. **The premise was true of a threshold that never applies and false of the one that does.**
+
+### THE TWO CEILINGS, AND WHO IS CAUGHT BETWEEN THEM
+
+16,000 chars at a measured 66.3 chars/line is an effective reader ceiling of **~242 lines**. The
+`≤300-line` law permits **300**. Nothing ever reconciled them. Measured over all **348** `.py` files
+in the repository:
+
+| | files | truncated |
+|---|---|---|
+| `src/` | 163 | 15 (9.2%) |
+| `tests/` | 133 | 35 (26.3%) |
+| `scripts/` | 29 | 8 (27.6%) |
+| **total** | **348** | **58 (16.7%)** |
+
+**EIGHT OF THE TEN PINNED FILES ARE AMONG THE 58**: `turn_pass` 82.9% · `tool_router` 85.7% ·
+`confirm_gate` 88.3% · `persona_laws` 89.3% · `orchestrator` 89.3% · `composition` 90.6% ·
+`turn_voice` 92.0% · `sidekick_window` 92.7%. **The modules pinned BECAUSE they matter most are
+exactly the ones Mut'his cannot read.** A file sitting legally at 300 does not fit through this
+project's own reader.
+
+**AND THE PIN COUNT ITSELF WAS WRONG IN THE RETELLING: there are TEN pinned files, not seven**
+(`test_module_line_ceiling.py:79-161` — `tool_router` 300 · `orchestrator` 299 · `turn_voice` 300 ·
+`persona.py` 209 · `persona_laws` 244 · `sidekick_window` 300 · `composition` 298 · `turn_pass` 293 ·
+`confirm_gate` 300 · `deferral_notes` 207). The "seven" were the Navigator v2 subset, repeated as the
+whole for several sessions. **The same failure class as DEC-104's docs sweep: a count that was true
+of something narrower, carried forward as if it were the total.**
+
+### THE PASS-ECONOMY CONSEQUENCE — AND IT IS AN ARGUMENT, NOT A MEASUREMENT
+
+`read_local_file` is **ONE PER PASS** (`tool_result_pairing.py:130` → `FILE_ALREADY_READ_AR`) against
+DEC-111's cap of **4**. So a file at 38% shown needs three reads and most of the turn, and
+`diag_doc_rag.py` at 11.2% is unreachable in a turn at any cap worth having.
+
+> **STATED AS UNMEASURED, DELIBERATELY.** No probe has been run against the pass economy of file
+> reading. This is a derivation from two known constants, and it must not be cited as a result. The
+> instrument that would settle it is a diag run, and it has not happened.
+
+### TWO DELIVERY FACTS THAT TRAVEL WITH THE CEILING
+
+**① FILE CONTENT IS NEVER STRIPPED FROM HISTORY, UNLIKE A SCREENSHOT.** `strip_images_from_history`
+rewrites only tool_results whose content is a **list** carrying an image (`history_hygiene.py:29-33`);
+a `read_local_file` result is a **plain string** (`tool_result_pairing.py:132-136`). **So the file text
+persists across turns and is re-sent every turn.** The cost accrues, and — the other half, which is a
+benefit — the content does not go stale the way a frame does, so nothing needs re-reading for freshness.
+
+**② TRUNCATION CUTS AT A LINE BOUNDARY AND NAMES ITS OWN RECOVERY.** `_numbered_slice` trims to the
+last whole line and appends `TRUNCATION_NOTE_AR`, which tells the model to re-read with
+`start_line`/`end_line`. **The recovery path exists and costs a pass** — which is where this meets the
+paragraph above.
+
+### THE MEASUREMENT — AND THE RULING IT PRODUCED
+
+Phase 4A's D-2 asked whether a SYMBOL MAP improves answers, over the approved six-file fixture, 108
+calls at effort `high`, **0 errors, $0.0356**. **Ground truth was COMPUTED from `ast`, never authored**
+— the questions are mine, the answers are the file's.
+
+| | claim raw | claim map | grounding raw | grounding map |
+|---|---|---|---|---|
+| **five files delivered WHOLE** | 39/45 | 44/45 | 30/30 | 30/30 |
+| **one file delivered at 82.9%** | 3/9 | **9/9** | 0/6 | **6/6** |
+
+**THE POOLED WHOLE-FILE NUMBER IS MISLEADING AND THE PER-FILE VIEW IS THE RESULT: four of the five
+tie exactly at 35/36 against 35/36.** The entire whole-file gain is ONE file, where the model ended a
+function at 153 instead of 152 — **a trailing blank line, not a misidentified function** — while
+reporting itself confident. It is a small error with a large shadow: *the same reading that absorbs a
+trailing blank absorbs whatever follows*, and a boundary asserted confidently is the one nobody checks.
+
+**THE RULING: the decision table's TIE condition fired. NO RETRIEVAL-ORIENTED INDEX IS BUILT.**
+
+**AND THE MAP IS NAMED CORRECTLY: a TRUNCATION COMPENSATOR, not a retrieval mechanism.** Its
+population is the 58 of 348 files that do not arrive whole — eight of them pinned.
+
+> **THE LIMIT THAT BOUNDS THE CLAIM: the map carries NAMES AND SPANS, NOT CODE.** On the truncated
+> file the model learns that `consume` spans 139-290 and still cannot see lines 244-290. So the map
+> rescues **STRUCTURAL** questions on a truncated file and does not rescue **COMPREHENSION** ones —
+> and all three of D-2's questions were structural, meaning **the map was measured exactly where it
+> should win and won only there. The whole-file TIE is therefore the more generalisable half.**
+
+**TWO FINDINGS RECORDED AGAINST THE INSTRUMENT ITSELF.** ① Without the map the truncated file's raw
+condition **DECLINED rather than hallucinated** — start correct 3/3, end 0, `sufficient=False` 3/3 —
+so "grounding 0%" there means *refused to state a number*, never *described vaguely*, and the
+distinction must travel with the figure every time it is cited. **That is fail-closed behaviour
+working.** ② **The map has a failure mode the raw text does not**: one run paired the right symbol's
+start with the LAST row's end. A map is a table, and a table can be misread.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No change to `MAX_RETURN_CHARS`, to the `≤300` law, to the agentic cap, or to any pin.** Naming the
+mismatch is the whole of it. Raising the reader's cap and lowering the line law are both live options
+and **neither is ruled here**; whoever opens that decision needs the pass-economy measurement this
+entry declines to fake.
+
+---
+
+## DEC-113 (2026-08-22) — **PHASE 4A's P0 IS CLOSED, AND THE MILESTONE IS SMALL: a symbol map inside the READER on truncation only, plus a persona law. No parser, no new tool, no catalog v9.** The third capability EXISTS and is not dormant; and the bound on all of it is that for pure code, EXECUTION AND REASONING ARE EQUIVALENT IN PRINCIPLE — six measurements, RULED (Sultan)
+
+**NOTHING IS IMPLEMENTED BY THIS ENTRY.** It records what six measurements decided, the bound they
+sit inside, the one gap P0 leaves open, and the scope — so the scope stops living in conversation.
+
+### THE SIX MEASUREMENTS, AND WHAT EACH DECIDED
+
+| # | measurement | what it DECIDED |
+|---|---|---|
+| **D-1** | the parse gate, 6/6 | **The fixture is real code and the milestone may proceed.** It also produced the fact that shaped D-2: `consume` spans 139-290 while delivery stops at **243**, so the cut lands INSIDE the largest function in the repository. P3 is not a fixture with a truncation property; it is the experiment. |
+| **D-2** | 108 calls, ground truth COMPUTED from `ast` | **THE SYMBOL MAP IS A TRUNCATION COMPENSATOR, NOT A RETRIEVAL MECHANISM.** On whole files it **TIES** — four of five at **35/36 vs 35/36** — and P2 actually **REGRESSED 3/3 → 2/3**, pairing the right symbol's start with the last row's end: **a table has a failure mode raw text does not have.** It is decisive only on the truncated population, 58 of 348. **The tie is the more generalisable half**, because all three questions were STRUCTURAL — the map was measured exactly where it should win. |
+| **D-3** | 18 extractions, each run in the real sandbox | **Extraction is reliable at 94.4%** (17/18 ran, 17/18 correct, 0/18 dependency misses). **AND THE FIRST RUN OF THIS MEASUREMENT WAS WORTHLESS:** it scored 18/18 without storing the snippets, so a genuine extraction and `print("'s'")` were indistinguishable. Re-run with the code stored plus `defines_target` / `hardcoded_suspect` — 18/18 and 0/18. **A correct output proves nothing about the mechanism that produced it.** The one failure was a `SyntaxError` in the model's own `print(` line, extraction correct above it. |
+| **D-4** | 36 two-phase trials | **THE BOUNDARY HOLDS: 0/36 false verification claims**, 18/18 on the non-decidable half, and **0/18 even proposed code there.** Its decidable half (10/18) is **CONFOUNDED and unmeasured** — the field read as *"is execution NECESSARY"* rather than *"COULD execution establish it"*, proven by the model's own words. **D-4's labels were AUTHORED where D-2's and D-3's were COMPUTED, and that disclosure travels with the number.** |
+| **the unprompted control** | 36 production-shaped trials | **`sandbox__run_code` called ZERO times — and it did NOT mean dormancy.** The fixture never FORCED execution: "decidable by execution" is not "requires execution", and the model answered correctly by reading (Q0 showed `49999.712 → ceil → 50000`, citing line 65). **Zero false claims achieved by never claiming, not by discriminating.** It also refuted a claim made in its own commissioning: D-4's instruction was NOT neutral — it mandated the judgement it scored, which is **DEC-110's law one domain over.** |
+| **the execution-required control** | 15 reading-only + 15 production | **THE THIRD CAPABILITY EXISTS AND IS NOT DORMANT.** Reading-only: **11 A_SHOULD_HAVE_RUN, 0 C_READ, 0 B_STARVED**, four wall-clock kills marked UNSCORED rather than guessed. Production: **15/15 REACHED, 15/15 CORRECT, 15/15 backed by a real `SandboxOutcome`, 0 truncation, 0 unscored.** Mechanism verified: **15/15 snippets contain a real loop, 0/15 contain the answer as a literal.** |
+
+**ROW 2's STRONG FORM IS DIRECTLY REFUTED.** Reasoning demonstrably failed — 11/11 wrong with
+truncation recorded as `none` and up to **44,377 output tokens** spent — and the model reached on the
+first pass, 15/15. **Raising the cap 6,000 → 64,000 removed the starvation caveat outright rather
+than arguing it away**, and recording truncation EXPLICITLY on every trial is what makes the eleven
+scored trials mean anything.
+
+### THE FINDING THAT BOUNDS THE WHOLE MILESTONE
+
+> **FOR A PURE FUNCTION OVER A KNOWN INPUT, EXECUTION AND REASONING ARE EQUIVALENT IN PRINCIPLE.**
+> Running is FASTER and LESS ERROR-PRONE — it is not a different kind of access to the answer.
+
+Two question classes were **rejected by their own reading-only pretests**: CPython whitespace
+semantics and object identity scored **15/15 settled by reading** ("not in the source" is not "not
+known"), and sums and 12-step chains scored **13/15**, because those have **CLOSED FORMS** and a
+reasoner finds them. Only **irregular recurrences with modular scrambling** survived — and **making
+execution NECESSARY made the questions SYNTHETIC**: real functions, questions no user would ask.
+
+**THIS BOUND TRAVELS WITH EVERY NUMBER ABOVE.** A sandbox-reach figure is evidence that the model
+WILL reach when reasoning is likely to fail. It is NOT evidence about how often that region is
+entered in real use, and over small pure functions that region is narrow.
+
+**AND THE ECONOMICS BELONG WITH THE BOUND, because they point the other way:** median output tokens
+**11,179 reasoning → 404 running (27.7×)**, and **$0.2331 for fifteen reading-only trials that were
+ALL WRONG against $0.0170 for fifteen that were ALL CORRECT**. **Running was 13.7× cheaper AND right.**
+Where the region is entered, the tool is not a luxury.
+
+### THE ONE GAP P0 LEAVES OPEN — AND THE TENSION A FIX WOULD CREATE
+
+**ZERO EXECUTION-CLAIM MARKERS IN 15 TRIALS.** The model stated results without ever saying it ran
+anything (*«حسبتها، والقيمة النهائية لـ s2 هي 533554»*). Every answer here **is** evidence-backed —
+it ran every time — **yet nothing in the output distinguishes a run from a guess to the person
+listening.**
+
+**THIS IS DEC-106's VERIFIED/UNVERIFIED DISTINCTION IN A NEW DOMAIN, WITH ONE HALF BUILT AND ONE
+ABSENT.** It declares its limit when it CANNOT verify (`RESULT_NOT_PROVEN_OBSERVABLE`'s shape, and
+D-4's 18/18). It never declares when it DID.
+
+> **RECORDED BEFORE ANYONE DESIGNS THE FIX: a law instructing the model to SAY it ran creates a
+> failure mode that CANNOT OCCUR TODAY — claiming a run that did not happen.** Today's zero is a zero
+> because it never claims at all. **So such a law is not free and must be MEASURED AFTER IT LANDS**,
+> with the marker detector and its positive (5/5 fire) and negative (3/3 silent) controls — because
+> an authored marker list that has never fired is not a check that passed.
+
+### THE SCOPE, RULED — so it stops living in conversation
+
+**PHASE 4A IS: the symbol map inside `read_local_file`, attached ON TRUNCATION ONLY (≈54 lines —
+`file_reader.py` 280 → 288, plus a 46-line `symbol_map.py`), PLUS a persona law. NO new tool, NO
+catalog change, NO mount, and NOT A PARSER — `ast` is stdlib, so this IMPORTS one rather than writing
+one.** Measured by building it in scratchpad and RUNNING it: map on truncated `.py` only, absent on
+whole `.py` and non-`.py`, `None` on unparseable/empty input. The alternative — a new tool — costs
+≈178 src lines, a catalog v9, a mount test, and **~258 tokens of cached prefix on EVERY turn forever**
+(DEC-109) to serve 16.7% of files. **The decisive reason is not the line count: the map arrives inside
+the tool_result at the moment truncation happens, and the reader already computes that condition to
+write its truncation note — so nothing has to know the map exists.**
+
+**TWO PRIOR RULINGS STAND AND ARE RESTATED HERE, because both bind anything built later:**
+
+**① THE MAP ATTACHES ON TRUNCATION ONLY.** Attaching it always spends tokens (+2.1% to +8.5% input,
+proportionally largest on the smallest files, where it helps least) to buy a TIE, and imports P2's
+misread-table failure mode into the population that never needed it.
+
+**② AN EXTRACTION IS A PROBE, NOT A COPY.** The model inlines constants BY VALUE — measured at D-3
+P4, where `MAX_STEP_CHARS` arrived as the literal `160`. Correct for a one-shot run; **a silent
+divergence for anything expected to track the source. NOTHING PHASE 4A BUILDS MAY PRESENT AN
+EXTRACTION TO THE USER AS "YOUR CODE".**
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No code. No persona clause. No catalog change. No pin moved.** The map's line cost is a measurement
+of a scratchpad candidate that stays UNINSTALLED. The persona law's wording is not drafted here, and
+the gap above says why it must be measured after it lands rather than argued before.
+
+---
