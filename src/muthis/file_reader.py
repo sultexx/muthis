@@ -19,6 +19,11 @@ SAFETY GATES (the model chooses the path, so the reader must be defensive):
   * SIZE is bounded twice: files over `max_bytes` are refused outright, and
     the returned text is capped at `max_chars` with an Arabic truncation note
     telling the model to request a line range instead.
+  * A TRUNCATED PYTHON FILE also carries a SYMBOL MAP of what was cut (DEC-113
+    — `symbol_map.py`). Truncation only: on a whole file the same map measured
+    a TIE and one regression, so it is attached where it was measured to win
+    and nowhere else. That is structural — the map is built inside the
+    truncation branch, so no whole-file path reaches it.
   * NEVER raises — every failure returns a short Arabic tool_result note
     (the NO_SCREENSHOT_TOOL_RESULT_AR precedent); the turn always continues.
 
@@ -40,6 +45,8 @@ import logging
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
+from .symbol_map import build_symbol_map
+
 logger = logging.getLogger("muthis.file_reader")
 
 # The tool name — the schema literal in cloud/tool_schemas.py must match.
@@ -60,44 +67,14 @@ BLOCKED_PREFIXES = (".env.", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", "cred
 BLOCKED_SUFFIXES = frozenset({".pem", ".key", ".pfx", ".p12", ".der", ".kdbx", ".keystore"})
 
 # ─── Model-facing Arabic tool_result surfaces (logs stay English) ─────────────
-
-FILE_NOT_FOUND_AR = "ما لقيت الملف «{path}». تأكد من المسار الكامل واطلب القراءة من جديد."
-FILE_BLOCKED_AR = "هذا الملف من ملفات الأسرار (مفاتيح/بيانات اعتماد) وقراءته ممنوعة حمايةً للمستخدم."
-FILE_TOO_LARGE_AR = "الملف أكبر من الحد المسموح للقراءة. اطلب من المستخدم يفتح الجزء المطلوب أو حدّد ملفاً أصغر."
-FILE_NOT_TEXT_AR = "هذا ملف ثنائي (غير نصّي) وما أقدر أقرأه كنص."
-# DEC-35, closed by the doc_rag milestone: the binary refusal NAMES THE FORMAT.
-# Live evidence (2026-07-25): a PDF was refused correctly and nothing leaked, but
-# the note the model read reported a RETRYABLE reason — so the model did the
-# rational thing and retried four different paths until the agentic cap stopped the
-# turn. Four provider calls, ~$0.10, no answer. A refusal that misreports its
-# REASON turns a TERMINAL condition into a retryable one, and the agentic loop
-# exists precisely to retry, so the cost compounds. Naming the format ends the
-# attempt at the FIRST call, and the note routes to the vision path — the DEC-17
-# robots-refusal pattern, where a block becomes a showcase.
-DOCUMENT_FORMATS = {
-    ".pdf": "PDF", ".docx": "DOCX", ".doc": "DOC", ".epub": "EPUB",
-    ".odt": "ODT", ".rtf": "RTF", ".xlsx": "XLSX", ".xls": "XLS",
-    ".pptx": "PPTX", ".ppt": "PPT", ".djvu": "DjVu",
-}
-FILE_IS_DOCUMENT_AR = (
-    "هذا ملف {fmt}، وأداة قراءة النص عندي تقرأ الملفات النصية فقط فما تنفع معه. "
-    "ما فيه مسار ثاني يقرأه كنص، فلا تحاول بمسار أو صيغة ثانية. افتح الملف على "
-    "الشاشة وأنا أشرح لك منه وأشير على المكان اللي تسأل عنه."
-)
-# Staging-only (sandbox files[], DEC-13): the name must be BARE — no directory.
-FILE_NAME_NOT_BARE_AR = "اسم الملف لازم يكون بدون مسار أو مجلّد — مرّر اسم ملف بسيط فقط."
-FILE_READ_ERROR_AR = "صار خطأ أثناء قراءة الملف، جرّب مرة ثانية أو تأكد من الصلاحيات."
-FILE_READ_UNAVAILABLE_AR = "قراءة الملفات غير متاحة في هذا الوضع."
-# A second read_local_file in the SAME pass — the same internal-directive
-# family as the draw acks: answer from what you already have, explain now.
-FILE_ALREADY_READ_AR = (
-    "(توجيه داخلي من النظام — هذا النص ليس من المستخدم ولا يراه ولا يُقرأ "
-    "بصوت عالٍ): قرأت ملفاً في هذه الجولة قبل قليل. لا تكرر القراءة — استخدم "
-    "المحتوى اللي عندك وكمّل الشرح الآن."
-)
-TRUNCATION_NOTE_AR = (
-    "\n(القراءة مقصوصة عند الحد الأقصى — اطلب read_local_file مرة ثانية مع "
-    "start_line و end_line للجزء اللي يهمّك.)"
+# EXTRACTED to `file_reader_notes.py` at DEC-113 (a MOVE ONLY, nothing reworded):
+# the symbol map took this file 280 → 312 and the ≤300 law turned the arrival
+# into an extraction. Re-exported below, so every existing import still resolves
+# against `muthis.file_reader` and no call site changed.
+from .file_reader_notes import (  # noqa: E402 — re-export, kept at its old home
+    DOCUMENT_FORMATS, FILE_ALREADY_READ_AR, FILE_BLOCKED_AR, FILE_IS_DOCUMENT_AR,
+    FILE_NAME_NOT_BARE_AR, FILE_NOT_FOUND_AR, FILE_NOT_TEXT_AR, FILE_READ_ERROR_AR,
+    FILE_READ_UNAVAILABLE_AR, FILE_TOO_LARGE_AR, TRUNCATION_NOTE_AR,
 )
 
 
@@ -182,6 +159,23 @@ def stage_file_gate(name: str, data: bytes) -> Optional[str]:
     return None
 
 
+def _truncation_map(text: str, suffix: str) -> str:
+    """The DEC-113 symbol map, and the ONLY site that attaches it.
+
+    Reached from the truncation branch alone, which is what makes "a whole file
+    gets no map" STRUCTURAL: there is no whole-file path into this function, so
+    the ruling cannot be undone by deleting a check. Python only — the map is
+    `ast`, and `ast` has nothing to say about SQL or a config file.
+
+    Returns "" rather than raising or noting: an unparseable file (the ordinary
+    state of one being edited) must leave the reader's output exactly as it
+    stands today."""
+    if suffix.lower() != ".py":
+        return ""
+    body = build_symbol_map(text)
+    return f"\n{body}" if body else ""
+
+
 def _int_arg(args: dict[str, Any], key: str) -> Optional[int]:
     """A best-effort int (the model occasionally sends "12"); None on garbage."""
     value = args.get(key)
@@ -246,15 +240,22 @@ class FileReader:
                         _log_shape(resolved, len(data)))
             return _binary_refusal(resolved.suffix)   # DEC-35: name the format
         text = data.decode("utf-8-sig", errors="replace")
-        body, start, end, total = self._numbered_slice(text, args)
+        body, start, end, total = self._numbered_slice(text, args, resolved.suffix)
         logger.info("[file_reader] read %s lines %d-%d of %d",
                     _log_shape(resolved, len(data)), start, end, total)
         header = f"محتوى الملف {resolved.name} (الأسطر {start}-{end} من {total}):"
         return f"{header}\n{body}"
 
-    def _numbered_slice(self, text: str, args: dict[str, Any]) -> tuple[str, int, int, int]:
+    def _numbered_slice(self, text: str, args: dict[str, Any],
+                        suffix: str = "") -> tuple[str, int, int, int]:
         """1-based numbered lines for the requested range (whole file when no
-        range), char-capped at a line boundary with the truncation note."""
+        range), char-capped at a line boundary with the truncation note — and,
+        on a truncated Python file ONLY, the symbol map for what was cut.
+
+        THE MAP IS APPENDED AFTER THE CAP, SO THE PAYLOAD GROWS rather than the
+        map displacing code lines. Deliberate (DEC-113): shrinking the delivered
+        code to make room would pay for the map with the very thing the map
+        exists to compensate for."""
         lines = text.splitlines() or [""]
         total = len(lines)
         start = _int_arg(args, "start_line") or 1
@@ -266,7 +267,8 @@ class FileReader:
         numbered = [f"{i:>5} | {line}" for i, line in enumerate(lines[start - 1:end], start)]
         body = "\n".join(numbered)
         if len(body) > self._max_chars:
-            body = body[:self._max_chars].rsplit("\n", 1)[0] + TRUNCATION_NOTE_AR
+            body = (body[:self._max_chars].rsplit("\n", 1)[0] + TRUNCATION_NOTE_AR
+                    + _truncation_map(text, suffix))
         return body, start, end, total
 
 
