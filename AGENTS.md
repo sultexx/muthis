@@ -655,6 +655,20 @@ in DECISIONS.md (DEC-43).
   it will be held to, or treat a scratchpad figure as a FLOOR and plan the extraction in advance.** The ≤300
   law caught it and the arrival became an extraction, which is the pin working exactly as declared; the cost
   of not knowing was a mid-build restructure of a security-adjacent file.
+  **A REFRESH THAT TOUCHES ONE SECTION OF A FILE HAS NOT REFRESHED THE FILE** (DEC-114): at the Phase 4A close,
+  **NINE stale counts sat in `PROJECT_STATE.md`'s key module map, every one from Navigator v2**, which
+  refreshed the CURRENT STATUS section at the TOP of that file and never the map at the BOTTOM —
+  `session_mode.py` was declared **211 against a real 287, in the same file whose top section already said
+  287**. **This is SHARPER than a doc that is simply out of date: a stale doc is obviously suspect and gets
+  re-checked, while a fresh date and a fresh top section make the stale half MORE trusted, not less** — the
+  same shape as a TRUE statement resting on a FALSE mechanism, correct at the surface and passing every
+  outcome-level review. So a milestone close scans the WHOLE file MECHANICALLY against the real files, never
+  only the section being written. **And the scanner must not cry wolf** — the first version of this one zipped
+  paths to numbers positionally and mis-read range cells (`7-253 per module`) as per-file counts, producing
+  false positives; **a scanner that cries wolf gets ignored, and an ignored scanner is how counts go stale.**
+  Rewritten to ask whether a count cell MENTIONS the file's real length, it produced **158 confirmed here and
+  30 in `PROJECT_STATE.md` with zero stale** — and that figure means something only because every flag it
+  raised was then READ BY HAND.
 - **Stub-first** (LAW — stated here; `stubs.py` is its working form, and DECISIONS.md applies it as binding
   precedent, most explicitly in the DEC-34 cost-bridge deferral): every new handler ships as a logging stub
   before it does anything real.
