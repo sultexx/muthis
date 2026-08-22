@@ -13503,3 +13503,134 @@ of a scratchpad candidate that stays UNINSTALLED. The persona law's wording is n
 the gap above says why it must be measured after it lands rather than argued before.
 
 ---
+
+## DEC-114 (2026-08-22) — **PHASE 4A IS CLOSED. The law was MEASURED AFTER IT LANDED and PERTURBED NOTHING: seven axes, zero movement, correctness 18/18 on both sides. The map reproduces its D-2 result in production shape (0/3 → 3/3) with the REAL map.** `MAX_MAP_CHARS` STAYS and is recorded UNDERIVED; and two lessons about ESTIMATES and about PERSONA COMPOSITION ORDER — RULED (Sultan)
+
+### THE MEASUREMENT THAT COULD ONLY BE TAKEN AFTER LANDING
+
+DEC-113 shipped a law whose whole purpose is to make an OBSERVED behaviour durable. A law like that
+cannot be validated by showing the behaviour happens — it happened before the law. **The only question
+it can be asked is whether it PERTURBED what it was written to preserve**, and that question has no
+answer until the law is in the prompt. So the unprompted control was re-run with the law as the ONLY
+variable: same twelve questions, same instrument file unchanged, real composed persona (14,822 →
+**15,926 chars**), 11-tool catalogue at `tool_choice="auto"` never forced, real loop at cap 4, real
+`SandboxRunner`, real `FileReader`. 36 trials, **0 errors, $0.0666**.
+
+| axis | pre-law | post-law | |
+|---|---|---|---|
+| **G1 claims without evidence** | 0/36 | **0/36** | same |
+| **G2 claimed execution on an undecidable question** | 0/18 | **0/18** | same |
+| **B1 reached the sandbox where execution cannot settle it** | 0/18 | **0/18** | same |
+| **execution-claim markers** | 0/36 | **0/36** | same |
+| reached the sandbox on DECIDABLE questions | 0/18 | **0/18** | same |
+| a run actually succeeded (either half) | 0/18 | **0/18** | same |
+| **answer correctness vs COMPUTED truth** | **18/18** | **18/18** | same |
+
+**SEVEN AXES, ZERO MOVEMENT.** The law neither over-corrected toward running nor introduced a claim.
+
+### THE HONEST READING, AND IT LIMITS THE RESULT
+
+**THREE OF THE FOUR GOVERNING AXES ARE PASSED PERFECTLY BY DOING NOTHING** — stated in the
+pre-registration BEFORE the numbers existed. A model answering "I cannot tell" every time scores
+0/36, 0/18, 0/36 and is indistinguishable from an ideal one. **Correctness is the only axis on this
+run that a do-nothing implementation fails**, which is why it was added here and why it carries the
+result: 18/18 on both sides means the law did not buy correctness AND did not cost any.
+
+**AND THE SANDBOX WAS REACHED ZERO TIMES ON BOTH SIDES — with the law present telling it to run where
+reading cannot settle the question.** That is not the law failing. This fixture's decidable half is
+answerable BY READING (DEC-113's equivalence bound: for pure code, execution and reasoning are
+equivalent in principle), and reading is what happened, correctly, 18/18. **The regime where the law
+would change behaviour is the one the EXECUTION-REQUIRED fixture creates, and it is not in this
+fixture.** No claim is made here about whether the law helps there.
+
+### THE MAP, RE-MEASURED IN PRODUCTION SHAPE
+
+D-2 measured a map it BUILT ITSELF and PREPENDED. What shipped differs three ways: built by
+`symbol_map.build_symbol_map`, APPENDED after the truncation note, and attached by the REAL
+`FileReader`. Re-measured on `turn_pass.py` — truth COMPUTED from `ast` (`consume` = 139-290,
+delivery stops at 243), the RAW condition being the identical bytes with the map tail removed:
+
+| | start | end | both | `sufficient` |
+|---|---|---|---|---|
+| **RAW** (yesterday's delivery) | 3/3 | **0/3** | 0/3 | **0/3** |
+| **MAP** (production today) | 3/3 | **3/3** | **3/3** | **3/3** |
+
+**The pre-registered discriminator held: RAW got the START right 3/3 and DECLINED on the end** — it
+is reading, not guessing, and the map supplies exactly the fact the truncated text cannot carry. Map
+cost **253 chars**. The attach rule was re-verified on four whole `.py` files: truncated → map, whole
+→ no map, every time.
+
+### `MAX_MAP_CHARS` STAYS — AND IS RECORDED UNDERIVED
+
+Ruled on the argument that a reader bounding its size twice must not append something unbounded, and
+a 2 MB file of one-line defs sits inside `MAX_FILE_BYTES`. **But 4,000 is NOT a budget — the measured
+map is 252-253 chars, so the bound is 16× the only value ever observed.** That is a RUNAWAY BOUND,
+the same shape as the agentic cap that was fine until the turn shape changed and then became a
+constraint nobody had re-derived (DEC-93's class: a number whose correct value depends on behaviour
+must be measured, never inherited). **It is recorded here so the next reader finds a declared
+number rather than a plausible-looking constant.**
+
+**WHAT HAPPENS WHEN IT IS REACHED IS DEFINED, NOT SILENT.** The map is cut at a row boundary and
+`MAP_CUT_AR` — «… (بقية الخريطة مقصوصة)» — is appended, so the map says it is incomplete exactly as
+the reader already says its own read was cut. **A map silently truncated would be a map that lies
+about its own completeness**, and the reader's existing honesty about truncation is the standard it
+was held to. Verified: 20,000 defs → 4,065 chars, 175 rows delivered, cut note present.
+
+### LESSON 1 — A SCRATCHPAD LINE MEASUREMENT STRUCTURALLY UNDERSTATES (the DEC-52 / DEC-73 family)
+
+The Phase 4A scope was ruled at **≈54 lines** on a scratchpad candidate that was BUILT AND RUN. The
+real arrival was **+32 to `file_reader.py` alone**, taking it 280 → **312 — over the ≤300 law**.
+**The gap is not sloppiness: the scratchpad candidate carried almost no commentary, and writing in
+the reasoning this project's standard REQUIRES cost 24 lines.** So a scratchpad measurement is not a
+low estimate, it is a measurement OF A DIFFERENT ARTEFACT — one that would fail review here.
+**Multiply a scratchpad line count before trusting it, or measure a candidate written to the standard
+it will be held to.** The ceiling law caught it and the arrival became an EXTRACTION: the Arabic
+surfaces moved VERBATIM to `file_reader_notes.py`, proven byte-identical by hash `d963cd78…` on both
+sides, gates NOT moved (DEC-42 — the stronger property stays byte-identical while the weaker one is
+worked on).
+
+### LESSON 2 — THE PERSONA'S COMPOSITION ORDER DECIDES WHERE A LAW CAN LAND, AND IT MUST BE READ
+
+**The brief named the wrong home for a persona law for the THIRD time** (DEC-107 Gate 1, DEC-111, and
+now DEC-113). The reason it keeps happening is that the right answer is not derivable from the file
+names — it is a property of the CONCATENATION ORDER, which lives in two lines of `persona_rules.py`
+and `persona_laws.py`. Two independent facts ruled DEC-113's placement:
+
+1. **`persona_laws.py` is pinned with `==`, not `<=`** (`test_module_line_ceiling.py`), so ANY line
+   change there is a declared stop, not a quiet edit.
+2. **`MILESTONE_LAWS` is concatenated BEFORE `NAVIGATOR_LAWS`**, so a law appended inside it lands
+   MID-PROMPT and silently re-bases **four** additive prefix-hash proofs at once.
+
+**STANDING FORM: before writing a persona law, READ the composition order — never recall it.** A law
+goes where the composed prompt's TAIL is, and which file that is has changed twice.
+
+### THE INSTRUMENT DEFECTS, ALL MINE, ALL FOUND BEFORE THE NUMBERS WERE QUOTED
+
+- **The law CREATED a false-positive surface in the claim detector.** `CODE_LAWS` contains
+  «ولا تتكلم وكأنك تأكدت», and «تأكدت» IS a marker. A model paraphrasing the law back would trip a
+  detector built for a first-person claim. **This surface did not exist pre-law**, so a marker count
+  that rose could be the law's wording echoing rather than the model claiming. Controls N4/N5 confirm
+  it fires. All six marker words were verified ABSENT from all 36 baseline texts, so attribution is
+  clean. It did not fire in the real run — but it was checked, not assumed.
+- **My attach-rule probe read the ONE file that DEFINES `MAP_HEADER_AR`.** `symbol_map.py`'s own
+  source contains the header literal, so the probe reported a whole file "carrying a map". **The
+  instrument was wrong, not the code** — four independent whole `.py` files then showed
+  truncated=False, map=False. A probe that greps for a constant must never be pointed at the module
+  that declares it.
+- **THREE match-rule defects in the correctness scorer, every one of them scoring a CORRECT answer
+  wrong.** A veto on "new list" rejected «returns the very same object, NOT a new list»; a veto on
+  "True" rejected a correct answer that also explained the true branch; and «ترجع نفس list object»
+  code-switches Arabic and English and matched neither spelling. **Uncorrected they would have
+  reported 18/18 post-law against 15/18 baseline — a fabricated improvement produced entirely by my
+  own rule.** The truth VALUES are computed from the real modules; the MATCH RULES are authored, and
+  that disclosure travels with the number.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+It does not claim the law improves anything — nothing moved, which is exactly what was wanted from a
+law written to PRESERVE. It does not measure the law in the execution-required regime. It does not
+re-derive `MAX_MAP_CHARS`. And it does not close the ONE open gap DEC-113 named: the model still
+states results without ever saying it ran, so nothing distinguishes a run from a guess to the
+listener — and the fix for that remains forbidden until it can be measured after landing.
+
+---
