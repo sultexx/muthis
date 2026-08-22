@@ -1,12 +1,45 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-08-21, **NAVIGATOR v2 is COMPLETE and
-> LIVE-VERIFIED — DEC-99 → DEC-111**). **`AGENTS.md` remains the full source of
-> truth**; this is the compressed map. App suite **1,864 green** + 27 sdk tests — run
+> Token-saving snapshot (updated 2026-08-22, **PHASE 4A — CODE INTELLIGENCE — is
+> COMPLETE, DEC-112 → DEC-114**). **`AGENTS.md` remains the full source of
+> truth**; this is the compressed map. App suite **1,935 green** + 27 sdk tests — run
 > on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
-## CURRENT STATUS — NAVIGATOR v2, COMPLETE AND LIVE-VERIFIED (2026-08-21, DEC-99 → DEC-111)
+## CURRENT STATUS — PHASE 4A: CODE INTELLIGENCE, COMPLETE (2026-08-22, DEC-112 → DEC-114)
+
+**THE MILESTONE IS SMALL BECAUSE THE MEASUREMENTS RULED IT SMALL.** Six measurements ran
+before a line was written, and they killed more than they built: the retrieval index
+(D-2 measured a TIE on whole files), the new tool, catalog v9, and the parser. What
+shipped is a symbol map inside `read_local_file` on **TRUNCATION ONLY** plus a persona
+law. Full arc, every limit unsoftened, in
+[`docs/reports/phase4a_code_intelligence.md`](docs/reports/phase4a_code_intelligence.md).
+
+NEW MODULES, measured: `symbol_map.py` (**97**) · `file_reader_notes.py` (**74**) ·
+`persona_laws_code.py` (**82**) · `tests/test_symbol_map.py` (**221**) ·
+`tests/test_persona_code_law.py` (**223**). CHANGED: `file_reader.py` 280 → **282** ·
+`persona_rules.py` 137 → **143** · `tests/test_persona_ack_scoping.py` 205 → **216**.
+**TWO EXTRACTIONS, both forced by the ≤300 law rather than chosen**: the reader's Arabic
+surfaces (the map took it to **312**), and the persona law's own module.
+**ALL TEN PINNED FILES BYTE-UNMOVED. No new tool, no catalog change — still TWELVE.**
+
+**THE POST-LANDING MEASUREMENT — SEVEN AXES, ZERO MOVEMENT** (36 trials, 0 errors,
+$0.0666, persona 14,822 → 15,926): claims-without-evidence 0/36 → 0/36 · claimed
+execution on an undecidable question 0/18 → 0/18 · sandbox reach where execution cannot
+settle 0/18 → 0/18 · execution-claim markers 0/36 → 0/36 · reached-on-decidable 0/18 →
+0/18 · **correctness against COMPUTED truth 18/18 → 18/18**. The law was written to
+PRESERVE an observed behaviour, so zero movement is the result it wanted.
+
+**FIVE DECLARED LIMITS STAND** (see the report): **three of the four governing axes are
+passed perfectly by DOING NOTHING**, so they are guard rails, not capability measures ·
+the third capability exists but only the SYNTHETIC question class forces it · the
+`B1 = 0/18` zero is scoped — this fixture's decidable half is answerable BY READING, so
+the regime where the law would bite is not in this set · `MAX_MAP_CHARS = 4,000` is
+UNDERIVED at 16× the only observed map · and the model **never announces a run**, so
+nothing distinguishes a run from a guess to the listener — and that fix is FORBIDDEN
+until it can be measured after landing.
+
+## NAVIGATOR v2, COMPLETE AND LIVE-VERIFIED (2026-08-21, DEC-99 → DEC-111)
 
 **A PROVEN STEP NOW ADVANCES BY ITSELF.** The live SOP had Sultan ask *«وش أسوي بعد؟»* —
 a question that announces nothing — and the step advanced. **«تم» was never said in the
@@ -682,35 +715,56 @@ Others: `MUTHIS_HOTKEY` (f9), `MUTHIS_DAILY_BUDGET_USD` (0.75), `MUTHIS_EARCONS`
 `ELEVENLABS_VOICE_ID` (REQUIRED for the Arabic accent), `MUTHIS_GEMINI_VOICE` (Kore).
 
 ## Key module map (src/muthis/)
-- **Navigator / mode frame** (V3 Phase 3; counts MEASURED 2026-08-04):
-  `kernel/session_mode.py` 211 (the frame + an OPAQUE `on_change` the root wires to
-  the overlay), `kernel/plan.py` 223 (`Plan`/`Step`; a STABLE id that survives a
+- **Navigator / mode frame** (V3 Phase 3 → Navigator v2; **counts RE-MEASURED 2026-08-22
+  — NINE of them were stale here, every one from Navigator v2, which refreshed the
+  CURRENT STATUS section at the top of this file and never this map at the bottom.
+  That is the `broker/docs/service.py` failure in its quietest form: a doc half-updated
+  reads as a doc updated**):
+  `kernel/session_mode.py` **287** (the frame + an OPAQUE `on_change` the root wires to
+  the overlay), `kernel/plan.py` **272** (`Plan`/`Step`; a STABLE id that survives a
   delete or insert -- a positional reference breaks SILENTLY), `kernel/mode_transition.py`
-  263 (`ModeAuthority`; its public surface is EXACTLY `request`, so a caller holds no
-  mutator), `kernel/mode_surfaces.py` 247 (the exit detector + the ONE-LINE directive,
-  which MUST carry `DIRECTIVE_MARKER_AR`), `kernel/turn_prelude.py` 152 (the turn's
-  directive assembly; ORDER is a contract), `kernel/navigator_service.py` 165 (one call
-  in, one Arabic note out; decides nothing), `overlay/mode_indicator.py` 131 (top-left,
-  collision-free BY CONSTRUCTION; carries NO model-authored character).
+  **298** (`ModeAuthority`; its public surface is EXACTLY `request`, so a caller holds no
+  mutator), `kernel/mode_surfaces.py` **269** (the exit detector + the ONE-LINE directive,
+  which MUST carry `DIRECTIVE_MARKER_AR`), `kernel/turn_prelude.py` **175** (the turn's
+  directive assembly; ORDER is a contract), `kernel/navigator_service.py` **197** (one call
+  in, one Arabic note out; decides nothing), `overlay/mode_indicator.py` **136** (top-left,
+  collision-free BY CONSTRUCTION; carries NO model-authored character),
+  `kernel/step_verification.py` 272, `kernel/verification_notes.py` 161,
+  `kernel/mode_frame.py` 62.
 - **Evidence pointing / the ack scope** (V3 Phase 3): `kernel/evidence_pointing.py` 129
   and `kernel/ack_scope.py` 62. **Both import NOTHING** -- the first has no means to
   compute a coordinate, the second no means to become logic. Absence proven by lack of
   means rather than by discipline.
-- **Servicing / notes** (DEC-70/73): `kernel/pass_servicing.py` 117 (`PassServiced` --
+- **Servicing / notes** (DEC-70/73; counts RE-MEASURED 2026-08-22):
+  `kernel/pass_servicing.py` **173** (`PassServiced` --
   a record, so a new tool category is additive at every call site) and
-  `kernel/deferral_notes.py` 201 (the routed-family names + `ROUTER_SERVICED_TOOLS`;
+  `kernel/deferral_notes.py` **207** (the routed-family names + `ROUTER_SERVICED_TOOLS`;
   a routed tool MISSING from that set bypasses the wrap, the taint raise and the
   confirm gate, then takes the pointer ack and kills the turn).
 - **Core**: `orchestrator.py` (heart: loop/history/interrupt_turn), `turn_pass.py`
   (one pass + sync point), `turn_voice.py`, `voice_out.py` (speak+caption+privacy),
   `turn.py` (TurnResult/Overlay proto/tool_result builder), `verbosity.py`,
-  `file_reader.py` (read_local_file, Phase 4), `history_hygiene.py` (Bug-3 strip).
+  `history_hygiene.py` (Bug-3 strip).
+- **The reader + the symbol map** (Phase 4A, DEC-113; counts MEASURED 2026-08-22):
+  `file_reader.py` **282** (`read_local_file`; the gates + the numbered slice),
+  `file_reader_notes.py` **74** (its model-facing Arabic surfaces, EXTRACTED verbatim
+  when the map took the reader to 312 — gates deliberately NOT moved, DEC-42),
+  `symbol_map.py` **97** (`ast`-derived names and spans, attached **ON TRUNCATION
+  ONLY** — the ruling is structural, since the only call sits inside the branch that
+  already decided to truncate, so no whole-file path reaches it).
 - **Draw**: `draw_dispatch.py` (PendingDraw+next_draw), `highlight_gate.py`
   (circuit breaker + INTERRUPTED_NOTE_AR), `shapes.py`.
 - **Voice**: `tts.py` (cascade), `tts_session.py`, `tts_elevenlabs.py`,
   `tts_ws_player.py`, `tts_gemini.py`, `tts_diacritics.py`, `speech_stream.py`.
 - **I/O**: `mic.py`, `stt.py`, `hotkey.py`, `earcons.py`, `budget.py`,
-  `activation.py`, `main.py` (composition root), `persona.py`.
+  `activation.py`, `main.py` **237** (composition root), `persona.py` **209**.
+- **Persona laws** (counts MEASURED 2026-08-22): `persona_rules.py` **143** composes
+  `_CORE + MILESTONE_LAWS + CODE_LAWS`, and **THAT ORDER DECIDES WHERE A NEW LAW CAN
+  LAND** — `persona_laws.py` **244** is pinned with `==` (any line change is a stop),
+  and its block is concatenated BEFORE `persona_laws_navigator.py` **182**, so a law
+  appended inside it lands MID-PROMPT and re-bases four additive prefix-hash proofs at
+  once. `persona_laws_code.py` **82** (Phase 4A) is therefore composed LAST. **Read the
+  composition order before writing a law; never recall it.**
 - **Vision**: `vision/screen_capture.py`, `vision/downscale.py`.
 - **Docs / RAG** (`broker/docs/`, V2 Phase-2 M3; counts MEASURED 2026-08-02):
   `service.py` **300 — AT the ceiling** (the two verbs `open`/`query`; owns the
