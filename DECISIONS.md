@@ -13291,6 +13291,14 @@ me"* — a statement about the USER's action. **And `NOT_PROVEN` is the outcome 
 so the note without the distinction is the one the user meets most.** Recorded as a UX finding on the
 note's wording. **No proposal, and no change made.**
 
+> **AMENDED 2026-08-23 (DEC-116) — ③ WAS EXECUTED 29 MINUTES AFTER THIS ENTRY WAS WRITTEN AND THIS
+> SENTENCE WAS NEVER UPDATED.** `484f268` (2026-08-21 20:54, an ancestor of `main`) gave
+> `VERIFY_HOLDING_AR` the distinction; three guard tests in `tests/test_verify_servicing.py` hold it,
+> and `docs/reports/navigator_v2.md` records it. **«No proposal, and no change made» has been false
+> since 20:54 that evening**, and it was handed out as work to do twice before anyone read the module.
+> The historical text above is left as written; this pointer exists so the trap cannot fire a third
+> time.
+
 ### WHAT THIS ENTRY DOES NOT DO
 
 **No cap change. No timeout change. No kernel change.** The clause and these records are the whole
@@ -13726,5 +13734,91 @@ laundered it.
 
 **Suite: 1,949 green + 27 sdk** (1,935 + 14 new). **All ten pinned files byte-unmoved** — the working
 tree carried exactly one modified `src/` file and one new test.
+
+---
+
+## DEC-116 (2026-08-23) — **DEC-111 ③ WAS ALREADY DONE, AND THE TASK WAS STOPPED BEFORE A WORD WAS WRITTEN.** `VERIFY_HOLDING_AR` has carried the distinction since `484f268` — **29 minutes after DEC-111 recorded it as open** — and the entry saying otherwise never changed. **The scanner gap is STATED: a count scanner cannot see a STATUS CLAIM.** No note changed, nothing proposed — LOGGED, Sultan to rule
+
+- **Status:** **STOPPED AND LOGGED. No code change.** The push landed (`5af7192` → `origin/main`); the
+  note change did not, and must not on the premise as given. Records only: `AGENTS.md` + `DECISIONS.md`.
+
+### THE PREMISE, AND WHY IT DOES NOT SURVIVE THE MODULE
+
+The task was: `VERIFY_HOLDING_AR` lacks the distinction `VERIFY_FALLBACK_AR` carries, so add it — the
+wording is the whole of the change, exactly as the cap note was. **`verification_notes.py` was measured
+first (161 lines), and the clause is ALREADY IN IT**, at lines 83–85:
+
+> «وإن ذكرت الأمر أصلاً فاجعل الحدّ في ما ظهر لي أنا لا في ما فعله هو: «ما ظهرت لي النتيجة على الشاشة»
+> لا «أنت ما وريتني» — فهو غالباً عملها، وأنا اللي ما بانت لي.»
+
+It does not merely carry the distinction — **it names the exact phrase the model reached for live**
+(«أنت ما وريتني») as the thing not to say, which is DEC-100's method: a law that does not name the
+failure it corrects is guidance about nothing.
+
+**FOUR INDEPENDENT CONFIRMATIONS, and not one of them is the entry that went stale:**
+
+| evidence | what it establishes |
+|---|---|
+| `484f268` (2026-08-21 **20:54:25**) | *"fix(navigator): the HOLDING note gains the distinction FALLBACK already states"* — verified an ancestor of `main`, and on `origin` |
+| `tests/test_verify_servicing.py` | `test_the_HOLDING_note_places_the_limit_in_WHAT_MUTHIS_SEES` **and** `test_BOTH_non_advancing_notes_now_carry_the_SAME_distinction` — the parity is pinned in both directions, 29 tests green |
+| `docs/reports/navigator_v2.md:46` | the `live` row lists **"the HOLDING note's distinction"** among what shipped |
+| the module's own comment | *"THE DISTINCTION CLAUSE BELOW WAS ADDED ON THE GAP'S THIRD SIGHTING, NEVER ON AN EXPECTATION (T4's rule)"* |
+
+**DEC-111 ③ was recorded at 20:25:36 and executed at 20:54:25 the same evening.** Its closing sentence —
+«No proposal, and no change made» — has been false ever since, and **it was handed out as work to do
+twice** before anyone opened the module.
+
+### WHY WRITING THE CLAUSE ANYWAY WOULD HAVE BEEN THE WORSE OUTCOME
+
+**A SECOND CLAUSE SAYING THE SAME THING IS NOT A NO-OP — IT IS DEC-55's MEASURED DEFECT.** Two rules
+that READ as a conflict are resolved unpredictably because the model reads LINEARLY (measured at T7),
+and a duplicated distinction inside one note is exactly that shape.
+
+**AND IT WOULD HAVE BROKEN THE GUARD THAT ALREADY PROVES IT.** Rewording the clause reddens the two
+tests written for this ruling, so a green suite would have required editing those guards to match the
+new text — **fixing the instrument to fit the change**, which is the one move this project's method
+forbids outright.
+
+### THE ONE FACT THAT IS NEW, AND IT IS NOT ONE THE REPO CAN SETTLE
+
+The brief reports a **FOURTH live sighting**. If it happened on a build carrying `484f268`, that is not
+"the clause is missing" — it is **a measurement that a SHIPPED clause did not hold**, a different
+defect with a different fix.
+
+**AND THE NOTE IS MODEL-FACING, WHICH IS THE HALF THAT DECIDES IT.** `VERIFY_HOLDING_AR` opens «توجيه
+داخلي (لا يراه المستخدم)». The user never hears it; the user hears whatever the model composes from it.
+**So a fourth sighting of «أنت ما وريتني» in speech is evidence about COMPLIANCE with a directive that
+exists, not about that directive's absence** — and rewording a directive the model already declined to
+follow, without knowing what it saw, is writing on an EXPECTATION. That is precisely the rule under
+which this clause was written in the first place (T4's), so breaking it here would be self-defeating.
+
+**THREE READINGS, AND NOTHING IN THE REPO SEPARATES THEM:** the sighting was on a pre-`484f268` build
+(then it is one of the three already counted, and no new information) · it was post-`484f268` (then the
+clause is INSUFFICIENT and the finding is about compliance, not wording) · or the phrasing arrived on a
+path that never touched this note at all. The second live session is reported in `navigator_v2.md` with
+no wording sighting either way, and **no log records which build ran**. **This is answerable from the
+session, never from the repo** — which is why it is logged here rather than guessed at.
+
+### THE SCANNER GAP — STATED, WITH NOTHING PROPOSED
+
+**THE COUNT SCANNER COMPARES NUMBERS TO FILE LENGTHS, SO IT CANNOT SEE A STATUS CLAIM.** «not merged»,
+«not tagged», «no change made», «still open» are checkable only against **git and the code**, and
+nothing in this project checks them. **A status line can therefore go stale under a fresh header with
+no guard firing at all.**
+
+**MEASURED TWICE INSIDE 24 HOURS, IN THE TWO FILES THAT *ARE* THE RECORD** — `PROJECT_STATE.md`'s «NOT
+merged, NOT tagged» (corrected in DEC-115) and `DECISIONS.md`'s DEC-111 ③ (pointer added above). **The
+cost is not a wrong number. It is a task built on a false premise, issued twice.** Recorded in
+`AGENTS.md` beside the law it limits. **No fix is proposed** — per the instruction, and because a
+checker for status claims is a design question rather than a reaction to a bad afternoon.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No note changed. No rule changed. No `src/` file touched at all.** DEC-111 ② (no per-pass tool line
+at INFO) and DEC-97's confirm-gate counter stay backlogged and untouched. The historical text of
+DEC-111 ③ is left exactly as written — only a dated forward pointer was added beneath it, so the record
+of what was believed on 2026-08-21 survives intact.
+
+**Suite unchanged at 1,949 = 1,922 app + 27 sdk.** Ten pinned files byte-unmoved.
 
 ---

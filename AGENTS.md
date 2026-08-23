@@ -669,6 +669,16 @@ in DECISIONS.md (DEC-43).
   Rewritten to ask whether a count cell MENTIONS the file's real length, it produced **158 confirmed here and
   30 in `PROJECT_STATE.md` with zero stale** — and that figure means something only because every flag it
   raised was then READ BY HAND.
+- **THAT SCANNER COMPARES COUNTS TO FILE LENGTHS, SO IT CANNOT SEE A STATUS CLAIM — AND A STATUS LINE CAN GO
+  STALE UNDER A FRESH HEADER WITH NO GUARD FIRING** (recorded 2026-08-23, DEC-116; stated, with nothing
+  proposed). **Measured TWICE inside 24 hours, in the two files that ARE the record.** `PROJECT_STATE.md` said
+  Navigator v2 was «NOT merged, NOT tagged» while `d688536` was already an ancestor of `main` and
+  `v3-navigator-v2-complete` was already on `origin`; and **`DECISIONS.md`'s DEC-111 ③ still ends «No proposal,
+  and no change made» when the change landed 29 minutes later in `484f268`** — code, three guard tests and the
+  milestone report all carrying it. **A count is checkable against the filesystem; «not merged», «no change
+  made», «still open» are checkable only against git and the code**, and nothing in this project checks them.
+  **The cost is not a wrong number — it is a TASK BUILT ON A FALSE PREMISE**: DEC-111 ③ was handed out as work
+  to do, twice, after it was already done.
 - **Stub-first** (LAW — stated here; `stubs.py` is its working form, and DECISIONS.md applies it as binding
   precedent, most explicitly in the DEC-34 cost-bridge deferral): every new handler ships as a logging stub
   before it does anything real.
