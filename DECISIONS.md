@@ -13989,3 +13989,119 @@ joins them is Sultan's.
 **Suite: 1,958 green = 1,931 app + 27 sdk** (1,949 + 9 new). All ten pinned files byte-unmoved.
 
 ---
+
+## DEC-118 (2026-08-23) — **TRUNCATION ON THE PINNED SET COSTS NEAR-ZERO INFORMATION, AND RAISING `MAX_RETURN_CHARS` IS THE WRONG LEVER IN BOTH DIRECTIONS — both MEASURED.** And the live pass-economy script was **NOT BUILT**: option 3's fixture was refuted by its own pre-registration, for the same reason the pinned one was — RULED (Sultan) on the first two, STOPPED on the third
+
+- **Status:** **TWO RULINGS RECORDED, ONE TASK STOPPED. No code written at all** — no script, no `src/`
+  change, no cap change. `MAX_RETURN_CHARS` stays 16,000 and DEC-111's cap stays 4.
+
+### THE PIN, RECORDED — it had no entry of its own
+
+`4192d39` pinned **`file_reader.py` at 292**, so `tests/test_module_line_ceiling.py` now holds **ELEVEN**
+declared ceilings. Verified to FIRE: one line added → RED with its own message at 293, byte-restored by
+sha256. **It earned itself immediately** — AGENTS.md's key-files row still declared **282**, stale since
+`8207e85` one commit earlier and self-inflicted by DEC-117, and it was found only because the pin forced
+the declaration to be read. **A declared number gets read; an undeclared one does not.**
+
+### RULING ① — ON THE PINNED SET, TRUNCATION LOSES ALMOST NOTHING
+
+DEC-117 established that the pinned files come out whole in TWO reads. **This entry establishes the
+stronger half: what the first read leaves behind is boilerplate.**
+
+| measurement | result |
+|---|---|
+| pinned files that truncate | **9 of 11** (82.9%–92.8% delivered) |
+| of those, whose beyond-cut region holds a whole definition | **1** (`sidekick_window._configure_window`) |
+| of those, where the beyond-cut region is `__all__` ALONE | **7** |
+| `composition.py` | **nothing top-level beyond the cut at all** |
+| pinned files whose `__all__` names are ALL visible in the delivered part | **9 of 9** |
+
+**So the cost of truncation on the pinned set is not two passes of four — it is near-zero information.**
+Across `src/` as a whole: 166 files, **15 truncate**, and only **6** have any whole definition beyond
+the cut (one of them pinned). *(The `src/` slice reconciles exactly with DEC-112: 163 → 166 files as
+Phase 4A added three modules, 15 truncating in both.)*
+
+### RULING ② — THE CAP IS THE WRONG LEVER IN BOTH DIRECTIONS. THE ARITHMETIC, MEASURED
+
+Driven through the real reader at 1×, 2× and 4× the cap — **the argument, not an impression:**
+
+| | lines | 1× (16,000) | 2× (32,000) | 4× (64,000) | reads to whole @1× / @2× |
+|---|---|---|---|---|---|
+| `turn_pass.py` | 293 | 82.9% | **100%** | 100% | 2 / 1 |
+| `tool_router.py` | 300 | 85.7% | **100%** | 100% | 2 / 1 |
+| `confirm_gate.py` | 300 | 88.3% | **100%** | 100% | 2 / 1 |
+| `orchestrator.py` | 299 | 89.3% | **100%** | 100% | 2 / 1 |
+| `sidekick_window.py` | 300 | 92.7% | **100%** | 100% | 2 / 1 |
+| `diag_doc_rag.py` | 2297 | 11.2% | **24.9%** | 47.4% | **9 / 5** |
+| `diag_rag_bench.py` | 1480 | 20.3% | 42.8% | 79.7% | **6 / 3** |
+| `diag_web_research.py` | 1156 | 24.1% | 48.0% | 93.9% | **5 / 3** |
+| `test_orchestrator.py` | 1024 | 32.0% | 59.1% | 100% | 4 / 2 |
+
+**UNNECESSARY WHERE TRUNCATION IS SHALLOW:** doubling buys the pinned set exactly ONE PASS, on files
+that were already losing only `__all__`. **AND INSUFFICIENT WHERE IT BITES:** at 2×, `diag_doc_rag.py`
+is still at **24.9%** and still needs **five reads** — beyond the cap of 4, so it remains unreachable in
+a turn. *(Sultan's «~22%» estimate is refined to 24.9% by measurement; the argument is unchanged.)*
+**A single number cannot serve two populations three-and-a-half doublings apart.**
+
+### THE SECOND FIXTURE REFUTATION — AND IT IS THE SAME FACT AS RULING ①
+
+The brief ruled the live measurement onto option 3: the six `src/` files with real code beyond the cut.
+**Its question was pre-registered and checked BEFORE the script was written, and it did not survive.**
+Ground truth would be COMPUTED from `ast` — the names a beyond-cut definition CALLS, or the literals in
+its body — and the test is whether that answer is already derivable from the delivered portion:
+
+| candidate | invisible calls | invisible literals | usable? |
+|---|---|---|---|
+| `sidekick_window / _configure_window` | **3** (`attributes`, `geometry`, `overrideredirect`) | **3** (`'+0+0'`, `'-topmost'`, …) | **YES** |
+| `service.py / _path_key` · `_pages` · `_normalize_doc_id` · `_passage` | 0–1 | docstring text only | no |
+| `tts.py / _make_player` · `_play_pcm` | 0 | docstring text only | no |
+| `ingest.py / _encode` | 1 | 0 | no |
+| `mode_transition.py / _refuse` | 0 | docstring text only | no |
+| `session_mode.py / record_verification` | 0 | docstring text only | no |
+
+**ONE of six.** The "invisible literals" on the other five are DOCSTRING PROSE, and a question graded on
+paraphrased docstring text is an authored match rule — the instrument defect that nearly fabricated an
+improvement once already, so it was refused here rather than measured with.
+
+**WHY THIS IS NOT A DIFFERENT PROBLEM FROM RULING ①.** At 83–93% delivered, what is hidden IS the
+boilerplate — that is the same sentence as "truncation costs near-zero information", read from the other
+side. **A question about hidden boilerplate is either guessable or trivial**, so the fixture and the
+phenomenon are in tension BY CONSTRUCTION: the files where truncation hides real code are the DEEP ones,
+which the brief deliberately excluded.
+
+**AND BUILDING IT ANYWAY WOULD HAVE PRODUCED A CONFOUNDED RESULT IN A KNOWN DIRECTION.** Five of six
+trials would be answerable without re-reading, so a model that did not recover would have been measured
+as *cannot* when the honest reading is *did not need to*. **That is need-confounding — the very question
+the brief reserved to Sultan** ("whether it is need-proportional is a follow-up"). A fixture that
+pre-empts a reserved question by accident is worse than no run.
+
+### WHAT REMAINS UNMEASURED, AND WHAT COULD ANSWER IT
+
+**Does the model use the recovery path at all?** Untouched. If it does not, truncation is silently lossy
+everywhere and the symbol map is the entire compensation — which is why the question survives its
+fixture. The population where it is cleanly askable is the DEEP-truncation set (`diag_doc_rag.py` 11.2%,
+`diag_rag_bench.py` 20.3%, `diag_web_research.py` 24.1%), where whole definitions in the dozens lie
+beyond the cut: 90, 43 and 35 respectively. **Not chosen here. Ruling nothing.**
+
+**AND THE ONE CLEAN TRIAL OPTION 3 DOES SUPPORT** is `sidekick_window._configure_window` — N=1, which
+answers "does it ever recover" and supports neither a rate nor the map comparison.
+
+### OPTION E — STILL DESIGNED, STILL UNBUILT, AND THE PROJECTION IS ON RECORD
+
+The instrument is unchanged and needs no fixture: **`CloudReasoner.run()` is called EXACTLY ONCE PER
+PASS and the reasoner is an INJECTED seam**, so a wrapper yields the per-pass table for zero production
+lines — and `scripts/diag_navigator.py` already ships that exact shape as `PassCounter`. Two properties
+belong with it whenever it is built: **the recovery path must be classified from the tool ARGS, never
+the read count** (a top re-read and a ranged recovery are identical in count and opposite in meaning),
+and the **map arm must ask for the code BODY**, since the map names spans and would otherwise win by
+construction. **Projected size, recorded before it is written: ~210 lines, band 190–240.**
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No script. No `src/` change. No cap change. No pin moved.** It does not rule on the fixture, does not
+rule between accepting two reads and raising the cap, and does not claim anything about model behaviour
+— that axis is still empty. DEC-111 ② stays open and DEC-97's counter stays backlogged.
+
+**Suite unchanged at 1,959 = 1,932 app + 27 sdk.** Eleven pinned files byte-unmoved.
+
+---
