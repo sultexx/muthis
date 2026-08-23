@@ -13634,3 +13634,97 @@ states results without ever saying it ran, so nothing distinguishes a run from a
 listener — and the fix for that remains forbidden until it can be measured after landing.
 
 ---
+
+## DEC-115 (2026-08-23) — **THE CAP NOTE NAMED THE WRONG AGENT, AND THE FIX IS THE TEXT ALONE.** «اكتفيت بهذا القدر» said Mut'his chose to stop where the LOOP cut a mid-answer turn; the note now carries the limit, its transience and the next step — and a rewording that hands the ending back to Mut'his goes RED. The cap, the loop and `MAX_AGENTIC_ITERATIONS` are UNTOUCHED — APPROVED (Sultan), EXECUTED
+
+- **Status:** **RULED and EXECUTED.** One constant, one comment, one new guard. DEC-111's cap ruling is
+  NOT reopened, and DEC-97's confirm-gate counter is NOT touched.
+
+### WHAT WAS WRONG — DERIVED FROM THE LOOP, THEN HEARD LIVE
+
+DEC-111 ① recorded this and attached no proposal. `AGENTIC_CAP_NOTE_AR` — *«اكتفيت بهذا القدر الآن،
+إذا تبي أكمل اسألني من جديد»* — **was written for a model that would not stop, and Sultan's case is
+the inverse.** He saw a CORRECT draw land and then heard the note, and the mechanism admits no other
+shape: once anything is drawn the next call is `tool_choice="none"` and the turn ends, so the cap note
+is reachable ONLY if the draw landed on the fourth pass. **The model was mid-answer and the LOOP
+stopped it.**
+
+**THIS IS DEC-58'S CLASS, AND IT FAILS THE FIRST OBLIGATION BEFORE THE OTHER TWO MATTER.** The
+standing note law requires the STATE ACHIEVED, TERMINAL-or-TRANSIENT, and the VALID NEXT STEP. The old
+text carried a next step («اسألني من جديد») and still misreported what happened, **because a note that
+names the wrong agent has already reported the wrong state.** Getting (2) and (3) right while (1) lies
+buys nothing — which is the ordering worth keeping from this entry.
+
+### THE FIX — THE MESSAGE LAYER, AND ONLY THE MESSAGE LAYER
+
+> «انقطع الجواب قبل ما يكمل، لأن الجولة وصلت للحد المسموح به عندي. هذا حد مؤقت يبدأ من جديد مع كل
+> سؤال، فاسألني عن الباقي وأكمله لك.»
+
+| obligation | what carries it, and why that form |
+|---|---|
+| **(1) the STATE — cut short by a limit, not completed** | «انقطع الجواب قبل ما يكمل» **+** «وصلت للحد المسموح به». Both halves: the incompleteness without a named cause reads as a failure, and the limit without the incompleteness reads as a status line. |
+| **(2) TRANSIENT, and WHAT CHANGES** | «هذا حد مؤقت **يبدأ من جديد مع كل سؤال**» — «مؤقت» alone satisfies the label and not the obligation, which requires a transient condition to say what changes. |
+| **(3) the valid NEXT STEP** | «اسألني عن **الباقي**» — the REMAINDER, named. A bare "ask again" is what the old note said, and it invites the whole turn to be re-issued (DEC-58's own re-ingestion defect, one surface over). |
+
+**IT ATTRIBUTES THE ENDING TO NEITHER PARTY.** The limit is the cause and it is placed «عندي» — on
+Mut'his's side — which is `VERIFY_FALLBACK_AR`'s precedent one note over, the asymmetry DEC-111 ③
+named. Nothing in the sentence is a statement about the user's action.
+
+**THE LINE THE NOTE LAW DRAWS WAS HELD.** It is a MESSAGE-layer law and never licenses moving a bound
+to make a note easier to write: `MAX_AGENTIC_ITERATIONS` stays **4**, `loop_tool_choice` and the loop
+are untouched, `SESSION_TIMEOUT_S` is untouched. `turn.py` **184 → 198**; no other `src/` file changed.
+
+### THE GUARD, AND ITS CONTROLS IN BOTH DIRECTIONS
+
+`tests/test_cap_note_attribution.py` (**182**, 14 tests) asserts the three obligations PRESENT and
+three families of lie ABSENT — **Mut'his decided · the user caused it · the condition is terminal.**
+
+**FIVE MUTATIONS, ALL RED**, each asserted APPLIED on disk against CRLF anchors, each file restored
+byte-identically (sha256 compared before and after):
+
+| mutation | result |
+|---|---|
+| M1 — the shipped defect restored verbatim | RED (4 tests) |
+| **M2 — all three obligations INTACT, only the ending handed back to Mut'his** | **RED (exactly 1 test)** |
+| M3 — the ending moved onto the USER | RED (1) |
+| M4 — the transience dropped | RED (1) |
+| M5 — the loop speaks a COPIED literal instead of the constant | RED (2) |
+
+**M2 IS THE MUTATION THAT PROVES THE RULING RATHER THAN THE WORDING:** a note that satisfies
+obligations (2) and (3) perfectly and still names the wrong agent goes RED **on attribution alone**.
+That is DEC-58's own test applied to DEC-58's class.
+
+**A NEGATIVE CONTROL RIDES BESIDE THE BANS** — an honest alternative wording must NOT be flagged. A
+ban list that rejects every rewrite fails identically to one that flags nothing in a green run, and it
+is the one that gets deleted the first time the note is legitimately reworded.
+
+**AND THE INSTRUMENT CHECKS ITS OWN MECHANISM.** Every assertion above is worthless if the cap speaks
+a different literal, so the guard proves `orchestrator.AGENTIC_CAP_NOTE_AR is turn.AGENTIC_CAP_NOTE_AR`
+**and** that the loop speaks it BY NAME. **M5 exists to redden exactly that**, and it does.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No cap change. No loop change. No timeout change.** DEC-97's confirm-gate counter is untouched — its
+terminality is a separate ruling and stays backlogged. **DEC-111 ② and ③ remain OPEN observations ruled
+by nobody:** no per-pass tool line exists at INFO, so "which passes were spent" is still unanswerable;
+and `VERIFY_HOLDING_AR` still carries no "this is a limit in my view, not your failure" clause. ③ is
+the very asymmetry this fix borrowed from, and it is deliberately LEFT where DEC-111 put it rather
+than actioned on the way past.
+
+**ONE READING RECORDED, BECAUSE IT LOOKS LIKE A REGRESSION AND IS NOT.** The headline shorthand
+«1,935 green + 27 sdk» is a **TOTAL that already contains the 27** — the arithmetic is in the Phase-4A
+report itself (1,864 + 27 + 44 = 1,935) — so `pytest tests/` **alone measures 1,908**, and the 1,935
+figure is the ROOT run. Read as an addition it looks like 27 lost tests. Recorded here so the next
+agent does not have to re-derive it.
+
+**ONE STALE LINE CORRECTED BECAUSE THIS ENTRY'S OWN EDIT MADE IT MORE TRUSTED.** `PROJECT_STATE.md`
+still said Navigator v2 was **«NOT merged, NOT tagged»**. It is provably both: `d688536` is an
+ancestor of `main` and `v3-navigator-v2-complete` (`c32d3c0`) is on `origin` — checked with
+`git ls-remote`, not from memory. Re-dating the file's header (which this entry did) is exactly what
+makes a stale half read as fresh, so the correction travels WITH the edit that would otherwise have
+laundered it.
+
+**Suite: 1,949 green + 27 sdk** (1,935 + 14 new). **All ten pinned files byte-unmoved** — the working
+tree carried exactly one modified `src/` file and one new test.
+
+---

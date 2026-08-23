@@ -1,8 +1,11 @@
 # PROJECT_STATE.md — Mut'his condensed technical state
 
-> Token-saving snapshot (updated 2026-08-22, **PHASE 4A — CODE INTELLIGENCE — is
-> COMPLETE, DEC-112 → DEC-114**). **`AGENTS.md` remains the full source of
-> truth**; this is the compressed map. App suite **1,935 green** + 27 sdk tests — run
+> Token-saving snapshot (updated 2026-08-23, **PHASE 4A — CODE INTELLIGENCE — is
+> COMPLETE, DEC-112 → DEC-114**; **DEC-115** then fixed the agentic cap note's
+> ATTRIBUTION — text only, the cap untouched). **`AGENTS.md` remains the full source
+> of truth**; this is the compressed map. Suite **1,949 green = 1,922 app + 27 sdk**
+> (the old «1,935 + 27» shorthand was a TOTAL that already contained the sdk 27 —
+> `pytest tests/` alone measured 1,908, never 1,935) — run
 > on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces false failures).
 > Architectural decisions & any logged ambiguities live in `DECISIONS.md` (repo root).
 
@@ -44,8 +47,11 @@ until it can be measured after landing.
 **A PROVEN STEP NOW ADVANCES BY ITSELF.** The live SOP had Sultan ask *«وش أسوي بعد؟»* —
 a question that announces nothing — and the step advanced. **«تم» was never said in the
 session**, the mode chip cleared at completion, `RESULT_NOT_PROVEN_OBSERVABLE` fired
-correctly, and the double advance did NOT occur. **NOT merged, NOT tagged — the merge is
-Sultan's.** Full arc, with every declared limit unsoftened, in
+correctly, and the double advance did NOT occur. **MERGED, TAGGED AND PUSHED** — `d688536`
+on main (verified an ancestor of `main`), tag `v3-navigator-v2-complete` (`c32d3c0`), both
+live on `origin`. *(This line read «NOT merged, NOT tagged» until 2026-08-23 — stale since
+the merge, and corrected against `git ls-remote` rather than against memory.)* Full arc,
+with every declared limit unsoftened, in
 [`docs/reports/navigator_v2.md`](docs/reports/navigator_v2.md).
 
 NEW MODULES, measured: `kernel/step_verification.py` (272 — the three-way outcome AND

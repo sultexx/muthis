@@ -117,7 +117,21 @@ MIC_FAILED_AR = "ما قدرت أوصل للمايكروفون، تأكد إنه
 STT_EMPTY_AR = "ما سمعت شي واضح، جرّب مرة ثانية."
 # Spoken when the agentic loop hits MAX_AGENTIC_ITERATIONS — a clean stop instead
 # of looping forever. User-facing Arabic (the TTS path); never the user text.
-AGENTIC_CAP_NOTE_AR = "اكتفيت بهذا القدر الآن، إذا تبي أكمل اسألني من جديد."
+#
+# IT NAMES THE LIMIT AS WHAT ENDED THE TURN, AND THAT IS THE WHOLE POINT OF THE
+# WORDING (DEC-111 ①, DEC-58's class). The first text — «اكتفيت بهذا القدر» —
+# was written for a model that would not stop, and Sultan's live case is the
+# INVERSE: the model was mid-answer and the LOOP cut it, so the note reported
+# the wrong agent. A note that lies about WHO ended the turn reports the wrong
+# state achieved, which is exactly what the standing note law exists to prevent.
+# The three obligations, carried here: the turn was CUT SHORT by a limit rather
+# than completed · the limit is TRANSIENT and the note says what changes · the
+# valid NEXT STEP is named. It attributes the ending to neither Mut'his nor the
+# user — `tests/test_cap_note_attribution.py` fails if a rewording does.
+AGENTIC_CAP_NOTE_AR = (
+    "انقطع الجواب قبل ما يكمل، لأن الجولة وصلت للحد المسموح به عندي. "
+    "هذا حد مؤقت يبدأ من جديد مع كل سؤال، فاسألني عن الباقي وأكمله لك."
+)
 
 
 # ─── Turn result ──────────────────────────────────────────────────────────────
