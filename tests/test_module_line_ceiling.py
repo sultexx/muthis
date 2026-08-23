@@ -159,6 +159,20 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # `persona_laws.py`. The next note family needs an EXTRACTION before it needs
     # a sentence.
     ("kernel/deferral_notes.py", 207),
+    # 280 -> 282 (DEC-113's `ast` import, after the map's own arrival was turned
+    # into an extraction), then 282 -> 292 at DEC-117, when the truncated read's
+    # `end` became the line DELIVERED rather than the line requested. PINNED
+    # HERE, alone, by Sultan's ruling, and the precedent is `confirm_gate.py`:
+    # that file sat UNPINNED at 300/300 for THIRTEEN DAYS because nothing was
+    # reading it. This one is now the closest thing in `src/` to
+    # `broker/docs/service.py`'s condition outside the declared set — and it
+    # GROWS BY DESIGN, which is the half that makes the pin matter: every reader
+    # surface lands here, and the last two arrivals both did. Nothing extracted
+    # and no content moved: DECLARING it IS the change, exactly as at
+    # `confirm_gate.py`, `persona_laws.py` and `deferral_notes.py`.
+    # `file_reader_notes.py` already exists as the extraction home, so the next
+    # arrival needs an EXTRACTION before it needs a sentence. TEN becomes ELEVEN.
+    ("file_reader.py", 292),
 ])
 def test_the_files_at_or_near_the_ceiling_have_not_moved(name, ceiling):
     """The declared numbers, pinned.
