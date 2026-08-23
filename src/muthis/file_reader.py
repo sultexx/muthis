@@ -255,7 +255,16 @@ class FileReader:
         THE MAP IS APPENDED AFTER THE CAP, SO THE PAYLOAD GROWS rather than the
         map displacing code lines. Deliberate (DEC-113): shrinking the delivered
         code to make room would pay for the map with the very thing the map
-        exists to compensate for."""
+        exists to compensate for.
+
+        `end` IS THE LAST LINE DELIVERED, NEVER THE LAST REQUESTED (DEC-117),
+        and it is recomputed BEFORE the note and the map are appended, because
+        both add newlines that are not code lines. **TWO model-facing surfaces
+        read this one value** — the DEC-61 log line and the Arabic header — so
+        both become truthful here or neither does. Before the fix the header
+        announced the whole range while the payload stopped short and the note
+        said it had been cut: measured on EIGHT of the ten pinned files, and
+        two surfaces that disagree are DEC-55's defect in a new place."""
         lines = text.splitlines() or [""]
         total = len(lines)
         start = _int_arg(args, "start_line") or 1
@@ -267,8 +276,9 @@ class FileReader:
         numbered = [f"{i:>5} | {line}" for i, line in enumerate(lines[start - 1:end], start)]
         body = "\n".join(numbered)
         if len(body) > self._max_chars:
-            body = (body[:self._max_chars].rsplit("\n", 1)[0] + TRUNCATION_NOTE_AR
-                    + _truncation_map(text, suffix))
+            body = body[:self._max_chars].rsplit("\n", 1)[0]
+            end = start + body.count("\n")   # the last line ACTUALLY delivered
+            body += TRUNCATION_NOTE_AR + _truncation_map(text, suffix)
         return body, start, end, total
 
 

@@ -2,8 +2,9 @@
 
 > Token-saving snapshot (updated 2026-08-23, **PHASE 4A — CODE INTELLIGENCE — is
 > COMPLETE, DEC-112 → DEC-114**; **DEC-115** then fixed the agentic cap note's
-> ATTRIBUTION — text only, the cap untouched). **`AGENTS.md` remains the full source
-> of truth**; this is the compressed map. Suite **1,949 green = 1,922 app + 27 sdk**
+> ATTRIBUTION and **DEC-117** the reader's truncation surfaces — both TEXT/VALUE
+> only, no cap and no ceiling touched). **`AGENTS.md` remains the full source
+> of truth**; this is the compressed map. Suite **1,958 green = 1,931 app + 27 sdk**
 > (the old «1,935 + 27» shorthand was a TOTAL that already contained the sdk 27 —
 > `pytest tests/` alone measured 1,908, never 1,935) — run
 > on `.venv`, NOT `.venv-v5` (that one lacks trafilatura and produces false failures).

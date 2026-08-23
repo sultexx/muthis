@@ -13822,3 +13822,170 @@ of what was believed on 2026-08-21 survives intact.
 **Suite unchanged at 1,949 = 1,922 app + 27 sdk.** Ten pinned files byte-unmoved.
 
 ---
+
+## DEC-117 (2026-08-23) — **A LOG THAT WAS RIGHT ONLY WHEN NOTHING INTERESTING HAPPENED.** `_numbered_slice` returned the range REQUESTED, so a truncated read logged `lines 1-293 of 293` over a payload stopping at 243 — and the SAME value fed the Arabic header, telling the model it held code it never received, directly above a note saying the file had been cut. **Option A ruled a DEFECT FIX rather than instrumentation · option C rejected · option E recorded designed-but-unbuilt** — APPROVED (Sultan), EXECUTED
+
+- **Status:** **RULED and EXECUTED.** ONE value, TWO surfaces, one new guard, and **no new log line at
+  all**. `MAX_RETURN_CHARS`, the `≤300` law, the agentic cap and all ten pins are untouched.
+
+### THE INSTRUMENTATION BRIEF WAS REFUTED BY ITS OWN FIRST MEASUREMENT
+
+The session opened as INSTRUMENTATION for DEC-112: build the per-pass tool line DEC-111 ② records as
+missing, so the pass economy of file reading could be MEASURED instead of reasoned. **Two measurements
+taken before anything was built changed the question, and Sultan ruled on them rather than on the
+brief.**
+
+**① THE LOG THE MEASUREMENT WOULD HAVE RESTED ON ALREADY LIED.** `_numbered_slice` caps `body` and
+returns `start`/`end`/`total` **unadjusted**, so `end` is the range asked for. Driven over the ten
+pinned modules with the REAL reader — delivered ends parsed from the PAYLOAD, never from the value
+under test:
+
+| pinned file | lines | delivered | the line claimed | |
+|---|---|---|---|---|
+| `tool_router` | 300 | **1–257** | `lines 1-300 of 300` | **misreported** |
+| `orchestrator` | 299 | **1–267** | `1-299 of 299` | **misreported** |
+| `turn_voice` | 300 | **1–276** | `1-300 of 300` | **misreported** |
+| `persona` | 209 | 1–209 | `1-209 of 209` | accurate |
+| `persona_laws` | 244 | **1–218** | `1-244 of 244` | **misreported** |
+| `sidekick_window` | 300 | **1–278** | `1-300 of 300` | **misreported** |
+| `composition` | 298 | **1–270** | `1-298 of 298` | **misreported** |
+| `turn_pass` | 293 | **1–243** | `1-293 of 293` | **misreported** |
+| `confirm_gate` | 300 | **1–265** | `1-300 of 300` | **misreported** |
+| `deferral_notes` | 207 | 1–207 | `1-207 of 207` | accurate |
+
+**IT WAS ACCURATE ON EXACTLY THE TWO FILES THAT FIT WHOLE AND WRONG ON ALL EIGHT THAT DID NOT.** A log
+that is right only when nothing interesting happened is worse than a missing one, because it is
+believed. **Sultan's ruling in his own words: a line that lies is worse than a line that is missing,
+and this one lies on exactly the files we care about most.**
+
+**② THE URGENCY THE BRIEF ASSUMED DID NOT SURVIVE MEASUREMENT.** Driving the reader through its OWN
+documented recovery (`TRUNCATION_NOTE_AR` tells the model to re-read with `start_line`): **all eight
+truncated pinned files come out WHOLE in exactly TWO reads** — inside the cap of 4, with two passes
+spare. DEC-112's *"a file at 38% shown needs three reads"* was measured on `diag_doc_rag.py` at 11.2%;
+it is TRUE and it **is not a description of the pinned set**, which is the population that matters
+here. **The pass-economy crisis was established on a different file than the one being reasoned
+about** — the same failure class as DEC-112's own "seven pins carried forward as ten", one level up.
+
+> **THE HONEST BOUND ON ②:** two reads is what the reader REQUIRES, computed by driving the real
+> executor. Whether a real model SPENDS them — re-reads with a range instead of giving up or
+> guessing — is untouched by this and remains unmeasured. The deterministic half is now a number; the
+> behavioural half still needs option E below.
+
+### THE FIX — ONE VALUE, BECAUSE TWO SURFACES READ IT
+
+```python
+if len(body) > self._max_chars:
+    body = body[:self._max_chars].rsplit("\n", 1)[0]
+    end = start + body.count("\n")   # the last line ACTUALLY delivered
+    body += TRUNCATION_NOTE_AR + _truncation_map(text, suffix)
+```
+
+**`end` IS RECOMPUTED BEFORE THE NOTE AND THE MAP ARE APPENDED**, because both add newlines that are
+not code lines — the ordering IS the correctness, and M2 below exists to prove it. The DEC-61 log line
+and the Arabic header both read this one value, so **neither site needed editing and both became
+truthful at once**. The arithmetic was verified exact on all ten pinned files against ends parsed from
+the payload, before it was written.
+
+`file_reader.py` **282 → 292**, unpinned, **8 lines under the law**. No extraction was needed; the
+`file_reader_notes.py` home stands ready if the next arrival changes that.
+
+### THE SECOND HALF IS A DEC-55 INSTANCE, AND IT WAS TOLD TO THE MODEL EVERY TIME
+
+The header the MODEL reads announced «الأسطر 1-293 من 293» **immediately above a note saying the file
+had been cut, over a payload stopping at 243.** Two MODEL-FACING surfaces contradicting each other
+inside ONE payload — and DEC-55 measured at T7 that a model reading two rules that conflict resolves
+them **unpredictably, because it reads LINEARLY**. This was not an edge case: it fired on **every
+truncated read**, which is 58 of 348 `.py` files and eight of the ten pins.
+
+**RECORDED AS A MEASURED INSTANCE, WITH NO BEHAVIOURAL CLAIM ATTACHED.** Nothing here establishes what
+the model DID with the contradiction. It is recorded because it was live on the most-read path in the
+project and **may bear on truncated-file behaviour that has not been explained** — the honest status
+is *a defect removed*, not *a defect whose consequences were measured*.
+
+### THE GUARD — `tests/test_reader_truncation_honesty.py` (229, 9 tests)
+
+**THE DELIVERED END IS PARSED FROM THE PAYLOAD ITSELF** — the last numbered line — never from the
+value under test, so the assertion cannot agree with the code by construction.
+
+**FIVE MUTATIONS, ALL RED**, each asserted APPLIED on disk against CRLF anchors, `file_reader.py`
+restored byte-identically (sha256) after each:
+
+| mutation | result |
+|---|---|
+| M1 — the shipped defect restored verbatim | RED (6 tests) |
+| **M2 — `end` computed AFTER the note and map are appended** | **RED (5)** — the ordering is load-bearing |
+| **M3 — `end` anchored at `1` instead of at `start`** | **RED (exactly 1)** — the truncated-RANGE test, written for this |
+| M4 — the filename reaches the log line (DEC-61 breach) | RED (2) |
+| **M5 — the HEADER reverts alone, the log stays truthful** | **RED (7)** — the two surfaces are guarded independently |
+
+**THE SCANS CARRY THEIR CONTROLS.** The real-tree scan asserts **at least one pinned file actually
+truncates**, or it would pass over an empty condition and prove nothing. The DEC-61 check asserts the
+canary name and directory are genuinely in the path that was PASSED IN, so "absent from the log" is a
+finding rather than an empty search — the positive control from the pre-fix probe, made permanent.
+
+**AND THE UNTRUNCATED PATHS ARE PINNED AS NEGATIVE CONTROLS**: a whole-file read and a fitting range
+read must be byte-for-byte unchanged, because a fix that also moved those would be a behaviour change
+wearing a defect fix's clothes.
+
+**ONE BOUNDARY DECLARED RATHER THAN LEFT TO ACCIDENT:** a single line longer than the whole cap has no
+newline for `rsplit`, so the delivered end is the START line — reported as the one partially delivered
+line it is, never as a range the payload lacks.
+
+### THE OPTIONS NOT TAKEN, PRESERVED WITH THEIR MEASURED COSTS
+
+Each was applied to a SCRATCHPAD COPY and counted; the repository was never written to.
+
+| site | now | after | verdict |
+|---|---|---|---|
+| **A** `file_reader.py` — make the EXISTING line truthful | 282 | **292** | **TAKEN** (unpinned, 8 under the law) |
+| **B** `pass_servicing.py` — one line, SERVICED calls only | 173 | 175 | unpinned — but blind to the draw, the refresh and `tool_choice` |
+| **C** `turn_pass.py` — one line, EVERY call the pass made | 293 | 297 | **REJECTED FOR NOW** — moves a pin for a question that lost its urgency to measurement ② |
+| **D** `orchestrator.py` — one line WITH the pass ordinal | 299 | 302 | **BREACHES the ≤300 law by 2** |
+
+**THE STRUCTURAL FACT BEHIND C AND D, recorded so it is not re-derived:** the only site that sees
+everything a pass did is `turn_pass.py` — `tool_choice`, `pending_draw`, `refresh_call`, `read_call`,
+`precondition_call`, `run_call` and `nav_call` are all locals of `consume()` and exist nowhere else.
+**The pass ORDINAL exists only in `orchestrator.py`**, whose `_iteration` never crosses into
+`TurnPass`, and which has one line of headroom. Any future per-pass line pays one of those two prices.
+
+### OPTION E — DESIGNED, MEASURED, DELIBERATELY UNBUILT
+
+**THE MECHANISM, recorded so nobody re-derives it: `CloudReasoner.run()` is called EXACTLY ONCE PER
+PASS by `TurnPass.consume()`, and the reasoner is an INJECTED seam.** A wrapper around the injected
+reasoner therefore sees the pass boundary for free, and every `ToolCall` the pass yields passes
+through it. A second wrapper at the `read_file` seam supplies the truncated flag. **Zero production
+lines, zero pins moved.** Driven against the REAL `Orchestrator`, REAL `TurnPass`, REAL loop and REAL
+`FileReader` with only the provider scripted, it produced exactly the table DEC-111 ② says does not
+exist:
+
+```
+ pass  tool_choice  stop_reason  tools called
+    1  auto         tool_use     read_local_file
+    2  auto         tool_use     read_local_file
+    3  auto         tool_use     highlight_target
+    4  none         end_turn     (none)
+   reads: 2 | of which TRUNCATED: 1 | passes: 4 of 4
+```
+
+**ITS LIMIT IS THE WHOLE REASON IT IS NOT THE ANSWER TO DEC-111 ②:** a script only observes the
+session someone runs, while a log line catches the next live session — **and DEC-111 ② exists
+precisely because a live session had already happened and could not be reconstructed afterwards.**
+`diag_navigator.py` already lists pass economy as a live-only check, so the home exists.
+
+**AVAILABLE AND UNBUILT.** It becomes the right instrument the moment "which tools in which pass"
+is load-bearing again, and it costs nothing to leave waiting.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No new log line. No per-pass line. No pin moved. No cap, ceiling or law changed.** DEC-111 ② stays
+open — the log still cannot answer "which passes were spent" — and DEC-97's confirm-gate counter stays
+backlogged. **The behavioural half of the pass economy is still unmeasured**, and this entry does not
+pretend the deterministic number settles it.
+
+**ONE THING FLAGGED, NOT RULED:** `file_reader.py` now sits at **292 unpinned**, which is closer to the
+`broker/docs/service.py` condition than anything else in `src/` outside the declared ten. Whether it
+joins them is Sultan's.
+
+**Suite: 1,958 green = 1,931 app + 27 sdk** (1,949 + 9 new). All ten pinned files byte-unmoved.
+
+---
