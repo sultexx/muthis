@@ -1,6 +1,11 @@
 # Phase 4A — Code Intelligence
 
-**Status: COMPLETE (2026-08-22). NOT merged, NOT tagged, NOT pushed — those are Sultan's.**
+**Status: COMPLETE (2026-08-22). MERGED, TAGGED AND PUSHED** — `205d9f5` on `main` (verified an
+ancestor), tag `v4a-code-intelligence-complete` (`81d8c3c` → `205d9f5`), both live on `origin`.
+*(This line read «NOT merged, NOT tagged, NOT pushed» until 2026-08-23 — stale since the merge, and
+corrected against `git ls-remote` and `git merge-base --is-ancestor` rather than against memory. Third
+instance of DEC-116's scanner gap in the same window: the count scanner compares numbers to file
+lengths and cannot see a status claim.)*
 Rulings **DEC-112 → DEC-114**. Suite **1,935 green + 27 sdk**. All ten pinned files byte-unmoved.
 Catalogue unchanged at **twelve tools**.
 
