@@ -14105,3 +14105,125 @@ rule between accepting two reads and raising the cap, and does not claim anythin
 **Suite unchanged at 1,959 = 1,932 app + 27 sdk.** Eleven pinned files byte-unmoved.
 
 ---
+
+## DEC-119 (2026-08-24) — **DEC-112 CLOSES: TWO READS ARE ACCEPTED AND `MAX_RETURN_CHARS` IS NOT RAISED.** Three measured grounds, and the milestone's whole shape came from TWO FIXTURES REFUTED BEFORE THEY WERE BUILT. The recovery-path question stays OPEN, unpursued, with its reopening condition named — APPROVED (Sultan), CLOSED
+
+- **Status:** **RULED and CLOSED.** No cap change, no `src/` change, no script built. `MAX_RETURN_CHARS`
+  stays **16,000**, the `≤300` law stands, DEC-111's cap stays **4**, and all eleven pins are unmoved.
+
+### THE RULING — TWO READS ARE ACCEPTED, ON THREE MEASURED GROUNDS
+
+**① THE PINNED SET LOSES ONLY `__all__`.** Nine of the eleven pinned modules truncate, at 82.9%–92.8%
+delivered, and **what the first read leaves behind is boilerplate**: seven lose `__all__` ALONE,
+`composition.py` has **nothing top-level beyond the cut at all**, and exactly ONE
+(`sidekick_window._configure_window`) loses a whole definition. **All nine have every exported name
+already visible in the delivered portion**, so even the lost block is reconstructible from what
+arrived. Across `src/`: 166 files, 15 truncate, **6** have any whole definition beyond the cut.
+
+**② RAISING THE CAP IS THE WRONG LEVER IN BOTH DIRECTIONS — the arithmetic, driven through the real
+reader at 1×, 2× and 4×:**
+
+| | lines | 1× (16,000) | 2× (32,000) | 4× (64,000) | reads to whole @1× / @2× |
+|---|---|---|---|---|---|
+| `turn_pass.py` | 293 | 82.9% | **100%** | 100% | 2 / 1 |
+| `tool_router.py` | 300 | 85.7% | **100%** | 100% | 2 / 1 |
+| `confirm_gate.py` | 300 | 88.3% | **100%** | 100% | 2 / 1 |
+| `orchestrator.py` | 299 | 89.3% | **100%** | 100% | 2 / 1 |
+| `sidekick_window.py` | 300 | 92.7% | **100%** | 100% | 2 / 1 |
+| `file_reader.py` | 292 | 92.8% | **100%** | 100% | 2 / 1 |
+| `diag_doc_rag.py` | 2297 | 11.2% | **24.9%** | 47.4% | **9 / 5** |
+| `diag_rag_bench.py` | 1480 | 20.3% | 42.8% | 79.7% | **6 / 3** |
+| `diag_web_research.py` | 1156 | 24.1% | 48.0% | 93.9% | **5 / 3** |
+| `test_orchestrator.py` | 1024 | 32.0% | 59.1% | 100% | 4 / 2 |
+
+**UNNECESSARY WHERE TRUNCATION IS SHALLOW:** doubling buys the pinned set exactly ONE READ, on files
+that were losing only `__all__`. **INSUFFICIENT WHERE IT BITES:** at 2× `diag_doc_rag.py` is still at
+**24.9%** and still needs **FIVE reads** — beyond the cap of 4, so **still unreachable in a turn**.
+**One cap cannot serve two populations three-and-a-half doublings apart**, and a number chosen to
+straddle them would be a definition by accident — the `PER_CHUNK_ENCODE_MS` family DEC-111 named.
+
+**③ THE SYMBOL MAP ALREADY COMPENSATES THE STRUCTURAL HALF, AT TRUNCATION, MEASURED.** DEC-112's D-2
+on the one file delivered at 82.9%: claim **3/9 → 9/9** and grounding **0/6 → 6/6**. The map attaches
+on truncation ONLY and that is structural, not a check. **Its bound travels with it and is not
+softened here:** the map carries NAMES AND SPANS, NOT CODE, so it rescues STRUCTURAL questions on a
+truncated file and does not rescue COMPREHENSION ones.
+
+### THE MILESTONE'S SHAPE CAME FROM TWO FIXTURES REFUTED **BEFORE** THEY WERE BUILT
+
+**Neither refutation cost a provider call.** Both came from asking the pre-registration question —
+*what would a cheating implementation score here, and could I tell?* — before any money was spent.
+
+**FIXTURE 1 — THE PINNED SET, an `__all__` question. REFUTED 9/9.** Every exported name of every
+truncated pinned file is **already visible in the delivered portion**, so a model answering from what
+it had would score **100% correct on one read** and be indistinguishable from an honest recovery.
+Correctness would not have implied a read, and the economy figures would have had no valid correctness
+axis beside them.
+
+**FIXTURE 2 — THE SIX `src/` FILES WITH REAL CODE BEYOND THE CUT. REFUTED 1 OF 6.** Ground truth
+computed from `ast` — the names a beyond-cut definition CALLS, or the literals in its body — checked
+against the delivered portion:
+
+| candidate | invisible calls | invisible literals | usable |
+|---|---|---|---|
+| `sidekick_window / _configure_window` | **3** (`attributes`, `geometry`, `overrideredirect`) | **3** (`'+0+0'`, `'-topmost'`, …) | **YES** |
+| `service.py / _path_key` · `_pages` · `_normalize_doc_id` · `_passage` | 0–1 | docstring prose only | no |
+| `tts.py / _make_player` · `_play_pcm` | 0 | docstring prose only | no |
+| `ingest.py / _encode` | 1 | 0 | no |
+| `mode_transition.py / _refuse` | 0 | docstring prose only | no |
+| `session_mode.py / record_verification` | 0 | docstring prose only | no |
+
+**ONE OF SIX.** The only invisible material on the other five is DOCSTRING PROSE, and **a question
+graded on paraphrased docstring text is an authored match rule** — the instrument defect that once
+produced three wrong verdicts and would have reported a fabricated improvement. Refused rather than
+measured with.
+
+**AND THE TWO REFUTATIONS ARE ONE MEASUREMENT READ FROM TWO SIDES.** *At 83–93% delivered, what is
+hidden IS the boilerplate.* "Truncation costs near-zero information" and "no question over this set
+discriminates" are the same sentence. **The tension was in the fixture choice, not in the method:**
+option 3 was chosen to stay ADJACENT to the pinned set, and adjacency to the pinned set is exactly what
+leaves it nothing to hide.
+
+**BUILDING ANYWAY WOULD HAVE PRODUCED A CONFOUNDED RESULT IN A KNOWN DIRECTION.** Five of six trials
+were answerable without re-reading, so a model that did not recover would have been recorded as
+**cannot** where the honest reading is **did not need to** — need-confounding, and the reserved
+follow-up pre-empted by accident.
+
+### THE RECOVERY-PATH QUESTION — OPEN, NOT PURSUED, AND THE REOPENING CONDITION IS NAMED
+
+**Does the model use the truncation note's recovery path at all?** Still unmeasured; the behaviour axis
+is empty and this entry claims nothing about it.
+
+**IT IS NOT PURSUED NOW, ON TWO GROUNDS.** The only population where it is cleanly askable is the DEEP
+diagnostic scripts (`diag_doc_rag.py` 11.2% with **90** definitions beyond the cut · `diag_rag_bench.py`
+20.3% with 43 · `diag_web_research.py` 24.1% with 35) — **and those are not what Mut'his reads during
+Sultan's work.** And **its answer changes no decision here**: recovery working means the design works,
+recovery failing means the map compensates the half that matters, and **the cap is refused either way.**
+
+> **THE REOPENING CONDITION, NAMED PRECISELY:** *live evidence that Mut'his answered from a truncated
+> portion and was WRONG.* That is the only signal that makes this load-bearing. Not a suspicion, not a
+> slow turn, not a second read observed in a log — **a wrong answer traced to content that was cut.**
+
+### OPTION E — CARRIED FORWARD UNCHANGED AND UNSPENT
+
+**THE MECHANISM:** `CloudReasoner.run()` is called **EXACTLY ONCE PER PASS** and the reasoner is an
+**INJECTED seam**, so a wrapper yields the per-pass table for **zero production lines** — and
+`scripts/diag_navigator.py` already ships that shape as `PassCounter`. A second wrapper at the
+`read_file` seam supplies the truncated flag.
+
+**TWO PROPERTIES IT MUST HAVE, both earned rather than assumed:**
+- **Classify the recovery path from the tool ARGS, NEVER the read count.** A re-read from the top and a
+  ranged recovery are **identical in count and opposite in meaning**.
+- **The map arm must ask for the code BODY.** The map names SPANS, so a question answerable from names
+  would let the map win **by construction**.
+
+**Projected size, on record before it is written: ~210 lines, band 190–240.** Unspent.
+
+### WHAT THIS CLOSURE DOES NOT DO
+
+**No cap change. No `≤300` change. No pin moved. No script.** It makes no claim about model behaviour on
+truncated files. DEC-111 ② (no per-pass tool line at INFO) stays open, and DEC-97's confirm-gate counter
+stays backlogged.
+
+**Suite unchanged at 1,959 = 1,932 app + 27 sdk.** Eleven pinned files byte-unmoved.
+
+---
