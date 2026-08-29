@@ -160,6 +160,25 @@ class TurnResult:
     # Phase 1 RECORDS it (coarse by design, §3.2); enforcement — flipping
     # high-impact tools to confirm-first — arrives with those tools (Phase 2).
     taint: bool = False
+    # DEC-111 ② — the two counters that make a PER-PASS line possible from
+    # `pass_servicing.py`, which DEC-117 measured as the only unpinned site.
+    #
+    # THEY LIVE HERE BECAUSE `result` IS THE ONE PER-TURN OBJECT THAT ALREADY
+    # CROSSES INTO THE SERVICING CALL. DEC-117 recorded the structural fact that
+    # the pass ORDINAL "exists only in `orchestrator.py`", whose `_iteration`
+    # never crosses into `TurnPass` and which has one line of headroom — so
+    # reading it there breached the ≤300 law by 2 (its option D). A counter on
+    # the object that is ALREADY passed costs neither pin: `service_pass_calls`
+    # is called once per pass, unconditionally, from `consume()`, so counting
+    # the calls IS the ordinal.
+    #
+    # `tools_logged` is the WATERMARK into `tool_calls`, which every accepted
+    # branch of the pass drain appends to — draw, refresh, router-serviced, nav
+    # and run alike. The slice past the watermark is therefore exactly the tools
+    # THIS pass asked for, which is the datum DEC-117 believed only
+    # `turn_pass.py` could see. Two ints, no new object, no new lifecycle.
+    passes_serviced: int = 0
+    tools_logged: int = 0
 
 
 # ─── tool_result builders — Option B "full pairing" keeps history API-valid ──

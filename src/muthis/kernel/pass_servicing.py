@@ -99,6 +99,34 @@ def _serviced_verification(call: ToolCall, prelude: Any) -> str:
     return verification_note(verification, state=after_advance(), advanced=True)
 
 
+def log_pass(result: Any) -> None:
+    """DEC-111 ② — ONE line per pass: the ordinal, and every tool the pass asked
+    for. English, never raises, no arguments and no payloads.
+
+    THE MINIMUM DATUM, AND WHY IT IS OBTAINABLE HERE AFTER ALL. DEC-117 measured
+    this site (its option B) as "blind to the draw, the refresh and
+    `tool_choice`" — true of the SERVICED PARAMETERS this function receives, and
+    NOT true of `result`, which is the same per-turn object `consume()` appends
+    EVERY accepted call to: draw, refresh, router-serviced, nav and run. The
+    watermark slice below is therefore the whole pass, not the serviced half.
+
+    `tool_choice` IS DELIBERATELY ABSENT AND DELIBERATELY NOT MISSED.
+    `loop_tool_choice` is `"none" if gate.drawn else "auto"`, and `gate.drawn` is
+    set by the first draw's PAIRING — so a reader of this table derives it: every
+    pass is "auto" until a draw appears on an earlier line, and "none" from the
+    pass after it. Recording the DRAW rather than the flag keeps the ground truth
+    instead of a value computed from it, and costs no pinned file.
+
+    NAMES ONLY — NEVER ARGUMENTS. A tool name is a control-flow fact; a tool
+    argument is user content (a path, a query, a program), which DEC-61 governs
+    and which the sandbox record handles under its own gate."""
+    result.passes_serviced += 1
+    fresh = result.tool_calls[result.tools_logged:]
+    result.tools_logged = len(result.tool_calls)
+    logger.info("[pass] #%d tools=%s", result.passes_serviced,
+                ",".join(c.name for c in fresh) or "-")
+
+
 async def service_pass_calls(
     *,
     router: Any,
@@ -120,6 +148,10 @@ async def service_pass_calls(
     # I/O must never delay the spoken ack). Routed through the ToolRouter
     # (V2 Phase 0) at the SAME site with the same await discipline; the
     # router never raises — every failure is already an Arabic note.
+    # DEC-111 ② — the pass's own line, FIRST: it records what the pass ASKED
+    # FOR, which is settled by the time servicing begins, so it is written even
+    # if a later arm below returns nothing at all.
+    log_pass(result)
     read_results: list[tuple[ToolCall, str]] = []
     # The precondition FIRST: `docs__query` in the same pass depends on the
     # index `docs__open` builds, so servicing them out of order would answer
@@ -170,4 +202,4 @@ async def service_pass_calls(
                         run_result=run_result, nav_result=nav_result)
 
 
-__all__ = ["PassServiced", "service_pass_calls"]
+__all__ = ["PassServiced", "service_pass_calls", "log_pass"]
