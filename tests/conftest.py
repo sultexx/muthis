@@ -56,3 +56,19 @@ def _clear_cloud_tts_env(monkeypatch):
         "BRAVE_API_KEY", "BRAVE_BASE_URL", "SEARXNG_BASE_URL",
     ):
         monkeypatch.delenv(var, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _durable_log_never_touches_the_real_home(monkeypatch, tmp_path):
+    """No test may write the durable log into the DEVELOPER'S OWN HOME.
+
+    Same hermeticity concern as the key-clearing fixture above, one surface
+    over. `configure_logging()` now attaches a rotating file log under
+    `~/.muthis/logs/`, and three existing tests call it with no directory — so
+    without this the suite writes its own noise into a real user path AND leaves
+    a live handler on the root logger for every test that follows.
+
+    The module attribute is patched rather than the constant imported into a
+    test module, so a test that deliberately asserts the SHIPPED default (it
+    lives outside the repo) still reads the real value it bound at import."""
+    monkeypatch.setattr("muthis.logging_policy.LOG_DIR", tmp_path / "muthis-logs")
