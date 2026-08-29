@@ -14227,3 +14227,352 @@ stays backlogged.
 **Suite unchanged at 1,959 = 1,932 app + 27 sdk.** Eleven pinned files byte-unmoved.
 
 ---
+
+## DEC-120 (2026-08-29) — **THE SEVEN-SCENARIO LIVE EVALUATION: FOUR VERDICTS, AND THE FINDING THAT THREE OF THEM WERE UNANSWERABLE FOR ONE REASON.** The sandbox RAN and the generated code was wrong · the symbol map was COMPLETE and the model misread it · Option B generalised to apps that draw and not to apps that do not · the earcons are unchanged. **DEC-119's reopening condition is ruled NOT MET** — RULED (Sultan)
+
+Sultan ran a seven-scenario evaluation on his own hardware. Four observations were carried into a
+diagnosis session with one standing instruction — **fix nothing, rule nothing** — and the discipline
+that made it work was his: *item 4 must not be classified as a false execution claim from the spoken
+response alone*, because three different defects sound identical from the chair.
+
+### THE METHOD, RECORDED BECAUSE IT WILL BE NEEDED AGAIN — THERE WAS NO TRACE
+
+`configure_logging` names **no file**, and there is **no `FileHandler` anywhere in `src/`**. The logs
+went to stderr and died with the terminal. Every finding below was reconstructed from four sources
+that happened to survive: `budget.json`, **Docker Desktop's own daemon log**, the files on disk, and
+the code.
+
+**AND THE FIRST SOURCE WAS A TRAP THAT HAD TO BE DISARMED BEFORE IT COULD BE USED.** `budget.json`
+shows no sandbox entry for 2026-08-29 — and that proves **nothing**. No file under `sandbox_exec/`
+and not the servicing arm in `pass_servicing.py:140-141` ever calls `record_plugin_call`: the sandbox
+is **kernel-serviced** and bypasses the ledger by construction. An absence in a ledger the subject
+never writes to is the 404-alone-proves-nothing shape, one domain over.
+
+### ① THE SANDBOX RAN. THE GENERATED CODE WAS WRONG — the case that was not on the list
+
+Sultan ran a 9-line irregular recurrence himself and got **777679**. Mut'his said **211351**, twice,
+and said it had run it. Three cases were offered; the ruling is a **fourth**, and it is the one the
+same number twice already implied.
+
+| case | verdict |
+|---|---|
+| ① never called | **REFUTED** |
+| ② called, failed / Docker down / timeout | **REFUTED** |
+| ③ hallucinated figure, no call | **not supported** |
+| ④ called, succeeded, **the generated code was wrong** | **the only case consistent with the evidence** |
+
+**FOUR FULL CONTAINER LIFECYCLES, FROM DOCKER'S OWN LOG** (UTC+3): `muthis-run-7b4ddc0cb0d2` 08:03:00
+(~543 ms) · `muthis-run-18c155662d6e` 08:04:17 (~369 ms) · `muthis-run-f4c6f087e163` 08:24:15
+(~422 ms) · `muthis-run-058fa16722a0` 08:27:24 (~386 ms). Each shows `create → sbJoin → rm -f`, and
+**`sbJoin` is the network-sandbox join, which happens only on START** — so these containers ran. The
+two 77 seconds apart are the "twice". `main.py` was saved at 08:01.
+
+**THE COUNTERFACTUAL WAS MEASURED, NOT ASSUMED.** A container with the exact `DEC3_FLAGS` and
+`python:3.12-slim`, running Sultan's program, takes **379–382 ms and prints 777679** — matching the
+observed lifetimes to the millisecond. **The sandbox, given the right code, returns the right answer
+in exactly the time observed.**
+
+**AND 211351 IS NOT A NEAR-MISS.** 689 parameter variants (bounds, seed, moduli, multipliers,
+addends, branch order), then every iteration count 1–20,000 at seed 17, then a 15-million-state
+seed × count grid: **zero hits**, and 211351 never appears even as an intermediate value of `x`. The
+eight collisions in the grid need unrelated seeds (88, 603, 2825) and are noise at that volume. So if
+211351 came from the sandbox, **the code was structurally different — not a slipped constant.**
+
+**THE LIMIT, DECLARED RATHER THAN PAPERED OVER.** The code sent and the stdout returned are **not
+recoverable by anyone**: the payload crosses on stdin, the apiproxy logs URLs and not bodies, and
+`docker rm -f` runs in a `finally`. "Wrong code ran" and "right code ran and the number was
+misreported" are **indistinguishable from the surviving record**. That is what DEC-121 fixes.
+
+**THE GAP AGAINST P0 IS INSTRUMENTAL, AND IT IS THE FINDING.** DEC-113's D-3 line already says it:
+*"the first run of this measurement was WORTHLESS: it scored 18/18 without storing the snippets…
+Re-run with the code stored."* **P0 reached 17/18 only because its harness STORED the code it sent.
+Production stored nothing** — so the exact defect that measurement was rebuilt to detect is the one
+defect invisible in production. The sandbox is not the gap; the instrument is.
+
+**AND DEC-113 ② ALREADY NAMED THE BEHAVIOUR:** *"AN EXTRACTION IS A PROBE, NOT A COPY. The model
+inlines constants BY VALUE… NOTHING PHASE 4A BUILDS MAY PRESENT AN EXTRACTION TO THE USER AS 'YOUR
+CODE'."* This program's entire output is its constants. The constraint bound what Phase 4A **builds**;
+it did not bind what the sandbox path **says**.
+
+### ② THE MAP WAS COMPLETE AND CORRECT. THE MODEL MISREAD THE TABLE
+
+The file is `scripts/diag_doc_rag.py` — **2,297 lines, 129,491 chars**, with `async def main()` at
+**line 2135**. Driven through the real reader and the real map:
+
+- **Reader header: «محتوى الملف diag_doc_rag.py (الأسطر 1-258 من 2297)»** — DEC-117's fix works; the
+  delivered end is truthful at 258 of 2,297 (**11.2%**).
+- **The map is 3,123 chars — UNDER `MAX_MAP_CHARS = 4,000`. `MAP_CUT_AR` did NOT fire.**
+- **The map carried the correct row: `def main 2135-2289`.**
+
+All three offered candidates resolve to NO — the map carried the span, the map was not cut, and the
+number was not absent from the payload-plus-map. **Line 1788 is `check_regression`'s start line**, a
+real row eleven above `main` in an 89-row table. **The model had the right answer in context and
+returned a line belonging to a different row.**
+
+**THIS IS THE FAILURE `symbol_map.py` DOCUMENTED BEFORE IT SHIPPED:** *"one fixture got WORSE (3/3 →
+2/3, a row's start read against the wrong row's end), because a TABLE CAN BE MISREAD where raw text
+has no such failure mode."* The compensator's own known cost, observed live for the first time.
+
+### RULING — DEC-119's REOPENING CONDITION IS **NOT MET**
+
+DEC-119 reserved reopening for **live evidence that Mut'his answered from a truncated portion and was
+WRONG**. That was written for **answering-by-guess out of a gap in the delivered text**. This is not
+that:
+
+**① THE MAP WAS COMPLETE.** The answer was present and correct in the payload; this is a misread of
+a delivered table, **a separately recorded failure mode with its own measured cost**, not a recovery
+failure.
+**② THE REMEDY DEC-119 DECLINED WOULD NOT HAVE HELPED.** Reaching line 2135 of this file needs
+**~7.5× the cap**, not the 2× DEC-119 weighed and refused.
+
+**The cap does not move. `MAX_MAP_CHARS` does not move.** The misread is recorded here as the live
+instance of a known cost, and **no ruling is made on what to do about it** — the map's misread rate
+has never been measured in production, and DEC-121's per-pass line is not the instrument for it.
+
+### ③ THE CAP — OPTION B GENERALISED TO APPS THAT DRAW, AND NOT TO APPS THAT DO NOT
+
+`MAX_AGENTIC_ITERATIONS = 4`, `MAX_REFRESH_FOLLOWUPS = 1`. Verification **does not spend its own pass
+structurally**: `pass_servicing.py:162-168` services the nav verb in the same pass as the draw, and
+DEC-111's Option B changed **no kernel code** — it is an authoring clause (`e2cc746`).
+
+**THE MECHANISM IS IN THE CLAUSE'S OWN FIRST LINE.** «التحقّق مع الإشارة — اجمعهما» governs *verifying
+a step's result **and pointing to the next step in the same answer***. That state exists **only when
+verification SUCCEEDS**:
+
+- **Fusion renders its unsettled state** → evidence exists → `RESULT_PROVEN` → `ADVANCE` applied →
+  a next step exists to point at → the clause fires → two passes → **cap hits 3 → 0**.
+- **Excel does not** (DEC-105's named boundary) → no evidence can exist in the frame →
+  `RESULT_NOT_PROVEN_OBSERVABLE` fail-closes → **no advance, so no next step to point at** → the
+  clause's precondition is **unsatisfiable** → passes are spent seeking evidence the frame cannot
+  carry → the cap returns.
+
+**Option B removed a pass the model CHOSE to spend. It has no purchase on passes a fail-closed
+verification FORCES.** Nothing is ruled: the pass sequence itself was still not observable at
+diagnosis time, for the reason DEC-111 recorded a week earlier — *"nothing logs a tool name per
+pass."* DEC-121 builds that instrument; the cap ruling waits for it.
+
+### ④ THE EARCONS — NOTHING CHANGED, AND THE TRIGGERS ARE NAMED
+
+**Exactly two sounds exist in the codebase**: `EARCON_NAMES = ("listening", "processing")`. A sweep
+for `winsound|PlaySound|MessageBeep|.wav|beep|playsound|pygame|sounddevice` across `src/`, `scripts/`,
+`sdk/` and the overlay finds **no other emitter**. `earcons.py`'s only commit is `f8c188f` — the v4.1
+baseline freeze — and both WAVs are dated Jul 15, untouched.
+
+Fire points, both push-to-talk: `listening` at `activation.py:138` (key-down, only after the mic
+confirms open), `processing` at `activation.py:176` (key-up, turn launch).
+
+**So an unexpected earcon means the TRIGGER moved, not the sound.** Two paths can fire one without a
+fresh deliberate press, **named as candidates and not as findings**: the **stale-mic heal**
+(`activation.py:125-131` — `is_recording` true with no turn → `_reset_mic()` → `_open_recording()` →
+a second `listening`), and the **deferred barge-in release** (`_pending_activation` fired later by
+`reset_turn_state` → `processing` at a detached moment). **INSUFFICIENT EVIDENCE to go further**: the
+diff needs the date of the sessions where he did not hear it, and that date is not in the record.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No code. No cap change. No `MAX_MAP_CHARS` change. No pin moved. No persona clause.** The map
+misread is recorded, not remedied. The Excel pass economy is derived, not measured. The earcon
+trigger is narrowed to two candidates, not chosen between.
+
+**THE CLOSING OBSERVATION IS THE ONE THAT BECAME A TASK:** three of the four questions were
+unanswerable **for the same reason** — the sandbox records neither its input nor its output, and
+nothing logs a tool name per pass. The evaluation found real defects, and it also found that **the
+system cannot testify about itself.**
+
+---
+
+## DEC-121 (2026-08-29) — **THE SYSTEM CAN NOW TESTIFY ABOUT ITSELF, AND TWO REFUSALS DECIDED ITS SHAPE.** The sandbox run record (a FINGERPRINT, never the code) · **DEC-111 ② CLOSED** at the unpinned site, because a recorded claim did not survive re-measurement · and a CRLF defect caught inside the instrument itself — APPROVED (Sultan), EXECUTED
+
+DEC-120 established that three open defects were blocked on the same missing instrument. This builds
+it. **Both refusals below were reported BEFORE the code was written**, on Sultan's instruction, and
+both were upheld.
+
+### REFUSAL ① — THE CODE IS NOT PERSISTED, AND DEC-61 DECIDES IT
+
+**DEC-61 removed the file PATH from the logs at a time when CONTENT WAS ALREADY NEVER LOGGED** — "log
+the EXTENSION, the OUTCOME and the SIZE." Submitted code is user content and is **strictly more
+sensitive than the path DEC-61 removed**. Writing it by default would **invert** that law, not extend
+it. DEC-61's general rule is the test applied: classify by **PERMANENCE and AUDIENCE**, never by
+whether the datum feels secret.
+
+**THE WEAKEST SUFFICIENT FORM WAS ALREADY IN THE TREE.** `stt.py:81-84` logs `Scribe OK (%d chars)`
+and gates the transcript itself behind `MUTHIS_DEBUG=1`. That precedent — **the one module whose
+content is as sensitive as the user's own words** — is applied verbatim: a **digest + sizes + outcome**
+always, the code and stdout only under the flag.
+
+**AND THE FINGERPRINT IS SUFFICIENT FOR THE QUESTION THAT WAS UNANSWERABLE.** Compare the digest of
+the code sent against the digest of the file the user believes ran. **DIFFER** → the model sent
+something else, and the output is correct for a program nobody asked for. **EQUAL** → the sandbox ran
+the right program, so a spoken answer that disagrees with a deterministic program's output did not
+come from the sandbox. **Neither branch needs the text.** Declared limit: for a NON-deterministic
+program the equal branch localizes without settling.
+
+### REFUSAL ② — NO DIGEST OF STDOUT, AND THIS ONE IS SHARPER
+
+A digest is one-way **only over a large input space**. The outputs this sandbox returns are routinely
+a handful of digits, and **a hash of `211351` inverts by brute force in microseconds**. A stdout
+digest would be **content wearing a fingerprint's clothes — worse than logging nothing, because it
+READS as protection.** Stdout carries a LENGTH and nothing derived from its bytes. The same objection
+applies weakly to very short PROGRAMS and is accepted knowingly: the code digest is the datum the
+incident actually required.
+
+### THE DEFECT CAUGHT INSIDE THE INSTRUMENT — CRLF, AND IT WAS THE WORST POSSIBLE ONE
+
+Measured, not reasoned: `main.py` fingerprinted **`01c041663ae4`** read as text and **`b9ba95a38cc2`**
+read as bytes — **for the same ten lines**. This is a Windows project where every file on disk is CRLF
+and every model-composed argument is LF, so the raw digest would have answered **"the code differs"
+for every identical program** — **falsely confirming case ④, the only case the instrument exists to
+test.** `_digest` now normalizes line endings and **nothing else**: indentation and trailing
+whitespace stay inside, because a program that differs there IS a different program, and that half
+carries its own control test.
+
+### DEC-111 ② — **CLOSED**, AND A RECORDED CLAIM DID NOT SURVIVE RE-MEASUREMENT
+
+DEC-117 measured four sites and rejected all of them: `pass_servicing.py` (option B) was recorded
+**"blind to the draw, the refresh and `tool_choice`"**; the only site seeing everything was
+`turn_pass.py` (pinned); and the pass ORDINAL *"exists only in `orchestrator.py`"*, whose option D
+**"BREACHES the ≤300 law by 2"**.
+
+**THE BLINDNESS IS A PROPERTY OF THE SERVICED PARAMETERS, NOT OF `result`.** `consume()` appends
+**every accepted call** to `result.tool_calls` — draw (`turn_pass.py:186`), refresh (190),
+router-serviced (202), nav (225), run (231) — and `result` is the same per-turn object already passed
+into `service_pass_calls`. So:
+
+- **THE ORDINAL** is a counter on `TurnResult`; `service_pass_calls` is called **once per pass,
+  unconditionally**, from `consume()`, so counting the calls **is** the ordinal. Option D's breach is
+  not paid.
+- **THE TOOL NAMES** are the slice past a watermark — the whole pass, **including the draw**.
+- **`tool_choice` IS DELIBERATELY ABSENT AND DELIBERATELY NOT MISSED.** `loop_tool_choice` is
+  `"none" if gate.drawn else "auto"`, and `gate.drawn` is set by the first draw's PAIRING, so a reader
+  derives it: auto until a draw appears on an earlier line, none from the pass after. **Recording the
+  DRAW keeps the ground truth instead of a value computed from it** — and a flag read from live gate
+  state would mix one pass's value with another's.
+
+**NAMES ONLY, NEVER ARGUMENTS.** A tool name is a control-flow fact; a tool argument is user content —
+a path, a query, a program — which DEC-61 governs and which the sandbox record handles under its own
+gate.
+
+### WHAT LANDED
+
+| file | before | after | pinned |
+|---|---|---|---|
+| `sandbox_exec/service.py` — the run record | 85 | **182** | no |
+| `kernel/pass_servicing.py` — the per-pass line | 173 | **205** | no |
+| `kernel/turn.py` — the two per-turn counters | 198 | **217** | no |
+
+```
+[sandbox] lang=python code=01c041663ae4 (180 chars, 10 lines) → exit=0 381ms stdout=7 chars stderr=0 chars
+[pass] #1 tools=navigator__verify
+[pass] #2 tools=request_screen_refresh
+[pass] #3 tools=navigator__verify
+[pass] #4 tools=highlight_target
+```
+
+**A gate refusal is recorded too** — the model asking for a 4th run is exactly the datum a
+pass-economy question wants. **`main.py` and `composition.py` are untouched**; nothing new is wired.
+
+**GUARDS: `tests/test_sandbox_run_record.py` + `tests/test_pass_line.py`, 21 tests.** Every privacy
+assertion is **paired with a positive control**, because "the canary is absent" passes trivially
+against a module that logs nothing — which is the state being left behind. **14 mutations, 14 RED**,
+each asserted APPLIED on disk against CRLF anchors and restored: the privacy gate removed, the gate
+welded shut, the digest made constant, the digest made the code itself, a stdout digest added, the
+record deleted, a refusal dropped, line-ending normalization removed, normalization widened to all
+whitespace, the watermark frozen, the delta widened to the turn, the ordinal counting tools, arguments
+logged beside names, and the production call site removed. **Two mutations initially reported
+ANCHOR-NOT-FOUND** after `_digest` was rewritten, and the harness refused to score them — the APPLIED
+discipline doing exactly its job.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No ruling on the three defects.** The sandbox generation defect, the map misread and the Excel pass
+economy all wait for live data from these instruments. **No pin moved. No cap, ceiling or law
+changed.**
+
+---
+
+## DEC-122 (2026-08-29) — **THE DURABLE LOG, AND THE ONE COMBINATION IT REFUSES.** `MUTHIS_DEBUG=1` and a permanent log are made UNREPRESENTABLE rather than rejected · a hermeticity defect and a docstring-masked guard hole were found in the building of it · and **248 call sites are now permanent, none of them audited for that** — RULED (Sultan), EXECUTED
+
+Every diagnosis this project has done reconstructed from ashes. DEC-120 was settled out of **Docker's**
+log because Mut'his kept none of its own.
+
+### THE RULING — THE REFUSAL, AND WHY IT BEAT THE FILTER
+
+**The finding decided it: DEC-61's PERMANENCE criterion has been satisfied BY ACCIDENT, not by
+design.** The logs died with the terminal, so no site was ever written for durability. A file handler
+**re-classifies 248 call sites at once** — from "whoever is watching the console" to "anyone with the
+disk, and whoever receives a bug report."
+
+`MUTHIS_DEBUG=1` unseals the two most sensitive surfaces in the project: the **STT transcript** and,
+since DEC-121, the **code submitted to the sandbox**. That content and a durable log must never
+coexist. Two shapes were available and **the refusal won on one ground**: a filter that strips debug
+content on its way to the file **depends on classification discipline across 248 unaudited sites,
+where one miss is a silent permanent leak**. The refusal **fails closed**, and the property is
+checkable in **one place instead of 248**.
+
+**IT IS UNREPRESENTABLE, NOT REJECTED — THE `symbol_map` DISCIPLINE, ONE DOMAIN OVER.** The guard is
+the first statement of `attach_file_log` and returns **before anything is built**, and the handler is
+constructed at **exactly one place in the tree**. There is no `if debug: skip` further down for
+someone to delete, because **no code path runs from `MUTHIS_DEBUG=1` to a handler at all**. A test
+asserts the "exactly one construction site" half — without it, "the guard works" is a claim about one
+function while another module quietly opens its own file.
+
+**AS MEASURED:** `~/.muthis/logs/muthis.log`, **outside the repository on purpose** — a log inside the
+tree is one `git add -A` from publication — rotating at **2 MB × 3** (~8 MB ceiling), **failing soft**
+to console-only when the directory cannot be made, because a log that cannot be written must degrade
+the diagnosis and never the app. **`logging_policy.py` 92 → 199. `main.py` is UNCHANGED**: it already
+calls `configure_logging()`.
+
+**ORDER IS LOAD-BEARING AND ASSERTED:** `basicConfig` installs the console handler only when the root
+has NONE, so attaching the file first would **silence the console for the whole run** — the durable
+log arriving by taking the live one away. And the third-party silencing is at LOGGER level, so it
+reaches the file too: **a full request URL is no more writable to disk than it was printable.**
+
+### TWO DEFECTS FOUND IN THE BUILDING OF IT, BOTH IN MY OWN WORK
+
+**① A HERMETICITY BREACH, CAUGHT BY LOOKING AT THE DISK.** Three existing tests call
+`configure_logging()` with no directory (`test_logging_privacy.py:81,130`, `test_search_provider.py:124`),
+so the suite wrote **74 KB into the developer's real `~/.muthis/logs/`** and left a live rotating
+handler on the root logger for every test that followed. Fixed **structurally** with an autouse
+`conftest.py` fixture — the same concern as the key-clearing fixture beside it, one surface over —
+and the module attribute is patched rather than the imported constant, so the test that asserts the
+SHIPPED default still reads the real value. **Verified: a full suite run now leaves the home
+untouched.**
+
+**② A GUARD HOLE THE MUTATIONS FOUND, AND IT WAS READING PROSE.** The order test compared source
+positions — `body.index("basicConfig") < body.index("attach_file_log")` — and a mutation that
+**genuinely reordered the two calls stayed GREEN**, because the **docstring names `basicConfig` above
+them both**. The test measured a comment and reported on a mechanism. Replaced with a behavioural
+test that drives the real configuration **on an emptied root** and asserts a console handler exists —
+the only form a comment cannot satisfy. **This is DEC-110's law and the "true statement on a false
+mechanism" lesson landing inside a guard rather than a docstring.**
+
+**GUARD: `tests/test_durable_log.py`, 11 tests. 6 mutations, 6 RED** (refusal removed, refusal
+inverted, bounds declared but not passed to the handler, the log moved inside the repository, an
+unwritable directory raising instead of degrading, the file attached before `basicConfig`). **20/20
+RED across all three instruments.**
+
+### FLAGGED, NOT FIXED — 248 CALL SITES ARE NOW PERMANENT
+
+**Sultan rules on this separately; nothing here changes a log line.** The counts: **120 `info`, 101 `warning`, 17 `error`, 10 `exception`** — counted by AST,
+so a docstring quoting a log call is excluded. The tree is mostly disciplined — `file_reader` logs
+extension/outcome/size after DEC-61, `broker/docs/paths.py` logs lengths and booleans — but the audit
+is owed, and these are the classes:
+
+- **DOMAINS, PER FETCH.** `broker/net/fetcher.py` logs `[fetch] <domain> status=…` and
+  `address_guard.py:173` logs a blocked hostname. **DEC-17 blessed domain + status + size for a log
+  that evaporated. The same permitted datum, accumulated across sessions, is a browsing history** —
+  a materially different artifact from the one that was ruled on.
+- **DEVELOPER PATHS.** `broker/mcp/host.py` logs `self._plugins_dir` and `manifest_path.name`.
+- **AGGREGATE ACTIVITY.** Extensions, sizes and outcomes are individually permitted and collectively
+  a record of what the user worked on, and when — a property no single site can be blamed for.
+
+**THE GENERAL STATEMENT, PLAINLY: every one of the 248 was written under the ephemeral regime, and
+none was audited for the durable one.** The refusal above bounds the worst case (unsealed content can
+never become permanent); it does not perform the audit.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No log line changed. No pin moved. No cap, ceiling or law changed.** The 248-site audit is not
+begun. **Suite: 1,959 → 1,991 (+32 new tests). Eleven pinned files byte-unmoved.**
+
+---
