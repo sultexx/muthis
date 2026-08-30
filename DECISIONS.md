@@ -14705,3 +14705,125 @@ is now known **not to reproduce on the file-read path**. **DEC-120 ③ is REFUTE
 entry.** Suite unchanged at **1,991**; the eleven pinned files byte-unmoved.
 
 ---
+
+## DEC-124 (2026-08-30) — **A NOTE THAT INVERTED ITS OWN TERMINALITY, FIXED.** `FILE_NOT_FOUND_AR` ended by asking for the retry it should have forbidden · **a SECOND inversion found in the same file and reported, not fixed** · DEC-120 ③ recorded as a **SHARED** error · and the 248-site durable-log audit **SIZED: 212 / 12 / 24** — RULED (Sultan), EXECUTED
+
+### ① THE FIX — THE NOTE WAS NOT MISSING AN OBLIGATION, IT WAS INVERTING ONE
+
+`FILE_NOT_FOUND_AR` ended «**واطلب القراءة من جديد**» — *ask for the read again* — and its named next
+step, «تأكد من المسار الكامل», addresses someone who can inspect a filesystem, **which the model
+cannot**. So the only half the model could act on **was the retry**, and it retried: measured live
+2026-08-30, **three identical not-found reads in one turn, passes 1-3, pass 4 empty.**
+
+**AND NOTHING BOUNDED IT.** `read_local_file` has **no per-turn budget** — `read_call` is first-wins
+per PASS, with no `SandboxGate` equivalent — so only `MAX_AGENTIC_ITERATIONS = 4` stopped the turn.
+**The note is the whole brake.**
+
+**REWORD ONLY.** DEC-58 ruling 3's three obligations, answered honestly:
+
+| obligation | the new note |
+|---|---|
+| ① the STATE | «ما قرأت شي وما فتحت شي» — nothing read, nothing opened |
+| ② TERMINAL, with the reason it cannot be retried away | «أي محاولة ثانية بنفس المسار ترجع نفس النتيجة بالضبط، فلا تعيد القراءة به» |
+| ③ a next step **THE MODEL** can take | «اسأل المستخدم عن المسار الصحيح» — and it says WHY: «لأني ما أقدر أتصفّح جهازه» |
+
+Shaped on `FILE_IS_DOCUMENT_AR`, DEC-35's fix and **the one note in this file that already satisfied
+all three**. `file_reader_notes.py` 74 → 102, unpinned. No gate touched, no bound added.
+
+**GUARD — `tests/test_not_found_note_terminality.py`, 10 tests, AND IT IS A PREDICATE RATHER THAN A
+STRING MATCH.** Asserting the shipped sentence verbatim would pin the prose instead of the property,
+so the obligations are a check driven against **three** inputs: the shipped note (**must pass**), the
+**historical note that failed** (**must fail** — without it the guard proves nothing about the defect
+it was written for), and an **honest rewording** (**must pass** — the negative control, or any correct
+rewrite reddens the suite and the guard becomes something to route around).
+
+**THE BAN MATCHES AT A CLAUSE BOUNDARY, AND THAT IS LOAD-BEARING RATHER THAN FUSSY.** The imperative
+«تأكد من المسار» commands a check the model cannot run; «لأتأكد من المسار بنفسي» is the note
+explaining **in the first person why it cannot** — the exact opposite, and it *contains the other as a
+substring*. The first version of the guard rejected the honest reason clause. **A coarse ban pushes a
+note toward saying less**, which is the direction this whole family of defects already travels.
+
+**9 mutations, 9 RED**, each asserted APPLIED on disk against CRLF bytes and restored: the historical
+note restored wholesale · two different retry invitations appended to an otherwise correct note · the
+next step turned back into an operator-only imperative · each of the three obligations dropped in turn
+· the reason clause dropped · and **production made to serve a different note entirely**.
+
+### ② THE REST OF THE FILE, AUDITED — REPORTED, NOT FIXED
+
+DEC-58's sweep fixed `doc_rag`'s notes and **never reached this file**. All ten:
+
+| note | verdict |
+|---|---|
+| `FILE_IS_DOCUMENT_AR` | **all three.** DEC-35's fix — the template the new note copies |
+| `FILE_ALREADY_READ_AR` | all three |
+| `FILE_TOO_LARGE_AR` | all three; next step is model-actionable («اطلب من المستخدم») |
+| `FILE_NOT_FOUND_AR` | **was ② INVERTED + ③ operator-only — FIXED HERE** |
+| **`FILE_READ_ERROR_AR`** | **② INVERTED** («جرّب مرة ثانية») **+ ③ operator-only** («تأكد من الصلاحيات») |
+| `FILE_BLOCKED_AR` | ③ ABSENT — no next step named |
+| `FILE_NOT_TEXT_AR` | ③ ABSENT |
+| `FILE_READ_UNAVAILABLE_AR` | ③ ABSENT |
+| `FILE_NAME_NOT_BARE_AR` | **not a defect** — a correctable input, so a retry IS the valid move |
+| `TRUNCATION_NOTE_AR` | **not a defect** — a retry with a RANGE is a different operation, not the same one |
+
+**`FILE_READ_ERROR_AR` IS THE SAME DEFECT, ONE LINE DOWN**, and it is the **catch-all for an
+unexpected exception** — exactly DEC-58's `OPEN_FAILED_AR`, which "said none of the three". **Not
+fixed here**, per the instruction to fix only the confirmed one. The three ③-ABSENT notes are a
+weaker class: they leave no sanctioned move, but none of them *invites* the failed one.
+
+### ③ DEC-120 ③ WAS A **SHARED** ERROR, AND THE RECORD SAYS SO
+
+DEC-123 recorded the refuted "apps that draw / apps that do not" framing as mine. **Sultan's
+correction, recorded at his instruction:** he approved that entry, and **his own rule from two days
+earlier — verify in the tree anything raised from a prior record — would have caught it.** The
+framing survived a write, a review and an approval. **A convention that only one party applies is not
+a control**, which is the same shape as DEC-58's own lesson one layer up: the failure is in the
+process, not the person.
+
+### ④ THE 248-SITE AUDIT — **SIZED, NOT OPENED**
+
+Classified by AST: the format string plus the SOURCE TEXT of every interpolated argument.
+
+| bucket | count | what it is |
+|---|---|---|
+| **A — safe permanently** | **212** | constants, counts, sizes, durations, status codes, type names, enums, config |
+| **B — safe ephemerally, NOT durably** | **12** | network identity: `fetcher.py` ×5, `address_guard.py` ×3, `transport.py` ×3, two `base_url` |
+| **C — needs a ruling** | **24** | 23 raw exception objects + 1 interpolated path |
+
+**THE WORST THREE:**
+
+**① THE 23 RAW-EXCEPTION SITES — the worst, and DEC-61 found this exact shape by measurement.** Its
+seventh site was `read failed (%s: %s)` logging the exception object, because **`OSError.__str__`
+embeds the offending path verbatim**. Ephemerally such a string scrolled past; durably it is written
+down. The single worst is **`broker/grants.py:48`**, which logs **a path AND the exception together** —
+the two halves DEC-61 separated. (`docs/ingest.py:235` already does it correctly, with
+`type(exc).__name__`, and is the model for the fix.)
+
+**② THE 12 NETWORK-IDENTITY SITES — the highest-frequency class**, one line per fetch at
+`fetcher.py:170/187/198/211/225`. **DEC-17 blessed domain + status + size for a log that EVAPORATED;
+accumulated across sessions the same permitted datum is a browsing history** — a materially different
+artifact from the one that was ruled on.
+
+**③ `broker/mcp/host.py:103` — the only interpolated filesystem path outside the exception class.**
+
+**TWO STRUCTURAL FACTS BOUND THE WHOLE AUDIT, and they are the reason C is 24 and not 137.** The
+**only** site interpolating raw user text is `stt.py:82`, and it is `MUTHIS_DEBUG`-gated — therefore
+**already excluded from every durable log by DEC-122's refusal**. And **no document identity is ever
+logged**: no `doc_id`, no title, no filename anywhere in `doc_rag`, whose `describe()` composers carry
+`source` as *the file's suffix, never its path*.
+
+**THE METHOD CRIED WOLF TWICE BEFORE IT WAS TRUSTED, AND THAT IS RECORDED RATHER THAN TIDIED.** Round
+one flagged **137 of 248** because `type(exc).__name__`, `returncode` and `_log_shape(path)` all
+matched a content token as a bare substring. Two candidates for "worst" then died on inspection:
+`docs/ingest.py`'s OSError arm is **already DEC-61-correct**, and `chunking.py:173`'s `block.section`
+is **the heading NUMBER ("1.1"), not the title**. **A scanner that cries wolf gets ignored, and an
+ignored scanner is how a real leak survives an audit.** Declared limit: classification is by argument
+EXPRESSION, so every site in B and C is a **worklist, never a verdict**.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No log line changed. The audit is not opened. `FILE_READ_ERROR_AR` is not reworded. No bound added
+to `read_local_file`, and DEC-97's confirm-gate counter is UNTOUCHED** — it is the same retry-loop
+family and gets one ruling with this, after Sultan sees the audit. No pin moved; the eleven are
+byte-unmoved. **Suite 1,991 → 2,001.**
+
+---
