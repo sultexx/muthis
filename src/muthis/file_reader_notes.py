@@ -25,7 +25,35 @@ bought no answer. What these strings say is load-bearing behaviour.
 
 from __future__ import annotations
 
-FILE_NOT_FOUND_AR = "ما لقيت الملف «{path}». تأكد من المسار الكامل واطلب القراءة من جديد."
+# DEC-124: the note did not merely LACK terminality — it INVERTED it. The old
+# text ended «واطلب القراءة من جديد» (*ask for the read again*), and its named
+# next step, «تأكد من المسار الكامل», addresses someone who can inspect a
+# filesystem — which the model cannot. So the only half the model could act on
+# WAS the retry, and it retried: measured live 2026-08-30, three identical
+# not-found reads in one turn, passes 1-3, with pass 4 empty.
+#
+# AND NOTHING BOUNDED IT. `read_local_file` has no per-turn budget — `read_call`
+# is first-wins per PASS (`turn_pass.py`), with no `SandboxGate` equivalent — so
+# only `MAX_AGENTIC_ITERATIONS` stopped the turn. The note is the whole brake.
+#
+# THIS IS DEC-58 RULING 3's LAW, AND ITS AUDIT NEVER REACHED THIS FILE: that
+# sweep fixed `doc_rag`'s notes and its table holds the exact analogue one
+# capability over — `DOC_READ_FAILED_AR`, *"did not say a retry with the same
+# path gives the same error"*.
+#
+# THE THREE OBLIGATIONS, HONESTLY, and shaped on `FILE_IS_DOCUMENT_AR` below,
+# which is DEC-35's fix and the one note in this file that already satisfies all
+# three: (1) the STATE — nothing was read and nothing was opened; (2) TERMINAL
+# FOR THIS PATH, said in those words, with the reason it cannot be retried away —
+# the same path returns the same result; (3) a next step THE MODEL CAN TAKE —
+# ask the user for the correct path, and the clause says WHY the model cannot
+# settle it alone, so "check it yourself" is not left looking available.
+FILE_NOT_FOUND_AR = (
+    "ما لقيت الملف «{path}» — ما قرأت شي وما فتحت شي. وهذا المسار بالذات ما "
+    "ينفع: أي محاولة ثانية بنفس المسار ترجع نفس النتيجة بالضبط، فلا تعيد "
+    "القراءة به. بدل المحاولة: اسأل المستخدم عن المسار الصحيح، لأني ما أقدر "
+    "أتصفّح جهازه لأتأكد من المسار بنفسي."
+)
 FILE_BLOCKED_AR = "هذا الملف من ملفات الأسرار (مفاتيح/بيانات اعتماد) وقراءته ممنوعة حمايةً للمستخدم."
 FILE_TOO_LARGE_AR = "الملف أكبر من الحد المسموح للقراءة. اطلب من المستخدم يفتح الجزء المطلوب أو حدّد ملفاً أصغر."
 FILE_NOT_TEXT_AR = "هذا ملف ثنائي (غير نصّي) وما أقدر أقرأه كنص."
