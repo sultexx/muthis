@@ -14576,3 +14576,132 @@ never become permanent); it does not perform the audit.
 begun. **Suite: 1,959 → 1,991 (+32 new tests). Eleven pinned files byte-unmoved.**
 
 ---
+
+## DEC-123 (2026-08-30) — **THE INSTRUMENTS PAID FOR THEMSELVES ON THEIR FIRST RUN.** The sandbox path is PROVEN SOUND by byte arithmetic, twice · case ④ is **NOT REPRODUCED** and the likeliest mechanism is a path nobody had considered · **my Excel derivation is REFUTED by the reading I built to test it** · and one new defect: a triple retry invited by the note itself — MEASURED (Sultan), RULED
+
+Three experiments, run on Sultan's hardware with DEC-121's and DEC-122's instruments live. **Two open
+defects were settled, one of my own derivations was refuted, and a new defect surfaced.** Everything
+below is read off the log rather than argued.
+
+### ① THE SANDBOX PATH IS SOUND — PROVEN TWICE, AND BOTH PROOFS ARE ARITHMETIC
+
+| | reader | sandbox | difference | stdout | correct? |
+|---|---|---|---|---|---|
+| **Run A** (modified program) | `bytes=171`, lines 1-10 of 10 | `162 chars, 10 lines` | **9** | `2 chars` = `8\n` | **yes** (hand-traced to 8) |
+| **Run B** (ORIGINAL restored) | `bytes=189` | `code=01c041663ae4`, `180 chars` | **9** | `7 chars` = `777679\n` | **yes** |
+
+**THE DIFFERENCE OF NINE IS NINE CR BYTES ACROSS TEN LINES**, in both runs — a ten-line file with no
+trailing newline on the last line. Verified independently against the file on disk: 189 bytes, exactly
+**9 `\r` bytes**, 189 − 9 = **180**, matching what the sandbox reported to the byte.
+
+**READ → RUN → CORRECT ANSWER, END TO END, ON THE EXACT PROGRAM THAT FAILED BEFORE.**
+
+**AND THE CRLF FIX EARNED ITSELF ON ITS FIRST LIVE RUN.** The digest MATCHED — `01c041663ae4`, the
+value computed for that file before any of this ran — **even though the file on disk is 189 bytes and
+what the model sent was 180**. `_digest` normalizes line endings, so the nine CRs do not move the
+fingerprint. **Had that defect not been caught during construction, run B would have reported a digest
+mismatch and FALSELY CONFIRMED CASE ④ on a run that was flawless** — the instrument's worst failure,
+avoided by measuring the instrument instead of trusting it.
+
+### ② CASE ④ IS **NOT REPRODUCED**, AND THE LIKELIEST MECHANISM IS A DIFFERENT PATH — **HYPOTHESIS, NOT FINDING**
+
+**The defect did not recur.** DEC-120 ruled case ④ "the only case consistent with the evidence" and
+declared its limit: the code sent was unrecoverable, so *wrong code ran* and *right code ran and the
+number was misreported* were indistinguishable. **With the instrument live, neither happened** — the
+right code ran and the right number came back, twice.
+
+**THE HYPOTHESIS, AND IT IS SULTAN'S:** both successful runs show **`[pass] #1
+tools=read_local_file`** before the sandbox call — **the model READ THE FILE.** In the failing session
+the code had been **pasted into the SPOKEN request**, so no file was read and the program was
+reconstructed from text that had passed through **speech-to-text**. That is a materially different
+path, and it is consistent with every fact the diagnosis produced:
+
+- **a STRUCTURALLY different program** — the 15-million-state sweep found no near-miss, which is what
+  a reconstruction produces and a transcription slip does not;
+- **the same wrong number twice** — a stable reconstruction, run twice;
+- **P0's 17/18** — because D-3 sent **STORED** code and never **SPOKEN** code, so the measured figure
+  never covered this path at all.
+
+**IT IS RECORDED AS A HYPOTHESIS AND NOT A FINDING, AND ONE PREMISE IS WEAKER THAN THE OTHERS:** that
+no file was read in the failing session rests on **recollection**, not on a trace — the per-pass line
+did not exist that day. Nothing here is ruled.
+
+**WHAT WOULD CONFIRM IT — AND HALF OF IT NEEDS NOTHING NEW.** The *path* half is **already
+observable**: a failing run whose `[pass]` line shows **no `read_local_file` before `sandbox__run_code`**
+localizes the defect to the spoken path, with no instrument to build. The *corruption* half — what STT
+produced versus what was said — needs the **transcript**, which is `MUTHIS_DEBUG=1` and therefore
+**console-only by DEC-122's refusal**. The experiment is to dictate a program aloud, read no file, and
+compare. **NOT BUILT, and not ruled.**
+
+### ③ MY EXCEL DERIVATION IS **REFUTED** — BY THE READING I BUILT TO TEST IT
+
+DEC-120 ③ derived that Option B "generalised to apps that draw and not to apps that do not". **The
+per-pass line refutes it outright:**
+
+```
+[pass] #1 tools=navigator__verify,highlight_target      (twice)
+```
+
+**Turns end at pass #2. Zero cap hits. The clause fired.** This is the sequence DEC-111 recorded as
+unrecoverable, now simply read off the log.
+
+**THE PREMISE WAS FALSE, NOT THE LOGIC.** Excel **shows the SUM result live in the cell while still in
+edit mode** — so the frame **did** carry evidence, verification **could** succeed, the precondition
+**did** hold, and the clause fired exactly as written. The derivation assumed Excel renders nothing; it
+renders a **preview**.
+
+**AND MUT'HIS HANDLED THE BOUNDARY WELL RATHER THAN HITTING IT:** it **refused to treat the preview as
+committed** and asked for Enter. DEC-105's boundary working, not failing.
+
+**THE ERROR I MADE HAS A NAME, AND A SIGNED RULING HAD ALREADY REFUTED IT.** DEC-105's own headline
+reads *"the APPLICATION framing is REFUTED by this sweep's own numbers"* — and DEC-120 ③ reintroduced
+precisely that framing, reasoning about "apps that draw" and "apps that do not" when the boundary had
+already been ruled to be **per-STEP rendering, not per-application**. Excel is not a category; a step
+whose unsettled state is rendered is. **A claim about state is not evidence, and neither is a claim
+about a boundary — the ruling was one grep away.**
+
+**ALSO CONFIRMED, unprompted by any question:** `#1 verify → #2 step` in **separate** passes is the
+verify-then-advance clause behaving as written — verify + point belong together, verify + move do not.
+DEC-111's pair-naming holding live.
+
+### ④ ONE NEW DEFECT — A TRIPLE RETRY THE NOTE ITSELF INVITES
+
+**Observed:** three identical `read_local_file` calls in one turn, **all not found**, consuming passes
+1-3, with **pass 4 empty**. The retry-loop shape DEC-97 records for the confirm gate, in a new place.
+
+**THE PRIVACY LAW HOLDS ON BOTH SURFACES, and this is checked rather than assumed.** The LOG is
+`_log_shape` — **extension and size only, never the name, never the directory, never the path** — so
+`.py` with no path is exactly right. The model-facing NOTE *does* carry the path, and that is also
+right: **DEC-61 governs LOGS ONLY, not the spoken or model-facing surface.** Neither half is a defect.
+
+**THE NOTE, AGAINST DEC-58 RULING 3's THREE OBLIGATIONS.** `FILE_NOT_FOUND_AR` reads: *«ما لقيت الملف
+«{path}». تأكد من المسار الكامل واطلب القراءة من جديد.»*
+
+| obligation | verdict |
+|---|---|
+| ① the STATE ACHIEVED | **thin.** "Not found" implies nothing was read, but the note never says so. |
+| ② TERMINAL, in those words, with the reason it cannot be retried away | **ABSENT — AND INVERTED.** «واطلب القراءة من جديد» *instructs the model to ask for the read again*, and nothing says a retry with the same path returns the same error. |
+| ③ the VALID NEXT STEP, named | **named but not actionable by the model.** "Verify the full path" addresses someone who can inspect a filesystem; the only half the model can act on **is the retry**. |
+
+**SO THE TRIPLE RETRY IS THE NOTE BEING OBEYED, NOT THE MODEL MISBEHAVING** — and DEC-58's own table
+contains the exact analogue one capability over: `DOC_READ_FAILED_AR`, *"did not say a retry with the
+same path gives the same error."* **DEC-58's audit fixed `doc_rag` only; `file_reader`'s notes were
+never in it.**
+
+**A STRUCTURAL AMPLIFIER, RECORDED SO IT IS NOT RE-DERIVED:** `read_local_file` has **no per-turn
+bound**. `read_call` is first-wins **per PASS** (`turn_pass.py:213`), and unlike `SandboxGate`'s ≤3
+runs per turn there is no read equivalent — so **only `MAX_AGENTIC_ITERATIONS = 4` stopped it**, which
+is precisely the observed three reads plus one empty pass. Whether the fix is the note, a bound, or
+neither is **NOT RULED HERE.**
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No code. No note reworded. No bound added. No cap, ceiling or law changed. No pin moved.** The
+spoken-code hypothesis is not tested and its instrument is not built. The triple retry is diagnosed
+and not fixed. The 248-site audit is not opened.
+
+**DEC-120 ① stands with its verdict narrowed** — case ④ remains the reading of the failing session and
+is now known **not to reproduce on the file-read path**. **DEC-120 ③ is REFUTED and superseded by this
+entry.** Suite unchanged at **1,991**; the eleven pinned files byte-unmoved.
+
+---
