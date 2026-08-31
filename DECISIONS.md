@@ -14948,3 +14948,183 @@ is enough is part of the family ruling, not this one. No pin moved; the eleven a
 **Suite 2,001 → 2,012.**
 
 ---
+
+## DEC-126 (2026-08-31) — **DEC-82 IS EXPLAINED, AND THE HYPOTHESIS THAT OPENED THIS SESSION IS REFUTED BY THE MEASUREMENT IT ASKED FOR.** Rate drift cannot produce the symptom at ANY rate — the loss fraction is **SCALE-INVARIANT** and there is a **FLOOR no CPS error breaches** · the cause is the **TOOL-FREE TURN SHAPE**, confirmed live by two `tools=-` lines · the 10-15 s latency has the **SAME ROOT** · and **ONE OBSERVATION STILL CONTRADICTS EVERY PATH IN THE CODE** — APPROVED (Sultan), DIAGNOSIS ONLY, NOTHING FIXED
+
+DEC-82 left the caption halt OPEN with two candidates and a free visual discriminator; DEC-125 ⑦ named
+two cheap observations as the next thing owed. **Sultan ran both.** This entry is what they settled —
+and the one thing they did not.
+
+**DEC-82 IS EXPLAINED, NOT CLOSED.** Section ⑤ is the whole reason for that distinction.
+
+### ① THE THREE CANDIDATES, AND HOW EACH ONE DIED
+
+| candidate | origin | eliminated by |
+|---|---|---|
+| the `_dead` mid-stream feed fault | DEC-82 (b) | **driven, not argued** — it writes **two WARNING lines**, and neither is in Sultan's log |
+| the buffered path — "streaming off / no key / open failed" | DEC-82 (a) | **right about the EMISSION, wrong about the ROUTE** — see ③ |
+| rate drift ACCUMULATING over many captions | this session's opening hypothesis | **refuted quantitatively** — see ② |
+
+**THE `_dead` ELIMINATION IS REAL RATHER THAN AN IMPRESSION, AND THAT IS THE POINT OF DOING IT THIS
+WAY.** `_dead` is assigned in exactly one place — `turn_voice.py:291-297` — and the `logger.warning`
+**precedes the assignment**, so the fault cannot fire silently. Driven with a failing feed #2:
+
+```
+[WARNING] [orchestrator] speech session feed failed (websocket closed) — buffering the rest
+[WARNING] [orchestrator] speech session died mid-turn — speaking the remainder buffered
+```
+
+The root logger is INFO (`logging_policy.py:182`) and `muthis.orchestrator` is unfiltered, so both
+lines reach console **and** `~/.muthis/logs/muthis.log`. **Their absence from the log is therefore
+evidence, not a failure to notice.** This is the difference between eliminating a candidate and
+declining to pursue it.
+
+### ② THE DRIFT HYPOTHESIS — REFUTED BY TWO INDEPENDENT ARGUMENTS
+
+**THE HARNESS EARNS ITS NUMBERS FIRST.** Real `TurnVoice` / `VoiceOut` / `CaptionBar`; only the
+socket, the audio device and Tk's clock faked. At DEC-82's own rates it **reproduces DEC-82 exactly —
+5 of 6 at 15 cps and 5 of 6 at 17 cps.** The sixty-caption numbers are trustworthy because of that
+agreement, not in spite of the earlier measurement.
+
+| N | real rate | rendered | first caption >2 s off its audio |
+|---|---|---|---|
+| 6 | 11.5 (exact) | 6/6 | none |
+| 6 | 13.225 (+15%) | 6/6 | #6 (+2.50 s) |
+| 60 | 11.5 (exact) | 60/60 | none |
+| 60 | 13.225 (+15%) | **53/60** | **#4** (+2.32 s) |
+| 60 | 10.0 (−15%) | 60/60 | none — but **#60 runs 34.5 s AHEAD of its audio** |
+
+**THE SCOPE CRITICISM OF THE ORIGINAL REFUTATION WAS CORRECT, AND THE CONCLUSION SURVIVES IT ANYWAY.**
+Six captions was too few to settle a claim about sixty. It was measured at sixty, and:
+
+**ARGUMENT 1 — THE LOSS FRACTION IS SCALE-INVARIANT.** A caption renders while `C_k/E < C_total/R`, so
+the surviving share is **`E/R` — 88% at +15% whether N is 6 or 60.** More captions lose
+**proportionally** more, never **categorically** more. Extending the measurement cannot change the
+verdict, because the quantity being measured does not depend on N.
+
+**ARGUMENT 2 — THERE IS A FLOOR, AND IT IS NOT 1.** Pushed absurdly — 2×, 5×, 10×, **60×** the
+estimate — the count settles at **31, 15, 14, 13 of 60 and never below**. Once the schedule falls
+behind playback, **`max(0.0, …)` clamps the delay to zero** and every remaining caption paints
+immediately at generation speed. **No CPS error, of any magnitude, can produce "only the first."**
+
+**AND THE CORRECTION TO THE FRAMING IS THE SHARPER HALF.** The question was posed as a
+dichotomy — *live clock ⇒ self-correcting, chained delays ⇒ compounding*. **The two branches are not
+exclusive.** `played()` **is** read live and the delays are **not** chained (`turn_voice.py:282-286`),
+and the error still compounds, because **`self._fed_chars / CPS` is an absolute position on an
+estimated timeline.** Subtracting a live clock corrects for *when you happen to schedule*; it cannot
+correct *the rate you are scheduling against*. **The bias is in the target, not the offset** — error
+`= C_k · (1/E − 1/R)`, linear in chars fed. Reading the clock live kills jitter and nothing else.
+
+**WHAT DRIFT DOES COST, SO IT IS NOT MIS-FILED AS HARMLESS:** visibility early (**caption #4** is
+already >2 s wrong at +15%), the tail late, and — in the **slower** direction, which the hypothesis did
+not consider — captions racing **up to half a minute ahead of the voice**.
+
+### ③ THE CAUSE: A TOOL-FREE TURN IS NEVER STREAMED, SO IT HAS EXACTLY ONE CAPTION BY CONSTRUCTION
+
+`turn_pass.py:170-176`, with `loop_tool_choice` at `highlight_gate.py:115-124`:
+
+```python
+tool_choice = loop_tool_choice(gate)              # "none" if gate.drawn else "auto"
+streamed = tool_choice == "none" and await turn_voice.ensure_open()
+```
+
+**Per-sentence captions require a DRAW earlier in the same turn.** A tool-free turn never sets
+`gate.drawn`, so `tool_choice` stays `"auto"`, `streamed` is `False`, and `turn_pass.py:267` hands the
+**entire answer** to `speak_or_feed()` in one call. Measured end to end on a 579-char Arabic answer
+(~50 s of speech): **1 feed, 1 caption, 117 of 579 chars — 20.2%.** The pacing arithmetic runs **once**,
+with `_fed_chars == 0`, so the delay is 0. **There is no second caption to drift.**
+
+**SULTAN'S LOG CONFIRMS IT LIVE: both turns show `[pass] #1 tools=-`.**
+
+**DEC-82's CANDIDATE (a) WAS RIGHT ABOUT WHAT IS EMITTED AND WRONG ABOUT WHY** — the
+`true-statement-false-mechanism` shape again, here in a diagnosis rather than a docstring. It named
+"streaming off / no key / open failed". **Streaming was fine.** The single truncated block comes from a
+pass that was never streamed *in the first place*, which is a different thing entirely, and the
+follow-up DEC-82 proposed — *"should the buffered path chunk its captions?"* — would have been aimed at
+the fallback path instead of at the unstreamed-pass path.
+
+**AND THE DISCRIMINATOR DEC-82 DESIGNED CANNOT SEPARATE ITS OWN TWO CANDIDATES ON THIS TURN SHAPE.**
+Measured both ways: with the socket **open** the text goes through `_feed`, with it **down** through
+`VoiceOut.speak` — and the painted caption is **byte-identical**, one block, 117 chars, ellipsis and
+all. The visual test only discriminates on a turn that **drew**.
+
+### ④ THE LATENCY HAS THE SAME ROOT, AND IT IS ARCHITECTURAL RATHER THAN THE PROVIDER
+
+On an unstreamed pass `speak_or_feed()` is reached at the sync point **after** the `async for` over
+`reasoner.run()` has fully drained. **The entire answer must be generated before the first syllable.**
+Capture is ~0.25 s (`OVERLAY_SETTLE_S = 0.05` plus grab and downscale), the WS handshake is hidden by
+Fix G, `flush=True` forces immediate synthesis. Everything else is generation, up to `max_tokens=1024`.
+
+**AND THIS IS WHY IT SURFACED ON THIS TURN AND NOT BEFORE.** A pointing turn feeds pass 1's «أبشر»
+instantly and the ack masks pass 2's whole round-trip — the v7 fix, working as designed. **A tool-free
+turn has no pass 1, so there is no ack and no mask.** The same architecture, fully exposed. **The
+single caption and the 10-15 s are one finding, not two.**
+
+**THE PROVIDER QUESTION IS ANSWERED AND DOES NOT CHANGE THE ANSWER.** The log gives
+`reasoner=luna model=gpt-5.6-luna`, so DEC-90 applies — and DEC-90 measured **66 and 63 reasoning
+tokens**, which is about a second, **not ten**. Reasoning-before-text contributes; it does not account
+for the observation. Recorded alongside it, because it would have mattered had the log said otherwise:
+`reasoning={"effort": …}` exists only at `luna_agent.py:183`, and **the Claude path passes no
+`thinking` parameter at all** (`claude_agent.py:209-216`).
+
+### ⑤ THE ONE OBSERVATION THAT SURVIVES EVERYTHING — AND WHY DEC-82 IS NOT CLOSED
+
+Three reported observations. **The shipped code cannot produce all three together.**
+
+| observation | what the code says |
+|---|---|
+| a long answer, few captions | reachable — several ways |
+| captions stop while the audio continues | reachable |
+| **never any «…», ever** | **not reachable** |
+
+`caption_bar.py` allows 60 chars × 2 lines. Measured: **the ellipsis appears at 121 chars — about
+10.5 s of speech.** Every path that stops captions early leaves one: the tool-free path (one truncated
+block), the buffered fallback (ack + truncated block, DEC-82's Measurement 3), a `streamed=False`
+explain pass. **The one path producing clean short sentences that stop early is `_dead`, and `_dead`
+writes two WARNING lines that are not in the log.**
+
+**SO ONE OF THE THREE OBSERVATIONS IS IMPRECISE, AND THE LIKELIEST IS "NEVER ANY «…»".** Recorded as
+a note and not as a finding: the chip is bold Arabic and the ellipsis sits at the end of line 2 — **the
+left edge in RTL** — where it is easy not to register. **DEC-82's question was always the right
+question and was never captured.** Sultan rules after one look at the caption's left edge.
+
+**SEPARATELY, AND REPORTED NOT FIXED:** nothing in the caption path strips or normalises punctuation.
+`wrap_caption` only collapses whitespace via `text.split()`, and `SENTENCE_ENDERS` are deliberately kept
+attached to their sentence (`speech_stream.py:56-58`); `.` and `،` were both verified surviving to the
+canvas. **The only punctuation the path ADDS is «…».** If dots are genuinely never visible that is a
+**rendering** question, not a text-processing one, and it was not measurable headlessly.
+
+### ⑥ THE DESIGN CONSTRAINT, RECORDED PLAINLY — BECAUSE IT IS NOT AN OVERSIGHT
+
+**Streaming is gated on `tool_choice == "none"` ON PURPOSE.** A pass that may still call a tool might
+speak text that is then **superseded** — the Option-A ordering, which is why decision 13 exists and why
+`turn_pass.py:171-175` says so in place. The gate is load-bearing, not a missing case.
+
+**THEREFORE "STREAM ON TOOL-FREE TURNS" IS NOT A BUG FIX.** It is a change to **when Mut'his commits to
+speaking**, and it is a **RULING**. It is **NOT PROPOSED HERE**, and this entry takes no position on it.
+
+### ⑦ THE SPOKEN-CODE OBSERVATION — DEC-125 ⑦'s OTHER CHEAP RUN
+
+`[pass] #1 tools=sandbox__run_code` with **no `read_local_file`**, code=`562f64d8252e` (24 chars,
+3 lines), stdout=3 chars. **Spoken code was transcribed and ran correctly — the spoken path CAN work.**
+
+**AND THE HYPOTHESIS REMAINS UNTESTED AT THE COMPLEXITY THAT FAILED.** A 3-line program with no control
+flow is not the original's 10 lines with a loop and nested conditionals. **The right test is speaking
+the original program.** Recorded so the next run is a second data point rather than a first.
+
+### MEASURED
+
+| | |
+|---|---|
+| `src/` | **git-untouched** — including the caption path, where the explanation lives |
+| guard | **2,012 green, UNCHANGED** |
+| harness | **scratch, committed nowhere, discarded with this entry** — real `TurnVoice`/`VoiceOut`/`CaptionBar`/`SentenceSplitter`; faked only: the WS session, the PCM device, Tk's `after` |
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**Nothing is fixed.** No streaming change · no `ARABIC_TTS_CHARS_PER_SEC` change · no caption-bar change
+· no change to the wrap policy or to `MAX_CHARS_PER_LINE` / `MAX_LINES`. **DEC-82 is EXPLAINED and stays
+OPEN on ⑤ alone.** The drift hypothesis is refuted and needs no further measurement. No pin moved; the
+eleven are byte-unmoved.
+
+---
