@@ -306,10 +306,27 @@ def test_the_badge_is_bounded_and_counts_the_overflow():
 
 def test_the_badge_never_eats_the_captions_text_budget():
     """DEC-20: the VOICE carries the teaching. The badge is its own element with
-    its own anchor and tag, so it cannot consume a line of speech."""
+    its own anchor and tag, so it cannot consume a line of speech.
+
+    DEC-128 (shape C2) moved MAX_LINES 2 -> 3 for rolling captions, and this
+    guard now pins the axis that actually decides collision instead of both at
+    once. The badge is bottom-LEFT, the caption bottom-CENTER, and
+    `domain_badge.py` documents their separation as HORIZONTAL and "BY
+    CONSTRUCTION": more LINES grow the chip UPWARD, away from the badge, while a
+    wider LINE grows TOWARD it and would turn that structural guarantee into an
+    offset that drifts with the font. So `MAX_CHARS_PER_LINE` is the number this
+    test exists to hold; `MAX_LINES` is DECLARED here, not owned here — moving it
+    is a caption decision, and the message says so rather than reading as "the
+    badge broke"."""
     assert DOMAIN_BADGE_TAG != CAPTION_TAG
-    # the caption's documented budget is untouched by this commit
-    assert (MAX_LINES, MAX_CHARS_PER_LINE) == (2, 60)
+    assert MAX_CHARS_PER_LINE == 60, (
+        "the caption's HORIZONTAL budget moved — that is the axis the badge's "
+        "collision-freedom rests on. Re-check domain_badge.py's bottom-left "
+        "anchor before declaring this")
+    assert MAX_LINES == 3, (
+        "the caption's LINE COUNT moved. Harmless for the badge (the chip grows "
+        "upward, away from it) — but declare it as a caption decision: see "
+        "DEC-128 shape C2, where 3 was measured and 4 buys nothing")
 
 
 class _Canvas:

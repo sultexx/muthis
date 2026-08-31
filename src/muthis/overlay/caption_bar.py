@@ -39,11 +39,25 @@ CAPTION_TAG = "muthis-caption"
 # taskbar line, horizontally centered (the status dot lives in a corner).
 BOTTOM_MARGIN_PX = 48
 
-# Soft wrap policy: voice sentences are short; two lines cover them, anything
-# longer is truncated with an ellipsis (the VOICE carries the teaching — the
-# bar is a reading aid, never a document).
+# Soft wrap policy: voice sentences are short; anything longer is truncated with
+# an ellipsis (the VOICE carries the teaching — the bar is a reading aid, never a
+# document).
+#
+# 2 -> 3 LINES (DEC-128, shape C2), and the number is MEASURED rather than
+# chosen. With rolling captions (voice_out._roll_caption) a 1,159-char answer
+# becomes eleven sentence captions, of which FIVE still exceeded 2x60 and kept
+# their ellipsis; the longest real sentence was 172 chars, which needs three
+# lines of 60. At 3 lines the answer goes from 84.4% visible to 99.1% and NO
+# sentence is cut. FOUR lines was measured too and buys exactly nothing (99.1%,
+# same 0 cut) — it would only make the chip taller for no reading gain.
+#
+# LINES, NOT CHARS-PER-LINE, ON PURPOSE: the chip is anchored bottom-CENTER and
+# grows UPWARD, while `DomainBadge` sits bottom-LEFT and documents its
+# collision-freedom as horizontal separation "BY CONSTRUCTION". More lines grow
+# away from the badge; a wider line would grow TOWARD it and turn a structural
+# guarantee into an offset that drifts with the font.
 MAX_CHARS_PER_LINE = 60
-MAX_LINES = 2
+MAX_LINES = 3
 
 
 def wrap_caption(

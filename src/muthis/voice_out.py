@@ -28,6 +28,8 @@ from typing import Optional
 
 from .kernel.budget import Budget
 from .kernel.turn import BUDGET_REFUSAL_AR, Overlay, TtsFn, TurnResult
+from .speech_stream import SentenceSplitter
+from .turn_voice import ARABIC_TTS_CHARS_PER_SEC
 
 logger = logging.getLogger("muthis.orchestrator")
 
@@ -35,6 +37,20 @@ logger = logging.getLogger("muthis.orchestrator")
 # decision, 2026-07-15) — a falsey value is the one-env rollback, mirroring
 # the MUTHIS_TRY_ELEVENLABS pattern.
 CAPTIONS_ENV = "MUTHIS_CAPTIONS"
+
+
+# ROLLING CAPTIONS (DEC-128, shape C1). The BUFFERED path hands this class the
+# WHOLE answer in ONE call, so the bar showed a single truncated block for a turn
+# that speaks for minutes — MEASURED at 117 of 1,159 chars — and the fraction
+# FALLS as the answer grows, because the bar's cap is absolute while the answer
+# is not (10.1% at 1,159 chars, 3.4% at 3,479). Below this length the one block
+# is already most of the answer and rolling buys nothing worth the churn; 240 is
+# twice the 2x60 budget the bar carried when this was written.
+#
+# DELIBERATELY NOT derived from caption_bar's constants: this module is "sibling
+# + stdlib imports only, importable in isolation" (module docstring), and the
+# overlay package pulls the Tk window in through its __init__.
+ROLLING_MIN_CHARS = 240
 
 
 def _captions_from_env() -> bool:
@@ -67,6 +83,8 @@ class VoiceOut:
         overlay without that seam shows immediately (the old behavior)."""
         if not (self._captions and text):
             return
+        if self._roll_caption(text, delay_s):
+            return
         if delay_s > 0:
             later = getattr(self._overlay, "show_caption_later", None)
             if later is not None:
@@ -75,6 +93,45 @@ class VoiceOut:
         show = getattr(self._overlay, "show_caption", None)
         if show is not None:
             show(text)
+
+    def _roll_caption(self, text: str, delay_s: float) -> bool:
+        """Shape C1: split a long BUFFERED answer into sentence captions and
+        schedule each at its ESTIMATED audio start, so the bar follows the voice
+        instead of freezing on the opening 117 characters for the whole turn.
+
+        Returns False — leaving the single-caption behaviour EXACTLY as it was —
+        when the overlay has no paced seam (StubOverlay, older fakes) or when the
+        text is short (a streamed sentence, an ack). That floor is what keeps the
+        STREAMED path untouched: its sentences arrive one at a time, well under
+        it. The `len(pieces) < 2` check below is DEFENSIVE and not reachable
+        today — the splitter's soft valve cuts any run past `MAX_BUFFER_CHARS`
+        (200) and the floor here is 240 — kept so those constants can move
+        without this method silently changing shape.
+
+        ORDERING IS NOT TOUCHED. This runs at the caption choke point, after the
+        Option-A sync point has already decided when to speak; it changes what
+        the bar shows, never when the voice commits.
+
+        The rate is IMPORTED, not copied — one source of truth, and
+        `turn_voice.py` is pinned at 300 with ZERO headroom, so it must not grow
+        a line to hand the constant over. Pacing is therefore open-loop: the
+        buffered path feeds ONCE, so there is a single clock reading for the
+        whole answer and nothing to re-anchor against. MEASURED live over
+        151-167 s: 10.87 ch/s against the shipped 11.5, stable across duration
+        (-0.1% from ~82 s to ~165 s), which puts the last caption of an
+        eleven-caption answer ~5 s AHEAD of its audio and loses none of them."""
+        later = getattr(self._overlay, "show_caption_later", None)
+        if later is None or len(text) <= ROLLING_MIN_CHARS:
+            return False
+        splitter = SentenceSplitter()
+        pieces = splitter.push(text) + splitter.flush()
+        if len(pieces) < 2:
+            return False
+        fed = 0
+        for piece in pieces:
+            later(piece, round((delay_s + fed / ARABIC_TTS_CHARS_PER_SEC) * 1000))
+            fed += len(piece)
+        return True
 
     def clear_caption(self) -> None:
         """Drop the caption (the audio for it has finished)."""

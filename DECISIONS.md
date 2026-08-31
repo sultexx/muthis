@@ -15255,3 +15255,189 @@ no caption-bar change · `src/` git-untouched · guard **2,012 green, UNCHANGED*
 ranked, or costed beyond the risk each carries against Option-A.
 
 ---
+
+## DEC-128 (2026-09-01) — **SHAPE C BUILT, AND THE MEASUREMENT THAT GATED IT SAID SOMETHING BETTER THAN "PASS".** The rate is **STABLE ACROSS DURATION** (−0.1% from ~82 s to ~165 s) and **BIASED** (10.87 vs the shipped 11.5) · C1 + C2 take a real answer from **10.1% to 99.1% visible** · **ZERO pinned files touched**, because the rate is IMPORTED · shapes A and B are rulings NOT TAKEN, and C3 is **measured-and-declined** — RULED (Sultan), MEASURED THEN BUILT
+
+DEC-127 opened the surface question and named one empirical risk. Sultan ruled shape C — **C1 and C2
+together, and nothing lands before the measurement.** This is the measurement and the build.
+
+### ① PRE-REGISTRATION — WHAT A CHEAT WOULD SCORE, WRITTEN BEFORE ANY NUMBER EXISTED
+
+**THE FATAL ONE: if the harness had derived seconds from `chars / 11.5`** — by importing
+`ARABIC_TTS_CHARS_PER_SEC`, or by reusing any pacing code — **it would return EXACTLY 11.500 on every
+answer with ZERO spread**, which is indistinguishable from a triumphant confirmation of the very
+hypothesis under test. **THE DEFENCE IS STRUCTURAL, NOT A PROMISE:** the harness asserts
+`"muthis.turn_voice" not in sys.modules` and refuses to measure if it is. The tell was written down in
+advance — *a result of exactly 11.500 with 0.000 spread must be DISBELIEVED, not celebrated.*
+
+Also pre-registered: a **partial generation** makes duration short and the rate look HIGH (defence: EOS
+sent, reader drained, and a hard floor per run) · **empty audio** divides by ~0 (defence: `got_audio`
+asserted) · **char-count mismatch**, because `feed()` diacritizes on a COPY, so the chars ElevenLabs
+sees are not the chars fed — the pacer counts CLEAN chars (`turn_voice.py:290`) and so does this, with
+both reported so the gap is visible · and **averaging away the question**, since the question is
+STABILITY and a lone mean is not an answer.
+
+### ② THE MEASUREMENT — AND RUN 1 DID NOT ANSWER THE QUESTION ASKED
+
+Production path throughout: the real `SpeechSession`, the real bounded reader, the real
+`PcmStreamPlayer`. **Only the audio device is faked**, through the `stream_factory` seam that exists
+for exactly that. Duration comes from **PCM bytes returned** (16-bit mono @ 22050 Hz), so it is the
+true length of the audio — not a playback wall-clock and not an estimate.
+
+**RUN 1 LANDED AT 78-86 s AND WAS THEREFORE NOT AN ANSWER.** My fixtures were undersized — closer to
+the existing 17-25 s samples than to the 100-200 s span the question is about. **Recorded rather than
+quietly re-rolled**, because it became the second data point that makes the result meaningful.
+
+| answer | ~82 s run | ~165 s run | change |
+|---|---|---|---|
+| A prose — recursion | 11.03 | 10.87 | −1.4% |
+| B numbers — complexity | 10.48 | 10.77 | +2.7% |
+| C mixed — english tokens | 11.55 | 11.34 | −1.8% |
+| D prose — errors | 11.08 | 10.79 | −2.6% |
+| E prose — testing | 10.22 | 10.56 | +3.4% |
+| **mean** | **10.87** | **10.87** | **−0.1%** |
+| spread (max−min) | 1.33 (12.3%) | **0.78 (7.1%)** | tightens |
+
+**THE ANSWER TO THE QUESTION ASKED: THE RATE IS STABLE ACROSS DURATION.** The mean is identical to two
+decimals at ~82 s and at ~165 s, and the spread **narrows** as answers lengthen — longer speech averages
+content variation out rather than accumulating error. **Duration is not the risk.**
+
+**AND THE MEASUREMENT FOUND SOMETHING THE QUESTION DID NOT ASK FOR: THE SHIPPED ESTIMATE IS BIASED.**
+10.87 measured against 11.5 shipped is **−5.5%**, with the worst single answer 8.2% off. Every answer
+but one is SLOWER than the estimate, so captions run **ahead** of the voice — the benign direction:
+nothing is orphaned, because speech that runs long ends after every timer has fired.
+
+**AGAINST DEC-127's PRE-REGISTERED THRESHOLD (within ~10% ⇒ C1's single anchor suffices): WITHIN.**
+13,059 chars billed across both runs.
+
+**C1's TAIL, AT THE MEASURED RATES** — a 1,159-char answer, eleven captions:
+
+| rate | captions shown | last caption vs its audio |
+|---|---|---|
+| 11.50 shipped | 11/11 | +0.0 s |
+| **10.87 measured mean** | **11/11** | **−4.9 s** |
+| 10.56 slowest answer | 11/11 | −7.6 s |
+| 11.34 fastest answer | 11/11 | −1.2 s |
+
+### ③ THE BIAS IS **NOT** CORRECTED HERE, AND THAT IS DELIBERATE
+
+Setting `ARABIC_TTS_CHARS_PER_SEC` to the measured 10.87 would cost **zero lines** (a value change; the
+pin is a line count, so `turn_voice.py` stays at 300) and would take the tail from −4.9 s to ~0. **It is
+not done**, for two reasons: it is **outside the ruling**, which was C1 + C2; and the constant also
+paces the **STREAMED** path, so changing it is a behaviour change on a path this gate never examined.
+**Flagged for Sultan as its own decision, with the number already in hand.**
+
+### ④ WHAT WAS BUILT
+
+**C1 — `VoiceOut._roll_caption`.** A long buffered answer is split with the existing `SentenceSplitter`
+and each sentence scheduled at its estimated audio start through the existing `show_caption_later`
+seam. **The rate is IMPORTED from `turn_voice.py`, never copied** — one source of truth, and that file
+is pinned at 300 with **zero headroom**, so it must not grow a line to hand the constant over. An
+import costs the imported file nothing, which is the only reason this is reachable at all.
+
+**C2 — `MAX_LINES` 2 → 3, and the number is MEASURED.** After C1, five of eleven sentences still
+exceeded the chip; the longest real sentence is 172 chars, which needs three lines of 60. **Three lines:
+99.1% visible, 0 sentences cut. Four lines: 99.1%, 0 cut — it buys exactly nothing** and only makes the
+chip taller. **LINES, NOT CHARS-PER-LINE:** the chip is bottom-CENTER and grows UPWARD, while
+`DomainBadge` is bottom-LEFT and documents its collision-freedom as horizontal separation *"BY
+CONSTRUCTION"*. More lines grow away from the badge; a wider line would grow toward it and turn a
+structural guarantee into an offset that drifts with the font.
+
+**THE OUTCOME, AS THE VIEWER EXPERIENCES IT: 117 of 1,159 chars → essentially the whole answer. 10.1% →
+99.1%.**
+
+| | |
+|---|---|
+| `voice_out.py` | 123 → **180** (+57), unpinned |
+| `overlay/caption_bar.py` | 159 → **173** (+14), unpinned |
+| **pinned files touched** | **ZERO** — all eleven byte-unmoved |
+| suite | 2,012 → **2,025** (+13) |
+| mutations | **8/8 RED** |
+
+**AND THE SCRATCHPAD ESTIMATE UNDERSTATED AGAIN — +27 PROJECTED, +57 REAL.** Same cause as the last
+time this was recorded: the projection carried almost no commentary, and writing the reasoning this
+project requires is most of the cost. **The lesson did not transfer from being written down; it had to
+be re-measured.**
+
+### ⑤ C2's REAL COST WAS NEVER LINES — THE GUARD IT BREAKS LIVES SOMEWHERE ELSE
+
+`tests/test_domain_badge.py` asserted `(MAX_LINES, MAX_CHARS_PER_LINE) == (2, 60)` — a DEC-20 drift
+guard on the caption's geometry, **living in another element's test file**, so its failure would have
+read *"the badge never eats the caption's text budget"* and pointed at the wrong change entirely.
+
+**It is updated WITH ITS REASON, and split along the axis that actually decides collision:**
+`MAX_CHARS_PER_LINE == 60` is the number that guard exists to hold (horizontal — the badge's axis), and
+`MAX_LINES == 3` is **declared there, not owned there**, with a message that says moving it is a caption
+decision. **M8 proves the split is real: widening the line goes RED in the badge's file, which is
+exactly where a horizontal change should be caught.**
+
+### ⑥ C3 — MEASURED AND **DECLINED**, WITH ITS MECHANISM
+
+*"A caption that updates as the answer plays"* is C1's mechanism with a different clock, **and it cannot
+have one on this path.** The buffered path feeds **ONCE**, so `_fed_chars == 0` and `played() ≈ 0`: the
+whole schedule is laid down from a **single clock reading at t=0** with nothing to re-anchor against.
+The streamed path re-reads `played_seconds()` on every feed (DEC-126 ②) — which kills jitter but not
+bias; **C1 does not even get the jitter correction.** Pacing against real playback would require the
+session clock at the caption choke point, and **`VoiceOut` has no session**. That is an **architectural
+change, not a caption change**, and it is declined here rather than deferred quietly. The measurement in
+② is what makes declining it safe: open-loop costs −4.9 s at the tail and loses nothing.
+
+### ⑦ WHAT THIS DOES **NOT** FIX — SAID PLAINLY
+
+**THE 10-15 s BEFORE SPEECH IS UNTOUCHED.** It has the same root (DEC-126 ④) and no caption change
+reaches it: on an unstreamed pass the words do not start until the whole generation lands, and a
+tool-free turn has no pass-1 ack to mask it. **Nobody should read this gate as a latency fix.** Shape C
+was chosen *because* it touches no ordering, and the latency lives entirely in the ordering it does not
+touch.
+
+Also unchanged: the bar's identity as *"the sentence Mut'his is currently SPEAKING"* — this makes it
+follow the voice, it does not make it a transcript.
+
+### ⑧ SHAPES A AND B — RULINGS NOT TAKEN
+
+**A (stream once text has arrived and no tool call yet) is REJECTED on a paradox and a persona law.**
+The signal is a claim about the future that only the end of the stream confirms — **it becomes
+trustworthy at the moment it becomes redundant.** And it is anti-correlated with its own purpose:
+`persona.py:73-77` **mandates** a one/two-word ack *before* the draw tool and forbids a silent pass 1 by
+name, so what reads as "tool-free" is the designed opening of every pointing turn. Concrete, not
+hypothetical: `EchoGuard` is armed only by `speak_or_feed` (`turn_voice.py:155`) and never by `_feed`,
+so streaming the ack silently returns UAT bug 2's double ack. **Cost: +14 lines → `turn_pass.py` at
+307, breaching the ≤300 LAW by 7** — an extraction before the first line of the feature.
+
+**B (stream always, accept supersession) is REJECTED although it costs ZERO lines.** A streamed pass is
+`tool_choice="none"` where the API forbids tools, so supersession is **excluded by construction** —
+**there is no incident because there is no mechanism**, and a clean record from a system that cannot
+fail carries nothing forward to one that can. **The cheapest change available being the one that
+reverses a law** — and a one-line semantic reversal being invisible to a line-count guard, that guard
+class's recorded limit — is the trade this project refuses.
+
+### ⑨ THE MUTATIONS, AND THE TRAP THE HARNESS CAUGHT IN ITSELF
+
+**8/8 RED**, each asserted APPLIED on disk before the test ran and asserted restored after: rolling
+disabled · the rate dropped from the schedule (the MECHANISM check) · the caller's delay discarded · the
+floor removed so streamed sentences roll (**the NEGATIVE CONTROL**) · captions out of order · the
+missing-seam guard dropped · C2 reverted · C2 grown on the wrong axis.
+
+**AND THE HARNESS FOUND A DEFECT IN ITS OWN ANCHORING BEFORE IT FOUND ANY IN THE CODE.** An 8-space
+anchor inside `_roll_caption` **also matched as a suffix of the 12-space copy in `show_caption`** — two
+hits, so the mutation could have landed in the wrong method and "survived" for a reason that had nothing
+to do with the guard. The uniqueness assertion caught it; anchors are now bound to a line start.
+**Second correction in the same harness:** the tree's line endings are **MIXED** (`turn_voice.py` and
+`turn_pass.py` CRLF, `style.py` and `test_caption_bar.py` LF), so a CRLF-only anchor silently fails to
+place on half the tree — the anchors detect each file's real terminator, which is what makes *assert
+APPLIED* mean something instead of passing vacuously.
+
+**One test premise died to the same discipline.** `test_one_unsplittable_sentence_is_not_rolled` assumed
+a run with no sentence ender stays one caption. It does not: the splitter's **soft valve** cuts any run
+past `MAX_BUFFER_CHARS` (200), and the floor here is 240, so `len(pieces) < 2` is **defensive and
+unreachable today**. The test now asserts the property that IS true — **no caption is ever cut
+mid-word** — and both the guard and the docstring say they are defensive rather than claiming to be
+exercised.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No ordering changed. No streaming change. `ARABIC_TTS_CHARS_PER_SEC` NOT changed** (③ — flagged, with
+the number). No pin moved; the eleven are byte-unmoved. `turn_pass.py` and `turn_voice.py` untouched.
+C3 declined, A and B not taken. **The latency is not addressed and is not claimed to be.**
+
+---
