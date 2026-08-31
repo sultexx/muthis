@@ -14827,3 +14827,124 @@ family and gets one ruling with this, after Sultan sees the audit. No pin moved;
 byte-unmoved. **Suite 1,991 → 2,001.**
 
 ---
+
+## DEC-125 (2026-08-30) — **THE SECOND INVERSION, FIXED — AND IT CARRIED A DEFECT THE FIRST DID NOT: IT INVENTED A CAUSE.** One shared check now governs both notes by a REGISTRY · the constant has **TWO callers**, which decided the wording · and `FILE_READ_ERROR_AR` + **DEC-97's confirm-gate counter are named as ONE FAMILY** — RULED (Sultan), EXECUTED
+
+DEC-124 found `FILE_READ_ERROR_AR` and deliberately left it. This is the ask.
+
+### ① THE SAME INVERSION — «جرّب مرة ثانية» PLUS A STEP ONLY AN OPERATOR CAN TAKE
+
+The note read «صار خطأ أثناء قراءة الملف، **جرّب مرة ثانية** أو **تأكد من الصلاحيات**.» — a retry
+invitation and a check the model cannot run, which is `FILE_NOT_FOUND_AR`'s defect exactly and
+**DEC-58's `OPEN_FAILED_AR` shape**: the catch-all for an unexpected exception, which "said none of
+the three".
+
+### ② AND A DEFECT THE FIRST NOTE DID NOT HAVE — IT ASSERTED A MECHANISM IT COULD NOT KNOW
+
+This is the **`except Exception` arm**. The cause is *by definition* unknown, and «تأكد من الصلاحيات»
+named a specific one. **A note that names a mechanism it does not have sends the model — and through
+it the user — at the wrong thing**, and it reads as diagnosis rather than as the guess it is. That is
+the quietest defect this project has recorded (`true-statement-false-mechanism`), here in a
+model-facing surface rather than a docstring. **Removing the invented cause is part of the fix, and it
+is what made one wording honest for both callers.**
+
+### ③ THE CONSTANT HAS TWO CALLERS, AND THAT DECIDED THE WORDING
+
+Found while measuring, not assumed:
+
+- `file_reader.py:209` — a read ATTEMPT raised.
+- `tool_result_pairing.py:131` — a `read_local_file` block the kernel **NEVER SERVICED**.
+
+**Different causes, one shared truth: nothing came back.** DEC-58 ruling 1 is the warning being obeyed
+— *«TWO notes, not one, and that is the law applied to itself… a note claiming "the document was
+opened" when the serviced call was a QUERY would be a fresh instance of the exact defect this fix
+closes, in the opposite direction.»* So the note states only what is true in both: nothing returned ·
+repeating it **inside this turn** changes nothing · tell the user and ask for another route. It claims
+no cause, and it does not claim the failure is permanent — only terminal **for this turn**, the
+precision `DOCKER_UNAVAILABLE_AR` already established.
+
+**WHETHER THE TWO CALLERS SHOULD EVENTUALLY CARRY SEPARATE NOTES IS FLAGGED, NOT SETTLED.**
+
+`file_reader_notes.py` 102 → 129, unpinned. No gate, no bound, no other note touched.
+
+### ④ ONE CHECK OVER BOTH, BY A REGISTRY — AND THE HONEST COST/BENEFIT
+
+`tests/test_not_found_note_terminality.py` → **`tests/test_note_terminality.py`**, 10 → **21 tests**.
+A note joins `GOVERNED` with its historical text beside it, and is audited from that moment.
+
+**THE COST, STATED PLAINLY.** Each obligation became a **DISJUNCTION** of accepted phrasings (five for
+the state, four for terminality) so that two different sentences can both pass — and a disjunction is
+weaker per note than a bespoke check. It is held in check by one requirement: **BOTH historical notes
+must still FAIL.** Widening the sets to fit a third note would break that, which is the tripwire.
+
+**AND A REAL LIMIT, RECORDED RATHER THAN GLOSSED.** Three notes that ALREADY satisfy all three
+obligations — `FILE_IS_DOCUMENT_AR`, `FILE_ALREADY_READ_AR`, `FILE_TOO_LARGE_AR` — could **not** join
+the registry, because they satisfy them **in their own wording**, which these phrase sets do not spell.
+Adding them would mean widening the sets **to fit** rather than because the property changed. So
+"audited by construction" is **scoped to the registry, not to the module**, and the exempt list records
+why each note sits outside it.
+
+**THE SHARED FORM SAVES MORE THAN IT COSTS — BUT NOT FOR THE EXPECTED REASON.** Two copies of a
+predicate would have been perfectly workable for two notes. The saving is the **ACCOUNTING TEST**,
+which only exists because there is one registry: `len(all_notes) - len(GOVERNED) == EXEMPT` turns *"did
+anyone decide whether DEC-58 governs this new note?"* from a habit into a **failing test**.
+Mutation-verified — a note added to the module without a governance decision goes **RED**.
+
+**17 mutations, 17 RED**, each asserted APPLIED on disk and restored: for EACH note, its historical
+text restored · a retry invitation appended · the operator-only step restored · each obligation
+dropped in turn · the reason dropped; plus **the invented cause restored**, **both production arms made
+to serve a different note**, and **a new note added without a governance decision**.
+
+### ⑤ NAMED, NOT WORKED: `FILE_READ_ERROR_AR` AND DEC-97's COUNTER ARE **ONE FAMILY**
+
+Recorded at Sultan's instruction, with no work done on either. **A refusal that never becomes terminal
+and invites its own repetition** is the shape, and it has now been seen in three places: DEC-35's PDF
+(four provider calls, ~$0.10) · the Docker-unavailable run (the whole `SandboxGate` budget, ~$0.12) ·
+and this file's two notes (three identical reads, the agentic cap). **DEC-97's confirm-gate counter is
+the same family.** They get **ONE ruling together, after the audit** — because *naming the family now
+prevents two separate half-fixes*, which is how a pattern gets treated three times and understood
+never.
+
+### ⑥ THE 248-SITE AUDIT — **BUCKET C STAYS CLOSED**
+
+Ruled: **do not open C yet.** It is sized (212 / 12 / 24), recorded in DEC-124, and **blocks nothing**.
+Two cheap observations come first, both Sultan's to make: **the caption discriminator on his next voice
+session**, and **one live run of the spoken-code hypothesis** — a failing run whose `[pass]` line shows
+**no `read_local_file`** before `sandbox__run_code`, which needs no new instrument.
+
+### ⑧ A STANDING NOTE, BECAUSE IT GENERALISES PAST THIS MODULE — **GUARD THE DECISION, NOT THE VERDICT**
+
+Sultan's observation, promoted here on the session that produced it: **a guard that enforces that a
+DECISION WAS MADE — rather than which decision — outlives the things it currently covers.**
+
+The accounting test asserts `len(all_notes) - len(GOVERNED) == EXEMPT`. It has **no opinion about any
+note**: a future ruling may govern a note or exempt it, and the test survives either. What it makes
+impossible is the thing that actually happens — a note **added without anyone considering the
+question at all.**
+
+**AND THE PROOF IS DEC-58 ITSELF.** Its ruling 3 audited every model-facing note in the project and
+**fixed `doc_rag`'s** — and its table already held this defect's analogue, `DOC_READ_FAILED_AR`,
+*"did not say a retry with the same path gives the same error"*. **The audit never reached
+`file_reader.py`, and a month later the same shape cost three identical reads live.** Nothing failed
+in between, because **an audit is an ACT and the law it establishes has no standing enforcement**. An
+accounting test converts the act into an obligation.
+
+**THE SHAPE IS ALREADY IN THIS REPOSITORY AND WAS NOT RECOGNISED AS A CLASS.** The `≤300`-line pin
+list is exactly this guard: `== 293` states no view about whether `turn_pass.py` *should* grow — it
+enforces that growing it is a **decision someone takes deliberately**, which is why eight pinned files
+have held for months while the unpinned ones drifted to the ceiling. **Naming the class is what lets
+it be reached for on purpose** instead of re-invented per milestone.
+
+**WHERE IT IS CHEAP:** any place a law governs a SET whose membership can grow — notes, pinned files,
+the tool catalogue, the persona's law list, `ROUTER_SERVICED_TOOLS`. **Its cost is one arithmetic
+assertion; its limit is that it proves consideration, never correctness.** Whether it is promoted into
+`AGENTS.md` as law is Sultan's, and is NOT done here.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**No log line changed. Bucket C not opened. DEC-97's counter untouched. The two callers not split into
+two notes. No bound added to `read_local_file`** — the note is still the whole brake, and whether that
+is enough is part of the family ruling, not this one. No pin moved; the eleven are byte-unmoved.
+**Suite 2,001 → 2,012.**
+
+---
