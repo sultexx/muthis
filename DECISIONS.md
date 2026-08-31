@@ -14949,13 +14949,16 @@ is enough is part of the family ruling, not this one. No pin moved; the eleven a
 
 ---
 
-## DEC-126 (2026-08-31) — **DEC-82 IS EXPLAINED, AND THE HYPOTHESIS THAT OPENED THIS SESSION IS REFUTED BY THE MEASUREMENT IT ASKED FOR.** Rate drift cannot produce the symptom at ANY rate — the loss fraction is **SCALE-INVARIANT** and there is a **FLOOR no CPS error breaches** · the cause is the **TOOL-FREE TURN SHAPE**, confirmed live by two `tools=-` lines · the 10-15 s latency has the **SAME ROOT** · and **ONE OBSERVATION STILL CONTRADICTS EVERY PATH IN THE CODE** — APPROVED (Sultan), DIAGNOSIS ONLY, NOTHING FIXED
+## DEC-126 (2026-08-31) — **DEC-82 IS CLOSED, AND THE HYPOTHESIS THAT OPENED THIS SESSION IS REFUTED BY THE MEASUREMENT IT ASKED FOR.** Rate drift cannot produce the symptom at ANY rate — the loss fraction is **SCALE-INVARIANT** and there is a **FLOOR no CPS error breaches** · the cause is the **TOOL-FREE TURN SHAPE**, confirmed live by two `tools=-` lines · the 10-15 s latency has the **SAME ROOT** · and **the one contradiction is RESOLVED BY SULTAN'S CONFIRMATION — ⑧, SAME DAY** — APPROVED (Sultan), DIAGNOSIS ONLY, NOTHING FIXED, **DEC-82 CLOSED**
 
 DEC-82 left the caption halt OPEN with two candidates and a free visual discriminator; DEC-125 ⑦ named
 two cheap observations as the next thing owed. **Sultan ran both.** This entry is what they settled —
 and the one thing they did not.
 
-**DEC-82 IS EXPLAINED, NOT CLOSED.** Section ⑤ is the whole reason for that distinction.
+**RECORDED AS EXPLAINED-NOT-CLOSED ON ⑤ ALONE, AND CLOSED THE SAME DAY BY ⑧.** Sultan looked at the
+caption's left edge and it settled. **⑤ is left standing exactly as written** — it is the record of what
+was genuinely open, and of a weighting that turned out to be right; editing it away would delete the
+evidence that the question was open for a reason.
 
 ### ① THE THREE CANDIDATES, AND HOW EACH ONE DIED
 
@@ -15067,7 +15070,7 @@ for the observation. Recorded alongside it, because it would have mattered had t
 `reasoning={"effort": …}` exists only at `luna_agent.py:183`, and **the Claude path passes no
 `thinking` parameter at all** (`claude_agent.py:209-216`).
 
-### ⑤ THE ONE OBSERVATION THAT SURVIVES EVERYTHING — AND WHY DEC-82 IS NOT CLOSED
+### ⑤ THE ONE OBSERVATION THAT SURVIVED EVERYTHING — WHY DEC-82 WAS NOT CLOSED HERE, UNTIL ⑧ CLOSED IT
 
 Three reported observations. **The shipped code cannot produce all three together.**
 
@@ -15112,6 +15115,39 @@ speaking**, and it is a **RULING**. It is **NOT PROPOSED HERE**, and this entry 
 flow is not the original's 10 lines with a loop and nested conditionals. **The right test is speaking
 the original program.** Recorded so the next run is a second data point rather than a first.
 
+### ⑧ CLOSED — SULTAN'S CONFIRMATION, THE SAME DAY
+
+**THE CAPTIONS DO END IN «…».** Sultan checked and confirmed it. **The third observation was the
+imprecise one, which is exactly where ⑤ weighted it**, and the contradiction is resolved: nothing in the
+code needed to be wrong.
+
+**AND HIS DESCRIPTION NOW MATCHES ③ WITHOUT REMAINDER** — *one caption inside the first ten seconds,
+unchanged while Mut'his speaks for a minute or two.* That is `speak_or_feed()` in one call on a tool-free
+turn: fed with `_fed_chars == 0`, so the delay is 0 and it paints immediately; **never replaced, because
+there is no second feed**; cleared only at `finish()`. **DEC-82 IS CLOSED.**
+
+**DEC-82's CAPTION DISCRIMINATOR IS NOW SPENT** — the last of the *diagnostic* items owed from the
+Phase-3 boundary (`PROJECT_STATE.md:266`).
+
+**AND THAT LIST IS NOT YET EMPTY, WHICH IS RECORDED HERE RATHER THAN ASSUMED.** Checked against the code
+rather than against the note: Navigator v2's visual verification **IS built** (`step_verification.py`,
+`navigator__verify` mounted at `composition_mounts.py:156`), but **DEC-64 ruling 2's `diag_doc_rag.py`
+reduction has NOT executed — the file is still 2,297 lines**, and it was never cancelled. The
+pre-rewrite mirror backup remains Sultan's own housekeeping. **The boundary closes on the reduction, not
+on this entry.**
+
+**THREE THINGS FROM THIS PASS, NAMED BY SULTAN AND KEPT HERE SO THEY ARE NOT LOST WITH THE SESSION:**
+
+1. **A DEFECT IN THE SUPPLIED DIAGNOSTIC, NOT ONLY IN THE CODE.** DEC-82's discriminator cannot separate
+   its own two candidates on a tool-free turn — measured byte-identical whether the socket is open or
+   down (③) — **and it was handed to Sultan for exactly that turn shape.** An instrument is scoped to the
+   turn shapes it can actually discriminate, and that scope was never stated.
+2. **`true-statement-false-mechanism` IN A THIRD PLACE.** First a docstring, then an instrument, now **a
+   DIAGNOSIS** — DEC-82's candidate (a) predicted the right emission from the wrong route.
+3. **THE `PROJECT_STATE.md:266` DEFERRAL WAS CORRECT AND IS NOW A DECISION.** That line sits inside a
+   Phase-3 closure block whose surrounding text is stale too; **editing one line of a stale block is the
+   half-updated-doc defect precisely.** It gets swept **as a block** at the next milestone close.
+
 ### MEASURED
 
 | | |
@@ -15123,8 +15159,99 @@ the original program.** Recorded so the next run is a second data point rather t
 ### WHAT THIS ENTRY DOES NOT DO
 
 **Nothing is fixed.** No streaming change · no `ARABIC_TTS_CHARS_PER_SEC` change · no caption-bar change
-· no change to the wrap policy or to `MAX_CHARS_PER_LINE` / `MAX_LINES`. **DEC-82 is EXPLAINED and stays
-OPEN on ⑤ alone.** The drift hypothesis is refuted and needs no further measurement. No pin moved; the
-eleven are byte-unmoved.
+· no change to the wrap policy or to `MAX_CHARS_PER_LINE` / `MAX_LINES`. **DEC-82 is CLOSED (⑧), and what
+remains is not a defect but a SURFACE question — opened as DEC-127, unruled.** The drift hypothesis is
+refuted and needs no further measurement. No pin moved; the eleven are byte-unmoved.
+
+---
+
+## DEC-127 (2026-08-31) — **AN OPEN QUESTION ABOUT THE SURFACE, NOT A DEFECT: A MINUTE OF TEACHING AGAINST 117 CHARACTERS OF CAPTION, ON THE COMMONEST TURN SHAPE THERE IS.** The cap is **ABSOLUTE**, so coverage FALLS as the answer grows — 20.2% → 10.1% → 3.4% · the gate that produces it is **Option-A's, and it is LOAD-BEARING** · so the question is **WHEN MUT'HIS SHOULD COMMIT TO SPEAKING**, which is a ruling and not a fix · three option shapes recorded with what each risks against Option-A, **and NONE RECOMMENDED** — OPENED, NOTHING BUILT, NO RULING TAKEN, SULTAN'S TO RULE
+
+DEC-126 closed the mechanism. **This is the half that survived it.** Sultan's complaint was never that
+the code misbehaves — it does exactly what it was built to do. **The design was never examined for the
+tool-free case**, and this entry exists so that fact is a question with a constraint attached rather than
+a bug report somebody later "fixes".
+
+### ① THE SURFACE, MEASURED — THE CAP IS ABSOLUTE, SO COVERAGE FALLS AS THE ANSWER GROWS
+
+`wrap_caption` allows 2 lines × 60 chars. That ceiling does **not** scale with the answer:
+
+| answer | speech | captioned | coverage |
+|---|---|---|---|
+| 579 chars | ~50 s | **117** | 20.2% |
+| 1,159 chars | ~101 s | **117** | 10.1% |
+| 2,319 chars | ~202 s | **117** | 5.0% |
+| 3,479 chars | ~303 s | **117** | 3.4% |
+
+**THE CAPTIONED CHARACTER COUNT IS THE SAME NUMBER EVERY TIME — 117.** Coverage is therefore `117/N`, so
+**the longer Mut'his teaches, the less of it is shown.** Sultan's "roughly ten percent" lands at ~1,159
+chars, which is ~101 s — his "a minute or two", exactly.
+
+**AND IT IS ONE CAPTION, STATIC, FOR THE WHOLE ANSWER.** Fed with `_fed_chars == 0`, so the delay is 0
+and it paints inside the first seconds; **never replaced, because there is no second feed**; cleared only
+at `finish()`. The bar is motionless while the voice runs for minutes.
+
+**WHICH TURNS?** Every turn that calls no tool — Sultan's framing is that this is the commonest shape
+there is, and **that frequency is his observation and is NOT measured here.** What *is* established
+(DEC-126 ③) is that the shape is structural: no draw ⇒ `tool_choice="auto"` ⇒ not streamed ⇒ one caption.
+
+### ② THE CONSTRAINT, ATTACHED — SO THIS IS NOT LATER READ AS "STREAMING IS BROKEN"
+
+**Per-sentence streaming is gated on `tool_choice == "none"` ON PURPOSE** (`turn_pass.py:170-176`, the
+v7 plan's **decision 13** — the source files' own numbering, **not DEC-13**, which is `stage_file_gate`).
+A pass that may still call a tool could speak text that is then **superseded**, and the
+Option-A ordering — **apply the buffered draw → arm the auto-hide → THEN speak** (`turn_pass.py:255-258`)
+— exists to make that impossible. The gate is load-bearing.
+
+**SO THE QUESTION IS NOT "WHY IS STREAMING BROKEN".** It is:
+
+> **WHEN SHOULD MUT'HIS COMMIT TO SPEAKING ON A TURN THAT WILL NOT CALL A TOOL?**
+
+**THAT IS A RULING ABOUT COMMITMENT, NOT A FIX**, and it is Sultan's.
+
+**AND THE HARD PART, NAMED PLAINLY:** *a pass cannot be known to be tool-free until it ENDS.* The only
+reliable signals are `tool_choice="none"` (API-enforced) and end-of-stream. **That is precisely why the
+gate sits where it sits** — every option below is really a choice about which weaker signal to trust, or
+about not needing one.
+
+### ③ THE THREE OPTION SHAPES, AND WHAT EACH RISKS AGAINST OPTION-A — **NONE RECOMMENDED**
+
+**A — STREAM ONCE THE MODEL HAS EMITTED TEXT AND NO TOOL CALL HAS YET ARRIVED.**
+**Risk: "no tool call YET" is not "no tool call".** Text followed by a `tool_use` in the same assistant
+message is the **normal** shape of a pointing pass — an ack, then `highlight_target` — not an edge case;
+`turn_pass.py`'s loop collects both from one stream and applies `pending_draw` at the sync point *after*
+it. Streaming on this signal **inverts Option-A on exactly the turns Option-A exists for**: the words
+arrive before the rectangle. Second-order and easy to miss: `EchoGuard` is armed only by
+`speak_or_feed()` (`turn_voice.py:155`) and never by `_feed()`, so an ack that gets streamed instead of
+fed would silently stop arming the UAT-bug-2 echo suppressor.
+
+**B — STREAM ALWAYS, AND ACCEPT SUPERSESSION.**
+**Risk: spoken words cannot be unspoken.** A superseded sentence is not a stale frame that can be
+redrawn — the user has already heard it. Option-A's ordering is **abandoned outright rather than
+weakened**, and decision 13's invariant (no draw can arrive mid-stream) goes with it: `pending_draw`
+would have to be applied while audio is already playing, so **the rectangle would land after the words
+describing it** — the exact pairing Option-A exists to guarantee. Barge-in exists, but it is the
+**user's** control, not a correction mechanism.
+
+**C — LEAVE THE GATE AND IMPROVE THE SINGLE CAPTION INSTEAD.**
+**Risk against Option-A: none** — the ordering is untouched, and that is what makes this shape different
+in kind from A and B rather than merely safer. The whole answer is already in hand at
+`speak_or_feed()`, so chunking is possible without changing when *audio* is committed. **Its costs are
+real and sit elsewhere:** `caption_bar.py` is a deliberately pure view ("no timers, no state") whose one
+paced seam is `show_text_later`; a rolling caption needs **pacing**, and the only estimate in the tree
+(`ARABIC_TTS_CHARS_PER_SEC = 11.5`) is **bounded but never measured against real speech** (DEC-126 ②),
+with no per-sentence feed on this path to correct against; `sidekick_window.py` is at **300/300 with zero
+headroom**, so a new overlay command is an extraction decision first (the DEC-108 shape); and it changes
+what the bar **is** — currently "the sentence Mut'his is currently SPEAKING", which a scrolling
+transcript is not.
+
+**NO RECOMMENDATION IS MADE AND THESE THREE ARE NOT A SHORTLIST.** They are the shapes the constraint
+admits, recorded so the ruling starts from the trade rather than from the symptom.
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**Nothing is built and nothing is ruled.** No streaming change · no `ARABIC_TTS_CHARS_PER_SEC` change ·
+no caption-bar change · `src/` git-untouched · guard **2,012 green, UNCHANGED**. No option is preferred,
+ranked, or costed beyond the risk each carries against Option-A.
 
 ---
