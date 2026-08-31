@@ -78,7 +78,34 @@ FILE_IS_DOCUMENT_AR = (
 )
 # Staging-only (sandbox files[], DEC-13): the name must be BARE — no directory.
 FILE_NAME_NOT_BARE_AR = "اسم الملف لازم يكون بدون مسار أو مجلّد — مرّر اسم ملف بسيط فقط."
-FILE_READ_ERROR_AR = "صار خطأ أثناء قراءة الملف، جرّب مرة ثانية أو تأكد من الصلاحيات."
+# DEC-125: THE SAME INVERSION, ONE NOTE DOWN. «جرّب مرة ثانية» invited the retry
+# and «تأكد من الصلاحيات» named a step only someone at the machine can take —
+# `FILE_NOT_FOUND_AR`'s defect exactly, and DEC-58's `OPEN_FAILED_AR` shape: the
+# catch-all for an unexpected exception, which "said none of the three".
+#
+# AND A SECOND DEFECT THE FIRST NOTE DID NOT HAVE — IT INVENTED A MECHANISM.
+# This is the CATCH-ALL arm (`except Exception`), so the cause is by definition
+# unknown, and «تأكد من الصلاحيات» asserted a specific one. A note that names a
+# cause it does not have is the [[true-statement-false-mechanism]] shape: it
+# sends the model, and through it the user, at the wrong thing — and it reads as
+# diagnosis rather than as the guess it is.
+#
+# THE CONSTANT HAS TWO CALLERS, AND THE WORDING IS HONEST IN BOTH — WHICH IS WHY
+# THE INVENTED CAUSE HAD TO GO RATHER THAN BE REPLACED WITH A BETTER ONE.
+# `file_reader.py` returns it when a read ATTEMPT raised; `tool_result_pairing.py`
+# returns it for a `read_local_file` block the kernel NEVER SERVICED. Those have
+# different causes and only one shared truth — nothing came back — so the note
+# states that, states that repeating it inside this turn changes nothing, and
+# names a step the model can take. DEC-58 ruling 1 is the warning being obeyed
+# here: «TWO notes, not one» — a note claiming what did not happen would be a
+# fresh instance of this very defect in the opposite direction. Whether the two
+# callers should eventually carry SEPARATE notes is flagged, not settled.
+FILE_READ_ERROR_AR = (
+    "صار خطأ وأنا أحاول أقرأ الملف — ما رجع لي منه شي. وإعادة نفس الطلب الحين "
+    "ما تغيّر النتيجة، لأن ما فيه شي يتبدّل بين محاولة وأخرى في نفس الجولة. "
+    "بدل التكرار: خبّر المستخدم إن القراءة فشلت واطلب منه يفتح الملف على الشاشة "
+    "أو يعطيك مساراً ثانياً، لأني ما أقدر أتحقّق من السبب بنفسي."
+)
 FILE_READ_UNAVAILABLE_AR = "قراءة الملفات غير متاحة في هذا الوضع."
 # A second read_local_file in the SAME pass — the same internal-directive
 # family as the draw acks: answer from what you already have, explain now.
