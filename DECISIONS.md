@@ -15529,3 +15529,196 @@ bias gate is **NOT opened** — it is Sultan's to open, and its first act is a m
 surface, not an edit.
 
 ---
+
+## DEC-130 (2026-09-01) — **THE SPOKEN-CODE HYPOTHESIS IS CONFIRMED, AND THE FAILURE IS IN THE CHANNEL RATHER THAN IN MUT'HIS.** A clean fixture at last — `sandbox__run_code` with **no `read_local_file`**, 39.83 s of speech → 341 transcribed chars → a 9-line program the sandbox ran faithfully and which answered the wrong question · **my discriminator was WRONG and is corrected: on the spoken path a digest mismatch is guaranteed A PRIORI and proves nothing** · the fixture was weak a second way, and it was the answer's WIDTH · and **Mut'his's hedge is CORRECT BEHAVIOUR — DEC-106's verified/unverified distinction holding in a domain it was never written for** — CONFIRMED (Sultan), **DEC-123 ② CLOSED**, NOTHING BUILT
+
+DEC-123 ② recorded the spoken-code hypothesis and named the experiment that would test it: *"dictate a
+program aloud, read no file, and compare."* **It took four fixtures to get one that actually ran that
+experiment.** This entry records the result, the three fixtures that did not test the question, and a
+correction to the discriminator I supplied — which was wrong for a reason that would have made the run
+look like a confirmation whatever the outcome.
+
+### ① THE CLEAN FIXTURE — WHAT IT MEASURED, READ OFF THE LOG
+
+```
+[hotkey] 'f9' up · [mic] captured 39.83s · [STT] Scribe OK (341 chars)
+[pass] #1 tools=sandbox__run_code
+[sandbox] lang=python code=cd5f2b40c51e (165 chars, 9 lines) → exit=0 2428ms stdout=2 chars stderr=0 chars
+[pass] #2 tools=-
+```
+
+**`tools=sandbox__run_code` at pass #1, with no `read_local_file` anywhere in the turn.** That single
+line is the whole discriminator DEC-123 ② asked for: **no file was read, so the program the sandbox
+received came from the SPOKEN request and from nowhere else.** Forty seconds of dictation, 341
+characters through STT, 165 characters and nine lines reaching the sandbox, which ran them to `exit=0`.
+
+**THE ANSWER WAS WRONG. Sultan reports it came back 5, where the program's answer is 8.** The sandbox
+ran what reached it and ran it correctly; what reached it was not what was said.
+
+**ONE CORROBORATING OBSERVATION, RECORDED AS AN OBSERVATION AND NOT AS PROOF.** The simple program as it
+exists on disk is **10 lines** (DEC-123 Run A: `0322346f2cd3`, 162 chars, 10 lines, hand-traced to **8**
+and printed 8 from the file path). What arrived through speech was **9 lines**. That is consistent with
+Sultan's description — *a step missing* — but it is **not proved here**, because the only artefact that
+could prove it is the STT transcript, which is `MUTHIS_DEBUG=1` and therefore console-only by DEC-122's
+refusal. **The log shows the shape of the loss, never its content.**
+
+### ② THE FOUR FIXTURES, AND WHY THREE OF THEM NEVER TESTED THE QUESTION
+
+| # | what the log shows | why it did not test the question |
+|---|---|---|
+| **1** | `[pass] #1 tools=sandbox__run_code` · `562f64d8252e` (**24 chars, 3 lines**) · `stdout=3 chars` | **Spoken, and it WORKED** — the path *can* carry code. But three lines with no control flow are not ten lines with a loop and nested conditionals. **There was nothing in it to lose.** Already recorded as DEC-126 ⑦. |
+| **2** | `read .py bytes=189 lines 1-10 of 10` → `01c041663ae4` (180 chars, 10 lines) · `stdout=7 chars` | **The model went to the FILE.** Right program, right answer, right number — and **the spoken path was never exercised at all.** |
+| **3** | `read_local_file` → **`not found: .py`** → `[pass] #2 tools=-` | The file path again, and this time it **never reached the sandbox** — nothing ran, so there was nothing to be right or wrong about. |
+| **4** | `[pass] #1 tools=sandbox__run_code` · `cd5f2b40c51e` (165 chars, 9 lines) · **no read** | **CLEAN** — ① above. |
+
+**THE SHAPE WORTH KEEPING:** the question needed **three conditions at once** — no file read, the sandbox
+actually reached, and a program complex enough to lose something. **Each failed fixture broke a different
+one of the three**, and not one of them broke it visibly: every one produced a log that reads like an
+ordinary successful turn, and fixture 2 produced the *correct answer*. **A fixture that fails to test the
+question does not announce itself — it announces a result, which is worse.**
+
+**AND A LIMIT OF THE INSTRUMENT, STATED RATHER THAN GLOSSED.** A third read-then-run turn of the same
+shape as fixture 2 sits between 3 and 4; it is counted with the file-path executions in ⑤. **Whether such
+a turn is "a fixture that fell back to the file" or "a control confirming the file path" is a question of
+INTENT, and the log records only SHAPE.** The `[pass]` line is decisive about what happened and silent
+about what was meant — which is why fixtures 2 and 3 are recoverable from Sultan's account and not from
+the log alone.
+
+### ③ MY DISCRIMINATOR WAS WRONG, AND THE REASON GENERALISES FURTHER THAN THE ERROR
+
+**WHAT I TOLD SULTAN:** that a **differing digest** would confirm the hypothesis.
+
+**IT WOULD NOT, AND IT COULD NOT.** Spoken code cannot reproduce whitespace and line structure
+byte-for-byte. Indentation, blank lines and line breaks are not pronounced; they are **reconstructed**.
+So a digest mismatch on the spoken path is **guaranteed A PRIORI** — it would have been produced by a
+perfect transcription and by a mangled one alike. **A test whose result is fixed before the run carries
+no information about the run**, and had the answer come back *right*, the mismatched digest would have
+sat in the record looking like corroboration.
+
+**WHERE THE DIGEST DOES DISCRIMINATE, STATED SO THE INSTRUMENT IS NOT DISCARDED WITH THE ERROR:** when
+the code comes from a **FILE**. There a match is **expected**, so a mismatch is a real signal — which is
+exactly the work it did in DEC-123 ①, where `01c041663ae4` matched across a 189-byte file and a 180-char
+payload and proved the CRLF normalisation sound. **The same instrument is decisive on one path and
+vacuous on the other, and nothing in it says which path it is on.**
+
+**FOR THE SPOKEN PATH THE DISCRIMINATOR IS SEMANTIC: THE ANSWER.** Not the fingerprint of the code, but
+whether the number that comes back is the number the program computes.
+
+**AND THIS IS THE SECOND TIME AN INSTRUMENT'S SCOPE WAS THE DEFECT RATHER THAN ITS LOGIC.** DEC-126 ⑨.1
+records the first: DEC-82's caption discriminator, handed to Sultan for precisely the turn shape on which
+it was measured **byte-identical either way**. **Both instruments were correct. Both were aimed at a case
+they could not separate. In both, the scope was never stated.** An instrument is scoped to the conditions
+under which its outcome is not already determined, and **that scope belongs in the instruction that hands
+it over** — not in the head of whoever built it.
+
+### ④ THE FIXTURE WEAKENED THE EVIDENCE A SECOND WAY, AND IT WAS THE ANSWER'S WIDTH
+
+**The simple program's answer is ONE DIGIT.** `stdout=2 chars` is therefore consistent with **every wrong
+single-digit answer** as well as with the right one — the log line alone cannot tell 5 from 8. The verdict
+here rests on Sultan reading the answer, not on the instrument reporting it.
+
+**THE ORIGINAL PROGRAM WOULD HAVE BEEN NEARLY DECISIVE ON ITS OWN.** Its answer is **777679** — six
+digits, `stdout=7 chars`. A structurally different program almost never lands on a six-digit output of
+the same width, so the log line would have carried the verdict with no one reading the answer at all.
+**The three file-path runs all show `stdout=7 chars` for exactly that reason.**
+
+**RECORDED AS A FIXTURE-DESIGN LESSON:** the fixture was simplified to make it dictatable, and the
+simplification **cost the observable its discriminating power**. Choose the fixture whose *output width*
+separates right from wrong, not merely the one that is easiest to say aloud.
+
+### ⑤ THE CLASSIFICATION — THE CHANNEL, AND IT IS NOT A DEFECT IN MUT'HIS
+
+**Stated precisely, because "the spoken path fails" would mis-file it.** Forty seconds of dictated code
+passed through speech-to-text and **arrived with a step missing**. The sandbox then ran what reached it,
+**faithfully** — `exit=0`, correct execution of the program it was given. Nothing in Mut'his read the
+wrong file, dropped a line, or misreported a number.
+
+**THE FILE PATH IS CORRECT IN EVERY MEASURED RUN.** Three executions of the original program, each
+preceded by `read_local_file` (`bytes=189`, lines 1-10 of 10):
+
+| run | digest | payload | stdout |
+|---|---|---|---|
+| DEC-123 Run B | `01c041663ae4` | 180 chars, 10 lines | `7 chars` |
+| second | `01c041663ae4` | 180 chars, 10 lines | `7 chars` |
+| third | `01c041663ae4` | 180 chars, 10 lines | `7 chars` |
+
+**Same digest, same output, three times** — and with DEC-123's Run A that is **four measured file-path
+executions without a single deviation.** The read → run → answer path is sound.
+
+**SO THE CAPABILITY BOUNDARY IS: CODE THAT REACHES MUT'HIS THROUGH SPEECH IS NOT RELIABLY THE CODE THAT
+WAS SPOKEN.** That is a property of dictation — of forty seconds of punctuation-free structure passing
+through a transcriber — and not of the sandbox, the reader, the orchestrator or the model. **DEC-123 ②'s
+hypothesis is CONFIRMED, and its weak premise is retired: that the failing session read no file rested on
+recollection, and the mechanism it named has now been reproduced on purpose.**
+
+### ⑥ THIS EXPLAINS THE ORIGINAL 777679 / 211351 CASE COMPLETELY
+
+DEC-120 ① could not distinguish *wrong code ran* from *right code ran and the number was misreported*,
+because the code sent was unrecoverable. **It is now settled: wrong code ran.**
+
+**AND THE ONE FACT THAT NEVER FITTED NOW FITS.** The sweep behind DEC-120 tested 689 parameter variants,
+then every iteration count 1–20,000 at seed 17, then a **15-million-state** search — and **211351 never
+appeared, not as an output and not even as an intermediate value of `x`.** That is not what a slipped
+constant or a transcription typo produces; it is what a **structurally different program** produces. **A
+missing step is structural.** The sweep's null result was never a failure of the sweep — **it was the
+finding, read backwards.**
+
+**THE OTHER TWO FACTS FOLLOW WITH NO ADJUSTMENT:** the same wrong number **twice** is a stable
+reconstruction run twice; and **P0's 17/18 never covered this path at all**, because D-3 sent **STORED**
+code and never **SPOKEN** code.
+
+### ⑦ MUT'HIS'S HEDGE IS CORRECT BEHAVIOUR, AND IT IS RECORDED AS A RESULT RATHER THAN AN ANECDOTE
+
+**Mut'his said, in its own words, that it ran *what it understood from Sultan*. It did not claim to have
+run his program.**
+
+**THAT IS THE VERIFIED / UNVERIFIED DISTINCTION, IN A DOMAIN DEC-106 WAS NEVER WRITTEN FOR.** DEC-106
+governs step verification on a screen: `RESULT_PROVEN` requires **positive visual evidence of the expected
+result**, and where the result cannot be established from the available viewpoint the outcome is
+`RESULT_UNOBSERVABLE` — **a declared capability boundary, reported as such, never an advance on
+assumption.**
+
+Here the structure is identical and the domain is not. What Mut'his could establish: **the text it
+received, and that the sandbox ran it.** What it could **not** establish: that the text it received was
+the program Sultan spoke — the transcript is the only artefact that would prove it, and Mut'his does not
+see the audio. **It reported the first and declined to assert the second.**
+
+**AND THIS IS THE BEHAVIOUR THAT MADE THE CASE DIAGNOSABLE AT ALL.** Had it said *"I ran your program and
+got 5"*, the failure would have pointed squarely at the sandbox — and every instrument built since DEC-121
+would have been aimed at a path that was working perfectly. **A correctly-hedged claim did not merely
+avoid a false statement; it localised the defect.** Recorded as evidence that the distinction generalises
+beyond the surface it was ruled for, and that it is worth defending when it looks like hedging.
+
+### ⑧ THE REOPENING CONDITION, NAMED EXACTLY
+
+**This item CLOSES. It reopens on: a wrong result from code that reached Mut'his through a FILE, not
+through speech.**
+
+**THE CONDITION IS STATED THAT WAY ON PURPOSE.** Another wrong answer from dictated code is **not** a
+reopening — it is this entry's finding recurring, and the channel limit predicts it. What would be new
+information is the **file path** failing, because that path is now four-for-four and its soundness is the
+premise on which every other diagnosis in this thread rests. **The observable needs nothing built:** a
+`[pass]` line showing `read_local_file` before `sandbox__run_code`, a digest, and a wrong answer.
+
+**WHAT IS NOT A REOPENING, SO IT IS NOT RE-DERIVED LATER:** recovering *what STT produced versus what was
+said* still requires the transcript, which is console-only by DEC-122's refusal. **That refusal is not
+revisited here, and this finding did not need it** — the answer was the discriminator, and the answer was
+enough.
+
+### MEASURED
+
+| | |
+|---|---|
+| `src/` | **git-untouched** — this entry is the record and nothing else |
+| guard | **2,025 green, UNCHANGED** |
+| pins | the eleven **byte-unmoved** |
+| evidence | Sultan's live run, plus `~/.muthis/logs/muthis.log` — DEC-121's run record and DEC-122's durable log doing the work they were built for |
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**Nothing is fixed and nothing is proposed.** No change to the sandbox, the reader, STT, the orchestrator
+or any note · no guard added for dictated code · no transcript surface built, and **DEC-122's refusal is
+untouched** · the triple-retry bound (DEC-123 ④) remains unruled and is not opened here. **DEC-123 ② is
+CLOSED as CONFIRMED, and DEC-120 ①'s open verdict closes with it.**
+
+---
