@@ -15441,3 +15441,91 @@ the number). No pin moved; the eleven are byte-unmoved. `turn_pass.py` and `turn
 C3 declined, A and B not taken. **The latency is not addressed and is not claimed to be.**
 
 ---
+
+## DEC-129 (2026-09-01) — **THE −5.5% BIAS GETS ITS OWN GATE, AND A STANDING INSTRUCTION IS CORRECTED.** Not merged with C1 because the constant paces **TWO surfaces** and merging would blur attribution · **a constant whose comment cites a SUPERSEDED measurement is the stale-declaration defect in a source file**, so the provenance is updated and never overwritten · and mutation anchors must **DETECT** a file's line endings, never assume them — the tree is MIXED — RULED (Sultan), NOTHING BUILT
+
+**THIS ENTRY IS NOT THE C1+C2 GATE — DEC-128 IS, and it is already on main in `bc29e1b`.** Its nine
+sections carry the two-band duration result, the bias, the pre-registered cheat and its structural
+defence, the 10.1% → 99.1% outcome with `MAX_LINES` measured, the DEC-20 guard split, C3 declined, the
+latency disclaimer and the projection miss. **Recorded here explicitly because a second entry restating
+a settled gate would leave two records of one thing and no way to tell which governs** — the defect this
+ledger has caught twice already. What follows is only what DEC-128 could not know: the ruling that comes
+AFTER it, and a correction to an instruction that shaped it.
+
+### ① THE RULING — THE BIAS IS CORRECTED IN ITS OWN GATE, AND NOT YET
+
+Measured in DEC-128 ②: the live rate is **10.87 ch/s** against the shipped `ARABIC_TTS_CHARS_PER_SEC =
+11.5` — **a −5.5% bias**, stable across duration rather than drifting with it.
+
+**FOUR CONDITIONS, AND THE FIRST IS THE REASON FOR ALL OF THEM:**
+
+1. **ITS OWN GATE — NOT MERGED WITH C1.** The constant paces **TWO surfaces**: the buffered path that C1
+   now rolls, and the **STREAMED** path, which re-reads `played_seconds()` on every feed and which this
+   milestone never examined. **Merging them would blur attribution if either moves** — a caption
+   complaint afterwards could belong to the rolling or to the rate, and nothing in the record would
+   separate them. One change, one surface, one thing to point at.
+2. **MEASURE BOTH SURFACES FIRST.** What the corrected rate does to the **streamed** path's pacing, not
+   only the buffered one. DEC-128 measured the rate; it did not measure what changing it does where it
+   has always been used.
+3. **NOT URGENT, AND THE REASON IS DIRECTIONAL.** The bias runs the **benign** way: speech is SLOWER
+   than the estimate, so captions LEAD rather than lag — 4.9 s ahead at the tail of an eleven-caption
+   answer, **with nothing orphaned**, because speech that runs long ends after every timer has fired.
+   And 99.1% is already visible. A wrong-direction bias would have been urgent; this one is not.
+4. **THE PROVENANCE IS UPDATED, NEVER OVERWRITTEN** — ② below.
+
+### ② **A CONSTANT WHOSE COMMENT CITES A SUPERSEDED MEASUREMENT IS THE STALE-DECLARATION DEFECT, IN A SOURCE FILE**
+
+`turn_voice.py:58-60` records the constant's provenance: *"measured on three live runs (2026-07-15/16:
+276ch/24s, 197ch/17.2s, 285ch/24.8s — all ≈11.5)"*.
+
+**THAT PROVENANCE IS TRUE AND MUST NOT BE DELETED.** Those runs happened and their numbers are right.
+What is now false is its **AUTHORITY**: three utterances of 17-25 s are no longer the best evidence
+about the rate, because DEC-128 measured five answers across two bands at 78-86 s and 151-167 s. **A
+comment can be accurate in every fact it states and stale in the only thing a reader uses it for** —
+which is `true-statement-false-mechanism` and `half-updated-doc-reads-as-updated` meeting in a source
+file rather than a document.
+
+**SO THE FORM IS BINDING WHEN THAT GATE OPENS:** keep the old measurement, add the new one, and say
+**WHICH ONE GOVERNS THE VALUE.** Silently swapping `11.5` for `10.87` above a comment that still cites
+the 2026-07-15 runs would leave a constant whose stated evidence does not support its number — and
+would do it in the one place a future reader will trust without checking.
+
+**AND THE CLASS IS WORTH NAMING BEYOND THIS CONSTANT:** any literal carrying a measured justification
+in a comment inherits the same obligation the moment it is re-measured. This project has now met that
+shape in a document (`PROJECT_STATE.md`), in a ledger entry (DEC-111 ③), and now in a source comment.
+
+### ③ A STANDING INSTRUCTION CORRECTED — **ANCHORS DETECT, THEY NEVER ASSUME**
+
+The instruction was *"mutations assert APPLIED against CRLF anchors."* **Its premise about the tree is
+false, and the correction is Sultan's own.**
+
+**THE TREE'S LINE ENDINGS ARE MIXED.** `turn_voice.py`, `turn_pass.py` and `DECISIONS.md` are CRLF;
+`style.py`, `caption_bar.py` and `test_caption_bar.py` are LF. `core.autocrlf=true` normalises on
+commit, so **the committed blob is identical either way** and the mix is invisible in a diff — which is
+exactly why it survived to become an instruction. A CRLF-only anchor **silently fails to place on half
+the tree**, and a mutation that never lands looks precisely like a mutation the code survived.
+
+**THE CORRECTED FORM: detect the file's real terminator, then anchor.** That is what makes *assert
+APPLIED* mean anything rather than pass vacuously.
+
+**AND A SECOND ANCHORING HAZARD, FOUND THE SAME WAY.** An anchor at **8 spaces** of indentation inside
+`_roll_caption` **also matched as a SUFFIX of the 12-space copy in `show_caption`** — the same statement
+at two depths, two hits. Unnoticed, the mutation **would have landed in the wrong method entirely** and
+then "survived" for a reason having nothing to do with the guard being tested. **Bind every anchor to a
+LINE START, and assert the match is UNIQUE before applying it.** The uniqueness assertion is what caught
+it; both harness defects were found before any defect in the code.
+
+### ④ ALREADY RECORDED IN DEC-128, NOT REPEATED HERE
+
+The projection miss (**+27 projected, +57 real** — the scratchpad-understates lesson recurring after
+being written down) is DEC-128 ④. The eight mutations and the two harness defects are DEC-128 ⑨. The
+latency disclaimer is DEC-128 ⑦. **Pointers, not copies.**
+
+### WHAT THIS ENTRY DOES NOT DO
+
+**Nothing is built and nothing is measured.** `ARABIC_TTS_CHARS_PER_SEC` is **UNCHANGED** at 11.5 ·
+`src/` git-untouched · guard **2,025 green, UNCHANGED** · no pin moved, the eleven byte-unmoved. The
+bias gate is **NOT opened** — it is Sultan's to open, and its first act is a measurement of the streamed
+surface, not an edit.
+
+---
