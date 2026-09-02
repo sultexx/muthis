@@ -15722,3 +15722,135 @@ untouched** · the triple-retry bound (DEC-123 ④) remains unruled and is not o
 CLOSED as CONFIRMED, and DEC-120 ①'s open verdict closes with it.**
 
 ---
+
+## DEC-131 (2026-09-02) — **THE CONFIRMATION REQUEST WAS NEVER SPOKEN, AND THE CAUSE WAS `tool_choice`.** A live run reproduced the DEC-97 loop exactly — **16 refusals across 4 turns, four agentic caps, and Sultan was never asked** · the root cause is that **`gate.drawn` was the ONLY route to `tool_choice="none"` in the tree, so a DRAW was this system's single forcing function for speech** and a tainted web turn never left `"auto"` · the note's «هذه الأداة» scoping **LICENSED** the switch to `web__fetch` · fixed in THREE HALVES, none of which closes it alone — APPROVED (Sultan), EXECUTED. **The counter was NOT built. The APPROVAL TREADMILL is RECORDED, not fixed.**
+
+### THE REVERSAL, AND WHAT SURVIVED IT
+
+"No counter" was ruled on four grounds. The live run refuted two of them. The behaviour is
+no longer unmeasured; and the prose brake added at DEC-95 — *«every call before his permission
+returns the same answer and changes nothing»* — was LIVE throughout and **the model retried
+through it four times per turn**. The comment above that clause said *"with no counter behind
+this gate, that reading WAS the enforcement."* The reading is now measured insufficient, 16/16.
+
+The other two grounds held, and they are why **the counter is still not the fix**: the proven
+form does not transfer (the counted gates count SUCCESSES, and "the same note forever" — the
+property that makes them safe — is precisely this gate's defect), and building here was an
+EXTRACTION ruling before it was a behaviour change.
+
+**AND THE DEEPER DEFECT WAS NEVER THE RETRY.** Sultan heard the ack «أبشر ببحث لك» and then the
+cap note. He was never asked for approval in any of the four turns. Asked what he said on the
+one short utterance (1.46 s / 10 chars) that could have been an approval attempt, he answered:
+**«search again» — following the cap note literally.** The datum is noise, and that is the
+finding: the system told him to ask again, he did, and each attempt re-entered the identical
+refusal because taint is sticky with no clearing path. **A counter alone would have made this
+fail FASTER, not clearer.**
+
+### THE CAUSE, FROM SOURCE
+
+`loop_tool_choice` returned `"none" if gate.drawn else "auto"`, and `gate.drawn` is set only by a
+draw pairing. **A draw was therefore the system's single forcing function for speech** — an
+architectural fact, not an incidental one. A web turn under taint draws nothing, so it never left
+`"auto"`, and nothing ever obliged the model to say the thing the gate had just ordered it to say.
+In a pointing turn the draw forces the explanation; here nothing did.
+
+The corroborating detail settles the second defect. Pass #4 of the last turn was `web__fetch`, not
+`web__search` — and the note said «هذه الأداة» twice and named the tool. **The model switching tools
+had OBEYED the note literally.** The refusal was TOOL-scoped while the property it enforces —
+taint × high-impact — is CAPABILITY-scoped.
+
+### THE FIX IS THREE HALVES
+
+**① FORCE `"none"` AFTER AN UNAPPROVED REFUSAL.** `loop_tool_choice` now fires on two conditions.
+Zero lines at the read site: it gained a second parameter, so `turn_pass.py:170` is an EDIT of the
+existing call (the DEC-73 precedent) and **that file's pin did not move — 293/293**. `confirm` is
+DUCK-TYPED so the kernel module never imports `trust.confirm_gate` (DEC-3-B), and OPTIONAL so seven
+existing call sites stay untouched; **that default is FAIL-OPEN, so the production wiring is
+asserted structurally** rather than trusted.
+
+**THE PREDICATE IS THE WHOLE OF ①, AND THE OBVIOUS ONE IS WRONG.** `pending_tool is not None` stays
+TRUE across the approval, because `observe()` marks the pending approved and leaves it in place. A
+brake keyed on it would gag the very pass that must re-issue the approved call, so the approval
+could never be spent — **the fix would have broken the success path it exists to reach.**
+`awaiting_approval` is `_pending is not None AND NOT _pending.approved`, and its guard carries a
+CONTROL: it asserts `pending_tool` is STILL set at the moment the brake must not fire.
+
+**② RESCOPE THE NOTE TO THE CAPABILITY.** It now says every tool whose effect leaves the machine is
+stopped, that trying another changes nothing and is not compliance, and its prohibition names
+«أداةً من هذا النوع» rather than one tool.
+
+**③ MAKE IT A COMMAND**, on `HIGHLIGHT_ACK_TEXT_AR`'s form — which is the proven form that DOES
+transfer, unlike the counter whose polarity inverted. It is now read on a pass FORCED to `"none"`,
+exactly where the draw breaker's note is read, so it orders the request in THIS pass, says the reply
+IS the request, and names the cost of silence. It also answers DEC-14's distrust of its own channel
+(it arrives in a `tool_result`) — **without borrowing the §3.2 delimiters' vocabulary**, which was
+the real constraint: the obvious phrasing uses «محتوى» and «خارجي», both live tokens of
+`WRAP_OPEN_AR`. The two guards are now checked against each other.
+
+**THE EXTRACTION CAME FIRST**, and its justification was not the accessor: rulings ② and ③ GROW the
+note, and `confirm_gate.py` was at 300/300. Extraction moved the surface that had to grow out of the
+file that could not hold it. Equivalence proven the DEC-108 way — by HASH of the rendered note over
+**all three `render_args` branches** plus newline flattening, five fixtures, five byte-identical
+strings — because a hash over the easy path would have proven the easy path while the truncation arm
+moved wrong.
+
+### RECORDED, NOT FIXED — THE APPROVAL TREADMILL
+
+Approval binds to `sha256(tool + canonical args)` and is SINGLE-USE, while the note shows the model a
+rendering of those arguments **truncated at `MAX_ARG_CHARS` = 120** and ordered said «كما هي». **For a
+value past the bound, what the note displays is NOT what the fingerprint hashed**, so a model
+re-issuing from the note's own text cannot match; each approval is consumed against a fingerprint the
+next re-issue need not reproduce.
+
+Under ① this is **strictly better and still not closed**: each cycle now ends at pass 2 instead of the
+cap, and the user HEARS a fresh request each time instead of silence. **The three halves degrade a
+dead end into friction; they do not remove it.** ② does not touch it either — the fingerprint is over
+`(tool, args)` however the note is scoped.
+
+**Loosening the binding to tool+capability would close it and is an AUTHORIZATION ruling reserved to
+Sultan**, because the args binding exists so that an approval never travels to a call the user never
+heard. Not taken here.
+
+### DERIVED, NOT OBSERVED — AND NO LONGER OBSERVABLE
+
+The intermittency has a structural explanation: **the request surfaces iff something else in the same
+turn forced `"none"`, which before ① meant a draw.** The one earlier turn that DID reach the spoken
+approval stage was in the 2026-08-29 evaluation, which **predates the durable log by one day**, so the
+claim is derived from source and consistent with every observation — never observed.
+
+**It can no longer be observed, and that is a consequence of ① rather than a gap.** Once a confirm
+refusal forces `"none"`, the draw is no longer the only forcing condition, so the experiment that would
+have separated the two cases cannot be run again. Sultan declined to spend a turn on it before landing
+the fix: it costs a turn and changes no fix. **Recorded here so the claim is never later mistaken for a
+measurement.**
+
+### THE FULL USER-VISIBLE DEAD END, WHICH IS WHAT MADE THIS HIGHEST PRIORITY
+
+Before this ruling: after any document is opened, **there was no path to a web search that did not
+require Sultan to already know the word «أوافق»**. Taint never clears (a new process is the only
+reset); no user-visible taint surface exists; the word appears in no surface but the directive that
+was never spoken; and the cap note said «ask me again», which re-entered the identical refusal. The
+only channel that teaches the word was the one that failed.
+
+### THE RECORD
+
+- Suite 2,025 → **2,045**. `confirm_gate.py` 300 → 267 → **280**, re-declared twice.
+  `turn_pass.py` **293/293 unmoved**. `confirm_gate_notes.py` 118, unpinned.
+- **21 mutations, 21 RED** across the three commits, each asserted APPLIED on disk against the
+  file's OWN terminator and restored. Two early mutations were WRONG rather than survived — one
+  changed only a comment, one never matched — and were rebuilt: **a mutation that tests nothing
+  looks exactly like a guard that holds.**
+- Fixed in passing, my own: commit `a859aed` left a stray `\r\r\n` on one line of
+  `test_module_line_ceiling.py`. Harmless to the suite, which is why it passed — and it broke the
+  next mutation anchor on that exact line.
+- **An existing guard caught a real collision**: the note's first wording used «نتيجة أداة», and
+  `test_high_impact.py` uses the bare word «نتيجة» as its canary for "the plugin never ran". The
+  plugin genuinely had not run; the canary had become ambiguous. **My text changed, not the
+  assertion** (DEC-42). Recorded: that canary is one very common word and will collide again with
+  any note that mentions tool output.
+- **The second pin list had drifted** and was fixed first, mechanically (`eb1ec8e`):
+  `test_reader_truncation_honesty.py` listed TEN pinned modules, omitting `file_reader.py` — so the
+  one file the DEC-117 truncation defect was measured ON was the one its honesty scan never read.
+  Whether the two lists should be ONE is reported, not answered.
+
+---
