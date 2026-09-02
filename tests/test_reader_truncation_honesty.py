@@ -46,13 +46,16 @@ from muthis.file_reader import MAX_RETURN_CHARS, FileReader, TRUNCATION_NOTE_AR
 
 SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "muthis"
 
-# The ten pinned modules (test_module_line_ceiling.py is the authority on the
-# list; this file only reads them).
+# The eleven pinned modules (test_module_line_ceiling.py is the authority on
+# the list; this file only reads them). IT MUST BE UPDATED IN THE SAME COMMIT
+# as the authority: this copy sat at TEN for the whole of DEC-117, omitting
+# `file_reader.py`, so the one file the reader defect was measured ON was the
+# one this scan never read. Two homes for one fact drift; this is the drift.
 PINNED = (
     "kernel/tool_router.py", "kernel/orchestrator.py", "turn_voice.py",
     "persona.py", "persona_laws.py", "overlay/sidekick_window.py",
     "composition.py", "kernel/turn_pass.py", "trust/confirm_gate.py",
-    "kernel/deferral_notes.py",
+    "kernel/deferral_notes.py", "file_reader.py",
 )
 
 NUMBERED = re.compile(r"^\s*(\d+) \| ", re.M)
