@@ -144,7 +144,21 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # was in when it crossed the law in silence, and this one has NO headroom at
     # all, so the next line breaches. Nothing extracted, no content touched:
     # declaring it IS the change, and extracting is a separate decision.
-    ("trust/confirm_gate.py", 300),
+    # 300 -> 267, DECLARED: the pin met its next arrival exactly as it said it
+    # would. The arrival was NOT a new mechanism — it was the NOTE's own growth
+    # (the directive rescoped from one TOOL to the CAPABILITY, and turned into a
+    # command), so the surface that had to grow left the file that could not hold
+    # it. `confirm_gate_notes.py` is the home, on the `deferral_notes.py` shape:
+    # the note AND the `render_args` that fills its one substitution slot, plus
+    # the two bounds that exist only for it — one cluster, ONE external
+    # touchpoint. Equivalence proven the DEC-108 way, by HASH of the rendered
+    # note rather than by a green suite, over all three `render_args` branches
+    # (a value past MAX_ARG_CHARS, a rendering past MAX_ARGS_CHARS, empty args)
+    # plus newline flattening: five fixtures, five byte-identical strings. The
+    # SECURITY half — the detector, the word sets, `call_fingerprint` — did not
+    # move one line (DEC-42: the stronger property stays byte-identical while the
+    # weaker one is worked on).
+    ("trust/confirm_gate.py", 267),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's

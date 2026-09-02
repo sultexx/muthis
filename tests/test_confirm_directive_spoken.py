@@ -4,7 +4,7 @@ THE CONFIRMATION REQUEST IS ADDRESSED TO THE USER, AND ITS OPENING SAYS SO
 (DEC-95) — plus the turn/pass ambiguity that made its one constraint readable as
 already satisfied.
 
-THE DEFECT, AS FOUND. `_CONFIRM_DIRECTIVE_AR` opened with «توجيه داخلي (لا يراه
+THE DEFECT, AS FOUND. `CONFIRM_DIRECTIVE_AR` opened with «توجيه داخلي (لا يراه
 المستخدم)» — *internal directive, the user does not see it* — and four clauses
 later ordered the model to say its contents ALOUD. The contradiction sat inside
 ONE string, and EVERY reading of it led to silence:
@@ -43,7 +43,7 @@ from __future__ import annotations
 from muthis.kernel.untrusted_content import WRAP_CLOSE_AR, WRAP_OPEN_AR
 from muthis.persona import build_saudi_persona_prompt
 from muthis.trust.confirm_gate import (
-    APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR, _CONFIRM_DIRECTIVE_AR,
+    APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR, CONFIRM_DIRECTIVE_AR,
 )
 
 TOOL = "web__search"
@@ -51,7 +51,7 @@ ARGS = "query=أسعار الذهب"
 
 
 def _rendered() -> str:
-    return _CONFIRM_DIRECTIVE_AR.format(
+    return CONFIRM_DIRECTIVE_AR.format(
         tool=TOOL, args=ARGS, word=APPROVAL_WORD_AR)
 
 
@@ -61,7 +61,7 @@ def test_it_does_NOT_wear_the_invisible_directive_syntax():
     """THE CENTRAL GUARD. The marker is what makes the persona's «never read this
     aloud» law reach a directive, so the one directive that must be SPOKEN must
     not carry it — in the template or in anything it renders to."""
-    assert DIRECTIVE_MARKER_AR not in _CONFIRM_DIRECTIVE_AR, (
+    assert DIRECTIVE_MARKER_AR not in CONFIRM_DIRECTIVE_AR, (
         "the confirmation request carries the internal-directive marker again. "
         "The persona forbids speaking anything that does, so this text now "
         "orders aloud what its own family law forbids — the DEC-95 defect.")
