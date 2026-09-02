@@ -189,6 +189,19 @@ class ConfirmGate:
         """The tool awaiting approval, for tests and logs — never the args."""
         return self._pending.tool if self._pending is not None else None
 
+    @property
+    def awaiting_approval(self) -> bool:
+        """True while a REFUSED call is still waiting for the user's word.
+
+        IT IS NOT `pending_tool is not None`, AND THE DIFFERENCE IS THE WHOLE
+        POINT (DEC-131). `observe()` sets `approved` on the pending state and
+        LEAVES IT IN PLACE, so the name-only accessor stays truthy ACROSS the
+        approval. A brake keyed on that would gag the very pass that must
+        re-issue the call the user just approved, and the approval could never
+        be spent — the fix would break the success path it exists to reach.
+        This one goes False the moment the word is heard."""
+        return self._pending is not None and not self._pending.approved
+
     def new_turn(self) -> None:
         """Arm the coming turn's ONE observation.
 

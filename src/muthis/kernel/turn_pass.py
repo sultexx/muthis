@@ -167,7 +167,7 @@ class TurnPass:
         nav_call: Optional[ToolCall] = None  # T4: the pass's mode verb (first wins)
         message_text = ""  # buffered mirror of the pass — the fallback source
         pending_draw: Optional[PendingDraw] = None  # first draw wins; applied at speak
-        tool_choice = loop_tool_choice(gate)
+        tool_choice = loop_tool_choice(gate, self._router.confirm_gate)
         # Decision 13: stream mid-pass ONLY on a tool_choice="none" pass — the
         # API forbids tools there, so no draw can arrive mid-stream and the
         # Option-A draw-at-speak invariant is untouchable. Every "auto" pass

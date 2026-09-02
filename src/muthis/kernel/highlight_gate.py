@@ -112,15 +112,39 @@ def highlight_result_text(gate: Optional[HighlightGate]) -> str:
     return draw_result_text(gate, "highlight_target")
 
 
-def loop_tool_choice(gate: HighlightGate) -> str:
-    """The HARD loop terminator: once ANYTHING has been drawn this turn
-    (gate.drawn — set by the first highlight_target OR draw_shapes pairing),
-    the NEXT agentic run() is made with tool_choice="none" so Claude CANNOT
-    call a tool and MUST emit its explanation as text → stop_reason becomes
-    end_turn → the loop ends. "auto" until then, so the first draw AND any
-    request_screen_refresh still work (a refresh never sets gate.drawn). This
-    is the API-enforced brake; the draw-suppression in turn.next_highlight /
-    draw_dispatch.next_draw is the belt-and-suspenders."""
+def loop_tool_choice(gate: HighlightGate, confirm: object | None = None) -> str:
+    """THE PASS'S tool_choice — the API-enforced brake, with TWO reasons to fire.
+
+    DRAW (the original): once ANYTHING has been drawn this turn (gate.drawn — set
+    by the first highlight_target OR draw_shapes pairing), the NEXT agentic run()
+    is made with tool_choice="none" so Claude CANNOT call a tool and MUST emit its
+    explanation as text → stop_reason becomes end_turn → the loop ends. "auto"
+    until then, so the first draw AND any request_screen_refresh still work (a
+    refresh never sets gate.drawn); the draw-suppression in turn.next_highlight /
+    draw_dispatch.next_draw is the belt-and-suspenders.
+
+    CONFIRM (DEC-131): a high-impact call REFUSED under taint and not yet approved
+    forces the same brake. MEASURED, not supposed — with gate.drawn as the only
+    forcing condition in the tree, a web turn under taint never left "auto", so
+    the model spent every pass re-calling the refused tool: 16 refusals across 4
+    turns, four agentic caps, and the user was never asked for approval at all. A
+    draw was this system's SINGLE forcing function for speech; this is the second.
+
+    IT MUST BE THE UNAPPROVED CASE, NOT MERELY A PENDING ONE. `observe()` leaves
+    the pending state in place once it is approved, so a brake keyed on "something
+    is pending" would gag the pass that must re-issue the approved call and the
+    approval could never be spent. `awaiting_approval` carries that distinction.
+
+    `confirm` IS DUCK-TYPED AND OPTIONAL, and both halves are deliberate. Duck-
+    typed so this kernel module never imports `trust.confirm_gate` — DEC-3-B is
+    two concerns, two objects, and this function acquires no second concern: it
+    is already the SOLE computation of tool_choice, and it is simply being told
+    the truth about the one concern it has. Optional so the seven existing test
+    call sites stay untouched — and precisely BECAUSE that default is FAIL-OPEN,
+    the production wiring is asserted structurally in `test_confirm_forces_text.py`
+    rather than trusted to whoever next edits the call."""
+    if getattr(confirm, "awaiting_approval", False):
+        return "none"
     return "none" if gate.drawn else "auto"
 
 

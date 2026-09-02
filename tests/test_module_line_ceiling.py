@@ -158,7 +158,13 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # SECURITY half — the detector, the word sets, `call_fingerprint` — did not
     # move one line (DEC-42: the stronger property stays byte-identical while the
     # weaker one is worked on).
-    ("trust/confirm_gate.py", 267),
+    # 267 -> 280, DECLARED (DEC-131 ruling 1): `awaiting_approval`, the ONE
+    # accessor the tool_choice brake needs, and the room the extraction bought is
+    # what let the distinction be WRITTEN DOWN instead of compressed away. It is
+    # NOT `pending_tool is not None`: `observe()` marks a pending APPROVED and
+    # leaves it in place, so the name-only predicate stays truthy ACROSS the
+    # approval and would gag the very pass that must re-issue the approved call.
+    ("trust/confirm_gate.py", 280),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's
