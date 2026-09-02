@@ -15840,9 +15840,14 @@ only channel that teaches the word was the one that failed.
   file's OWN terminator and restored. Two early mutations were WRONG rather than survived — one
   changed only a comment, one never matched — and were rebuilt: **a mutation that tests nothing
   looks exactly like a guard that holds.**
-- Fixed in passing, my own: commit `a859aed` left a stray `\r\r\n` on one line of
-  `test_module_line_ceiling.py`. Harmless to the suite, which is why it passed — and it broke the
-  next mutation anchor on that exact line.
+- **TWO line-ending slips of my own, both in `test_module_line_ceiling.py`, both found by AUDIT
+  rather than by the suite.** `a859aed` left a stray `\r\r\n` on one line (a `.replace` applied
+  to a literal that already ended CRLF); the fix for THAT then inserted six BARE-LF lines into a
+  pure-CRLF file, leaving it MIXED. Neither broke a test, and that is the point — **the suite
+  cannot see line endings** — while the first silently broke the next mutation anchor on that exact
+  line. Found by scanning every touched file for `CR-CR` and for a CRLF/LF mix; both now zero.
+  The standing rule earns its keep: DETECT the terminator, never assume it — and audit AFTER
+  writing, because a green suite is not evidence here.
 - **An existing guard caught a real collision**: the note's first wording used «نتيجة أداة», and
   `test_high_impact.py` uses the bare word «نتيجة» as its canary for "the plugin never ran". The
   plugin genuinely had not run; the canary had become ambiguous. **My text changed, not the
