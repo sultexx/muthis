@@ -15859,3 +15859,207 @@ only channel that teaches the word was the one that failed.
   Whether the two lists should be ONE is reported, not answered.
 
 ---
+
+## DEC-132 (2026-09-05) — **RULING ② IS CONFIRMED LIVE; RULING ③ IS MEASURED INSUFFICIENT — ON ONE MODEL.** The 16-refusal loop is gone by construction — 4 turns × 4 refusals and four caps became 1 refusal and a 2-pass turn, twice, with ZERO caps · but the model spent the forced text pass APOLOGISING AND ANSWERING FROM MEMORY, the prompt half's SECOND measured failure at this gate · **the forced pass STREAMS, so nothing at its sync point can pre-empt that** and a kernel messenger would have to speak at pass N · and **the kernel does not hold the ARGUMENTS**, which makes the messenger an AUTHORIZATION ruling rather than a line-count one — CONFIRMED + DIAGNOSED (Sultan), **NO KERNEL MESSENGER TAKEN.** One provider comparison runs first.
+
+### ② — CONFIRMED, WITH THE BEFORE AND AFTER
+
+| | before (2026-09-02) | after (2026-09-03) |
+|---|---|---|
+| refusals per turn | **4** | **1** |
+| passes per turn | 4 | **2** (`#1 web__search` → refused → `#2 tools=-`) |
+| agentic cap hits | **4** | **ZERO** |
+| turns observed | 4 | 2 |
+
+**The loop is eliminated BY CONSTRUCTION, not by persuasion.** `tool_choice="none"` is API-enforced, so this half is model-independent — which is exactly why it is the half that held.
+
+### ③ — DID NOT WORK, AND THE FAILURE IS NARROWER THAN "IT LIED"
+
+The model used the forced text pass to apologise and answer from memory rather than to ask for
+approval. **Reported by Sultan, not log evidence** — content is never logged (DEC-17/DEC-28), so the
+transcript is the only source for these words: «ما أقدر أتحقق لحظياً… تقدر تتأكد عبر الموقع الرسمي».
+
+**AND IT WAS HONEST, WHICH IS THE PART THAT MATTERS.** «ممكن يكون Claude 3.5 Sonnet… آخر معلومة
+موثوقة عندي… نزل بعده إصدار أحدث» — it declared its knowledge stale AND that a newer release exists.
+**DEC-106's shape held in a domain it was not written for**, exactly as it did at DEC-130. So the
+defect is sharp rather than broad: **it correctly declares it cannot verify, and does not relay the
+remedy that was available.** Honest, and not actionable.
+
+**AND IT IS WORSE THAN THE DEAD END IN ONE DIMENSION: a dead end is VISIBLE; a stale answer looks
+like an answer.** The 16-refusal loop ended in a note that said something was wrong. This ends in a
+fluent, correct-sounding, hedged reply — and the user has no signal that a search was ever stopped.
+
+This is the SECOND measured failure of the prompt half at this gate — the prose brake (DEC-95), then
+the command form (DEC-131 ③) — and the project's own law already states that a prompt is never the
+enforcement layer.
+
+### THE STREAMING FINDING — WHY A KERNEL MESSENGER MUST SPEAK AT PASS N
+
+`turn_pass.py:176` sets `streamed = tool_choice == "none" and await turn_voice.ensure_open()`, and
+`:182-183` calls `push_stream(event.text)` **as the deltas arrive**. **The forced pass ② created is a
+STREAMED pass**: the apology is spoken sentence-by-sentence while it is generated, long before the
+sync point at `:261-267` is reached. **Nothing at that pass can pre-empt it** — by the time the
+kernel could speak there, the user has already heard the stale answer.
+
+The refusal first becomes known at `turn_pass.py:272` (`service_pass_calls`), five lines AFTER the
+pass's own speech at `:267`. **So the only workable ordering is to speak in pass N, immediately after
+`:272`** — inside the pass that has so far spoken only a short ack, and before the forced pass runs
+at all. (Earlier reports cited `:265`/`:273`; the exact lines are `:267`/`:272`.)
+
+### THE RISK IS CONTRADICTION, NOT OVERLAP
+
+Audio overlap is already solved and has a precedent: `orchestrator.py:250-251` speaks
+`BUDGET_REFUSAL_AR` through `turn_voice.speak_or_feed` with the comment *"audio from an earlier pass
+may still be playing — the refusal must queue behind it, never overlap."* `speak_or_feed` feeds the
+ONE generation, so utterances SERIALISE.
+
+What does not follow is coherence. A kernel messenger produces **three utterances in order**: the
+model's ack, the kernel's request, then the forced pass's model text — **with the model speaking
+LAST.** Today that last slot holds an apology and a stale answer, so the user would hear a correct
+request and then hear it undermined. Suppressing the third means discarding the forced pass's text,
+which is a separate ruling and is NOT taken here.
+
+### THE ARGS GAP — AN AUTHORIZATION RULING, NOT A LINE COUNT
+
+`_Pending` stores `fingerprint`, `tool`, `approved` — **no arguments**, deliberately: they *"reach
+the model's context and never a log line"* (DEC-20/DEC-28).
+
+**DEC-16 bounded the messenger limit with TWO things**: (a) the directive orders the tool AND ITS
+ARGUMENTS named aloud, and (b) approval binds to the sha256 of the REAL call. **A kernel messenger
+without the arguments destroys (a)**: the user would approve a call whose target no one ever spoke —
+**silent rather than misleading, which is worse**, because a misleading description can at least be
+disputed. Retaining the arguments is ~7 lines and `confirm_gate.py` at 280/300 has room, so **the
+line count is not the obstacle**: it changes WHAT THE GATE HOLDS and contradicts the privacy
+reasoning that module is written around. That is Sultan's to rule.
+
+Homes, for when it is ruled: the sentence → `confirm_gate_notes.py` (118/300, unpinned); the speak
+method → **`voice_out.py` (180/300, NOT pinned)**, which already holds `refuse_for_budget`, the exact
+precedent. **The call site is the blocker**: it must sit after `turn_pass.py:272`, and that file is
+pinned at 293/293 with seven lines to the law. **Unlike ②, this cannot be a zero-line edit — there is
+no existing call to extend.**
+
+### THE SCOPE BOUND THAT STOPS THE FIX
+
+**Every session in the durable log reports `[cloud] reasoner=luna model=gpt-5.6-luna`** — all ten,
+including both the 16-refusal run and the confirmation run. **Both prompt-half failures are n=2 on a
+SINGLE model, with the provider as an uncontrolled variable.**
+
+The law that a prompt is never the enforcement layer is model-independent and is not in dispute. But
+*"③ is insufficient"* is not established beyond one model, and the default reasoner is `claude`
+(DEC-103). ② is unaffected: API-enforced, model-independent by construction.
+
+**RULING — NO KERNEL MESSENGER YET.** One comparison runs first: the same scenario on `claude` — open
+a document, ask a web question, report whether the approval request is SPOKEN. If it is, **the prompt
+half works and the failure is model-specific, which is a very different fix.** If it is not, the
+kernel-messenger case is made on two models and the args ruling follows.
+
+### THE EXPERIMENT IS STILL AVAILABLE — AND THAT IS WORTH RECORDING
+
+DEC-131 recorded a discriminator that ruling ① **destroyed**: once a confirm refusal forces `"none"`,
+the draw is no longer the only forcing condition, so the draw-discriminator can never be observed
+again. **This comparison is not in that class.** ② changes WHEN the model is forced to text; it does
+not change WHAT the model does with that pass. The provider is a free variable, the scenario is
+three utterances long, and the outcome is a single yes/no — **the cheapest decisive experiment
+available on this defect, and nothing built so far has spent it.**
+
+The distinction is the general lesson: **before building, ask whether the build consumes the
+experiment that would have judged it.** ① did and was built anyway, correctly, because the fix did
+not depend on the answer. A kernel messenger DOES depend on this one.
+
+### WHAT NO MESSENGER CHANGE WOULD TOUCH
+
+**The approval treadmill (DEC-131), either way.** Approval binds to `sha256(tool + canonical args)`
+and is single-use; who SPEAKS the request has no bearing on whether the model's next call hashes the
+same. Even a kernel speaking the arguments verbatim leaves the model re-issuing from its own context,
+where any rewording still misses. **It fixes who asks; it does not fix what the approval attaches
+to.**
+
+---
+
+## DEC-133 (2026-09-05) — **"IT COULD NOT INDEX THE DOCUMENT", THEN A CORRECT ANSWER: DEC-95/96 RECURRING, NOT NEW.** `docs__open` SUCCEEDED twice, both into `zone=inject`, and the inject surface tells the model there is no index and no need to query — **but never that the document was ingested** · so a model relaying that truthfully produces a user who hears FAILURE while the model holds the FULL TEXT and answers correctly · **the mechanism is correct and was ruled correct TWICE; the defect is the SURFACE DEC-96 deferred** · and the pypdf warnings CLEAR that file — DIAGNOSED, **the transcript half is NOT guessed at**, no fix taken
+
+### WHAT THE LOG ESTABLISHES
+
+- `docs__open` **succeeded twice**, both `admitted=1`, neither an error: **7,901 chars / 40 pages**
+  and **897 chars / 3 pages**.
+- **Both landed in `zone=inject`.** That is the whole mechanism.
+- The turn between them made **no tool call at all** (`[pass] #1 tools=-`) — consistent with
+  answering from injected context.
+- **`docs__query` was never called anywhere in the log**, so `DOC_ALREADY_IN_FULL_AR` was never
+  returned. The statement did not come from a query refusal.
+- **No `[doc_rag]` refusal note appears anywhere** — no "too large", no "scanned", no `OPEN_FAILED`.
+  **The kernel never authored a failure sentence.** Whatever was said about not indexing, nothing in
+  the tree told the model to say it.
+
+### THE MECHANISM, AND THE ASYMMETRY STATED PLAINLY
+
+`service.py:159-168`, the INJECT branch: *"Zone 1 hands over the whole document and registers
+NOTHING: there is no index to query, so there is deliberately no doc_id either."* Correct, and
+deliberate.
+
+`plugin.py:147-151` then picks between two surfaces, and **they are not symmetrical**:
+
+- **INDEX** → `INDEXED_AR`: «**فهرست** المستند ({chunks} مقطع…) وهو الآن المستند المفتوح عندي» —
+  *"I INDEXED the document."* A positive statement of **what happened**.
+- **INJECT** → `FULL_HEADER_AR`: «نص المستند كامل … عندك كل المحتوى، **فما تحتاج تسأل عنه بأداة
+  الاستعلام**» — *"you have all the content, so you don't need the query tool."* **Only what the
+  model does NOT need. It never states that the document was ingested.**
+
+**One branch reports an accomplishment; the other reports an absence.** A model narrating the second
+to the user is describing the mechanism CORRECTLY when it says there is no index — and the user hears
+a failure, while the model holds the full text and answers the next page question correctly. **Both
+halves of the report are consistent with a completely healthy run.**
+
+**THIS IS DEC-95/96 RECURRING.** DEC-95 is headlined *"A correct outcome that reads as a failure"*;
+DEC-96 closed doc_rag as correct-by-design and left the SURFACE open. Only the trigger differs — that
+instance was a scanned PDF, this one a small one — and both route to the same gap: **nothing tells
+the user which branch was taken.** A recurrence with a second trigger is evidence the deferral is
+costing, not that the diagnosis was wrong.
+
+### WHAT A CORRECTED INJECT SURFACE WOULD HAVE TO SAY
+
+It would have to **state the state ACHIEVED before it states what is unnecessary** — the standing
+note law, which the sibling branch already satisfies and this one does not:
+
+1. **What happened**: the document was read IN FULL and its entire text is present — an
+   accomplishment, in the register `INDEXED_AR` uses.
+2. **Why the query tool is not needed**: because it is REDUNDANT, not because anything failed — the
+   distinction the current wording leaves the model to infer.
+3. **What to tell the user**: that the whole document is available, so a model narrating its own
+   state has a true and non-alarming sentence to relay.
+
+The current text satisfies only (2), and expresses even that as a negation.
+
+**IT IS A WORDING CHANGE TO A MODEL-FACING SURFACE, NOT A MECHANISM CHANGE.** The mechanism is
+correct and has been ruled correct twice. Nothing about zones, ingestion, binding or the absent
+`doc_id` is in question — DEC-96 settled all of it. This is the message layer, which is the weaker
+half by construction (DEC-42), and it is the item DEC-96 deferred rather than a new defect.
+
+### THE pypdf WARNINGS — THAT FILE IS CLEARED
+
+Seven `Ignoring wrong pointing object N 0 (offset 0)` from `pypdf._reader` on the 3-page file: the
+xref-recovery path — the cross-reference table points at objects that do not parse, pypdf skips them
+and rebuilds. It proves the file is **malformed** and that seven objects were discarded.
+
+- **`pages_with_text=3/3`** — every page yielded text. **This rules out a scanned document**, which
+  was DEC-95's actual trigger.
+- **Density: 897/3 = 299 chars/page**, against the clean 40-page file's 7,901/40 = **198
+  chars/page**. **The file WITH warnings is denser than the file without them** — the only in-log
+  comparator, and it points AWAY from under-extraction.
+
+**It cannot prove no text was lost**: a discarded object carrying text would show as a page with
+LESS text, never as a page with none, and `pages_with_text` cannot see that. **The stronger evidence
+is that the page question was answered CORRECTLY** — extraction was sufficient for what was asked.
+
+### WHAT NEEDS THE TRANSCRIPT, AND IS NOT GUESSED AT
+
+- **What Mut'his actually said.** "Could not index it", "there is no index", and "I can't search it"
+  are three different statements with three different verdicts.
+- **Which document** the complaint attached to, and **which turn** it came in.
+- Whether the user asked anything that would have required a query.
+
+**A cheap disambiguator**: both documents went to inject, but only the 3-page one carries pypdf
+warnings. **If the complaint attached to the clean 40-page file, the warnings are excluded entirely
+and the inject-surface explanation stands alone.**
+
+---
