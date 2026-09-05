@@ -16063,3 +16063,349 @@ warnings. **If the complaint attached to the clean 40-page file, the warnings ar
 and the inject-surface explanation stands alone.**
 
 ---
+
+## DEC-134 (2026-09-05) — **THE COMPARISON DID NOT RUN — THE HIGH-IMPACT CALL WENT FIRST AND CREATED THE VERY TAINT IT NEEDED TO ALREADY HAVE.** `web__search` fired on a CLEAN session, so the gate was structurally unreachable and DEC-132 ③'s cross-model question is STILL OPEN · the same log holds **the project's first measured THREE-CAPABILITY turn**, and the draw gate's one-visual-intent rule was **NOT exercised — the OTHER half of that gate is what ended the turn** · DEC-133's **THIRD instance**, third unrelated trigger, and the last alternative explanation is now excluded · and the model string is reported with a LIVE probe rather than an assumption — DIAGNOSED + REPORTED, **NOTHING BUILT, NOTHING RULED**
+
+Reading and records only. **Zero `src/` changes, no model string changed, no price changed.** Suite
+**2,045 passed** at `b0e9197`, unchanged. Evidence is `~/.muthis/logs/muthis.log` — **21 sessions,
+72 turns, 101,195 bytes against a 2 MB × 3 ceiling, and no backup files on disk, so NOTHING has
+rotated**: the record is complete from the moment the durable log attached (DEC-122, 2026-08-29).
+Bare `:N` line numbers below are that file's.
+
+### THE FIVE `claude` TURNS — THE WHOLE EXPERIMENT, LISTED
+
+Four sessions, all `[cloud] reasoner=claude model=claude-sonnet-4-6` (`:1221`, `:1257`, `:1285`, `:1348`).
+
+| # | at | passes | STT |
+|---|---|---|---|
+| 1 | `:1233` | `web__search > docs__open > draw_shapes > -` | 4.42 s / 51 chars |
+| 2 | `:1269` | `docs__open > -` | 2.99 s / 19 chars |
+| 3 | `:1297` | `docs__open ×4` → **cap** | 3.74 s / 38 chars |
+| 4 | `:1323` | `docs__open ×4` → **cap** | 4.06 s / 36 chars |
+| 5 | `:1360` | `docs__open ×4` → **cap** | 2.42 s / 24 chars |
+
+Turns 3–5 are `[doc_rag] extraction failed (FileNotFoundError)` on **every** pass, and one of them
+logged `path looked URL-encoded and NEITHER form exists (raw_len=106 decoded_len=98)`. **Three of the
+five turns bought nothing** — which matters again in ④.
+
+---
+
+## ① THE TEST DID NOT HAPPEN, AND THE REASON IS AN ORDERING NO AMOUNT OF RETRYING FIXES
+
+**There is no `[confirm-gate]` line anywhere in any `claude` session.** The last one in the whole
+file is `:1208`; the first `claude` session begins at `:1215`. Not one refusal, not one approval, not
+one expiry.
+
+**The cause is in turn 1, and it is structural.** `[pass] #1 tools=web__search` (`:1234`) →
+`[search] tavily status=200` (`:1235`) → `[session-taint] session TAINTED by web_research` (`:1236`).
+`raise_taint` is idempotent and logs **once per process** (`session_taint.py:71-76`), so that line
+appearing *after* the search is proof the session was **CLEAN when the search was dispatched**.
+
+### THE PRECONDITION, STATED SO THE NEXT ATTEMPT CANNOT MISS IT
+
+**BOTH conditions must hold AT DISPATCH TIME, and the taint must have been raised by an EARLIER,
+SEPARATE call:**
+
+- `confirm_gate.py:250` — `if not (high_impact and tainted): return None`. One `if`. Nothing else can
+  make the gate speak.
+- `tool_router.py:257-259` — the gate is asked using `self._session_taint.tainted`, the state
+  **before** this call runs.
+- `tool_router.py:209` — the taint is raised inside `_outcome_for`, reached at `:283`, **after**
+  `_execute_route` at `:276`.
+
+**Therefore a high-impact call that is the FIRST tainting call in a process can never be gated.** It
+is evaluated against `tainted=False`, executes, and only then raises the taint. That is correct
+design — a call cannot be retroactively gated on its own result — and it is exactly the trap this run
+fell into.
+
+### WHAT THE SCENARIO MUST LOOK LIKE, AND WHY `docs__open` IS THE RIGHT TAINT-RAISER
+
+`doc_rag` is mounted `taint=True, impact=RouteImpact(read_only_hint=True)`
+(`composition_mounts.py:115-116`), and `high_impact.py:89-93` then returns **False** for it: no
+`net.fetch` capability, and `external and not read_only_hint` is `True and not True`. **So
+`docs__open` RAISES the taint and is itself NEVER gated** — it is the one call that can arm the
+experiment without consuming it. `web_research` is the opposite: `capabilities={net.fetch}`
+(`composition_mounts.py:68-69`) makes it high-impact unconditionally, whatever the taint.
+
+> **THE ORDER *IS* THE EXPERIMENT.** Turn 1: open a document, and confirm `[session-taint]` appears
+> in the log. Turn 2: ask the web question. Only then can `[confirm-gate] high-impact web__search
+> refused` exist at all. Reversed, the run is void however it goes — **and it looks exactly like a
+> completed test.**
+
+That is DEC-132's own wording — *"open a document, ask a web question"* — and it was not followed.
+
+### THE EMPTY-OPPORTUNITY FAILURE HAS NOW COST THIS QUESTION TWICE
+
+1. **The conditions never arose in ordinary use.** Reported by Sultan. **It is NOT located in the
+   durable log or in this ledger, and no citation is invented for it here.** Two things make that
+   expected rather than suspicious: the log begins only at DEC-122, and a session run under
+   `MUTHIS_DEBUG=1` writes **no durable log at all** (`logging_policy.py:141-147`) — the instrument
+   is blind to exactly the sessions most likely to have been diagnostic ones.
+2. **The scenario was run in the wrong order** — this run, evidenced above.
+
+**THE TWO ARE DIFFERENT FAILURES AND ONLY THE SECOND IS PREVENTABLE BY INSTRUCTION.** The first is a
+BASE-RATE problem: taint-then-high-impact is rare in ordinary use, which is precisely why the
+scenario must be STAGED rather than waited for. The second is an ORDERING problem, and the
+precondition above is its whole fix. **Recording only "the gate had no opportunities, again" would
+merge two failures with different remedies.**
+
+**DEC-132 ③ REMAINS UNANSWERED AND ITS SCOPE BOUND IS UNCHANGED**: both prompt-half failures are
+still n=2 on `gpt-5.6-luna`, with the provider an uncontrolled variable. **The experiment is still
+unspent** — DEC-132's own point, that this comparison is not in the class ruling ① destroyed, still
+holds. Nothing in this run consumed it.
+
+---
+
+## ② THE FIRST MEASURED THREE-CAPABILITY TURN IN THE PROJECT'S ONLY RETAINED RECORD
+
+`:1233-1246`. One utterance, four passes, **no cap hit**:
+
+```
+[pass] #1 tools=web__search   → tavily status=200, results=3 → session TAINTED by web_research
+[pass] #2 tools=docs__open    → extract .pdf blocks=28 pages_with_text=2/2 chars=1645
+                                zone=inject tokens=589 admitted=1
+[pass] #3 tools=draw_shapes
+[pass] #4 tools=-
+```
+
+**Every one of the other 71 turns in the log tops out at TWO tool families.** Counted by family
+(`web` / `docs` / `sandbox` / `nav` / `draw` / `read` / `refresh`), the runners-up are
+`read_local_file > sandbox__run_code` (×4) and `navigator__verify,highlight_target,draw_shapes` — two
+families, because the draw gate unifies both draw tools. **This turn is the only 3.**
+
+**THE CLAIM IS BOUNDED, AND THE BOUND IS THE HONEST PART.** It is the first three-capability turn in
+the **only retained measurement record the project has**. Before 2026-08-29 logging was console-only
+and nothing was kept, so an earlier one can be neither confirmed nor excluded. What can be said
+without qualification: **it is the only turn in the record that combines `web` and `docs` at all.**
+
+### THE DRAW GATE — **NOT EXERCISED, AND THAT IS THE LESS INTERESTING HALF**
+
+The one-visual-intent rule has two consequences, and this run separates them cleanly:
+
+- **The SUPPRESSION half was NOT exercised.** `draw_result_text` (`highlight_gate.py:96-106`) returns
+  the *already shown* note only when `gate.drawn` is already True. Exactly **one** draw call arrived
+  all turn, so it took the `ack` branch and nothing was ever suppressed. **The rule was satisfied
+  TRIVIALLY: there was never a second visual intent to refuse.**
+- **The FORCING half WAS exercised, and it is what ended the turn.** That same call flips
+  `gate.drawn` at pairing time, and `loop_tool_choice` (`:146-148`) then returns `"none"` — so pass
+  #4 ran with `tool_choice="none"` and **could not** call a tool. `[pass] #4 tools=-` is a FORCED
+  text pass, not a voluntary one. `[overlay_autohide] 7.00s elapsed with no new highlight — hiding
+  overlay` (`:1247`) independently confirms the draw reached the screen.
+
+**SO "NO CAP HIT" IS NOT GOOD BEHAVIOUR — IT IS THE DRAW GATE.** Had the draw landed later, or not at
+all, pass #4 was free to call again and the cap was the next thing waiting. The turn composed three
+capabilities inside a four-pass budget **with zero passes to spare**, and what stopped it was a brake
+built for an entirely different purpose. **The composition is real; the headroom is not.**
+
+**The derivation is sanctioned by the log's own design** — `pass_servicing.py:114-119` states that
+`tool_choice` is deliberately absent because a reader derives it from the draw on an earlier line.
+**ONE OBSERVATION, NOT A RULING:** that docstring still gives the formula as `"none" if gate.drawn
+else "auto"`, which DEC-131 superseded by adding the `awaiting_approval` arm. The derivation it
+teaches is now SUFFICIENT but no longer NECESSARY — a pass can be `"none"` with no draw above it.
+That is the DEC-129 stale-declaration shape sitting in a source file. **No fix is taken or proposed.**
+
+### WHAT SULTAN ACTUALLY ASKED IS **NOT INFERRED**
+
+His utterance was **4.42 s / 51 chars** (`:1228-1229`). Content is never logged (DEC-17 / DEC-28), so
+**the transcript is the only source, and it is not guessed at here.** Three things turn on it and are
+left open: whether one request genuinely spanned all three capabilities or the model composed them on
+its own initiative; whether a visual answer was asked for at all; and whether the draw was responsive
+or volunteered. **A 51-character utterance producing a search, a document read and a drawing is
+either the strongest composition result this project has, or the model doing three things nobody
+asked for — and the log cannot tell those apart.**
+
+---
+
+## ③ DEC-133's THIRD INSTANCE — THE DEFERRAL'S PRICE IS NOW MEASURED, NOT ARGUED
+
+Same turn, `:1240-1241`:
+
+```
+[doc_rag] extract .pdf: blocks=28 pages_with_text=2/2 chars=1645 cutoffs(paragraph_gap_points=6)
+[doc_rag] zone=inject tokens=589 (estimated@0.358tok/char) chars=1645 ... admitted=1
+```
+
+**`admitted=1`. `pages_with_text=2/2`. `zone=inject`. No error, no refusal note, and no `[doc_rag]`
+failure sentence anywhere in the session** — and Sultan was told it could not index the document.
+
+**This is DEC-133 exactly, at a third unrelated trigger.** The mechanism is unchanged:
+`plugin.py:147-151` picks `FULL_HEADER_AR` for the inject branch — *"you have all the content, so you
+don't need the query tool"* — which states only what the model does **not** need and never that the
+document was ingested. A model relaying that truthfully produces a user who hears FAILURE while it
+holds the full text and answers correctly.
+
+**AND IT EXCLUDES THE LAST ALTERNATIVE EXPLANATION.** DEC-133 offered the pypdf xref warnings as a
+possible confound and named the disambiguator itself: *"If the complaint attached to the clean file,
+the warnings are excluded entirely and the inject-surface explanation stands alone."* **This file
+logs ZERO pypdf warnings.** The surface is now the only explanation standing.
+
+**THREE INSTANCES, THREE TRIGGERS, ONE MECHANISM** — a scanned PDF (DEC-95), a clean 40-page file and
+a malformed 3-page file (DEC-133), and now a clean 2-page file **on a different provider and a
+different model.** The mechanism has been ruled correct twice (DEC-96, DEC-133); the SURFACE DEC-96
+deferred has now been reported by the user three times, and the recurrence has survived a change of
+provider — which is the one variable that could have made it a model quirk. **That is what changes
+here: the cost of the deferral is a measurement, not an argument. No fix is taken and none is
+proposed — it remains DEC-96's deferred item, and Sultan's to open.**
+
+---
+
+## ④ THE COST DELTA — REPORTED, NOT RULED
+
+That single turn: `0.059695 + 0.018544 + 0.026893 + 0.026272` = **$0.131404** of model spend, plus
+**$0.008** of Tavily on the plugin ledger = **$0.139404**. The day total moves `0.008180 → 0.147585`
+across it, and closes to the cent.
+
+**Against `luna`'s measured ~$0.002/turn (DEC-91: 20 real turns, $0.040738 total), that is ~65×** —
+Sultan's figure, confirmed.
+
+**AND THE SESSION MEAN IS THE MORE DECISION-RELEVANT NUMBER.** All five `claude` turns cost
+**$0.375795** (the day total moves `0.008180 → 0.383975`, which closes exactly), a mean of
+**$0.075159/turn — ~37.6×**. The $0.13 turn is the richest of the five and the outlier; **the mean
+lands INSIDE DEC-90's projected 27.9× cold / 53.6× continuing band, while the single turn sits above
+both.**
+
+**TWO BOUNDS, BOTH LOAD-BEARING.** The two figures measure **different work** — a `doc_rag` session
+on one provider against a mixed session on the other — so this is indicative, not controlled, the
+same caveat DEC-90 and DEC-91 already carry. And **$0.29 of the $0.376 bought nothing**, because
+three of the five turns were `FileNotFoundError` loops that spent four passes each. **A ratio
+computed over wasted turns is a fact about the session, not about the provider.** The controlled
+version is the same scenario run on both.
+
+---
+
+## ⑤ THE MODEL STRING — REPORTED, LIVE-VERIFIED, AND **NOTHING CHANGED**
+
+### WHERE IT IS PINNED, AND WHAT GUARDS IT
+
+**One executable home:** `claude_agent.py:56` — `DEFAULT_MODEL = os.getenv("MUTHIS_CLAUDE_MODEL",
+"claude-sonnet-4-6")`, under the comment *"Frozen defaults. Override via .env — never edit mid-build.
+NO fallback list: a 404 here leaves behaviour UNDEFINED (DEC-43 OPEN ITEM, Sultan's call)."*
+**`MUTHIS_CLAUDE_MODEL` is NOT set in `.env`**, so the default is what runs — confirmed by
+`model=claude-sonnet-4-6` on all four `claude` sessions.
+
+**Everything else is a COPY that will not follow it:** `pricing.py:51` (the price row) plus `:24` and
+`:73` (measurement provenance) · `vision/downscale.py:6`, `:44` · `vision/screen_capture.py:33` ·
+`tts_gemini.py:9` · `AGENTS.md:27`, `:370`, `:601` · `PROJECT_STATE.md:581` · `MIGRATION_PLAN.md:13` ·
+`scripts/diag_prompt_cache_usage.py:22`, `:67` · `scripts/smoke_live_turn.py:8` · **18 test files.**
+
+**WHAT GUARDS IT — AND THE ANSWER IS: ALMOST NOTHING.** `test_luna_pricing.py:173` pins
+`PRICE_TABLE_USD_PER_MTOK["claude-sonnet-4-6"] == (3.00, 15.00)` and `:175` pins its absence from
+`CACHED_INPUT_PRICE_USD_PER_MTOK`. **No guard pins `DEFAULT_MODEL` itself, and no guard ties the
+model that RUNS to the model that is PRICED.** The 18 test files hardcode the string as a fixture
+value, so they keep passing verbatim after a change. **That is the DEC-11 shape precisely: every
+offline test green, the failure live.**
+
+**Line count is not the obstacle:** `claude_agent.py` 282/300, `pricing.py` 190/300,
+`downscale.py` 130/300 — **none of them among the eleven pinned files.**
+
+### DOES THE API ACCEPT IT? — **MEASURED LIVE, NOT ASSUMED**
+
+DEC-11's failure class is a live 400 on a name every offline test passed, so the probe drove the
+**exact shape `claude_agent.py:209-215` sends** — `messages.stream`, `system` as a cache-controlled
+block list, the real tool catalog with the breakpoint on the last tool, and **both** `tool_choice`
+values DEC-131 made structural. `max_tokens=1`; zero `src/` changes; ~$0.015, outside the app ledger.
+
+| model | `tool_choice` | result | `input` | `cache_read` | `cache_write` |
+|---|---|---|---|---|---|
+| `claude-sonnet-4-6` | `auto` | **OK** | 328 | 0 | 1688 |
+| `claude-sonnet-4-6` | `none` | **OK** | 328 | 1688 | 0 |
+| `claude-sonnet-5` | `auto` | **OK** | 79 | 0 | 2260 |
+| `claude-sonnet-5` | `none` | **OK** | 79 | 2260 | 0 |
+
+**`claude-sonnet-5` is ACCEPTED**, echoed back as `resolved=claude-sonnet-5` — so it is a real name,
+not a silent alias onto something else — with the cache breakpoints, the tool catalog and
+`tool_choice="none"` all intact. **And the request shape carries as-is**: `src/` sends no
+`temperature`, `top_p`, `top_k`, `thinking` or `budget_tokens` anywhere, **all of which are 400s on
+that model** — so the parameters that would have broken it are absent by construction rather than by
+luck. **That is the one part of this change that is now verified rather than assumed.**
+
+### THE PROBE ALSO ANSWERED HALF OF WHAT `pricing.py` REQUIRES — AND HALF IS NOT ALL
+
+**The `auto` call wrote the cache and the `none` call read exactly that count back**, which makes
+those rows a cold/warm pair. On **both** models `input_tokens` is UNCHANGED across the pair while
+`cache_read` goes 0 → full. **That is the EXCLUSIVE direction, MEASURED on `claude-sonnet-5` rather
+than inherited from `claude-sonnet-4-6`** — so `estimate_cost_usd` is the correct function for it and
+`estimate_inclusive_cost_usd` would double-count every cached turn. DEC-60's original measurement
+reproduces on the same rows.
+
+**WHAT IS STILL OWED — AND IT IS THE HALF THAT COSTS MONEY:**
+
+1. **THE PRICE ROW, AND IT FAILS SILENTLY.** `PRICE_TABLE_USD_PER_MTOK` has no `claude-sonnet-5`
+   entry, and **`estimate_cost_usd` falls back to `(3.00, 15.00)` with NO log line** —
+   `pricing.py:141`, a bare `.get(model, (3.00, 15.00))` — while its inclusive sibling WARNS in the
+   identical situation (`:178-179`, guarded by `test_luna_pricing.py:160`). **So setting the string
+   without adding the row prices every turn at the wrong model with ZERO signal, and `budget.json` —
+   the Rule 10 sovereign ceiling — then reports a number nobody can tell is wrong.** The asymmetry
+   between the two functions is reported here as a finding; it is not fixed.
+2. **The cache multipliers.** `CACHE_WRITE_5M/1H/READ` were derived on `claude-sonnet-4-6`. DEC-88
+   ruling 2 forbids inheriting them, and nothing here measured them.
+3. **The rates themselves.** DEC-90's discipline — fetched from the vendor's published documentation
+   and recorded with its date, **never quoted from memory and never read off a console**, so any
+   negotiated rate stays unreflected by design.
+
+### THE NUMBER NOBODY WOULD LOOK FOR — **DEC-93 RULING 1 FIRES HERE**
+
+DEC-93 superseded "a cost model is measured" with the broader form: **"any PROVIDER-SHAPED NUMBER is
+re-measured, never inherited — the class is every number whose CORRECT VALUE DEPENDS ON PROVIDER
+BEHAVIOUR."** Its to-check list named **`DEFAULT_VISION_MAX_WIDTH = 1280` as the sharpest of them**,
+because DEC-88 ⑤ had measured the same downscaled frame at 4,859 vs 9,156 input tokens across two
+providers.
+
+**A MODEL CHANGE INSIDE ONE PROVIDER IS THE SAME CLASS, AND THIS PROJECT HOLDS THE WORST INSTANCE OF
+IT.** `downscale.py:6-14` derives 1280 from **`claude-sonnet-4-6`'s** ~1568 px / ~1.15 MP server-side
+resize threshold, and states in as many words that the 1:1-pixel guarantee *"is an Opus 4.7+ high-res
+feature, not Sonnet 4.6"*. **That number is MODEL-shaped, it IS the coordinate-mapping safeguard, and
+pointing accuracy rests on it** — DEC-74's 23 HIT / 2 NEAR / 0 MISS and DEC-98's 92.0% were both
+measured through it. If the threshold moves, the model's coordinates come back in a space we did not
+send, and **the failure is SILENT: boxes land slightly wrong and nothing logs anything.** DEC-93's
+own words apply unchanged — *"it is not wrong; it is unexamined."*
+
+**AND THE PROBE ALREADY SHOWS MODEL-SHAPED ACCOUNTING MOVING.** Byte-identical payload: **2,016 total
+prompt tokens on `claude-sonnet-4-6`, 2,339 on `claude-sonnet-5` — +16.0%.** Small, but the same
+phenomenon DEC-88 ⑤ measured at 1.9× across providers. It also means the headline price cut is not
+what the price list implies: on that payload input costs `2016 × $3.00/M` against `2339 × $2.00/M` —
+**~23% cheaper, not ~33%.** **BOUND, AND IT MATTERS: this was measured on a 2,016-token stand-in (the
+V1 four plus `LOOK_SYSTEM_PROMPT`), NOT the ~10,828-token production prompt `cache_control.py:15-17`
+records. The DIRECTION result is structural and carries; the +16% ratio is INDICATIVE and must be
+re-measured on the real prompt before any number is built on it.**
+
+---
+
+## ⑥ DEC-43's OPEN ITEM — AND **NO, THIS IS NOT THE OCCASION TO CLOSE IT**
+
+The item, verbatim from DEC-43 and restated at `AGENTS.md:600-605`: **"THERE IS NO FALLBACK TABLE.
+`claude-sonnet-4-6` is pinned (`claude_agent.py`, overridable via `MUTHIS_CLAUDE_MODEL`), and if it
+404s the behaviour is UNDEFINED."** It is the only one of DEC-43's four orphans with an operational
+trigger, left open deliberately because *"choosing a replacement model carries cost and product-vision
+consequences, so it is Sultan's decision, and a guessed fallback would be a fabricated law wearing an
+engineering costume."*
+
+**THE TWO HALVES COME APART, AND ONLY ONE OF THEM IS IN FRONT OF US.**
+
+- **The PIN half** — which string runs — is what Sultan is asking about. It moves by editing one line
+  or setting one env var.
+- **The FALLBACK half** — what happens when the pinned string 404s — is a policy for a failure that
+  has not occurred, and **changing the pin does not answer it. It re-arms it on a newer string**, and
+  in the less-evidenced direction: `claude-sonnet-4-6` has four live sessions behind it,
+  `claude-sonnet-5` has four probe calls.
+
+**AND THE OCCASION ARGUES THE OTHER WAY.** DEC-43's stated reason for deferring was that the choice
+carries COST consequences. **This change introduces three unmeasured ones** — the missing price row
+and its silent fallback, the uninherited cache multipliers, and `DEFAULT_VISION_MAX_WIDTH`. Closing a
+decision that was deferred *for* cost reasons, in the same move that adds three unmeasured cost
+facts, inverts it.
+
+**REPORTED, NOT RULED — the shape of the choice, with nothing recommended:**
+
+- **The model string is safe to change and cheap to revert** — one env var, no code edit, four live
+  probe rows behind it — **and it is the LEAST of the three things a change touches.**
+- **The price row is the one that fails SILENTLY**, and it is why "just set the env var and see" is
+  not a free experiment: the ledger would be wrong and nothing would say so.
+- **`DEFAULT_VISION_MAX_WIDTH` is the one that fails INVISIBLY**, and the only one that could degrade
+  the flagship pointing path without emitting a single log line.
+- **DEC-43's fallback half is untouched either way**, so nothing here closes it.
+
+**NOTHING IS RULED. NOTHING IS BUILT. NO STRING, NO PRICE AND NO CONSTANT IS CHANGED.** The suite
+stands at **2,045 passed**, and every file named above is byte-identical to `b0e9197`.
+
+---
