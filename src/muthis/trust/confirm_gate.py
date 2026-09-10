@@ -11,7 +11,7 @@ would dismantle all four. So the gate spends the turn it already has:
 
   TURN N    the router REFUSES the call and returns an Arabic note that is
             addressed TO THE USER and says so in its first clause — it names the
-            tool, its arguments and the EXACT word to ask for, and it refuses
+            tool, its arguments and the EXACT words to ask for, and it refuses
             further calls until the user speaks. The model speaks the request;
             nothing executed. It is NOT an internal directive and deliberately
             does not carry that family's marker — see the constant.
@@ -20,33 +20,25 @@ would dismantle all four. So the gate spends the turn it already has:
             in its own authorization — DEC-12 ("drive the guard directly, never
             through model judgment") applied to authorization.
 
-THE DETECTOR IS THE SECURITY BOUNDARY, so its shape is deliberate:
-
-  * STRIP, THEN ISOLATE. `turn_pass` hands over `user_input`, which by then is
-    the transcript PLUS any kernel-authored directive lines the orchestrator
-    prepended (the verbosity directive; `INTERRUPTED_NOTE_AR` after a barge-in).
-    Whole-utterance isolation on THAT would refuse every approval spoken while
-    sticky SHORT/DETAILED is on. So directive lines are dropped first — they all
-    carry the `DIRECTIVE_MARKER_AR` family marker — and isolation then applies to
-    the remainder, which is exactly the bare transcript. The user's ENTIRE
-    utterance must be the approval word.
-  * THE FAILURE IS ASYMMETRIC BY CONSTRUCTION. If a future directive ever omits
-    the marker, its line survives the strip, the remainder no longer EQUALS the
-    approval word, and the call is refused: a FALSE NEGATIVE (friction), never a
-    FALSE POSITIVE (an authorization bypass). Every unknown lands on the safe
-    side, and a test feeds an unstripped prefix to prove it.
-  * THE WORD SET IS NARROW ON PURPOSE and must not be widened. Colloquial
-    affirmatives («تمام», «أيه», «زين», «نعم») occur constantly in unrelated
-    speech; each one added is an accidental authorization waiting for a
-    coincidence. Refusal words may be broader — a false refusal is friction.
-    Narrowness is only humane because the turn-N directive NAMES the word, so
-    the user is told exactly what to say: low false-positives AND low friction.
+THE DETECTOR LIVES IN `confirm_gate_detector.py` SINCE DEC-136, and so does the
+accepted-word tuple: the ≤300-line law forced the split, and the seam is the
+right one because "what counts as consent" is exactly what an auditor should be
+able to read end to end. Every name is re-exported below, so no call site
+outside this package changed. Read that module before touching anything about
+which words are accepted; read `confirm_gate_notes.py` for what is SAID.
 
 BINDING. Approval is pinned to a sha256 of (tool name + canonical arguments) —
 the grants-store pattern, applied to a CALL instead of a manifest — so a MODIFIED
 call needs fresh approval, exactly as a changed manifest invalidates a grant. It
 is SINGLE-USE (consumed on match), the pending state EXPIRES at the first turn
 that carries no approval, and an explicit refusal clears it at once.
+
+**DEC-136 CHANGED NONE OF THAT, AND THE RECORD SHOULD NOT READ AS IF IT DID.**
+Its three rulings are a wider accepted SET (the detector), a request that names
+every word in it (the notes), and a SECOND refusal note for a heard-but-not-
+approving utterance (`_missed`, below). The fingerprint, the single-use rule, the
+expiry and the refusal condition are byte-for-byte what they were. It is a
+detection-surface and wording change, not a loosening.
 
 HONEST LIMIT, recorded rather than hidden (DEC-16): the model is the MESSENGER.
 It speaks the confirmation request, so a model already under injection could word
@@ -56,6 +48,10 @@ arguments named ALOUD, and the approval binds to the hash of the REAL call, not
 to whatever was said about it. Removing the limit entirely requires the KERNEL to
 author the spoken confirmation, which means touching `TurnVoice` — recorded as
 POST-LAUNCH research ("kernel-authored confirmation"), accepted for launch.
+**DEC-135 measured the messenger WORKING on `claude` and failing on `luna`, so
+the kernel-messenger case is NOT made; a prompt half that holds on one model and
+not the other is precisely a non-guarantee, which is why the limit stays
+recorded rather than relied on.**
 
 THE LIMIT MATERIALISED IN PRODUCTION, and this file's constant is what changed
 (DEC-95). A live session logged `high-impact web__search refused — awaiting spoken
@@ -67,16 +63,19 @@ OPEN ITEM, NOT TAKEN HERE: this gate has NO COUNTER (`FetchGate` and `SandboxGat
 become TERMINAL; this one refuses identically forever, so a retrying model spends
 every pass, and `AGENTIC_CAP_NOTE_AR` then tells the user to ask again while taint
 is sticky with no clearing path). A counter changes an AUTHORIZATION path and is a
-ruling, so it is deliberately not taken beside a wording fix.
+ruling, so it is deliberately not taken beside a wording fix. **DEC-136 ruling 3
+makes the repeats DISTINGUISHABLE; it does not make them FINITE, and those are
+different defects.**
+
+AND THE ACCEPT BRANCH HAS NEVER RUN LIVE. `[confirm-gate] approval heard` appears
+ZERO times across the whole durable log — 21 sessions, 78 turns (DEC-135). Every
+recorded outcome is a refusal or an expiry, so the success path below is proven
+by this suite and by nothing else. Weigh that before trusting any claim that the
+two-turn flow "works".
 
 Nothing here is logged but tool NAMES and decisions: arguments carry the model's
 query, which is the user's private question (DEC-20/DEC-28), so they reach the
 model's context and never a log line.
-
-`normalize_ar` is imported from the kernel's verbosity module rather than
-re-implemented: a second home for a security-relevant text transform is how the
-two drift, and the STT tolerance it provides (tashkeel, hamza forms, tatweel,
-Arabic-Indic digits, punctuation) is already pinned by `test_verbosity.py`.
 """
 
 from __future__ import annotations
@@ -87,64 +86,24 @@ import json
 import logging
 from typing import Any, Mapping, Optional
 
-from ..kernel.verbosity import normalize_ar
-# ─── The model-facing Arabic surface, EXTRACTED ──────────────────────────────
-# Moved to `confirm_gate_notes.py` — a MOVE ONLY, nothing reworded at the move.
-# This file stood at 300/300 and what had to grow was the NOTE itself, so the
-# arrival became an extraction rather than a breach. Re-exported here so every
-# existing import still resolves against `muthis.trust.confirm_gate` and no call
-# site changed — the `file_reader.py` shape (DEC-113).
+# ─── The DETECTOR, EXTRACTED ─────────────────────────────────────────────────
+# Moved to `confirm_gate_detector.py` at DEC-136 — a MOVE plus the ruling that
+# forced it, with the word tuple as its centre. Re-exported here so every
+# existing import still resolves against `muthis.trust.confirm_gate`, including
+# `_APPROVALS` / `_REFUSALS`, which `test_mode_exits.py` reads by name.
+from .confirm_gate_detector import (  # noqa: F401 — re-export, kept at its old home
+    APPROVAL_WORD_AR, APPROVAL_WORDS_AR, APPROVE, DIRECTIVE_MARKER_AR, REFUSE,
+    _APPROVALS, _REFUSALS, detect_confirmation, strip_directive_lines,
+)
+# ─── The model-facing Arabic surfaces, EXTRACTED ─────────────────────────────
+# Moved to `confirm_gate_notes.py` (DEC-131) — a MOVE ONLY, nothing reworded at
+# the move; `CONFIRM_RETRY_AR` and `confirm_note` arrived there at DEC-136.
 from .confirm_gate_notes import (  # noqa: F401 — re-export, kept at its old home
-    CONFIRM_DIRECTIVE_AR, MAX_ARGS_CHARS, MAX_ARG_CHARS, render_args,
+    CONFIRM_DIRECTIVE_AR, CONFIRM_RETRY_AR, MAX_ARGS_CHARS, MAX_ARG_CHARS,
+    confirm_note, render_args, render_words,
 )
 
 logger = logging.getLogger("muthis.trust.confirm_gate")
-
-# The family marker every kernel-authored directive line carries. It is the
-# SHARED CORE of the family, not one member's exact opening: `DIRECTIVE_OPEN_AR`
-# (verbosity) and `INTERRUPTED_NOTE_AR` (barge-in) word their openings
-# differently, and matching either one exactly would leave the other in place. A
-# test pins that both real constants contain this.
-DIRECTIVE_MARKER_AR = "توجيه داخلي"
-
-APPROVE = "approve"
-REFUSE = "refuse"
-
-# The word the turn-N directive tells the user to SAY. Because the accepted set
-# below is normalized with the same function, the named word is always accepted.
-APPROVAL_WORD_AR = "أوافق"
-
-# Written in natural spelling and normalized once at import — readable here,
-# STT-tolerant at match time, and impossible to spell inconsistently.
-_APPROVALS = frozenset(normalize_ar(word) for word in ("أوافق", "موافق", "وافق"))
-_REFUSALS = frozenset(normalize_ar(word) for word in ("ألغِ", "لا توافق", "لا"))
-
-
-def strip_directive_lines(text: str) -> str:
-    """Drop every kernel-authored directive line, leaving the bare transcript.
-
-    Directives are always prepended as WHOLE lines by the orchestrator
-    (`verbosity.attach` and the barge-in note both join with "\\n"), and neither
-    constant contains a newline of its own, so a line-wise filter removes exactly
-    them. A line the filter does not recognise SURVIVES, which is what makes the
-    unknown case fail closed at the isolation step."""
-    return "\n".join(line for line in text.splitlines()
-                     if DIRECTIVE_MARKER_AR not in line)
-
-
-def detect_confirmation(text: str) -> Optional[str]:
-    """APPROVE / REFUSE / None for one raw transcript — pure, no state.
-
-    Whole-utterance isolation: the normalized remainder must EQUAL a word in the
-    set. An approval word inside a longer sentence is not an approval — the same
-    rule that stops «أي ضلع أطول؟» from flipping verbosity, applied where the
-    stakes are authorization rather than reply length."""
-    utterance = normalize_ar(strip_directive_lines(text))
-    if utterance in _APPROVALS:
-        return APPROVE
-    if utterance in _REFUSALS:
-        return REFUSE
-    return None
 
 
 def call_fingerprint(tool: str, args: Mapping[str, Any]) -> str:
@@ -183,6 +142,11 @@ class ConfirmGate:
         # Nothing to observe until a turn arms it: a stray observe() before the
         # first turn must not spend the turn's one look.
         self._observed_this_turn = True
+        # Did the LAST observed utterance reach the detector and come back as
+        # NEITHER answer? It selects the retry note (DEC-136 ruling 3) and does
+        # nothing else — it never affects WHETHER a call is refused, which is
+        # why widening the accepted set and this flag are separate rulings.
+        self._missed = False
 
     @property
     def pending_tool(self) -> Optional[str]:
@@ -227,6 +191,12 @@ class ConfirmGate:
         if self._pending is None:
             return
         decision = detect_confirmation(user_text)
+        # THE THREE OUTCOMES ARE NOT TWO (DEC-136 ruling 3). A REFUSAL is a
+        # deliberate answer and a turn with no transcript never reaches here, so
+        # only `None` means "the user spoke and was understood as neither" — the
+        # ONE state the retry note may report. Telling someone who said «لا»
+        # that he was not understood would be a false claim about his intent.
+        self._missed = decision is None
         if decision == APPROVE:
             self._pending = dataclasses.replace(self._pending, approved=True)
             logger.info("[confirm-gate] approval heard for %s", self._pending.tool)
@@ -246,35 +216,49 @@ class ConfirmGate:
         Both conditions must hold. A high-impact call in a CLEAN session runs
         untouched, and so does every contained call in a tainted one — which is
         how a network-less sandbox run keeps its friction-free loop (DEC-15's
-        refinement of DEC-3-A)."""
+        refinement of DEC-3-A).
+
+        THE CLEAN-SESSION ARM IS ALSO WHY AN EXPERIMENT HERE MUST BE STAGED: the
+        taint is raised only AFTER a call returns, so the FIRST tainting call of
+        a process can never be gated. A test scenario must taint on an earlier,
+        separate call — `docs__open` does, and is not high-impact (DEC-134)."""
         if not (high_impact and tainted):
             return None
         fingerprint = call_fingerprint(tool, args)
         pending = self._pending
         if pending is not None and pending.approved and pending.fingerprint == fingerprint:
             self._pending = None      # SINGLE-USE: consumed the moment it matches
+            self._missed = False      # nothing outstanding to explain any more
             logger.info("[confirm-gate] approved call released: %s", tool)
             return None
         # Any mismatch — no pending, not yet approved, or DIFFERENT arguments —
         # refuses and (re)places the pending. Rebinding on a modified call is the
         # point: an approval must never travel to a call the user never heard.
         self._pending = _Pending(fingerprint=fingerprint, tool=tool)
-        logger.info("[confirm-gate] high-impact %s refused — awaiting spoken approval", tool)
-        return CONFIRM_DIRECTIVE_AR.format(
-            tool=tool, args=render_args(args), word=APPROVAL_WORD_AR)
+        # The log distinguishes the two refusals for the same reason the NOTE
+        # does: three identical lines were what made the live loop unreadable.
+        logger.info("[confirm-gate] high-impact %s refused — awaiting spoken "
+                    "approval%s", tool,
+                    " (RETRY: last utterance matched no approval word)"
+                    if self._missed else "")
+        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._missed)
 
 
 __all__ = [
+    "APPROVAL_WORDS_AR",
     "APPROVAL_WORD_AR",
     "APPROVE",
     "CONFIRM_DIRECTIVE_AR",
+    "CONFIRM_RETRY_AR",
     "ConfirmGate",
     "DIRECTIVE_MARKER_AR",
     "MAX_ARGS_CHARS",
     "MAX_ARG_CHARS",
     "REFUSE",
     "call_fingerprint",
+    "confirm_note",
     "detect_confirmation",
     "render_args",
+    "render_words",
     "strip_directive_lines",
 ]

@@ -16721,3 +16721,231 @@ diagnosed here** — the one artefact that would separate the two readings is th
 was not captured. **No cause is assigned.**
 
 ---
+
+## DEC-136 (2026-09-10) — **THREE RULINGS ON THE APPROVAL SURFACE, AND THE PIN MET ITS ARRIVAL FOR THE SECOND TIME.** «اعتمد» ADDED and «تم»/«أوكيه» REFUSED with the bound that decides both · the request now names **every** accepted word, because naming one while accepting three is what refused Sultan three turns running · and a **SECOND refusal note** so a failed attempt stops being indistinguishable from silence · the honest form measured **+34 against 20 lines of headroom — 314, a breach of the LAW** — so the **DETECTOR** was extracted · **NONE OF IT IS AN AUTHORIZATION CHANGE** — RULED (Sultan), EXECUTED. **2,059 green (2,045 + 14), 3/3 mutations RED.**
+
+**WHAT SHIPPED:** `confirm_gate.py` **280 → 264** (pin re-declared) · **NEW `confirm_gate_detector.py` 156** ·
+`confirm_gate_notes.py` **118 → 209** · `tests/test_confirm_word_set_and_retry.py` **214, 14 tests** ·
+four existing test files and AGENTS.md updated. Zero behaviour change outside the three rulings.
+
+### THE BRIEF'S PREMISE WAS STALE, AND MEASURING IT FIRST IS WHAT CHANGED THE PLAN
+
+The brief said *"confirm_gate.py is at 300/300"*. **It was at 280/300** — DEC-131's extraction took it to
+267 and `awaiting_approval` brought it to 280. The instruction to *"measure both first"* is what caught it,
+and the 20 lines it revealed are why the extraction decision was made on a number rather than on the
+brief's assumption. **`confirm_gate_notes.py` was 118, not the 99 its AGENTS.md row claimed** — stale before
+this gate touched it, and the third instance of that row-drift defect (`persona_rules.py`, then
+`trust/confirm_gate.py` at 300-declared-as-269). A fourth was found in the same sweep: the ceiling
+paragraph at `AGENTS.md:631` still read **"300 — ZERO HEADROOM"** through TWO intervening moves. **All
+corrected in this commit; none of them was the task.**
+
+---
+
+## ① THE ACCEPTED SET — «اعتمد» IN, «تم» AND «أوكيه» OUT
+
+**RULED BY SULTAN. The bound is what makes it a rule rather than a list**, and it is now the assertion a
+future widening has to argue with: **whole-utterance matching already excludes a word occurring INSIDE a
+sentence, so the only question a candidate answers is whether its BARE form is a plausible COMPLETE
+utterance in a turn that is NOT an approval.**
+
+- **«تم» and «أوكيه» ARE.** They mean *"understood"* — the ordinary acknowledgement of any statement at
+  all. A user who says one after hearing the request has ACKNOWLEDGED it, not authorized it, and that is
+  the exact coincidence an accidental authorization needs.
+- **«اعتمد» IS NOT.** It is an authorization verb; a bare «اعتمد» is not an utterance ordinary speech
+  produces by accident.
+
+**THE DISTINCTION IS INTENT-CARRYING, NOT FREQUENCY-BASED, AND THAT IS WHY IT SURVIVES.** A frequency
+argument could not have justified this widening — **the number it would need cannot be obtained here.**
+Measuring how often a bare «نعم» is a complete non-approval utterance requires logging transcripts, which
+DEC-17/DEC-28 forbid and `logging_policy.py` structurally refuses to make durable (DEC-135). **The evidence
+that would justify a wider set is precisely what this project is built not to collect**, so every widening
+is a judgement about acceptable risk, can never be converted into a measurement, and belongs to Sultan
+alone. Recorded in the detector's own docstring so the next person to reach for the tuple reads it first.
+
+**Spelling is free and costs nothing:** `normalize_ar` folds أ/إ/آ → ا, so the first-person «أعتمد» reaches
+«اعتمد» without a second entry. Pinned, with «اعتمد.» and «  اعتمد  » alongside.
+
+**THE OLD LAW SAID "must not be widened", AND THAT SENTENCE IS SUPERSEDED — in the source, in AGENTS.md,
+and by a test.** «تم»/«أوكيه» are asserted ABSENT **with their reason travelling in the assertion message**,
+and a negative control («تم.», «تمّ», «أوكيه!», «اوكيه») proves they fail because the word is ABSENT and not
+because a spelling happened to miss.
+
+---
+
+## ② THE REQUEST NAMES EVERY ACCEPTED WORD
+
+The detector accepted three; the directive named one. **A user told «أوافق» and refused for «موافق» — which
+had been accepted the whole time — is the same class as a note that invites a retry it cannot satisfy**
+(DEC-58's standing law, applied to an authorization surface). After ① it accepts four.
+
+**ONE TUPLE IS NOW THE SOURCE.** `_APPROVALS` normalizes `APPROVAL_WORDS_AR` for matching and
+`render_words` renders it for speech, so **a word cannot be ACCEPTED without being OFFERED.** The note's
+`{word}` slot became `{words}`.
+
+**ASSERTED AS A PROPERTY, NOT A SUBSTRING, AND IN BOTH DIRECTIONS:**
+
+- `{normalize_ar(w) for w in APPROVAL_WORDS_AR} == _APPROVALS` — the tuple the request renders from IS the
+  set the detector matches. A word reaching `_APPROVALS` by any other route fails here.
+- **Driven through the REAL gate**: `_APPROVALS - {quoted words in the returned note}` must be empty. It
+  fails whether the shortfall is in the note's rendering or in what the gate hands it — the mutation proved
+  both sites are covered.
+- Every word in the tuple is driven through `detect_confirmation` individually, so a tuple entry that never
+  matches cannot hide behind the set identity.
+
+**`render_words` IS UNBOUNDED, DELIBERATELY, UNLIKE `render_args`.** That renderer truncates because its
+input is the MODEL's — a query, a path, a program of any size. This one's input is a hand-written
+authorization decision, and truncating it would silently stop offering a word the gate still accepts:
+**the exact defect this ruling closes, re-introduced by the neighbouring convention.**
+
+---
+
+## ③ A FAILED ATTEMPT IS NO LONGER SILENCE
+
+**THE DEFECT THE LOG PROVED.** `observe()` cleared the pending, logged in English, and the next refusal
+re-issued the **byte-identical** directive — three times. Nothing anywhere separated *"you said a word I do
+not accept"* from *"I did not hear you"*, and **the user cannot converge on a word he is never told he
+missed.**
+
+`CONFIRM_RETRY_AR` is returned when the previous utterance was heard and came back as neither answer. It
+reports the STATE, names every accepted word, and spells out the whole-utterance rule the first note only
+implied — «a single word, in a turn of its own, with nothing before or after it» — which is the concrete
+remedy for the likeliest miss.
+
+**THE THREE OUTCOMES ARE NOT TWO, AND THE SURFACE DEPENDS ON THE DIFFERENCE.** `detect_confirmation`
+returns None only when the user SPOKE and was understood as neither answer:
+
+| observation | note returned | why |
+|---|---|---|
+| `None` — heard, neither answer | **RETRY** | the one state it may report |
+| `REFUSE` — «لا» | **FIRST** | a deliberate answer; "you were not understood" would be a **false claim about intent** |
+| no transcript at all | **FIRST** | claiming otherwise would **invent an utterance** |
+
+**Both negative controls are tests, and they are what make this a distinction rather than a rewording.**
+
+**WHAT IT IS NOT ALLOWED TO CLAIM.** The kernel cannot know whether the user was TRYING to approve — an
+unrelated question and a mispronounced approval reach the detector identically. So the note says only what
+is true in both cases: that no approval word was heard. **It never says "you tried and failed."**
+
+**THE RETRY STILL NAMES THE TOOL AND ARGUMENTS**, though a short *"that was not the word"* was the tempting
+shape. The failed observation CLEARED the pending, so this refusal binds a **FRESH fingerprint** over
+whatever the model is asking for NOW; DEC-16's bound (a) requires that an approval never travel to a call
+the user never heard. Pinned.
+
+**The log line distinguishes them too** — `(RETRY: last utterance matched no approval word)` — for the same
+reason the note does: three identical lines are what made the live loop unreadable.
+
+---
+
+## THE EXTRACTION — MEASURED FIRST, AND THE SEAM IS NOT DEC-131's
+
+**The honest form measured +34 against 20 lines of headroom = 314.** That is a breach of the **LAW**, not
+merely of the pin, so compressing was doubly forbidden. **The DETECTOR left**, taking the word tuple with
+it: `confirm_gate_detector.py`, 156 lines, pure stdlib, importable in isolation — `high_impact.py`'s shape.
+
+**WHY NOT THE SAME SEAM AS LAST TIME.** DEC-131 moved the SURFACE because the surface was what grew. Here
+the ACCEPTED SET is what a ruling changed, so what leaves is *"what counts as consent"* — the one thing an
+auditor should be able to read end to end. **DEC-42 is not breached**: that discipline says the stronger
+property stays byte-identical *while the weaker one is worked on*, and it governs a NOTES change; at this
+gate the stronger property is the one under the ruling.
+
+**Every name is re-exported, `_APPROVALS`/`_REFUSALS` included** (`test_mode_exits.py` imports both by
+name), so no call site outside the package changed — the `file_reader_notes.py` shape, DEC-113.
+
+**`test_the_note_is_rendered_at_exactly_ONE_site` MOVED WITHOUT WEAKENING.** With two notes the choice
+became `confirm_note` and the `.format` went with it, so the guard now asserts the gate formats NOTHING
+itself, reaches the notes module at exactly one point, and the notes module holds exactly one `.format`.
+**The same property, following the code.**
+
+**AND THE SECURITY-BOUNDARY GUARD CAUGHT A REAL SLIP IN THIS COMMIT.**
+`test_the_notes_module_carries_NO_security_code` went RED because a comment I wrote beside `CONFIRM_RETRY_AR`
+named `detect_confirmation`. **The comment changed; the guard did not.** It is scanning the module BODY for
+exactly that, the docstring is exempt by design, and weakening it to admit a comment would have retired a
+working guard to accommodate prose.
+
+---
+
+## NONE OF THIS IS AN AUTHORIZATION CHANGE, AND THE RECORD MUST NOT READ AS ONE
+
+**Byte-for-byte unchanged:** `call_fingerprint` = sha256(tool + canonical args) · SINGLE-USE consumption ·
+expiry at the first turn carrying no approval · an explicit refusal clearing at once · the refusal
+condition `high_impact and tainted` · `awaiting_approval` and the `tool_choice` brake.
+
+**What changed is WHICH WORDS COUNT (①) and WHAT THE USER IS TOLD (②③).** ① is a genuine widening of the
+accepted set and is recorded as Sultan's ruling with its bound; ②③ are detection-surface and wording, the
+message layer, the weaker half by construction (DEC-42). `_missed` selects a NOTE and nothing else — it can
+never cause a call to be admitted.
+
+**AND IT DOES NOT MAKE THE REPEATS FINITE.** DEC-97's open item stands untouched: this gate still has NO
+COUNTER, and a retrying model still spends every pass. **Distinguishable and bounded are different
+defects**, and only the first was ruled here.
+
+**THE ACCEPT BRANCH HAS STILL NEVER RUN LIVE** — `[confirm-gate] approval heard` remains at ZERO across the
+whole durable log (DEC-135). The success path these 14 tests exercise is proven by this suite and by
+nothing else, and that is recorded in the gate's docstring where the next reader will meet it.
+
+---
+
+## MUTATION VERIFICATION — 3/3 RED, EACH ASSERTED **APPLIED**
+
+Every anchor was checked three ways before anything ran, because **a mutation that never lands looks
+exactly like code that survived it** (DEC-128 ⑨, made a standing rule at DEC-129 ③): the file's terminator
+DETECTED and never assumed, the anchor matched EXACTLY ONCE, and bound to a LINE START. Each mutation was
+then read back FROM DISK to prove it landed, and every original restored and verified by sha256.
+
+| mutation | site | verdict |
+|---|---|---|
+| «تم» ADDED to the accepted set | `confirm_gate_detector.py` | **RED — 3 tests** |
+| the request NAMES FEWER words than the detector accepts | `confirm_gate.py` (the gate's call) | **RED — 2 tests** |
+| the IDENTICAL directive re-issued after a failed attempt | `confirm_gate_notes.py` (the chooser) | **RED — 2 tests** |
+
+**M1 taking THREE tests is the informative one:** the set pin, the refused-words assertion, **and the
+normalisation negative control** — because with «تم» in the tuple, «تم.» starts approving too. The control
+fired for the reason it exists.
+
+---
+
+## RECORDED, NO WORK TAKEN
+
+### TURN 1 IS UNDECIDABLE, AND NO CAUSE IS ASSIGNED
+
+`request_screen_refresh → highlight_target → -`, 5.88 s / 35 chars, and Sultan reports he asked about
+football while Mut'his continued on the document. **Two readings fit every line in the log and it cannot
+separate them:** the model ignored the question, or it answered about the SCREEN because the screen was all
+it had — it asked for a fresh frame FIRST (persona rule 3: *"if the screenshot is stale or insufficient,
+use request_screen_refresh instead of guessing"*), got a 539 KB frame, and pointed at what that frame
+contained.
+
+**NO BBOX, NO LABEL, NO TOPIC IS LOGGED ANYWHERE** — the kernel draws what it is given and records only
+frame dimensions, so there is no way to tell whether the highlight landed on the document or elsewhere. The
+transcript is console-only. **A football question against a document-filled screen is precisely where
+LOOK-only plus "any claim it makes, it can point at" produces the second reading as CORRECT behaviour that
+reads as the first**, which is the DEC-133 surface family again — and it is NOT diagnosed here.
+
+### THE MODEL RECONSTRUCTED THE TAINT'S CAUSE — OBSERVED BEHAVIOUR, WORTH KEEPING
+
+`session_taint.py` is explicit that there is **NO model-visible surface**, deliberately: *"Telling the model
+would add a promptable surface — one more thing injected content can argue with."* The directive says only
+that untrusted text entered the session, and **never names the source.**
+
+**Mut'his attributed it to the document it had opened one turn earlier — correctly — from its own turn
+history.** It also offered a fallback (open a browser and search yourself) that **appears in no kernel
+constant**. Both are the model's own, both are true, and together they delivered all three of DEC-58's
+obligations in SPEECH, which binds model-facing NOTES and not model speech.
+
+**The observation to keep, and it is not a defect:** the taint's deliberate invisibility does not make the
+FACT unavailable. No promptable surface was added and nothing is breached — the model used turn history,
+not a kernel channel — but anyone arguing that withholding the surface buys SILENCE about it should read
+this first.
+
+### THE COST, WITH THE UNITS CORRECTED
+
+**Session $0.279266 over six turns — a mean of $0.046544, largest single turn $0.082792.** Against `luna`'s
+measured ~$0.002/turn, **~23× on the mean** (the $0.667 figure was the DAY; the $0.059 figure was the
+largest single PASS, not a turn). Same bound as DEC-134: the two figures measure different work, so this is
+indicative rather than controlled.
+
+**$0.135330 — half the session — bought three failed approvals**, and the search never ran. The ledger
+corroborates it independently: `budget.json`'s `web_research` row held at 1 call / $0.008 across four
+refused calls. **That half is what ruling ③ exists to stop being spent twice.**
+
+---

@@ -1,8 +1,8 @@
 # src/muthis/trust/confirm_gate_notes.py
 """
-The confirmation gate's MODEL-FACING Arabic surface — the ONE directive a
-refused high-impact call returns, and the bounded rendering that fills its
-argument slot.
+The confirmation gate's MODEL-FACING Arabic surfaces — the TWO directives a
+refused high-impact call can return, the chooser between them, and the bounded
+renderings that fill their slots.
 
 Extracted VERBATIM from `trust/confirm_gate.py` under the ≤300-line law: a MOVE
 ONLY, nothing reworded at the move. That file stood at 300/300 — pinned, with
@@ -27,19 +27,53 @@ distrust, and the measured failure was the model reading it as a failed TOOL —
 it now says whose words these are, WITHOUT borrowing the §3.2 delimiters'
 vocabulary, which a test checks against the live constants.
 
-WHY THE RENDERER CAME WITH THE NOTE, AND NOT THE CONSTANT ALONE. `render_args`
-exists to fill this note's single `{args}` slot and nothing else, and
-`MAX_ARG_CHARS` / `MAX_ARGS_CHARS` exist to bound `render_args` and nothing
-else: ONE cluster with ONE external touchpoint (`ConfirmGate.refusal_for`). That
-is the `kernel/deferral_notes.py` shape — the notes AND the function that fills
-them — rather than `file_reader_notes.py`'s constants-only shape, and the reason
-is that the coupling is real rather than incidental: a note ordering the
-arguments said «كما هي» and a renderer that TRUNCATES them at 120 characters are
-one design question, not two.
+AND IT GREW A SECOND TIME, FOR A DEFECT THE LOG PROVED (DEC-136 rulings 2+3).
+Three consecutive live turns produced the BYTE-IDENTICAL directive after the
+user had spoken and not been understood, so nothing anywhere distinguished
+«you said a word I do not accept» from «I did not hear you» — and the user
+cannot converge on a word he is never told he missed (DEC-135). Two changes,
+both in this file:
+
+  * **THE REQUEST NAMES EVERY ACCEPTED WORD** (ruling 2). It named one while the
+    detector accepted three; `render_words` now renders the detector's OWN tuple,
+    so the offer cannot fall behind the set. A user refused for saying a word the
+    system accepts is the same class as a note that invites a retry it cannot
+    satisfy — DEC-58's law, applied to an authorization surface.
+  * **`CONFIRM_RETRY_AR` IS A SECOND, DIFFERENT NOTE** (ruling 3), returned when
+    the previous utterance was heard and was not an approval. It reports the
+    STATE — no approval word was heard — names the accepted words, and spells out
+    the whole-utterance rule the first note only implied («وحدها in a turn of its
+    own, nothing before or after»), which is the concrete remedy for the likeliest
+    miss.
+
+**NEITHER IS AN AUTHORIZATION CHANGE, AND THE RECORD SHOULD NOT READ AS ONE.**
+The gate still binds to `sha256(tool + canonical args)`, still consumes an
+approval exactly once, still refuses on any mismatch, and still expires the
+pending at the first turn carrying no approval. What changed is what the user is
+TOLD — this is the message layer, the weaker half by construction (DEC-42), and
+a wider ACCEPTED SET is the separate ruling that lives with the detector.
+
+WHY THE RETRY NOTE STILL NAMES THE TOOL AND ARGUMENTS. It is a follow-up, so the
+tempting shape is a short "that was not the word, try again". That would break
+DEC-16's bound (a): the pending was CLEARED by the failed observation and a FRESH
+fingerprint is being set here, over whatever arguments the model is issuing NOW.
+An approval must never travel to a call the user never heard, so every refusal —
+first or fifth — re-states what is being approved.
+
+WHY THE RENDERERS CAME WITH THE NOTES, AND NOT THE CONSTANTS ALONE. `render_args`
+exists to fill the `{args}` slot and nothing else, `render_words` the `{words}`
+slot and nothing else, and `MAX_ARG_CHARS` / `MAX_ARGS_CHARS` exist to bound
+`render_args` and nothing else: ONE cluster with ONE external touchpoint
+(`confirm_note`, called from `ConfirmGate.refusal_for`). That is the
+`kernel/deferral_notes.py` shape — the notes AND the functions that fill them —
+rather than `file_reader_notes.py`'s constants-only shape, and the reason is that
+the coupling is real rather than incidental: a note ordering the arguments said
+«كما هي» and a renderer that TRUNCATES them at 120 characters are one design
+question, not two.
 
 AND THAT TENSION IS RECORDED HERE RATHER THAN FIXED — the APPROVAL TREADMILL
 (DEC-131). Approval binds to sha256(tool + canonical args) and is SINGLE-USE,
-while this note shows the model a TRUNCATED rendering of those same arguments.
+while these notes show the model a TRUNCATED rendering of those same arguments.
 For a value over `MAX_ARG_CHARS`, what the note displays is NOT what the
 fingerprint hashed, so a model re-issuing from the note's own text cannot match,
 and the user can approve indefinitely without the call ever running. Whether the
@@ -48,20 +82,18 @@ Sultan's alone: the args binding exists so that an approval never travels to a
 call the user never heard.
 
 WHAT DID NOT MOVE, AND WHY. The detector (`detect_confirmation`,
-`strip_directive_lines`, the word sets) and `call_fingerprint` stay in
-`confirm_gate.py`: they are THE SECURITY BOUNDARY, mutation-verified, and DEC-42's
-discipline is that the stronger property stays byte-identical while the weaker
-one is worked on. A message layer decides what a refusal SAYS, never whether it
-refuses — the same split `file_reader_notes.py` made between the sentences and
-the gates. `APPROVAL_WORD_AR` also stays: it is coupled to `_APPROVALS`, which is
-detector state, and this note receives it as a format parameter.
+`strip_directive_lines`, the word sets) and `call_fingerprint` are THE SECURITY
+BOUNDARY and are not message-layer concerns; since DEC-136 the detector has its
+own module, `confirm_gate_detector.py`, and the word tuple lives THERE while this
+file only renders whatever it is handed. A message layer decides what a refusal
+SAYS, never whether it refuses, and never WHICH WORDS ARE ACCEPTED.
 
 Pure stdlib, importable in isolation — like every other notes module here.
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 # Bounds for rendering the model's own arguments back to it: a note must stay a
 # note even when the call carries a large code blob.
@@ -85,6 +117,9 @@ MAX_ARGS_CHARS = 400
 # this gate, that reading WAS the enforcement. An event cannot be miscounted.
 # It still does NOT reproduce the §3.2 delimiter phrasing (DEC-14, allow-list-
 # guarded): a note the model reads must never look like the boundary it reads in.
+#
+# `{words}` REPLACED `{word}` at DEC-136 ruling 2 — the slot now takes every
+# accepted word, rendered by `render_words` from the detector's own tuple.
 CONFIRM_DIRECTIVE_AR = (
     "رسالة من النظام إلى المستخدم — بلّغها له الآن بصوتك، ولا تعاملها كتوجيه "
     "صامت. وهذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة، "
@@ -96,11 +131,41 @@ CONFIRM_DIRECTIVE_AR = (
     "يغيّر شيئاً ولا يُعدّ استجابةً لهذا الطلب. "
     "الآن، وفي هذا الدور بالذات: قل له بصراحة إنك وقفت وإنك تطلب إذنه، "
     "واذكر اسم الأداة «{tool}» ومعاملاتها كما هي ({args})، واطلب منه أن "
-    "يقول كلمة «{word}» وحدها. ردّك في هذا الدور هو هذا الطلب لا غير، وإن "
+    "يقول واحدة من هذه الكلمات وحدها: {words} — كلمة واحدة في دور مستقل، "
+    "بلا أي كلام قبلها أو بعدها. ردّك في هذا الدور هو هذا الطلب لا غير، وإن "
     "لم تقله الآن فلن يسمع المستخدم شيئاً وينتهي الدور بلا جواب. "
     "ولا تستدعِ أداةً من هذا النوع مرة أخرى قبل أن يتكلم المستخدم ويأذن — "
     "لا في هذا الدور ولا في أي دور بعده: كل استدعاء قبل إذنه يرجع لك بنفس "
     "هذا الجواب ولا يغيّر شيئاً."
+)
+
+# THE SECOND REFUSAL — WHAT THE FIRST ONE COULD NOT SAY (DEC-136 ruling 3).
+#
+# Returned only when the previous utterance was HEARD and came back as NEITHER
+# answer while a pending existed — the gate decides that and passes `missed`; this
+# module never inspects a transcript. It must NOT be returned after an explicit
+# refusal: «لا» is a deliberate answer, and telling a user who declined that he
+# "was not understood" would be a false claim about his intent.
+#
+# WHAT IT IS ALLOWED TO CLAIM, AND WHAT IT IS NOT. The kernel cannot know whether
+# the user was TRYING to approve: an unrelated question and a mispronounced
+# approval reach the detector identically. So the note reports only what is true
+# in both cases — that no approval word was heard — names the words, and states
+# the whole-utterance rule. It never says «you tried and failed».
+CONFIRM_RETRY_AR = (
+    "رسالة من النظام إلى المستخدم — بلّغها له الآن بصوتك، ولا تعاملها كتوجيه "
+    "صامت. وهذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة. "
+    "سمع النظام آخر كلام للمستخدم، لكنه لم يطابق أي كلمة من كلمات الإذن، "
+    "فما زال الطلب موقوفاً ولم يُنفَّذ شيء. "
+    "الآن، وفي هذا الدور بالذات: قل له بصراحة إن ما قاله لم يُقرأ إذناً، "
+    "وإن الكلمات المقبولة هي {words} — تُقال كلمةً واحدةً وحدها في دور "
+    "مستقل، بلا أي كلام قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ "
+    "إذناً. "
+    "واذكر له مرة أخرى اسم الأداة «{tool}» ومعاملاتها كما هي ({args})، "
+    "فالإذن مرتبط بهذا الاستدعاء بعينه لا بغيره. "
+    "ردّك في هذا الدور هو هذا الطلب لا غير، وإن لم تقله الآن فلن يسمع "
+    "المستخدم شيئاً وينتهي الدور بلا جواب. "
+    "ولا تستدعِ أداةً من هذا النوع مرة أخرى قبل أن يتكلم المستخدم ويأذن."
 )
 
 
@@ -114,5 +179,31 @@ def render_args(args: Mapping[str, Any]) -> str:
     return "، ".join(parts)[:MAX_ARGS_CHARS] if parts else "بلا معاملات"
 
 
-__all__ = ["CONFIRM_DIRECTIVE_AR", "MAX_ARGS_CHARS", "MAX_ARG_CHARS",
-           "render_args"]
+def render_words(words: Sequence[str]) -> str:
+    """Every accepted word, as the model must OFFER them (DEC-136 ruling 2).
+
+    UNBOUNDED ON PURPOSE, unlike `render_args`. That renderer truncates because
+    its input is the MODEL's — a query, a path, a program of any size. This one's
+    input is the detector's own tuple, which is a hand-written authorization
+    decision: truncating it would silently stop offering a word the gate still
+    accepts, which is the exact defect ruling 2 exists to close."""
+    return " أو ".join(f"«{word}»" for word in words)
+
+
+def confirm_note(tool: str, args: Mapping[str, Any],
+                 words: Sequence[str], *, missed: bool) -> str:
+    """The refusal text for ONE call — the retry form when the last utterance
+    was heard and was not an approval, the first-refusal form otherwise.
+
+    `words` is PASSED IN rather than imported: the tuple is detector state, and
+    this module must not acquire an opinion about which words are accepted (the
+    same reason `APPROVAL_WORD_AR` was passed in as a format parameter before
+    the split). It also keeps the import direction one-way — `confirm_gate.py`
+    imports from here, never the reverse."""
+    note = CONFIRM_RETRY_AR if missed else CONFIRM_DIRECTIVE_AR
+    return note.format(tool=tool, args=render_args(args),
+                       words=render_words(words))
+
+
+__all__ = ["CONFIRM_DIRECTIVE_AR", "CONFIRM_RETRY_AR", "MAX_ARGS_CHARS",
+           "MAX_ARG_CHARS", "confirm_note", "render_args", "render_words"]

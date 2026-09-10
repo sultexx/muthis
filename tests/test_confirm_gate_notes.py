@@ -30,7 +30,9 @@ from muthis.trust.confirm_gate_notes import (
 NOTES = pathlib.Path(confirm_gate.__file__).parent / "confirm_gate_notes.py"
 GATE = pathlib.Path(confirm_gate.__file__)
 
-MOVED = ("CONFIRM_DIRECTIVE_AR", "MAX_ARGS_CHARS", "MAX_ARG_CHARS", "render_args")
+MOVED = ("CONFIRM_DIRECTIVE_AR", "MAX_ARGS_CHARS", "MAX_ARG_CHARS", "render_args",
+         # DEC-136: the retry note and the two functions that arrived with it.
+         "CONFIRM_RETRY_AR", "confirm_note", "render_words")
 
 
 # ─── The re-export (DEC-113's property: no import site changed) ───────────────────
@@ -108,5 +110,16 @@ def test_the_notes_module_is_pure_stdlib_and_importable_in_isolation():
 
 def test_the_note_is_rendered_at_exactly_ONE_site():
     """The cluster left because it had ONE external touchpoint. If a second
-    render site appears, the reason the extraction was safe has gone."""
-    assert GATE.read_text(encoding="utf-8").count("CONFIRM_DIRECTIVE_AR.format(") == 1
+    render site appears, the reason the extraction was safe has gone.
+
+    DEC-136 MOVED THE SITE WITHOUT WEAKENING THE PROPERTY. There are now TWO
+    notes, so the choice between them became `confirm_note` and the `.format`
+    went with it — the gate calls that once and formats nothing itself. The
+    property asserted is the same one: exactly one place turns a call into text."""
+    gate = GATE.read_text(encoding="utf-8")
+    assert gate.count(".format(") == 0, (
+        "the gate formats a note itself again — the single render site has split")
+    assert gate.count("confirm_note(") == 1, (
+        "the gate reaches the notes module at more than one point")
+    assert NOTES.read_text(encoding="utf-8").count(".format(") == 1, (
+        "a second rendering appeared inside the notes module")

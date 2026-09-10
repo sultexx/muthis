@@ -43,7 +43,8 @@ from __future__ import annotations
 from muthis.kernel.untrusted_content import WRAP_CLOSE_AR, WRAP_OPEN_AR
 from muthis.persona import build_saudi_persona_prompt
 from muthis.trust.confirm_gate import (
-    APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR, CONFIRM_DIRECTIVE_AR,
+    APPROVAL_WORD_AR, APPROVAL_WORDS_AR, DIRECTIVE_MARKER_AR,
+    CONFIRM_DIRECTIVE_AR, render_words,
 )
 
 TOOL = "web__search"
@@ -51,8 +52,10 @@ ARGS = "query=أسعار الذهب"
 
 
 def _rendered() -> str:
+    # `{word}` became `{words}` at DEC-136 ruling 2 — the slot takes the whole
+    # accepted tuple now, rendered the way the model must offer it aloud.
     return CONFIRM_DIRECTIVE_AR.format(
-        tool=TOOL, args=ARGS, word=APPROVAL_WORD_AR)
+        tool=TOOL, args=ARGS, words=render_words(APPROVAL_WORDS_AR))
 
 
 # ─── The defect itself ──────────────────────────────────────────────────────

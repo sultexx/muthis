@@ -164,7 +164,17 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # NOT `pending_tool is not None`: `observe()` marks a pending APPROVED and
     # leaves it in place, so the name-only predicate stays truthy ACROSS the
     # approval and would gag the very pass that must re-issue the approved call.
-    ("trust/confirm_gate.py", 280),
+    # 280 -> 264, DECLARED (DEC-136): the pin met its arrival for the SECOND
+    # time and again the arrival became an extraction. The three rulings measured
+    # +34 against 20 lines of headroom — 314, a breach of the LAW and not merely
+    # of this pin — so the DETECTOR left for `confirm_gate_detector.py`, taking
+    # the word tuple with it. The seam is NOT the one DEC-131 used: that move
+    # took the SURFACE out because the surface was what grew, and this time the
+    # accepted set is what a ruling changed. DEC-42 is not breached by it — that
+    # discipline governs a NOTES change, and here the stronger property is the
+    # one under the ruling. Every name is re-exported, `_APPROVALS`/`_REFUSALS`
+    # included, so `test_mode_exits.py` and six other call sites are untouched.
+    ("trust/confirm_gate.py", 264),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's
