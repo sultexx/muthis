@@ -16949,3 +16949,121 @@ corroborates it independently: `budget.json`'s `web_research` row held at 1 call
 refused calls. **That half is what ruling ③ exists to stop being spent twice.**
 
 ---
+
+## DEC-137 (2026-09-10) — **`confirm_gate_notes.py` PINNED AT 209, AND IT IS THE FIRST PIN TAKEN FOR A REASON OTHER THAN CEILING PRESSURE.** It is the DESTINATION every new surface lands in — +91 in one gate, two rewrites in its own docstring — which is `deferral_notes.py`'s argument and not proximity to 300 · **the pin was VERIFIED TO FIRE at 210 and restored byte-identical** · and M1's side effect is recorded as the standing argument against widening, because **a future widening will read the LIST and not the NORMALISER** — RULED (Sultan), EXECUTED. **2,060 green (2,059 + the pin's case).**
+
+Taken ALONE in its own commit, on the `turn_pass.py` / `persona_laws.py` precedent: nothing extracted,
+no content moved, **DECLARING it IS the change.** `tests/test_module_line_ceiling.py` now holds **TWELVE**
+declared numbers rather than eleven.
+
+### WHY THIS PIN IS NOT LIKE THE OTHER ELEVEN
+
+Every prior declaration was bought by CEILING PRESSURE — `tool_router.py` at 300, `orchestrator.py` at
+299, `confirm_gate.py` found sitting at 300/300 for thirteen days. **209/300 is not near the limit and
+this pin is not about the limit.** It is about DESTINATION: this file is where every surface this gate
+produces now lands, so it is the module whose next arrival must meet a declared number.
+
+The evidence is in its own docstring, which already records **two rewrites** — DEC-131 ruling 3 (the
+directive rescoped from one TOOL to the CAPABILITY and turned into a command) and DEC-136 rulings 2+3
+(the retry note, `render_words`, the `confirm_note` chooser). **+91 lines in a single gate is the fastest
+growth anywhere in `trust/`.** That is `deferral_notes.py`'s argument reproduced exactly: *"a file
+designed to grow is exactly the one whose next arrival must meet a declared number."*
+
+**AND THE ROW WAS ALREADY LYING WHEN THE PIN WAS TAKEN.** AGENTS.md declared **99** for a **118**-line
+file — stale *before* DEC-136 touched it, and the third instance of the drift that let
+`broker/docs/service.py` cross the law in silence (`persona_rules.py` understated by 161 lines;
+`trust/confirm_gate.py` declared `~269` while sitting at 300). **A pin is what stops a row from being the
+only thing watching**, and this file had nothing but the row.
+
+### THE PIN WAS VERIFIED TO FIRE, NOT READ
+
+A pin nobody has seen fail is a pin nobody has tested. Terminator **DETECTED** (CRLF), the added line
+read back **from disk** before the run, the original restored from bytes and checked by hash:
+
+| state | result |
+|---|---|
+| at **209** | GREEN |
+| at **210** (one comment line appended) | **RED** |
+| restored | `62dafbe10b1ec7f7…` → `62dafbe10b1ec7f7…` — **byte-identical** |
+| at **209** again | GREEN |
+
+### THE PREMISE THAT WAS STALE, RECORDED BECAUSE IT DECIDED THE PLAN
+
+DEC-136's brief stated *"confirm_gate.py is at 300/300"*. **It was at 280** — DEC-131's extraction had
+already taken it to 267 and `awaiting_approval` to 280. The instruction to MEASURE BOTH FIRST is the only
+reason that was caught, and the 20 lines it revealed are why the extraction decision rested on a number
+rather than on the brief's assumption. **A stale premise in a brief is the same defect as a stale row in
+a source of truth**, and it survived exactly as long because nothing re-read it either.
+
+---
+
+## THE ARGUMENT M1 HANDED US — **NORMALISATION WIDENS ACCEPTANCE BEYOND WHAT THE LIST SHOWS**
+
+DEC-136's first mutation added «تم» to the tuple and took **THREE** tests red rather than the two it was
+aimed at. The third was `test_a_refused_word_does_not_sneak_in_through_normalisation`, and **the reason
+it fired is the finding**:
+
+> **With «تم» in the tuple, «تم.» begins approving too — and so do «تمّ», «تم » and every other form
+> `normalize_ar` folds onto it.** Adding ONE word to the list admits an EQUIVALENCE CLASS, not a string.
+
+**THIS IS RECORDED AS THE STANDING ARGUMENT BECAUSE OF WHO WILL READ IT.** A future author proposing a
+widening will open `confirm_gate_detector.py`, read `APPROVAL_WORDS_AR`, and reason about the four
+strings in front of them. **They will not open `verbosity.py` and reason about the transform.** The list
+is the visible artefact; the normaliser is the invisible multiplier — tashkeel stripped, tatweel
+stripped, أ/إ/آ folded to ا, ة folded to ه, Arabic-Indic digits mapped, punctuation dropped, whitespace
+collapsed. Every one of those is a further way in.
+
+**IT CUTS BOTH WAYS, AND THAT IS WHY IT IS AN ARGUMENT RATHER THAN A WARNING.** The same fold is what
+makes «أعتمد» reach «اعتمد» for free — a deliberate convenience DEC-136 relied on, pinned by a test. **The
+transform is not a defect; it is leverage.** The rule it implies is one sentence:
+
+> **A candidate word must be judged in its NORMALISED CLASS, never as the string someone typed.** Ask
+> what else folds onto it before asking whether the word itself is safe.
+
+Under that rule «تم» is worse than it looks — a two-character acknowledgement whose class swallows every
+punctuated and vowelled variant of the commonest confirmation in the language — and «اعتمد» is not, for
+the same reason its class contains only spellings of one authorization verb.
+
+**WHERE THIS BELONGS EVENTUALLY, AND WHY IT IS NOT THERE YET.** The argument's natural home is a comment
+beside `APPROVAL_WORDS_AR`, where the future author actually looks. **This entry's ruling was the pin and
+the push, with zero further `src/` changes**, so it is recorded here and the placement is NOT taken.
+Flagged, not done — the same handling the notes-module pin got one gate ago, and it took one gate to be
+ruled.
+
+---
+
+## RECORDED AT THE APPROVAL, NOT CLAIMED AS THIS ENTRY'S WORK
+
+Sultan's approval of DEC-136 named three implementation calls as better than the brief, and they are
+recorded here because the REASONS are what generalise:
+
+1. **ONE TUPLE AS THE SOURCE, asserted both ways** — a word cannot be accepted without being offered.
+2. **`render_words` UNBOUNDED, unlike `render_args`** — truncating an authorization decision would
+   silently stop offering a word the gate accepts, **the same defect returning through an adjacent
+   convention.** The neighbouring function's correct behaviour is the trap.
+3. **THREE OUTCOMES RATHER THAN TWO** — telling someone who said «لا» that he was not understood is a
+   **false claim about his intent**, and answering a turn with no transcript would have the gate
+   **invent an utterance.** Both are now negative controls.
+
+And: **superseding the old "must not be widened" sentence EXPLICITLY rather than deleting it keeps the
+ledger's history honest** — the append-only discipline applied to a source comment and an AGENTS.md row,
+where deletion would have made the reversal unfindable.
+
+---
+
+## THE STATE THIS LEAVES, AND THE RUN THAT COMES NEXT
+
+**PUSHED:** DEC-132/133 (`b0e9197`), DEC-134 (`d728405`), DEC-135 (`394b262`), DEC-136 (`8b29304`) and
+this pin. **Four commits were unpushed rather than the two named** — `b0e9197` and `d728405` are
+ancestors on `main`, so the push necessarily carried them; stated rather than left to be discovered.
+
+**NOTHING FURTHER IS BUILT, AND THE NEXT MOVE IS NOT CODE.** Sultan runs the live confirmation: open a
+document, ask a web question, hear the request, say one of the offered words.
+
+**THAT RUN IS THE FIRST TIME DEC-16's SUCCESS PATH WILL HAVE EXECUTED.** `[confirm-gate] approval heard`
+stands at **ZERO across 78 turns and 21 sessions** (DEC-135). Everything above — the widened set, the
+request that names all four words, the retry note, twelve pins and 2,060 tests — is proven by this suite
+**and by nothing else.** A gate whose accept branch has never run is not a gate anyone has tested end to
+end, and no number of green tests changes that until the branch runs.
+
+---

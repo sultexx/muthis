@@ -175,6 +175,21 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # one under the ruling. Every name is re-exported, `_APPROVALS`/`_REFUSALS`
     # included, so `test_mode_exits.py` and six other call sites are untouched.
     ("trust/confirm_gate.py", 264),
+    # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
+    # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
+    # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.
+    # 209/300 is NOT near the limit; what earns the pin is that this file is the
+    # DESTINATION for every surface this gate produces, so it is the module whose
+    # next arrival must meet a declared number. Its own docstring records two
+    # rewrites already (DEC-131 ruling 3, then DEC-136 rulings 2+3), and +91 in a
+    # single gate is the fastest growth in `trust/`.
+    # AND THE ROW WAS ALREADY LYING WHEN THIS PIN WAS TAKEN: AGENTS.md declared
+    # **99** for a **118**-line file — stale before DEC-136 touched it, the third
+    # instance of the drift that let `broker/docs/service.py` cross the law in
+    # silence. A pin is what stops a row from being the only thing watching.
+    # Nothing extracted and no content moved: DECLARING it IS the change.
+    # ELEVEN becomes TWELVE.
+    ("trust/confirm_gate_notes.py", 209),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's
