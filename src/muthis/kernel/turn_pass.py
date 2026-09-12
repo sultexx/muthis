@@ -272,7 +272,8 @@ class TurnPass:
         serviced = await service_pass_calls(
             router=self._router, sandbox=self._sandbox, result=result,
             precondition=precondition_call, read=read_call, run=run_call,
-            nav=nav_call, prelude=self._prelude)
+            nav=nav_call, prelude=self._prelude,
+            turn_voice=turn_voice)
         # DEC-20/36: the badge, drawn by the KERNEL from the broker's own record.
         # HERE, at the very end of the pass: after the Option-A sync point and
         # after servicing, so it can neither reorder draw→speak nor delay the

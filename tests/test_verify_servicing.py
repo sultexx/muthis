@@ -379,8 +379,14 @@ def test_the_servicer_gained_NO_screenshot_parameter():
     so it never needs the bytes."""
     parameters = set(inspect.signature(service_pass_calls).parameters)
 
+    # `turn_voice` DECLARED at DEC-138, and the set stays EXACT rather than
+    # becoming a subset check: an exact set is what makes "a parameter was
+    # added without anyone considering it" impossible, which is the whole
+    # value of this assertion. It is a duck-typed VOICE seam — the kernel's
+    # spoken approval request rides it — and the frame-word loop below still
+    # proves it is not the coupling this test was written against.
     assert parameters == {"router", "sandbox", "result", "precondition", "read",
-                          "run", "nav", "prelude"}
+                          "run", "nav", "prelude", "turn_voice"}
     for frame_word in ("screenshot", "frame", "image", "sent_bytes", "pixels"):
         assert frame_word not in parameters
 

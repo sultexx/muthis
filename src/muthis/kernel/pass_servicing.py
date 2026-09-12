@@ -137,6 +137,7 @@ async def service_pass_calls(
     run: Optional[ToolCall],
     nav: Optional[ToolCall] = None,
     prelude: Any = None,
+    turn_voice: Any = None,
 ) -> PassServiced:
     """Service the pass's calls AFTER the sync point, in the ONE right order.
 
@@ -198,6 +199,33 @@ async def service_pass_calls(
                 else service_navigator_call(nav, authority=prelude.authority,
                                             mode=prelude.session_mode))
         nav_result = (nav, note)
+    # DEC-138: THE KERNEL SPEAKS THE APPROVAL REQUEST, in the pass that was
+    # refused. Nothing is rendered or interpreted here — the gate built the
+    # sentence AT REFUSAL TIME out of the canonical bytes it hashed, so the
+    # call the user HEARS and the call the fingerprint COVERS cannot be two
+    # different calls. ONE-SHOT on the gate's side, which is what makes a pass
+    # carrying three refusable calls produce ONE request rather than three.
+    #
+    # IT SPEAKS AT PASS N, AND THAT IS THE POINT. The directive it accompanies
+    # can only be read on pass N+1, so a turn cut off at the 90 s bound used to
+    # generate a request nobody could ever hear — measured live, and a
+    # consequence of moving the utterance one pass earlier rather than a design
+    # goal of it.
+    #
+    # HERE RATHER THAN IN `turn_pass.py` BECAUSE THE MEASUREMENT SAID SO: that
+    # file is pinned with seven lines to the law, and the same block there
+    # measured +16. `turn_voice` joins `router`, `sandbox` and `prelude` as a
+    # DUCK-TYPED seam this module awaits and never owns — the `sandbox`
+    # precedent exactly — and None keeps the arm INERT rather than absent.
+    #
+    # ROUTED THROUGH THE TURN'S VOICE, never `VoiceOut.speak`: it must QUEUE
+    # BEHIND this pass's own ack instead of cutting across live audio, which is
+    # what `refuse_for_budget`'s `speak` parameter exists for. It runs LAST, so
+    # it can neither reorder draw-then-speak nor delay the ack.
+    if turn_voice is not None:
+        spoken = router.confirm_gate.take_spoken_request()
+        if spoken:
+            await turn_voice.speak_or_feed(spoken)
     return PassServiced(read_results=tuple(read_results),
                         run_result=run_result, nav_result=nav_result)
 

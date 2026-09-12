@@ -133,7 +133,15 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # file at 293 is exactly the state `broker/docs/service.py` was in when it
     # crossed the law in silence. Declaring it is the fix; extracting is a
     # separate decision if a later task needs the room.
-    ("kernel/turn_pass.py", 293),
+    # 293 -> 294, DECLARED (DEC-138): ONE line — `turn_voice` passed into
+    # `service_pass_calls` so the KERNEL can speak its approval request. The
+    # seam was MEASURED against the alternative before it was chosen: putting
+    # the speech HERE cost +16 and breached the LAW, so the utterance lives in
+    # `pass_servicing.py` and this file only hands the voice across. A +0 form
+    # existed (appending the kwarg to the call's existing tail) and was
+    # REFUSED on DEC-66's precedent — a pin that reads 293 because a line was
+    # stuffed is a lie in the pin. SIX lines of headroom remain.
+    ("kernel/turn_pass.py", 294),
     # 269 -> 300 at `702f9d1` (2026-08-06), UNDECLARED, landing the file exactly
     # ON the limit — where nothing read it for thirteen days. AGENTS.md said
     # `~269`, which was TRUE WHEN WRITTEN at `1520c26` and went stale at that
@@ -185,7 +193,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # rejected (`_Pending` left 307, still a breach; relocating the one-shot
     # accessor fits on size but has no coherent home; shortening docstrings is
     # what the law's second clause forbids).
-    ("trust/confirm_gate.py", 255),
+    # 255 -> 290, DECLARED (DEC-138 step 2): the one-shot utterance slot, the
+    # accessor that hands it over and clears, the single canonicalisation at
+    # the refusal, and the two sibling imports. The file fits ONLY because the
+    # binding left in step 1 — measured at 314 with the feature applied and
+    # the binding still here. TEN lines of headroom.
+    ("trust/confirm_gate.py", 290),
     # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
     # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
     # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.

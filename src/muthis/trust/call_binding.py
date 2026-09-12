@@ -43,19 +43,40 @@ import json
 from typing import Any, Mapping
 
 
-def call_fingerprint(tool: str, args: Mapping[str, Any]) -> str:
-    """The pin: sha256 over the tool name + its CANONICAL arguments.
+def canonical_call(tool: str, args: Mapping[str, Any]) -> tuple[str, str]:
+    """The CANONICAL BYTES and the fingerprint over them — ONE canonicalisation.
 
     `sort_keys` makes two equal argument dicts hash equal whatever order the
     stream produced them in; `default=str` keeps an exotic value from raising.
     A value that defeats even that falls back to `repr`, which is
     insertion-ordered — so the worst case is two equal calls hashing apart, i.e.
-    a re-confirmation (friction), never two different calls hashing together."""
+    a re-confirmation (friction), never two different calls hashing together.
+
+    RETURNING THE CANONICAL STRING ADDS NOTHING TO WHAT ANY GATE HOLDS
+    (DEC-138). It was always computed here and thrown away as a local; handing
+    it back lets the SPOKEN request be derived from the bytes that were HASHED
+    rather than rendered a second time from the dict. No caller stores more
+    than it did before — there is no retention, because there is no gap
+    because there is no gap between knowing and speaking. WHY a second
+    rendering diverges anyway is `confirm_gate_speech.py`'s subject.
+
+    THE HASH IS UNCHANGED BY THIS EXTENSION, and that is the point of its
+    having landed in a separate commit: the preimage is still `tool` + newline
+    + canonical, byte for byte, and `tests/test_call_binding.py` was written
+    against the MOVE and passes here untouched."""
     try:
         canonical = json.dumps(args, sort_keys=True, ensure_ascii=False, default=str)
     except Exception:  # noqa: BLE001 — a gate must never raise into a turn
         canonical = repr(args)
-    return hashlib.sha256(f"{tool}\n{canonical}".encode("utf-8")).hexdigest()
+    return canonical, hashlib.sha256(
+        f"{tool}\n{canonical}".encode("utf-8")).hexdigest()
 
 
-__all__ = ["call_fingerprint"]
+def call_fingerprint(tool: str, args: Mapping[str, Any]) -> str:
+    """The pin, unchanged: the fingerprint half of `canonical_call`. Kept at its
+    own name because it IS the binding, and a caller wanting only the hash
+    should not have to know a canonical form exists."""
+    return canonical_call(tool, args)[1]
+
+
+__all__ = ["call_fingerprint", "canonical_call"]

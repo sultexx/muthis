@@ -107,7 +107,12 @@ from .confirm_gate_notes import (  # noqa: F401 — re-export, kept at its old h
 # and proven so by hash. It left because it gained a SECOND CONSUMER, not because
 # of the ceiling: the same canonical bytes are hashed here and SPOKEN by
 # `confirm_gate_speech.py`, and a mechanism with two consumers belongs to neither.
-from .call_binding import call_fingerprint  # noqa: F401 — re-export, old home
+from .call_binding import call_fingerprint, canonical_call  # noqa: F401 — re-export
+# ─── The KERNEL'S OWN SPOKEN REQUEST ─────────────────────────────────────────
+# `confirm_gate_speech.py` (DEC-138). Its own module because the renderer needs
+# `json` and the notes module is import-locked to `__future__` and `typing` by
+# its own guard — which is never lowered to let work through.
+from .confirm_gate_speech import spoken_request  # noqa: F401 — re-export
 
 logger = logging.getLogger("muthis.trust.confirm_gate")
 
@@ -138,11 +143,32 @@ class ConfirmGate:
         # nothing else — it never affects WHETHER a call is refused, which is
         # why widening the accepted set and this flag are separate rulings.
         self._missed = False
+        # DEC-138: the kernel's OWN utterance for the refusal just taken, built
+        # from the canonical bytes and handed over ONCE. None whenever nothing is
+        # outstanding to say — which is every state but "refused, not yet
+        # spoken", so a pass that refuses nothing can never speak.
+        self._spoken: Optional[str] = None
 
     @property
     def pending_tool(self) -> Optional[str]:
         """The tool awaiting approval, for tests and logs — never the args."""
         return self._pending.tool if self._pending is not None else None
+
+    def take_spoken_request(self) -> Optional[str]:
+        """The kernel's approval request, handed over ONCE and cleared.
+
+        ONE-SHOT, AND THAT IS THE WHOLE OF THE S3 CASE. A pass can carry several
+        refusable calls; only the first is dispatched (`turn_pass.py`'s
+        first-router-call-wins rule), but nothing stopped a future caller from
+        looping. Clearing on hand-over makes "spoke twice for one pass"
+        unrepresentable rather than merely unusual.
+
+        IT IS NOT `pending_tool`-SHAPED AND MUST NOT BECOME SO: a pending state
+        SURVIVES the utterance (it is what the next turn's approval matches), so
+        a reader keyed on the pending would speak the same request every pass —
+        DEC-131's loop, rebuilt on the other side of the mouth."""
+        spoken, self._spoken = self._spoken, None
+        return spoken
 
     @property
     def awaiting_approval(self) -> bool:
@@ -215,11 +241,12 @@ class ConfirmGate:
         separate call — `docs__open` does, and is not high-impact (DEC-134)."""
         if not (high_impact and tainted):
             return None
-        fingerprint = call_fingerprint(tool, args)
+        canonical, fingerprint = canonical_call(tool, args)
         pending = self._pending
         if pending is not None and pending.approved and pending.fingerprint == fingerprint:
             self._pending = None      # SINGLE-USE: consumed the moment it matches
             self._missed = False      # nothing outstanding to explain any more
+            self._spoken = None       # nothing outstanding to SAY either
             logger.info("[confirm-gate] approved call released: %s", tool)
             return None
         # Any mismatch — no pending, not yet approved, or DIFFERENT arguments —
@@ -232,6 +259,12 @@ class ConfirmGate:
                     "approval%s", tool,
                     " (RETRY: last utterance matched no approval word)"
                     if self._missed else "")
+        # DEC-138: the USER-facing half, built HERE because this is the only
+        # place holding the canonical bytes and the fingerprint together.
+        # `spoken_request` is handed `canonical` and NEVER `args`, so it is
+        # structurally unable to describe a payload the fingerprint does not
+        # cover — the divergence is an absence of means, not a check.
+        self._spoken = spoken_request(tool, canonical, APPROVAL_WORDS_AR)
         return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._missed)
 
 
@@ -247,9 +280,11 @@ __all__ = [
     "MAX_ARG_CHARS",
     "REFUSE",
     "call_fingerprint",
+    "canonical_call",
     "confirm_note",
     "detect_confirmation",
     "render_args",
     "render_words",
+    "spoken_request",
     "strip_directive_lines",
 ]

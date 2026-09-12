@@ -85,7 +85,11 @@ def test_the_map_describes_the_WHOLE_file_including_what_was_NOT_delivered():
     out = _read(SRC / "kernel" / "turn_pass.py")
 
     assert TRUNCATION_NOTE_AR.strip() in out, "turn_pass.py no longer truncates — re-pick the fixture"
-    assert "consume 139-290" in out
+    # 290 -> 291 (DEC-138): `consume` gained ONE line, the `turn_voice` seam
+    # passed into `service_pass_calls`. A COORDINATE moved; the property this
+    # test states — the map describes a tail the reader never delivered — is
+    # untouched, and the delivered/total span below is what proves it.
+    assert "consume 139-291" in out
     delivered_tail = out.split(MAP_HEADER_AR)[0]
     assert "   290 |" not in delivered_tail, "line 290 WAS delivered — the fixture stopped truncating"
 
