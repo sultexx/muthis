@@ -17067,3 +17067,264 @@ request that names all four words, the retry note, twelve pins and 2,060 tests �
 end, and no number of green tests changes that until the branch runs.
 
 ---
+
+## DEC-138 (2026-09-12) — **THE KERNEL SPEAKS THE APPROVAL REQUEST, AND IT SAYS THE BYTES IT HASHED.** Option ③ ruled after four live `luna` sessions showed the capability gating itself · DEC-132's blocker DISSOLVED — the canonical bytes were already computed at refusal and thrown away, so there is no retention because there is no gap between knowing and speaking · the divergence was FOUR axes, TWO of them on values under any bound, so lifting a truncation bound would have fixed nothing · TWO seams, both MEASURED before either was picked — RULED (Sultan), **EXECUTED in two commits.** **2,085 green (2,060 + 9 + 16), SEVENTEEN mutations RED, five files BYTE-IDENTICAL.**
+
+Commits: **`b8a5077`** (step 1, the extraction) and **`c6c8a21`** (step 2, the build). Evidence is
+`~/.muthis/logs/muthis.log` `:1489-1691` — four sessions, all `[cloud] reasoner=luna model=gpt-5.6-luna`.
+Bare `:N` line numbers below are that file's.
+
+---
+
+## ① WHAT THE FOUR SESSIONS SHOWED — THE CAPABILITY GATES ITSELF AFTER ONE USE
+
+Every session is the same shape: `#1 web__search` succeeds → `[session-taint] session TAINTED by
+web_research` → `#2` REFUSED. The mechanism is exact and it is a composition of two signed rulings,
+not a defect: `tool_router.py:255-259` asks the gate with the taint state **before** the call, and
+`:209` raises the taint inside `_outcome_for`, reached **after** `_execute_route`. `mount_web_research`
+grants `net.fetch`, so `high_impact`'s capability arm fires **unconditionally** — `read_only_hint`
+cannot reach it, which is why `doc_rag`'s cure was structurally unavailable here.
+
+**`SessionTaint` has no clearing path, so the bound is not per turn — it is ONE OUTWARD CALL PER
+PROCESS.** N sources need N−1 spoken approvals, each single-use and bound to that call's hash.
+
+**IT WAS ANTICIPATED, PINNED, MEASURED ONCE, AND THE MEASUREMENT GENERALISED ON A CONDITION IT NEVER
+NAMED.** `tests/test_web_servicing.py:236` carries it by name —
+*"pinned because it surprised this commit's own test"* — and the **T7 ACCEPTANCE QUESTION
+(2026-07-29)** recorded it as *"the COMPOSITION of two signed rulings, not a defect."* That question
+was answered at M2 close: **"ZERO. No friction."** Its stated condition was the PROVIDER. Its
+UNSTATED condition was **"the model makes exactly one outward call per session"** — and all four
+sessions break it with the provider unchanged at Tavily.
+
+**DEC-51 NAMED THE SELF-GATING SHAPE AND CURED IT FOR ONE CAPABILITY ONLY.** Its technical clause says
+`taint=True` alone *"would make `doc_rag` gate ITSELF"*, calls that an absurdity, and its arithmetic
+table then records `web_research` as **"True — unchanged"** in the adjacent row. DEC-15 holds both
+facts two sentences apart and never draws the consequence; DEC-16 never reaches it.
+
+### THE TRACE THAT EXPLAINED A "STALE" ANSWER — CORRECT BEHAVIOUR, RECORDED AS SUCH
+
+`:1633-1642` — `web__search` → `status=200` → `results=5` → TAINTED → `#2 web__fetch` REFUSED →
+`#3 tools=-`. It searched, held five results, reached for a source to VERIFY before asserting, was
+refused by an authorization gate, and hedged. `raise_taint` logs once per process, so the taint line
+appearing **after** the search is proof the search was dispatched. **DEC-106's shape holding outside
+its domain.** Two bounds: which URL it reached for is not recoverable (arguments never logged), and
+what it said on the forced pass is not in the log either.
+
+### THE OTHER THREE OBSERVATIONS
+
+- **`:1541` `results=0`** — a successful search that found nothing. The "I can't" was CORRECT there,
+  and the *second* search — the reformulation zero results demand — is exactly the call the gate forbids.
+- **`:1592` `tools=web__search,web__search,web__search`** — ONE refusal logged, and **one refusal did
+  not cover three.** `turn_pass.py:211-213` dispatches the FIRST router-serviced call only; the other
+  two were answered BY NAME with `WEB_ONE_PER_PASS_AR` and never reached the gate at all. That note
+  says *"ask again in the next step"* — and the next pass is FORCED to `tool_choice="none"`, so it
+  **invited a retry the API forbade**. DEC-58's shape inside an authorization surface, and DEC-55's
+  linear-reading defect with the weaker instruction holding 2-of-3 of the message. **Diagnosed, not fixed.**
+- **`:1515` the 90 s bound pre-empted the forced pass**, so the directive was generated and no pass
+  ever existed in which it could be spoken. **This one is closed by the fix below, and that was not a
+  design goal.**
+
+---
+
+## ② THE RULING — OPTION ③, THE KERNEL SPEAKS
+
+Sultan's grounds: he will not weaken the taint by letting web search over tainted content proceed
+unapproved, and option ① constrains multi-source research too severely.
+
+### THE HYPOTHESIS THAT DISSOLVED DEC-132'S BLOCKER — HALF CONFIRMED, HALF REFUTED
+
+**HALF ONE, CONFIRMED AND STRONGER THAN IT WAS PUT.** DEC-132 blocked the messenger on *"the kernel
+does not hold the ARGUMENTS, and retaining them changes WHAT THE GATE HOLDS."* The canonical string
+was **already computed at fingerprint time and discarded as a local**. So the design needs something
+that already existed and was thrown away: **no retention, because there is no gap between knowing and
+speaking.** `_Pending` still stores `fingerprint`, `tool`, `approved` and nothing else.
+
+**HALF TWO, REFUTED — and the record is not log-scoped.** DEC-28 is a logging policy; **DEC-20 is
+not.** It names a *"VoiceOut privacy boundary"*, makes the domain badge a *"NARROW, EXPLICIT
+exception"* to it restricted to DOMAIN ONLY *because a URL can carry the user's private query*, and
+`voice_out.py:144-146` declares in code *"never the user transcript, never tool JSON."*
+**The rescue is that `CONFIRM_DIRECTIVE_AR` has ORDERED the model to say the arguments aloud since
+DEC-95 — so ③ changes the AUTHOR, not the audibility.**
+
+### THE FOUR DIVERGENCE AXES — the finding that decided the shape
+
+Measured against the real `render_args`, not supposed:
+
+| axis | canonical (hashed) | `speakable` | `render_args` |
+|---|---|---|---|
+| bool | `{"deep": true}` | `deep=true` ✓ | `deep=True` ✗ |
+| None | `{"x": null}` | `x=null` ✓ | `x=None` ✗ |
+| nested dict | `{"opts": {"a": 1}}` | `opts={"a": 1}` ✓ | `opts={'a': 1}` ✗ |
+| newline | `{"code": "print(1)\nprint(2)"}` | `code="print(1)\nprint(2)"` ✓ | `code=print(1) print(2)` ✗ |
+
+**TWO OF THE FOUR BITE ON VALUES FAR UNDER ANY BOUND, so lifting a truncation bound would have fixed
+NOTHING.** And the round trip is not optional: `json.loads` turns `true` back into `True`, and
+`str(True)` would reintroduce axis one **inside the fix meant to remove it** — so each value is
+RE-ENCODED.
+
+### THE PROPERTY IS AN ABSENCE OF MEANS, NOT A CHECK
+
+**`speakable` is handed the canonical STRING and never the argument dict**, so it is structurally
+unable to describe a payload the fingerprint does not cover. `step_verification.py`'s shape:
+`RESULT_PROVEN` is unrepresentable without evidence rather than rejected by a check. The test that
+says so asserts the SIGNATURE, and the mutation that breaks it cannot be written without changing
+that signature.
+
+---
+
+## ③ G5 — THE CAPTION IS A NARROW, EXPLICIT EXCEPTION, SCOPED TO THIS SURFACE ALONE
+
+**No speech path in the tree can suppress its caption.** `VoiceOut.speak` captions at its first
+statement (`:151`), `TurnVoice._feed` captions every sentence (`:286`), and `show_caption`'s only
+suppressor is the process-wide `MUTHIS_CAPTIONS` flag. DEC-20 refused a query-bearing URL on that
+exact surface. **Sultan ruled the exception on four grounds, all four recorded in the module:**
+
+1. **DEC-20 ruled on an UNREQUESTED surface.** The badge is informational decoration; this is an
+   AUTHORIZATION DECISION, and hiding it means approving what you cannot see.
+2. **The arguments are already ordered spoken**, so suppressing the caption hides them from the eye
+   while leaving them in the ear — a contradiction, not a protection.
+3. **The caption is EPHEMERAL** — no disk, no bug report. DEC-61's own permanence-and-audience test.
+4. **The alternative is worse**: a decision that can be heard but not read leaves a user who mishears
+   with no recourse.
+
+**IT GENERALISES TO NO OTHER KERNEL SPEECH, AND DEC-20'S BADGE RULING STANDS UNCHANGED.**
+
+---
+
+## ④ THE ABBREVIATION LIMIT — A DECLARED PREFIX, AND THE LIMIT IS RECORDED HONESTLY
+
+A trailing «…» is **INAUDIBLE**, so the cut `render_args` makes is silent to the ear. A cut spoken
+value now declares three things: **THAT** it was cut, **HOW MANY** characters were not spoken, and
+**WHICH** argument is partial — argument NAMES are never abbreviated, only their values.
+
+> **THE LIMIT, RECORDED RATHER THAN HIDDEN: approval attaches to the FULL canonical bytes, of which
+> the user heard a DECLARED prefix.** That is a real reduction of the same class DEC-16 recorded for
+> the messenger. **Refusing to gate an over-long call — making it unapprovable rather than partially
+> described — is NOT TAKEN.**
+
+---
+
+## ⑤ WHAT IS NOT TAKEN, AND WHY EACH IS A SEPARATE RULING
+
+- **NO RETRY FORM for the spoken request.** The two-constant split exists because the MODEL might not
+  relay; **the kernel always relays, so the case the split covers cannot arise.** A wrong word is
+  still answered by the existing textual retry note. One voice, one constant.
+- **`CONFIRM_DIRECTIVE_AR` IS BYTE-IDENTICAL** (DEC-42). `claude` DOES relay, so deleting the order
+  breaks what works; on `luna` the duplicate cannot occur, because it does not relay. **The possible
+  duplication is a MEASURE-AFTER item, not an assumption before.**
+- **UTTERANCE ③ IS NOT SUPPRESSED** — DEC-132 declined it twice and it stays separate. **The measured
+  cost is recorded: on `luna` the model currently spends that pass apologising and answering from
+  memory, so the user will hear a correct request undermined by the voice that speaks LAST.** A known,
+  recorded cost of this design, not an oversight.
+- **THE APPROVAL TREADMILL IS UNTOUCHED, and this must not be mistaken for a fix.** Who speaks the
+  request has no bearing on whether the model's next call hashes the same. It fixes WHO ASKS; it does
+  not fix WHAT THE APPROVAL ATTACHES TO.
+- **DEC-97's counter is untouched.** Distinguishable ≠ finite. It belongs to the retry-family ruling.
+
+### TWO KNOWN GAPS, RECORDED RATHER THAN DESIGNED AWAY
+
+- **BARGE-IN.** F9 between the model's ack and the kernel's request silences the request while the
+  pending SURVIVES (it is cleared only by `observe()` on the next turn's transcript), so the next turn
+  issues the RETRY note: **a user who was never asked is told his utterance matched no approval word.**
+  DEC-136 ③'s `_missed` firing on someone who was never asked.
+- **THE ECHO GUARD.** `speak_or_feed` consumes the one-shot `EchoGuard` and re-arms only under
+  `ECHO_GUARD_MAX_CHARS = 40`, which the request far exceeds — so inserting utterance ② **disarms the
+  pass-echo suppressor for pass N+1**. Cosmetic. The only alternative route runs through
+  `turn_voice.py` at 300/300 — a STOP, not a judgement call.
+
+---
+
+## ⑥ THE TWO SEAMS — BOTH MEASURED BEFORE EITHER WAS PICKED
+
+**G1 STOPPED THE FIRST ATTEMPT, and the measurement is why.** The honest in-house-style call site in
+`turn_pass.py` measured **+17 → 310**, a breach of the LAW against seven lines of headroom; only a
+2-comment-line form fit, and the neighbouring badge block carries ELEVEN comment lines for three code
+lines, so fitting that way is compression. A second blocker was structural and not a line count:
+`speakable` needs `json`, and **`confirm_gate_notes.py` is import-locked to `{__future__, typing}` by
+its own guard** — run against the measured file rather than reasoned about.
+
+| seam | measured | verdict |
+|---|---|---|
+| **(e)** the speech in `confirm_gate_speech.py` | **145 lines, 155 headroom** | **RULED.** `confirm_gate_notes.py` comes out **BYTE-IDENTICAL** — the locked file is not touched, and its guard is not lowered, not relaxed, not read. |
+| (f) relax the notes guard to admit `json` | — | **REFUSED OUTRIGHT.** A guard is never lowered to let work through. |
+| **(i)** speak from `pass_servicing.py` | **turn_pass +1 → 294** | **RULED by measurement.** |
+| (j) `PassServiced` carries it, `turn_pass` speaks | **+16 → 309** | **ELIMINATED — breaches the LAW by nine.** |
+| (i) packed onto the call's tail | +0 → 293 | **REFUSED on DEC-66's precedent** — *"a pin that reads 298 because a line was stuffed is a lie in the pin."* |
+| **(a)** the BINDING to `call_binding.py` | **314 → 287** | **RULED.** The only measured survivor. |
+| (b) extract `_Pending` | 307 | **still a breach** |
+| (c) relocate the one-shot accessor | 294 | fits on size, **no coherent home** |
+| (d) shorten docstrings | — | **forbidden by the law's second clause** |
+
+### WHY (a) IS RIGHT RATHER THAN MERELY FORCED — and a withdrawn argument
+
+Sultan's three grounds: the canonicalisation is a **MECHANISM, not a policy** — the same bytes
+whichever gate consumes them; it now has **TWO CONSUMERS**, the gate that hashes and the speech that
+says the same bytes, which is the argument behind every extraction this project has made; and the
+resulting module is **pure and stateless**, so it is testable alone and guardable by hash.
+
+**THE ARGUMENT AGAINST IT WAS MINE AND I WITHDREW IT.** G1 reported that (a) *"cuts against DEC-42."*
+It does not: DEC-42 protects a property that **stays byte-identical while the weaker one is worked
+on**, and the binding is itself being EXTENDED — it must return the canonical string for the design
+to exist at all — so byte-identical was never available for it. **Sultan recorded that he would have
+refused (a) on the strength of the original framing.** A wrong reason for a right constraint costs a
+correct decision.
+
+### THE MOVE IS PROVEN, NOT ASSERTED
+
+Step 1 is a MOVE ONLY. The function was **SPLICED from the source rather than retyped**, and its
+**814 bytes / 13 lines hash to `0a3166b3acf59d1c…` in both homes.** `confirm_gate.py` drops
+`import hashlib` and `import json`, which existed there for that function alone — a test asserts
+their absence, because their survival would mean a copy was left behind.
+
+---
+
+## ⑦ WHAT LANDED
+
+| file | before | after | |
+|---|---|---|---|
+| **`src/muthis/trust/call_binding.py`** | NEW | **82** | the binding, extracted then extended |
+| **`src/muthis/trust/confirm_gate_speech.py`** | NEW | **145** | the kernel's spoken request |
+| `src/muthis/trust/confirm_gate.py` | 264 | **290** (255 after step 1) | **PIN MOVED, DECLARED** |
+| `src/muthis/kernel/pass_servicing.py` | 205 | **233** | the utterance's home |
+| `src/muthis/kernel/turn_pass.py` | 293 | **294** | **PIN MOVED, DECLARED** — one line |
+| `kernel/tool_router.py` · `turn_voice.py` · `voice_out.py` · `trust/confirm_gate_detector.py` · `trust/confirm_gate_notes.py` | | | **ALL BYTE-IDENTICAL** |
+
+**TWO GUARDS OUTSIDE THIS FEATURE WERE REDDENED AND DECLARED RATHER THAN LOOSENED.** The symbol map's
+`consume` coordinate moved 290 → 291 (a COORDINATE, not the property). The servicer's parameter set
+gained `turn_voice` and was **kept EXACT rather than made a subset check** — an exact set is what
+makes *"a parameter was added without anyone considering it"* impossible, which is the whole value of
+that assertion.
+
+**THE PIN COUNT STAYS TWELVE.** `call_binding.py` (82) and `confirm_gate_speech.py` (145) are NOT
+pinned — both have wide headroom, and a pin is a ruling. **`confirm_gate_speech.py` is a DESTINATION
+for spoken surfaces, which is `deferral_notes.py`'s and `confirm_gate_notes.py`'s argument, so it is
+the likely next candidate. Recorded, not taken.**
+
+### GUARDS: 2,085 green (2,060 + 9 + 16). SEVENTEEN mutations, each asserted APPLIED before its run, all RED
+
+Step 1 (6): the re-export dropped · the re-export turned into a copy · the tool name removed from the
+preimage · `sort_keys` dropped · a hashing import left behind in the gate · the ceiling pin made not
+to fire.
+
+Step 2 (11): `speakable` handed the args dict · values stringified instead of re-encoded · the cut
+silenced · the release comparing the TOOL instead of the fingerprint · the release not consuming ·
+only the lead word offered · the one-shot handing over repeatedly · the utterance taking
+`VoiceOut.speak` directly · the kernel speaking on every pass · `turn_pass` no longer handing the
+voice across · a released call leaving a request behind.
+
+### A STALE ROW FOUND ON THE WAY PAST — THE FOURTH INSTANCE
+
+`AGENTS.md`'s row for `kernel/pass_servicing.py` read **173 for a 205-line file** — stale by 32
+**before DEC-138 touched it**, and found only because this ruling had to write a number into that
+cell. It is the same defect as `broker/docs/service.py` (which crossed the LAW in silence),
+`persona_rules.py` (which understated by 161 and kept warning about headroom already bought),
+`trust/confirm_gate.py` (300 declared as ~269 for thirteen days) and `confirm_gate_notes.py` (209
+declared as 99). **A count in a row nobody re-reads decays in whichever direction, and the direction
+never matters.** Corrected to 233 with the staleness recorded IN the cell rather than silently
+overwritten. The file is NOT pinned — 67 lines of headroom, and a pin is a ruling.
+
+**AND THE ACCEPT BRANCH STILL HAS NEVER RUN LIVE.** `[confirm-gate] approval heard` appears ZERO times
+across the whole durable log — now 26 sessions. **Everything above is proven by this suite and by
+nothing else, and the first live run is what settles whether the user is finally asked.**
+
+---
