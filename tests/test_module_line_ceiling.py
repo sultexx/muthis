@@ -174,7 +174,18 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # discipline governs a NOTES change, and here the stronger property is the
     # one under the ruling. Every name is re-exported, `_APPROVALS`/`_REFUSALS`
     # included, so `test_mode_exits.py` and six other call sites are untouched.
-    ("trust/confirm_gate.py", 264),
+    # 264 -> 255, DECLARED (DEC-138): the BINDING left for `call_binding.py`,
+    # and this is the first arrival at this pin that became an extraction for a
+    # reason OTHER than room. `canonical_call` must return the canonical string
+    # so the kernel can SPEAK the bytes it hashed, which gives the
+    # canonicalisation a SECOND CONSUMER — and a mechanism with two consumers
+    # belongs to neither of them. The ceiling relief is a consequence of the
+    # right seam, not the argument for it: DEC-138 measured this file at 314
+    # with the feature applied, and the three other reliefs were measured and
+    # rejected (`_Pending` left 307, still a breach; relocating the one-shot
+    # accessor fits on size but has no coherent home; shortening docstrings is
+    # what the law's second clause forbids).
+    ("trust/confirm_gate.py", 255),
     # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
     # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
     # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.

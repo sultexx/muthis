@@ -37,7 +37,9 @@ that carries no approval, and an explicit refusal clears it at once.
 Its three rulings are a wider accepted SET (the detector), a request that names
 every word in it (the notes), and a SECOND refusal note for a heard-but-not-
 approving utterance (`_missed`, below). The fingerprint, the single-use rule, the
-expiry and the refusal condition are byte-for-byte what they were. It is a
+expiry and the refusal condition are byte-for-byte what they were. It is a The canonical form and the hash
+over it live in `call_binding.py` since DEC-138; nothing about the binding
+changed with the move.
 detection-surface and wording change, not a loosening.
 
 HONEST LIMIT, recorded rather than hidden (DEC-16): the model is the MESSENGER.
@@ -81,8 +83,6 @@ model's context and never a log line.
 from __future__ import annotations
 
 import dataclasses
-import hashlib
-import json
 import logging
 from typing import Any, Mapping, Optional
 
@@ -102,23 +102,14 @@ from .confirm_gate_notes import (  # noqa: F401 — re-export, kept at its old h
     CONFIRM_DIRECTIVE_AR, CONFIRM_RETRY_AR, MAX_ARGS_CHARS, MAX_ARG_CHARS,
     confirm_note, render_args, render_words,
 )
+# ─── The BINDING, EXTRACTED ──────────────────────────────────────────────────
+# Moved to `call_binding.py` (DEC-138) — a MOVE ONLY, the function byte-identical
+# and proven so by hash. It left because it gained a SECOND CONSUMER, not because
+# of the ceiling: the same canonical bytes are hashed here and SPOKEN by
+# `confirm_gate_speech.py`, and a mechanism with two consumers belongs to neither.
+from .call_binding import call_fingerprint  # noqa: F401 — re-export, old home
 
 logger = logging.getLogger("muthis.trust.confirm_gate")
-
-
-def call_fingerprint(tool: str, args: Mapping[str, Any]) -> str:
-    """The pin: sha256 over the tool name + its CANONICAL arguments.
-
-    `sort_keys` makes two equal argument dicts hash equal whatever order the
-    stream produced them in; `default=str` keeps an exotic value from raising.
-    A value that defeats even that falls back to `repr`, which is
-    insertion-ordered — so the worst case is two equal calls hashing apart, i.e.
-    a re-confirmation (friction), never two different calls hashing together."""
-    try:
-        canonical = json.dumps(args, sort_keys=True, ensure_ascii=False, default=str)
-    except Exception:  # noqa: BLE001 — a gate must never raise into a turn
-        canonical = repr(args)
-    return hashlib.sha256(f"{tool}\n{canonical}".encode("utf-8")).hexdigest()
 
 
 @dataclasses.dataclass(frozen=True)
