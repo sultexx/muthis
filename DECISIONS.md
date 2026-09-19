@@ -17328,3 +17328,196 @@ across the whole durable log — now 26 sessions. **Everything above is proven b
 nothing else, and the first live run is what settles whether the user is finally asked.**
 
 ---
+
+## DEC-139 (2026-09-19) — **THE APPROVAL IS DESTROYED, NOT CONSUMED.** DEC-138's first live runs diagnosed from the source: a mismatched re-issue REPLACES the approved pending at `confirm_gate.py:255` · the accept branch HAS run live — once, and its call was released · three different mechanisms all sound like "approve → asked again" · the detector's fold set, and two 5-char transcripts one unfolded character apart · and THE INSTRUCTION INVENTORY: 106 clauses and 124 notes deletion-tested, with SAME-LENGTH FILLER as the method that separates a guard on the WORDS from a guard on the BYTES — the inventory APPROVED (Sultan), DIAGNOSED + RECORDED, **NOTHING RULED.**
+
+Evidence is `~/.muthis/logs/muthis.log` — Session A `:1701-1770` (process start #28) and Session B
+`:1921-1985` (start #31), both `[cloud] reasoner=luna model=gpt-5.6-luna`. Bare `:N` line numbers
+below that carry no file name are that log's. Docstring repair: **`1dceeb2`**. The full inventory —
+every clause and note row with the tests that guard it — is the artifact
+**https://claude.ai/artifact/TwEpdzFbGsxxuiAzB38F5Q** (private), the reference for every count below.
+**2,085 green before and after; `src/` touched only by the docstring repair.**
+
+---
+
+# RECORD 1 — THE DIAGNOSIS
+
+## ① THREE PREMISES CORRECTED — accepted by Sultan
+
+1. **`approval heard` is logged TWICE, not once.** `:1738` (Session A) is followed by `:1741
+   approved call released: web__search` and a search that ran (`results=5`): **DEC-16's accept
+   branch has executed live, once.** DEC-138's closing paragraph — *"the accept branch still has
+   never run live … now 26 sessions"* — **is SUPERSEDED by this entry**; five process starts
+   followed it, one with no turns.
+2. **`docs__query` has never run in the durable log** — 0 of 31 starts; all 8 zoned document opens
+   were `zone=inject`. Every trigger that needs retrieved passages has never fired in the record.
+3. **The linear-reading finding is DEC-84's measurement, not DEC-55's.** DEC-55 ③ recorded the
+   defect; DEC-84 recorded T7, where the EARLIER absolute beat the later scoping clause — primacy.
+
+## ② THE MECHANISM — AN ARGUMENT MISMATCH, AND THE APPROVAL IS DESTROYED
+
+Session B, turn 3: `:1975 approval heard for web__search` → `[pass] #1 tools=web__search` →
+`refused — awaiting spoken approval`. **Proven from the source, not inferred:** after an approval the
+refusal branch is reachable only when the fingerprints differ (`confirm_gate.py:246`); only
+`observe()` and `refusal_for()` write `_pending`, and `observe()` is one-shot per turn; the pass
+serviced ONE router call; the preimage is tool + canonical arguments (`call_binding.py:71-72`) and
+both calls are `web__search`. **The ARGUMENTS differed.** Which one cannot be known — arguments are
+never logged (DEC-20/28).
+
+**REPLACED, NOT CONSUMED.** Consumption exists only on a match (`:246-251`). On a mismatch `:255`
+overwrites the approved record with a fresh unapproved one — **nothing is spent; the approval is
+DESTROYED.** Three consequences, each a defect in its own right:
+
+- **a later IDENTICAL re-issue is refused** — nothing retains the approval;
+- **the model is never told an approval was heard** — it receives the first-refusal note, because
+  `_missed` is False after an approval;
+- **the log line is byte-identical to a first refusal** — the mismatch is visible only by its
+  adjacency to `approval heard`.
+
+(`awaiting_approval` is also True again, so the next pass is forced to text: no re-issue can happen
+in that turn in any case.)
+
+**WHY THE ARGUMENTS DRIFT.** No instruction in the prompt or in any note ORDERS an identical
+re-issue; the two «كما هي» in the confirm notes order the model to SAY the arguments. The nearest
+text is a rationale in `CONFIRM_RETRY_AR` alone — «فالإذن مرتبط بهذا الاستدعاء بعينه لا بغيره» — and
+in Session B the model had received exactly that note in turn 2, one turn before it drifted. **The
+schema admits semantic twins:** `max_results` is optional with default 5, so `{query}` and
+`{max_results: 5, query}` are the same search under two fingerprints (`45ce6e60…` and `71e81c22…`);
+`sort_keys` neutralises key order, never a default.
+
+**THE CONTROL IS SESSION A:** same model, same tool, a 5-char approval — the re-issued call MATCHED
+and was released. **The success path depends on the model re-composing byte-identical canonical
+arguments unprompted: 1 of 2 live.**
+
+**THE REMEDY FAMILIES — NAMED, NOT PROPOSED.** A consumption fix would target `:247`, and nothing
+is consumed there. The finding points at the single-slot replacement at `:255` (`_Pending`:
+*"Replaced, never queued"*) and at WHO re-composes the approved call — today the model, from
+scratch. Both are authorization rulings, and both are Sultan's.
+
+## ③ THREE MECHANISMS, ONE EXPERIENCE
+
+"I approve → it asks again" occurred three ways, indistinguishable from the chair:
+
+1. **The detector heard no accepted word** — Session B turn 2 (`no approval this turn` →
+   `refused … (RETRY …)`).
+2. **The approval was heard and DESTROYED by an argument mismatch** — Session B turn 3.
+3. **The approved call ran, and the NEXT outward call is a new call** — Session A: `web__fetch`
+   refused one pass after the released search. DEC-16's per-call binding, working as designed.
+
+## ④ WHAT THE KERNEL SPOKE — DEC-138'S SURFACE WORKED
+
+`SPOKEN_REQUEST_AR`, rendered from the canonical bytes the fingerprint covers: the tool, every
+argument JSON-encoded (strings in double quotes; `max_results=N،` first when present) and ALL FOUR
+accepted words — consistent with what Sultan heard. It is queued at the END of the refused pass
+(`pass_servicing.py:225-228`); the forced text pass speaks AFTER it, so the request is never the
+turn's last voice (DEC-138 ⑤'s recorded cost). Each refusal spoke a fresh request for THAT call:
+turn 3's was for the drifted arguments. **Both confirm notes still tell the model «وإن لم تقله الآن
+فلن يسمع المستخدم شيئاً» — untrue since DEC-138. Recorded, not changed: no note moves until the
+review is complete.**
+
+## ⑤ THE DETECTOR'S FOLD SET, AND TWO 5-CHAR TRANSCRIPTS
+
+Turn 2's 5-char transcript missed (the `None` branch — a refusal word logs «refusal heard»); turn
+3's matched. **The inputs differ ONLY in those five characters:** Session B carries no `[verbosity]`
+or `[mode]` line, and turn 3's barge-in note contains the marker and is stripped before matching
+(checked with the real detector). The count is `len()` of Scribe's `.strip()`ped text.
+
+`normalize_ar` folds exactly: tashkeel U+064B–U+0652, tatweel, أ/إ/آ → ا, ة → ه, Arabic-Indic
+digits, and NINETEEN punctuation marks (؟ ، ؛ ! ? . , : ; " ' ( ) [ ] { } « ») → space, with
+whitespace collapsed. **Nothing else.** So a MATCHING 5-char transcript is either a 5-letter accepted
+word up to hamza-alif folding, or «وافق» plus exactly ONE foldable character. **«وافق.» approves;
+«وافق…» does not** — U+2026 is outside the set. Seven such same-length pairs were run through the
+real `detect_confirmation`: ellipsis, hyphen, superscript alef U+0670, alef wasla U+0671, an
+invisible RLM U+200F, a zero-width joiner, and a different inflection («وافقت»). **Which case turn 2
+was cannot be known** — the log cannot separate a different word from the same word plus one
+unfolded character (DEC-17/28).
+
+## ⑥ SELF-TAINT, CONFIRMED
+
+Turn 1, pass #1: `web__search` in a CLEAN session — `refusal_for` needs BOTH conditions
+(`confirm_gate.py:242-243`) — ran, `results=5`, and raised the taint in the wrap branch
+(`tool_router.py:209`); pass #2's search was refused. **The gate was asked about the SECOND call; the
+results were in context before any request existed.** The same composition holds in Session A and
+in DEC-138's four sessions.
+
+## ⑦ THE INVENTORY — HEADLINE NUMBERS (every row: the artifact above)
+
+- **The prompt:** 15,926 chars, 24 headed sections, 106 clauses, unchanged since DEC-113
+  (2026-08-22). By file: `persona_laws.py` 34.0% · `persona_rules.py` 33.4% ·
+  `persona_laws_navigator.py` 16.1% · `persona.py` 9.6% · `persona_laws_code.py` 6.9%. V1 ended at
+  6,799; +9,127 since, the Navigator v2 window's +4,166 the largest. ≈10k tokens by extrapolation
+  from DEC-59's measured 6,588 — not re-measured.
+- **Around it:** 12 tool descriptions (8,682 chars, byte-pinned as a whole) on every pass; 124
+  model-facing notes (19,457 chars) conditionally.
+- **What each answers** — clauses: 44 MEASURED · 26 RULED-preventive · 4 KEEP-a-behaviour · **32
+  ORIGIN-UNKNOWN**; notes: 24 MEASURED · 46 RULED-preventive · **54 ORIGIN-UNKNOWN**.
+- **Guards** — clauses: **89 on their own WORDS · 17 on BYTES only · 0 none** (literally all 106 turn
+  the suite red when deleted, through one snapshot-delta byte proof); notes: **67 guarded · 57 can be
+  emptied with the suite green**, 29 of them directives. **C073 — the operative execute-first clause,
+  the one that lists «تأشّر على عنصر» and «تبحث» — is BYTES-only:** its heading is pinned, its words
+  are not.
+- **Conflicts:** ten pairs, K1–K10. Sultan's own example (K1) is DEC-51's ruled ACCEPTED CONSEQUENCE
+  surfacing — 12 of 12 outward attempts after a document opened, every one gated by the document's
+  taint — not a precedence in the text. K4 is the only pair with a MEASURED resolution, and it splits
+  by model. K5, K8 and K10 carry factual defects and were surfaced verbatim for ruling.
+- **Found, not ruled:** the execute-first law (C072–C077) has no ruling entry — its defect is DEC-96's;
+  its approval is recorded nowhere.
+
+---
+
+# RECORD 2 — THE METHOD: SAME-LENGTH FILLER SEPARATES A GUARD ON THE WORDS FROM A GUARD ON THE BYTES
+
+**THE PROBLEM IT SOLVES.** "Delete it and see whether the suite goes red" cannot say what a guard
+guards. The persona suite holds TWENTY whole-prompt BYTE proofs — sha256 of prefixes, the snapshot
+delta, the tail equality — that fail on ANY change at or before their depth, and a family of
+CONTENT tests that read a slice at a FIXED offset (`_delta()` is `prompt[CONST:]`), which fail
+whenever ANY earlier clause is deleted. A bare heading («لهجتك:») turned 21 tests red. **Deletion
+measures bytes and position, not words.**
+
+**THE METHOD.** Run TWO mutations per clause in a clone: DELETE it (the realistic edit), and
+REPLACE it with SAME-LENGTH FILLER (U+0640 per character, newlines kept), so every later offset is
+preserved. Under filler only two kinds of test can fail: the byte proofs — identified by READING
+them, never by how often they fail — and tests on THAT clause's own words. **SPECIFIC = the filler
+run's failures minus the byte proofs. BYTE-ONLY = red only through byte proofs. NONE = green.**
+
+**THE CONTROLS THAT MAKE IT MEAN ANYTHING:**
+
+- every mutation is verified to have LANDED — the constant's value re-derived from the mutated
+  source and compared with the expected value — before the suite runs (DEC-129: a mutation that
+  never lands looks precisely like one the code survived);
+- a no-op control run (2,085 green) and pristine baselines at the same parallelism;
+- any run slower than 120 s is re-run at normal load before it counts — the five that were re-run
+  produced IDENTICAL failing sets;
+- a clause whose template differs in length from its rendered text (C011, `{dims}`) cannot keep
+  offsets under filler; its slice tests were removed by hand, and the exception is recorded.
+
+**TWO HARNESS FACTS THAT COST A RUN TO LEARN.** `ast` column offsets are UTF-8 BYTES while
+`tokenize` columns are CHARACTERS: splicing Arabic source by the wrong one corrupts the file, and
+the landing check caught 116 of 124 note mutations before any suite ran. And beyond SIX parallel
+suites this machine slows ~15× and a PRISTINE clone failed one test (873 s): a load-sensitive test
+exists, so mutation campaigns run at six workers or fewer.
+
+**IT GENERALISES** to any suite that mixes byte proofs with content assertions over one shared text —
+the notes, the tool catalogue, any snapshot-pinned surface. **ITS LIMIT:** a SPECIFIC guard proves
+the WORDS are present, never that the behaviour holds, and several SPECIFIC note guards are generic
+properties ("is Arabic", "offers a path forward") that catch a deletion but not a rewording.
+**Recorded as a METHOD, not a law: AGENTS.md is untouched.**
+
+---
+
+## THE STATE THIS LEAVES
+
+- **Sultan's standing ruling (2026-09-19): no instruction is deleted or reworded until the inventory
+  review is complete.** This entry rules nothing and moves nothing.
+- **`1dceeb2`** repaired DEC-138's docstring damage, line-neutral with the 290 pin untouched: the
+  spliced sentence (`confirm_gate.py:40-43`), the doubled phrase (`call_binding.py:59-60`), and two
+  claims recorded as SUPERSEDED — "the ONLY channel" (by DEC-138) and "never run live" (by the log
+  above).
+- **FOUND AND LEFT**, outside that repair's named scope and awaiting instruction:
+  `confirm_gate.py:45-56` still files the kernel-authored confirmation as POST-LAUNCH research and
+  says the kernel-messenger case is NOT made; `:64-67` still describes a within-turn retry loop that
+  DEC-131's brake closed.
+- **OPEN, AND SULTAN'S:** the treadmill's remedy family (②) · the retry-family ruling
+  (`FILE_READ_ERROR_AR` + DEC-97's counter) · the ten conflicts, K5, K8 and K10 first.
+
+---
