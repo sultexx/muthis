@@ -17521,3 +17521,99 @@ properties ("is Arabic", "offers a path forward") that catch a deletion but not 
   (`FILE_READ_ERROR_AR` + DEC-97's counter) · the ten conflicts, K5, K8 and K10 first.
 
 ---
+
+## DEC-140 (2026-09-19) — **THREE FACTUAL CONFLICTS, CLASSIFIED: K5 IS A SCOPING DEFECT, K8 A RULING THAT MISSED SURFACES, K10 UNMEASURED.** Sultan's rulings on DEC-139's inventory · the record stays ONE entry · the no-change ruling governs MODEL-FACING instructions, so the remaining stale DOCSTRINGS were repaired (`f1c27aa`) · and which instructions in each conflict can fire LIVE, traced in the code and checked against the durable log — RULED (Sultan), RECORDED, **NO INSTRUCTION CHANGED.**
+
+Evidence is the code at `f1c27aa` and `~/.muthis/logs/muthis.log` (31 process starts). Bare `:N` line
+numbers below that carry no file name are that log's. The rows referred to are DEC-139's inventory,
+https://claude.ai/artifact/TwEpdzFbGsxxuiAzB38F5Q.
+
+---
+
+## ① THREE RULINGS ON THE RECORD ITSELF
+
+- **DEC-139 stays ONE entry.** Its method is citable by sub-section ("DEC-139, RECORD 2"), and the
+  ledger stays append-only.
+- **The standing no-change ruling governs MODEL-FACING instructions** — the persona and the notes.
+  Developer-facing docstrings are outside it: a stale one is the stale-declaration defect, repaired
+  by recording what superseded it. **`f1c27aa`** did so, line-neutral with the 290 pin untouched:
+  `confirm_gate.py:50-56` (the kernel-spoken case "NOT made" → SUPERSEDED by DEC-138, which built it
+  without touching `TurnVoice`; the limit recorded as BOUNDED, not gone) and `:65-70` (a retrying
+  model spending every pass → SUPERSEDED by DEC-131's brake; the refusal now recurs once per TURN).
+- **Three flags from DEC-139's review are ACCEPTED:** the never-lands rule is DEC-129's, not
+  DEC-128's; K8 is broader than the inject path — NO path has produced a document identifier since
+  DEC-71; and the two passages above, left alone by `1dceeb2` because they were outside its named
+  scope.
+
+## ② K5 — A REAL FALSE CLAIM WITH NO MEASURED HARM; THE FIX, WHEN RULED, IS SCOPING
+
+C014 (`persona_rules.py:34-39`; pre-ledger, `e29be66` + `926da52`) says «ما تقدر تضغط ولا تكتب ولا
+تنفّذ أي شيء» while `sandbox__run_code` is live and C100 (`persona_laws_code.py:55-57`, DEC-113) orders
+«فشغّله في الصندوق».
+
+- **The substance was never contradictory — only the wording is unscoped.** LOOK-only is about the
+  USER'S MACHINE: no click, no typing, no hotkey, no clipboard. The sandbox is an isolated container,
+  the one constitutionally approved execution carve-out (V2 Roadmap decision #0, DEC-3), which does
+  not relax LOOK-only for the user's machine.
+- **No measured harm.** DEC-113's D-3 — 18 extractions each run in the real sandbox, **17/18 ran and
+  17/18 were correct** — and three clean live runs of the file-path fixture in the durable log
+  (`01c041663ae4`, `exit=0 stdout=7`, at `:162`, `:313` and `:379`) show the model using the sandbox
+  correctly with C014 in its prompt.
+- **The fix, when ruled, is SCOPING, never deletion.**
+- **LOOK-ONLY IS THE PROJECT'S MOST LOAD-BEARING SAFETY CLAIM. Any change to its wording needs the
+  highest care and its own measurement before it lands.**
+
+## ③ K8 — THE CLEANEST DEFECT IN THE SET: A RULING THAT UPDATED SOME SURFACES AND MISSED OTHERS
+
+DEC-58 (2026-07-30) wrote `DOC_OPENED_ASK_NEXT_AR` and the «بنفس المعرّف» wording of
+`EMPTY_QUESTION_AR`; `DOC_NOT_OPEN_AR` («بهذا الاسم») dates from the M3 T4 mount the same day. DEC-71
+(2026-08-02) removed document identifiers and updated `INDEXED_AR` and the `docs__query` schema —
+**and not these three.**
+
+**Which can fire live** — traced in the code, checked against the log:
+
+- **`DOC_OPENED_ASK_NEXT_AR` — the only one reachable through a tool that runs live:** a pass that
+  calls `docs__open` TWICE, with no other routed read, defers the second open and answers it with this
+  note. It has not fired in the retained record: all 21 live `docs__open` passes were single.
+- **`EMPTY_QUESTION_AR` and `DOC_NOT_OPEN_AR` — reachable only through `docs__query`**
+  (`DocumentService.query`, and `_bind` beneath it), **which has never run in 31 starts.**
+
+## ④ K10 — REAL IN SHAPE, NOT UNIFORMLY BROKEN: IT NEEDS MEASUREMENT, NOT A RULING
+
+Five tool-result notes open with «توجيه داخلي (لا يراه المستخدم):» and then order speech to the user.
+C039's never-read-aloud rule binds literally only USER-MESSAGE lines opening «(توجيه داخلي»
+(DEC-95's finding), so these five rely on their own self-description, not on the clause.
+
+- **Measured SILENT once:** DEC-95's confirm directive — fixed there by removing the marker from that
+  one note.
+- **The speaking evidence, recorded as it stands.** Sultan's account is that `VERIFY_FALLBACK_AR`
+  produced the spoken Enter request in the Excel walkthrough. The ledger records the BEHAVIOUR —
+  DEC-123 ③: Mut'his «refused to treat the preview as committed and asked for Enter» — but not which
+  verification note was active, and the kernel logs no verification outcome (`[pass]` lines carry
+  tool names only). DEC-123's wording describes a NOT-COMMITTED judgement, which is the not-proven
+  path — `VERIFY_HOLDING_AR`, not one of the five. **The attribution to `VERIFY_FALLBACK_AR` is
+  Sultan's observation, not confirmed by the record, and is left for him to confirm or correct.**
+- **Sultan's classification: a blanket fix would be a change without evidence. K10 needs
+  MEASUREMENT, not a ruling.** It stands whichever note spoke in Excel.
+
+**Which of the five can fire live at all:**
+
+| note | reachable in production? | fired in the durable log? |
+|---|---|---|
+| `VERIFY_FALLBACK_AR` | yes — `navigator__verify` runs live | **unknowable** — the outcome is not logged |
+| `DOCKER_UNAVAILABLE_AR` | yes — whenever Docker is down when `sandbox__run_code` is called | no — Docker was reported down at starts #6 and #7; #6 made no call, and #7's call ran (`:312`, `exit=0` at `:313`) because Docker came up after the startup probe. Its earlier wording DID fire live, before the log existed: the three-`docker create` turn behind DEC-68's item 2 |
+| `SANDBOX_GATE_EXHAUSTED_AR` | only if one turn calls `sandbox__run_code` in all four passes (agentic cap 4, one run per pass, gate ≤3) | no — each of the six logged runs was alone in its turn |
+| `FETCH_GATE_EXHAUSTED_AR` | **NO, under the current composition.** It needs a 4th fetch to reach the plugin in one turn; the confirm gate refuses before dispatch, and with sticky taint at most ONE outward call executes per turn | no |
+| `EVIDENCE_DIRECTIVE_AR` | only on a serviced `docs__query` over an indexed document | no — `docs__query` never ran, and no document was ever indexed |
+
+---
+
+## THE STATE THIS LEAVES
+
+- **No instruction changed.** The persona and every note are byte-identical to DEC-139.
+- **For Sultan:** confirm or correct the `VERIFY_FALLBACK_AR` attribution (④).
+- **The next audit batch** — the ORIGIN-UNKNOWN split by first-commit date against the ledger — was
+  reported for ruling in the same session. It is not recorded here; it becomes a record when it is
+  ruled on.
+
+---
