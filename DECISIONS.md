@@ -17683,3 +17683,213 @@ the taint allows at most one outward call per turn.
 - The remaining audit surface was reported for Sultan to order; it is not recorded here.
 
 ---
+
+## DEC-142 (2026-09-19) — **THE AUDIT CLOSES, AND ITS LAST FINDING IS ABOUT THE LEDGER: A RECORDED PLAN WITH NOTHING ENFORCING IT FAILED THREE DIFFERENT WAYS.** The search notes are LIVE and their retry loop DORMANT · `NO_RESULTS_AR` leaves the blind-retry class by DEC-124 ②'s own standard, so the class is THREE notes and none has fired · DEC-141's citation corrected by appending · DEC-58's seven: five never carried, one blocked then dropped, one fixed in a DIFFERENT note — all byte-identical for 51 days · the ledger has applied DEC-58's obligations at TWO strengths · three entries corrected on DEC-58's reach · K2, K3, K6 and K9 are ONE instrument decision, and it is DEC-61's · the inventory review is COMPLETE — RULED (Sultan), RECORDED, **NO INSTRUCTION CHANGED.**
+
+Evidence is the code at `525a3f4`, `~/.muthis/logs/muthis.log` (31 process starts, unchanged since
+2026-09-18) and this file. Bare `:N` line numbers that carry no file name are the log's;
+`DECISIONS.md:N` is this file as it stood before this entry. The rows are DEC-139's inventory,
+https://claude.ai/artifact/TwEpdzFbGsxxuiAzB38F5Q.
+
+**PROVENANCE.** The report that DEC-141 ② and its closing state call "reported" was lost with the
+terminal before Sultan read it. It was recovered from the session transcript and RE-DERIVED from
+source and log rather than trusted: four of its claims did not hold, and each appears below in its
+corrected form. The first attempt at this entry then STOPPED before writing, because the premise it
+was given for ④ — "DEC-58's follow-up never ran" — was false for two of the seven. **2,085 green
+before and after; `src/` untouched.**
+
+---
+
+## ① THE SEARCH NOTES ARE LIVE AND THEIR RETRY LOOP IS DORMANT
+
+**A refused call never reaches them.** The gate refuses at `tool_router.py:257-266`, before
+`_execute_route` at `tool_router.py:276`, and the only caller of a search provider is
+`muthis_plugins/web_research/plugin.py:140`. The four notes come back only from a provider call that
+ran: `client.py:120` (timeout), `client.py:125/128/135` (transport error, unexpected error, status
+≥ 300), `client.py:140/143` (malformed), `protocol.py:207-211` (zero results).
+
+**They are NOT structurally dead, unlike `FETCH_GATE_EXHAUSTED_AR`.** A web call is always
+high-impact (`trust/high_impact.py:91-92`), and `confirm_gate.py:242-243` refuses only a call that is
+BOTH high-impact AND tainted, so a search executes in two cases: the process is still untainted, or the
+approved call is re-issued with matching canonical arguments and released (`confirm_gate.py:246-251`).
+**A refused search reaches the code that returns them once it is approved — and one did, live:**
+start #28, `:1726` refused → `:1738` approval heard → `:1741` released → `:1742-1743` the provider ran
+(`results=5`, so no note fired).
+
+**The retry they invite cannot form.** Every result from the web route raises the session taint,
+ERROR RESULTS INCLUDED — `is_error` deliberately does not gate it (`tool_router.py:195-209`) — and the
+taint has no clearing path for the life of the process (`session_taint.py:19-21`). The same-turn retry
+is therefore refused, and `awaiting_approval` forces the next pass to text
+(`highlight_gate.py:146-147`, read on every pass at `turn_pass.py:170`). **At most one outward call
+executes per turn; every further attempt costs a spoken approval.** DEC-124 ①'s shape — identical
+executed calls until the agentic cap — cannot form on this route.
+
+**THE LIVE RECORD.** 8 searches executed in 31 starts, all `status=200`. `SEARCH_TIMEOUT_AR`,
+`SEARCH_FAILED_AR` and `SEARCH_MALFORMED_AR` have NEVER fired; `NO_RESULTS_AR` fired ONCE, in S2 —
+process start #24, the second of the four luna sessions DEC-138 diagnosed (named S1–S4 in that
+session's report: starts #23–#26), and the log's only `results=0`:
+
+| log | what happened |
+|---|---|
+| `:1539-1541` | pass #1 `web__search`, `status=200`, `results=0` — a line written INSIDE `response_from` (`protocol.py:207`), whose next statement returns `NO_RESULTS_AR`: **the note fired** |
+| `:1542` | the EMPTY result raised the process's first taint |
+| `:1545-1546` | pass #2: another `web__search` — **refused** |
+| `:1548-1549` | pass #3 forced to text; the turn ends |
+| `:1558` | turn 2: a 34-char utterance matched neither an approval nor a refusal word — pending cleared |
+| `:1560-1563` | `web__search` again — **refused** with the RETRY note; forced text pass |
+| `:1565-1567` | the app was stopped |
+
+One search ran, two were refused, no loop formed. Arguments and speech are never logged, so whether
+the model rephrased cannot be known.
+
+**`FETCH_GATE_EXHAUSTED_AR` IS DEAD FOR DEC-140'S REASON AND NO OTHER.** The fetch cap DOES reset each
+turn — `composition.py:172` registers `web_plugin.new_turn` and `turn_pass.py:127` fires it — so a
+fourth fetch is unreachable only because at most one outward call executes per turn.
+
+## ② `NO_RESULTS_AR` LEAVES THE BLIND-RETRY CLASS — DEC-124 ②'S OWN STANDARD
+
+«جرّب صياغة ثانية» invites a DIFFERENT call — a reformulated query — not a repeat. DEC-124 ② rated
+that shape **"not a defect"**: `FILE_NAME_NOT_BARE_AR`, *"a correctable input, so a retry IS the
+valid move"*, and `TRUNCATION_NOTE_AR`, *"a retry with a RANGE is a different operation, not the same
+one"* (`DECISIONS.md:14765-14766`). DEC-138 had already named it *"the reformulation zero results
+demand"* (`DECISIONS.md:17116`).
+
+**THE BLIND-RETRY CLASS IS THREE NOTES, AND NONE HAS FIRED:** `SEARCH_TIMEOUT_AR` and
+`SEARCH_MALFORMED_AR` («جرّب مرة ثانية»), `SEARCH_FAILED_AR` («جرّب بعد شوي»). The one member of
+DEC-141's four that fired live is the one whose invitation is legitimate. Nothing is reworded.
+
+## ③ DEC-141'S CITATION, CORRECTED BY APPENDING
+
+DEC-141 ② (`DECISIONS.md:17659-17661`) calls the retry wording *"the phrasing DEC-125 measured"*.
+**DEC-125 measured nothing: it fixed `FILE_READ_ERROR_AR` BY ANALOGY** — *"`FILE_NOT_FOUND_AR`'s
+defect exactly"* (DEC-125 ①, `DECISIONS.md:14838`). **The live measurement is DEC-123 ④** — *"three
+identical `read_local_file` calls in one turn, all not found, consuming passes 1-3, with pass 4
+empty"* (`DECISIONS.md:14669-14670`) — **and DEC-124 ①**, which recorded it with the fix. DEC-141 is
+not edited: this entry supersedes that clause, and its "four members" now read THREE (②).
+
+## ④ A RECORDED PLAN WITH NOTHING ENFORCING IT — DEC-58'S FOLLOW-UP FAILED THREE WAYS
+
+DEC-58 (2026-07-30) listed seven notes as **"REPORTED, NOT FIXED — the post-milestone pass owns
+these"** (`DECISIONS.md:4601-4611`). **All seven are BYTE-IDENTICAL to their text at DEC-58's own
+commit, `329fe32` (2026-07-30 23:28):** the only later commits that touched their definitions,
+`4f20707` (DEC-70, "a pure move") and `8f6e06f` (DEC-113), moved them unchanged.
+
+**But "the follow-up never ran" is false for two of the seven.** The M3 report split the owed work in
+two (`docs/reports/phase2_m3_doc_rag.md:262-266`): the Phase-3 VOICE SURFACES, which took "the
+Docker-unavailable terminality note", and a "post-milestone NOTE pass", which took
+`WEB_ONE_PER_PASS_AR` "with the other owed ones". The voice-surface pass RAN on 2026-07-31
+(`1e1b8d0`, `DECISIONS.md:6003`). The note pass never did.
+
+| failure mode | notes | what the record shows |
+|---|---|---|
+| **NEVER CARRIED** into any pass | `PLUGIN_FAILED_NOTE_AR`, `UNROUTED_TOOL_NOTE_AR`, `KERNEL_SERVICED_NOTE_AR`, `FILE_READ_UNAVAILABLE_AR`, `FILE_BLOCKED_AR` | the note pass never ran. DEC-124 ② re-reported the last two on 08-30 (③ absent) and fixed neither |
+| **CARRIED, BLOCKED, UNBLOCKED — THEN DROPPED** | `WEB_ONE_PER_PASS_AR` | voice-surface item 5, BLOCKED by the ≤300 law: `tool_result_pairing.py` 298 → 330/300 (`DECISIONS.md:6086-6096`). DEC-70 (08-02) bought the room with a pure move: *"The web note fix itself is NOT in this commit — the extraction buys the room; the fix is a separate decision about a model-facing note"* (`DECISIONS.md:6280-6285`). That decision was never taken. DEC-138 re-diagnosed the note on 09-12: *"Diagnosed, not fixed."* |
+| **FIXED IN A DIFFERENT NOTE** | `RUN_CODE_UNAVAILABLE_AR` | DEC-58's row: *"this IS the Docker-unavailable finding, still open"*. Voice-surface item 2 fixed that finding in `DOCKER_UNAVAILABLE_AR` (`573d578`, "voice surface 2/5"); the note the row names never changed. **The row reads as handled — true of the FINDING, false of the NOTE it names:** `true-statement-false-mechanism`, now inside the governance ledger itself |
+
+**RE-REPORTING DID NOT HELP.** DEC-124 and DEC-138 each re-reported notes on the list and fixed none.
+**Fifty-one days standing** (07-30 → 09-19).
+
+**THIS IS THE AUDIT'S OWN "LAW WITH NO GUARD" PATTERN, APPLIED TO THE LEDGER ITSELF.** DEC-125 ⑧
+named it: *"an audit is an ACT and the law it establishes has no standing enforcement."* DEC-139's
+inventory measured it in the code — 57 notes a deletion leaves green, 17 clauses guarded only on their
+bytes. **A ledger line that assigns work to a later pass is the same shape:** it records an
+INTENTION, nothing fails when the intention is not carried out, and the entry reads as handled
+BECAUSE it was written down. **It generalises past these seven:** every "reported, not fixed", every
+"owned by the next pass", every deferral the ledger records is an intention with no guard. Recorded as
+a finding — no guard is built and no sweep of the ledger is opened here.
+
+## ⑤ THE TEN SHORT NOTES FAIL TWO OF DEC-58'S THREE OBLIGATIONS — BY THE LAW'S LETTER
+
+The ten are the shortest of the 25 post-ledger notes the ledger names nowhere (DEC-141 ②), 17–40
+chars: `STAGING_UNAVAILABLE_AR`, `TIMEOUT_AR` (sandbox), `BAD_LANGUAGE_AR`, `NO_CODE_AR`,
+`NET_ABSENT_AR`, `UNKNOWN_TOOL_AR` (web), `BAD_URL_AR` (web), `EMPTY_QUERY_AR` (web plugin and
+broker), `FETCH_FAILED_AR`. DEC-141 closed their ORIGIN, not their wording, and the note law binds
+every model-facing note (`AGENTS.md:755-772`). **None invites a retry. By the law's letter each names
+its condition (①), none closes the attempt or says what would change (②), and none names a next step
+(③).**
+
+**THE STANDARD ITSELF IS UNSTABLE, AND A READER MUST KNOW WHICH WAS APPLIED.** The ledger has applied
+DEC-58's obligations at TWO strengths. DEC-58's own table accepted an IMPLIED state: it graded
+`UNROUTED_TOOL_NOTE_AR` — «هذه الأداة غير متاحة في هذه الجلسة.», which never says that nothing ran and
+never closes the attempt — as failing the NEXT STEP only (`DECISIONS.md:4608`). DEC-123 ④ later rated
+the same kind of implied state **"thin"**: *"'Not found' implies nothing was read, but the note never
+says so"* (`DECISIONS.md:14682`). **The grade above is the letter's; any per-note grade must name the
+standard it applies.**
+
+## ⑥ THREE ENTRIES CORRECTED — DEC-58'S AUDIT DID REACH `file_reader.py`
+
+DEC-123 ④ (*"`file_reader`'s notes were never in it"*, `DECISIONS.md:14688-14689`), DEC-124 ②
+(*"never reached this file"*, `DECISIONS.md:14753`) and DEC-125 ⑧ (*"The audit never reached
+`file_reader.py`"*, `DECISIONS.md:14927-14928`) carry one claim, and DEC-58's own table refutes it. At
+`329fe32`, `file_reader.py` held all five of these notes — `FILE_NOT_FOUND_AR` at line 64,
+`FILE_BLOCKED_AR` 65, `FILE_READ_ERROR_AR` 89, `FILE_READ_UNAVAILABLE_AR` 90, `FILE_ALREADY_READ_AR`
+93 — and DEC-58 graded three of them: `FILE_ALREADY_READ_AR` "passing already", `FILE_BLOCKED_AR` and
+`FILE_READ_UNAVAILABLE_AR` "reported, not fixed" (`DECISIONS.md:4610-4613`).
+
+**The audit REACHED the file and missed the two retry-inviting notes on the immediately adjacent
+lines, 64 and 89.** `FILE_NOT_FOUND_AR` is the one whose inversion later cost live turns (DEC-123 ④).
+`FILE_READ_ERROR_AR` carried the same inversion and was fixed by analogy (DEC-125, ③ above); it has
+never fired in the retained record — of 9 serviced reads in 31 starts, 5 were not-found and 4
+succeeded, and `file_reader.py:208`'s `read failed` line never appears. The three entries are not
+edited; this one supersedes the claim they share, so it does not harden into folklore.
+
+## ⑦ THE REMAINING SURFACE — RULING OR MEASUREMENT, IN SULTAN'S ORDER
+
+| item | what it is | needs |
+|---|---|---|
+| the ten short notes | ⑤ — two of three obligations failed by the law's letter; origin closed by DEC-141 | **RULING** |
+| the 26 pre-ledger notes | history — 14 from v1 (06-11 → 07-16), 12 from V2 Phases 0–1 (07-17: 7 MCP, 3 router, 2 plugin walls); no class ruling. Five are ④'s never-carried notes. The 7 MCP notes are dormant by CONFIGURATION: production mounts `plugins.d` servers (`main.py:179-185`), none is registered (only `.sample` files), and the log holds no MCP line in 31 starts — nothing to measure | **RULING** (the five) |
+| the 17 byte-only clauses | 10 headings and 7 bullets — C004, C015 (never invent coordinates), C020, C046 (search the error's name only), C073 (the operative execute-first clause), C077, C104 — whose words can change with only the byte proofs red | **RULING** — whether to pin their words (tests only) |
+| the 57 emptiable notes | 29 directives, among them 6 of the 7 MCP notes (`CAPABILITY_NOT_GRANTED_AR` is guarded), `FETCH_GATE_EXHAUSTED_AR`, all four search notes, and three that answer a MEASURED defect: `EMPTY_QUESTION_AR`, `DOC_ONE_PER_PASS_AR`, `NO_SERVICE_AR` | **RULING** — which to pin (tests only) |
+| K2 | execute-first (C072–C077) × point, then explain in 40–60 words (C016–C018, C027, C036, the draw acks) | **MEASUREMENT** — instrument first (⑧) |
+| K3 | DEC-18's announce-before-search (C047) × execute-first, no preamble (C073–C074) | **MEASUREMENT** — instrument first (⑧); if the privacy law is losing, precedence becomes a ruling |
+| K6 | the `draw_shapes` description (no dim on the user's own content) × C031/C025 (dimming is mandatory when teaching). One observation — claude, 07-16, `926da52` — and the persona won; luna has called `draw_shapes` in 4 starts (#2, #11, #12, #29), and its `dim_screen` argument is logged nowhere | **MEASUREMENT** — instrument first (⑧) |
+| K7 | C019 speech-only × `EVIDENCE_DIRECTIVE_AR`, point at the passage | **MEASUREMENT** — once the index path runs (⑧) |
+| K9 | C017/C065 mandatory first ack × C074 start with the answer itself — the text does not settle whether the ack covers a one-pass, tool-free answer | **RULING** on scope, then **MEASUREMENT** (⑧) |
+
+Already on record, and unchanged by this entry: K10's measurement (DEC-140 ④) and the execute-first
+law's missing ruling entry (DEC-139 ⑦).
+
+## ⑧ K2, K3, K6 AND K9 ARE ONE QUESTION — AN INSTRUMENT DECISION, AND IT IS DEC-61'S
+
+**Four of the five remaining conflicts share ONE blocker: nothing logs what the model says in a
+pass.** The `[pass]` line carries the pass number and tool names only (`pass_servicing.py:126`), and
+no model argument is logged as content: the sandbox's code is fingerprinted
+(`sandbox_exec/service.py:98-111`), and no pointing or drawing argument appears in the log at all.
+**`MUTHIS_DEBUG=1` does not unseal it.** It unseals the user's transcript (`stt.py:81`) and the sandbox
+exchange — the submitted code and the stdout that returns (`sandbox_exec/service.py:115-118`) — to the
+console only, and the durable log refuses to attach under it (`logging_policy.py:143-148`). **For K6
+the missing piece is an ARGUMENT, `dim_screen`, which no line records under any setting.** Whether a
+pointing turn explains (K2), whether a search is announced before it leaves (K3), whether
+`dim_screen` was set over the user's own content (K6), whether a direct answer opens with the ack
+(K9): **not four questions — ONE instrument decision.**
+
+**BUILDING THAT INSTRUMENT IS A DEC-61 RULING, NOT AN IMPLEMENTATION CHOICE.** DEC-61 classifies every
+surface by PERMANENCE and AUDIENCE — *"who hears it, and how long does it last"*
+(`DECISIONS.md:5283-5287`) — and a record of what the model says carries what the user asked and what
+was on the screen, in the model's words. Where such a record lives, who reads it and how long it lasts
+are Sultan's. Nothing is built here.
+
+**K7, THE FIFTH, IS DORMANT ON BOTH CONDITIONS.** Its trigger is a serviced `docs__query` — **0 runs
+against 21 `docs__open` passes** — over an INDEXED document, and no document was ever indexed: all 8
+zoned opens went to `zone=inject`, and no index was ever built. An instrument would not reach it; the
+index path has to run first.
+
+## ⑨ THE INVENTORY REVIEW IS COMPLETE
+
+**Sultan's no-change ruling (DEC-139, scoped to model-facing text by DEC-140 ①) has served its
+purpose: the review it protected is COMPLETE.** The instruction surface is now OPEN TO RULINGS, taken
+one batch at a time, in Sultan's order (⑦). This entry takes none.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **No instruction changed.** The persona and every note are byte-identical to DEC-139.
+- **The inventory review is COMPLETE.** The remaining surface (⑦) waits on Sultan's order, one batch
+  at a time.
+- **Next, and Sultan's to open:** the two architectural rulings that block him — the APPROVAL
+  TREADMILL (DEC-139 ②) and the SELF-TAINT (DEC-139 ⑥, DEC-141 ④). Nothing further is opened until he
+  does.
+
+---
