@@ -47,13 +47,13 @@ It speaks the confirmation request, so a model already under injection could wor
 it misleadingly — the user might approve a call described as something milder
 than it is. Two things bound the damage: the directive orders the tool and its
 arguments named ALOUD, and the approval binds to the hash of the REAL call, not
-to whatever was said about it. Removing the limit entirely requires the KERNEL to
-author the spoken confirmation, which means touching `TurnVoice` — recorded as
-POST-LAUNCH research ("kernel-authored confirmation"), accepted for launch.
-**DEC-135 measured the messenger WORKING on `claude` and failing on `luna`, so
-the kernel-messenger case is NOT made; a prompt half that holds on one model and
-not the other is precisely a non-guarantee, which is why the limit stays
-recorded rather than relied on.**
+to whatever was said about it. Removing the limit entirely required the KERNEL to
+author the spoken confirmation, which was taken to mean touching `TurnVoice` —
+recorded as POST-LAUNCH research ("kernel-authored confirmation"), accepted for
+launch. **DEC-135 measured the messenger WORKING on `claude` and failing on `luna`,
+so the kernel-messenger case was NOT made; a prompt half that holds on one model and
+not the other is precisely a non-guarantee.** SUPERSEDED by DEC-138, which built it
+without touching `TurnVoice`; the limit is BOUNDED now, not gone (DEC-138 ⑤).
 
 THE LIMIT MATERIALISED IN PRODUCTION, and this file's constant is what changed
 (DEC-95). A live session logged `high-impact web__search refused — awaiting spoken
@@ -62,12 +62,12 @@ were spent, and the user never perceived a request. This directive WAS the ONLY
 channel, so a refusal could fail SILENTLY for EVERY high-impact tool — SUPERSEDED
 by DEC-138, which gave the kernel its own spoken request (`confirm_gate_speech.py`).
 OPEN ITEM, NOT TAKEN HERE: this gate has NO COUNTER (`FetchGate` and `SandboxGate`
-become TERMINAL; this one refuses identically forever, so a retrying model spends
-every pass, and `AGENTIC_CAP_NOTE_AR` then tells the user to ask again while taint
-is sticky with no clearing path). A counter changes an AUTHORIZATION path and is a
-ruling, so it is deliberately not taken beside a wording fix. **DEC-136 ruling 3
-makes the repeats DISTINGUISHABLE; it does not make them FINITE, and those are
-different defects.**
+become TERMINAL; this one refuses identically forever, while taint is sticky with
+no clearing path — once per TURN now: DEC-131's brake SUPERSEDED the retrying
+model that spent every pass until `AGENTIC_CAP_NOTE_AR` told the user to ask
+again). A counter changes an AUTHORIZATION path and is a ruling, so it is
+deliberately not taken beside a wording fix. **DEC-136 ruling 3 makes the repeats
+DISTINGUISHABLE; it does not make them FINITE, and those are different defects.**
 
 AND THE ACCEPT BRANCH HAD NEVER RUN LIVE when DEC-135 counted: `approval heard`
 ZERO times across the durable log — 21 sessions, 78 turns. SUPERSEDED after
