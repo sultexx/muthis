@@ -37,10 +37,10 @@ that carries no approval, and an explicit refusal clears it at once.
 Its three rulings are a wider accepted SET (the detector), a request that names
 every word in it (the notes), and a SECOND refusal note for a heard-but-not-
 approving utterance (`_missed`, below). The fingerprint, the single-use rule, the
-expiry and the refusal condition are byte-for-byte what they were. It is a The canonical form and the hash
-over it live in `call_binding.py` since DEC-138; nothing about the binding
-changed with the move.
-detection-surface and wording change, not a loosening.
+expiry and the refusal condition are byte-for-byte what they were. It is a
+detection-surface and wording change, not a loosening. The canonical form and
+the hash over it live in `call_binding.py` since DEC-138; nothing about the
+binding changed with the move.
 
 HONEST LIMIT, recorded rather than hidden (DEC-16): the model is the MESSENGER.
 It speaks the confirmation request, so a model already under injection could word
@@ -58,9 +58,9 @@ recorded rather than relied on.**
 THE LIMIT MATERIALISED IN PRODUCTION, and this file's constant is what changed
 (DEC-95). A live session logged `high-impact web__search refused — awaiting spoken
 approval` repeatedly, then `agentic cap (4) hit`: the search never ran, four passes
-were spent, and the user never perceived a request. This directive is the ONLY
-channel — no kernel-owned surface exists for a refused high-impact call — so such a
-refusal can fail SILENTLY from the user's side, for EVERY high-impact tool.
+were spent, and the user never perceived a request. This directive WAS the ONLY
+channel, so a refusal could fail SILENTLY for EVERY high-impact tool — SUPERSEDED
+by DEC-138, which gave the kernel its own spoken request (`confirm_gate_speech.py`).
 OPEN ITEM, NOT TAKEN HERE: this gate has NO COUNTER (`FetchGate` and `SandboxGate`
 become TERMINAL; this one refuses identically forever, so a retrying model spends
 every pass, and `AGENTIC_CAP_NOTE_AR` then tells the user to ask again while taint
@@ -69,11 +69,11 @@ ruling, so it is deliberately not taken beside a wording fix. **DEC-136 ruling 3
 makes the repeats DISTINGUISHABLE; it does not make them FINITE, and those are
 different defects.**
 
-AND THE ACCEPT BRANCH HAS NEVER RUN LIVE. `[confirm-gate] approval heard` appears
-ZERO times across the whole durable log — 21 sessions, 78 turns (DEC-135). Every
-recorded outcome is a refusal or an expiry, so the success path below is proven
-by this suite and by nothing else. Weigh that before trusting any claim that the
-two-turn flow "works".
+AND THE ACCEPT BRANCH HAD NEVER RUN LIVE when DEC-135 counted: `approval heard`
+ZERO times across the durable log — 21 sessions, 78 turns. SUPERSEDED after
+DEC-138 by that same log: two approvals heard — the first released its call and
+it ran; the second was DESTROYED when the re-issued arguments differed and the
+rebind below replaced it. 1 of 2 live: weigh that before trusting the flow.
 
 Nothing here is logged but tool NAMES and decisions: arguments carry the model's
 query, which is the user's private question (DEC-20/DEC-28), so they reach the

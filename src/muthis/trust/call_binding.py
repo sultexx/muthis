@@ -57,7 +57,7 @@ def canonical_call(tool: str, args: Mapping[str, Any]) -> tuple[str, str]:
     it back lets the SPOKEN request be derived from the bytes that were HASHED
     rather than rendered a second time from the dict. No caller stores more
     than it did before — there is no retention, because there is no gap
-    because there is no gap between knowing and speaking. WHY a second
+    between knowing and speaking. WHY a second
     rendering diverges anyway is `confirm_gate_speech.py`'s subject.
 
     THE HASH IS UNCHANGED BY THIS EXTENSION, and that is the point of its
