@@ -17617,3 +17617,69 @@ C039's never-read-aloud rule binds literally only USER-MESSAGE lines opening «(
   ruled on.
 
 ---
+
+## DEC-141 (2026-09-19) — **THE AUDIT'S PRINCIPAL RESULT: THE PERSONA HAS ZERO POST-LEDGER UNRECORDED CLAUSES.** The ORIGIN-UNKNOWN split, approved: all 32 clauses without a traceable defect predate the ledger, so the persona carries no governance gap · the 28 post-ledger notes are ONE family — technical failure notes whose mechanism the ledger records and whose wording no lost decision ever governed — recorded once and CLOSED · the brief's `VERIFY_FALLBACK_AR` attribution withdrawn — RULED (Sultan), RECORDED, **NO INSTRUCTION CHANGED.**
+
+The split is dated against the ledger's own start: `1bb4c4b` created DECISIONS.md on 2026-07-18 at
+22:10, and `e7b0cd2` committed DEC-1 on 2026-07-19 at 02:19. **No item falls between the two, so either
+boundary gives the same split.** The rows are DEC-139's inventory,
+https://claude.ai/artifact/TwEpdzFbGsxxuiAzB38F5Q; first commits are each item's earliest appearance
+anywhere under `src/`.
+
+---
+
+## ① THE PRINCIPAL RESULT
+
+| ORIGIN-UNKNOWN | pre-ledger | post-ledger |
+|---|---|---|
+| clauses (32) | **32** | **0** |
+| notes (54) | 26 | 28 |
+
+**Every clause whose defect could not be traced predates the ledger** — the persona text of
+2026-06-13 to 2026-07-16, v4.1 through v1.0-RC1, their later edits included. **No clause was decided
+after the ledger existed and left unwritten: the persona has NO governance gap.** The brief's framing —
+that "origin unknown" might hide unrecorded decisions — is refuted by the split, and the refutation is
+the result.
+
+The 26 pre-ledger notes are history: 14 from v1 (2026-06-11 to 2026-07-16) and 12 from V2 Phases 0–1
+(2026-07-17, two days before the ledger).
+
+## ② THE 28 POST-LEDGER NOTES — ONE FAMILY, RECORDED ONCE, CLOSED
+
+**They are TECHNICAL FAILURE NOTES** — network, timeout, content type, missing provider, oversize, bad
+input — **each written in a feature commit that describes the MECHANISM and never the wording**: every
+failure degrades to a short Arabic note and never raises (`909e1af`, `0b38c5a`, `913ea59`, `53d05a6`,
+`ed704ea`, under their milestones' DECs). **The ledger records their mechanism, and no decision about
+their wording was ever taken to be lost. No per-note ruling: the class is CLOSED.**
+
+- 25 are named nowhere in the ledger; 3 are named in DEC-58's note-law audit — `DOC_UNSUPPORTED_AR`
+  and `RUN_CODE_ALREADY_AR` as "passing already", `RUN_CODE_UNAVAILABLE_AR` as "reported, not fixed".
+- One member is not a failure note: `RUN_CODE_ALREADY_AR` is a duplicate-call deferral, already
+  recorded by DEC-58.
+- **THE CLOSURE SETTLES ORIGIN, NOT WORDING.** Four members end in a blind-retry invitation —
+  `SEARCH_FAILED_AR`, `SEARCH_MALFORMED_AR`, `SEARCH_TIMEOUT_AR`, `NO_RESULTS_AR` — the phrasing
+  DEC-125 measured. Their reachability was reported to Sultan the same day; nothing is reworded, and
+  the no-change ruling holds.
+
+## ③ THE BRIEF'S `VERIFY_FALLBACK_AR` ATTRIBUTION IS WITHDRAWN
+
+DEC-140 ④ left it for Sultan to confirm or correct. **Corrected: it was unsupported.** DEC-123 records
+the Excel behaviour without naming the note, the verification outcome is not logged, and DEC-123's
+wording points at `VERIFY_HOLDING_AR`, which is not one of K10's five. **K10's classification —
+measurement, not a ruling — stands**, now resting on DEC-95's one measured silence and on no
+confirmed speaking instance among the five.
+
+## ④ DEC-140'S REACHABILITY FINDING, IN SULTAN'S WORDS
+
+`FETCH_GATE_EXHAUSTED_AR` is **a structurally dead instruction, and a side effect of the self-taint
+nobody had seen**: a fourth fetch in one turn is unreachable because the confirm gate refuses first and
+the taint allows at most one outward call per turn.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **No instruction changed.** The persona and every note are byte-identical to DEC-139.
+- The remaining audit surface was reported for Sultan to order; it is not recorded here.
+
+---
