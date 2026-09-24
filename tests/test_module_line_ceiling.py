@@ -198,7 +198,17 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # the refusal, and the two sibling imports. The file fits ONLY because the
     # binding left in step 1 — measured at 314 with the feature applied and
     # the binding still here. TEN lines of headroom.
-    ("trust/confirm_gate.py", 290),
+    # 290 -> 252, DECLARED (the STATE extraction, ahead of DEC-143): the pending
+    # call, the turn's one look, the missed flag and the spoken hand-over left
+    # for `confirm_gate_state.py` with every transition of them — MECHANISM,
+    # not policy, on the binding's precedent. DEC-143's grant is wiring more
+    # than logic: in place it measured 332 (302 as bare code with a docstring
+    # left false); the records alone left 314 and the hand-over alone 318, both
+    # together fit at exactly 300 and a subclass at 298 — neither taken. The
+    # move is behaviour-identical: the suite green with ZERO test edits, 169,759
+    # lockstep steps against the base gate identical, and 168 of 168 moved
+    # prose units found verbatim.
+    ("trust/confirm_gate.py", 252),
     # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
     # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
     # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.

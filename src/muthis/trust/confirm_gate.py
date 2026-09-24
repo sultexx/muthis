@@ -27,6 +27,13 @@ able to read end to end. Every name is re-exported below, so no call site
 outside this package changed. Read that module before touching anything about
 which words are accepted; read `confirm_gate_notes.py` for what is SAID.
 
+THE STATE LIVES IN `confirm_gate_state.py` SINCE DEC-143's EXTRACTION: the pending
+call, the turn's one look, the missed flag and the spoken hand-over, with every
+transition of them. This file keeps the POLICY — whether a call is REFUSED and
+whether it is RELEASED — and owns ONE `GateState`, built in its own constructor
+and never injected, so every router's gate is this gate and DEC-40's condition
+cannot arise. Read that module before touching what is REMEMBERED.
+
 BINDING. Approval is pinned to a sha256 of (tool name + canonical arguments) —
 the grants-store pattern, applied to a CALL instead of a manifest — so a MODIFIED
 call needs fresh approval, exactly as a changed manifest invalidates a grant. It
@@ -82,7 +89,6 @@ model's context and never a log line.
 
 from __future__ import annotations
 
-import dataclasses
 import logging
 from typing import Any, Mapping, Optional
 
@@ -113,19 +119,13 @@ from .call_binding import call_fingerprint, canonical_call  # noqa: F401 — re-
 # `json` and the notes module is import-locked to `__future__` and `typing` by
 # its own guard — which is never lowered to let work through.
 from .confirm_gate_speech import spoken_request  # noqa: F401 — re-export
+# ─── The STATE, EXTRACTED ────────────────────────────────────────────────────
+# Moved to `confirm_gate_state.py` ahead of DEC-143 — MECHANISM, not policy, on
+# the binding's precedent: what the gate remembers, never what it decides.
+# `_Pending` went with it; nothing outside the package ever imported it.
+from .confirm_gate_state import GateState
 
 logger = logging.getLogger("muthis.trust.confirm_gate")
-
-
-@dataclasses.dataclass(frozen=True)
-class _Pending:
-    """The ONE call awaiting the user's word. Replaced, never queued: a second
-    high-impact call supersedes the first, so an unapproved call can never sit
-    behind another waiting to be released by an unrelated approval."""
-
-    fingerprint: str
-    tool: str
-    approved: bool = False
 
 
 class ConfirmGate:
@@ -134,54 +134,23 @@ class ConfirmGate:
     consequence of a tool call. Never raises (Law 11)."""
 
     def __init__(self) -> None:
-        self._pending: Optional[_Pending] = None
-        # Nothing to observe until a turn arms it: a stray observe() before the
-        # first turn must not spend the turn's one look.
-        self._observed_this_turn = True
-        # Did the LAST observed utterance reach the detector and come back as
-        # NEITHER answer? It selects the retry note (DEC-136 ruling 3) and does
-        # nothing else — it never affects WHETHER a call is refused, which is
-        # why widening the accepted set and this flag are separate rulings.
-        self._missed = False
-        # DEC-138: the kernel's OWN utterance for the refusal just taken, built
-        # from the canonical bytes and handed over ONCE. None whenever nothing is
-        # outstanding to say — which is every state but "refused, not yet
-        # spoken", so a pass that refuses nothing can never speak.
-        self._spoken: Optional[str] = None
+        # Everything the gate REMEMBERS lives in ONE object it builds here and
+        # never shares or accepts from outside (`confirm_gate_state.py`).
+        self._state = GateState()
 
     @property
     def pending_tool(self) -> Optional[str]:
         """The tool awaiting approval, for tests and logs — never the args."""
-        return self._pending.tool if self._pending is not None else None
+        return self._state.pending_tool
 
     def take_spoken_request(self) -> Optional[str]:
-        """The kernel's approval request, handed over ONCE and cleared.
-
-        ONE-SHOT, AND THAT IS THE WHOLE OF THE S3 CASE. A pass can carry several
-        refusable calls; only the first is dispatched (`turn_pass.py`'s
-        first-router-call-wins rule), but nothing stopped a future caller from
-        looping. Clearing on hand-over makes "spoke twice for one pass"
-        unrepresentable rather than merely unusual.
-
-        IT IS NOT `pending_tool`-SHAPED AND MUST NOT BECOME SO: a pending state
-        SURVIVES the utterance (it is what the next turn's approval matches), so
-        a reader keyed on the pending would speak the same request every pass —
-        DEC-131's loop, rebuilt on the other side of the mouth."""
-        spoken, self._spoken = self._spoken, None
-        return spoken
+        """The kernel's approval request, handed over ONCE — `GateState.take_spoken`."""
+        return self._state.take_spoken()
 
     @property
     def awaiting_approval(self) -> bool:
-        """True while a REFUSED call is still waiting for the user's word.
-
-        IT IS NOT `pending_tool is not None`, AND THE DIFFERENCE IS THE WHOLE
-        POINT (DEC-131). `observe()` sets `approved` on the pending state and
-        LEAVES IT IN PLACE, so the name-only accessor stays truthy ACROSS the
-        approval. A brake keyed on that would gag the very pass that must
-        re-issue the call the user just approved, and the approval could never
-        be spent — the fix would break the success path it exists to reach.
-        This one goes False the moment the word is heard."""
-        return self._pending is not None and not self._pending.approved
+        """True while a REFUSED call waits for the user's word — `GateState` (DEC-131)."""
+        return self._state.awaiting_approval
 
     def new_turn(self) -> None:
         """Arm the coming turn's ONE observation.
@@ -189,23 +158,19 @@ class ConfirmGate:
         Called from the SAME per-turn hook that resets the sandbox gate
         (`TurnPass.new_turn_voice`) — DEC-19 forbids inventing a second
         turn-boundary mechanism, and this one is proven live."""
-        self._observed_this_turn = False
+        self._state.arm()
 
     def observe(self, user_text: str) -> None:
         """The turn's ONE look at the raw transcript.
 
-        ONE-SHOT on purpose: `consume()` runs once per agentic PASS, and a
-        continuation pass carries either empty text or the refresh follow-up
-        constant. Without the one-shot those passes would count as "a turn
-        carrying no approval" and expire the pending state INSIDE the very turn
-        that created it, so the approval could never arrive.
+        What makes it ONE, and why, is `GateState.take_look`'s to say.
 
         A turn that never delivers a transcript neither approves nor expires —
         expiry is driven by an utterance the user actually spoke."""
-        if self._observed_this_turn:
+        if not self._state.take_look():
             return
-        self._observed_this_turn = True
-        if self._pending is None:
+        pending = self._state.pending
+        if pending is None:
             return
         decision = detect_confirmation(user_text)
         # THE THREE OUTCOMES ARE NOT TWO (DEC-136 ruling 3). A REFUSAL is a
@@ -213,18 +178,18 @@ class ConfirmGate:
         # only `None` means "the user spoke and was understood as neither" — the
         # ONE state the retry note may report. Telling someone who said «لا»
         # that he was not understood would be a false claim about his intent.
-        self._missed = decision is None
+        self._state.missed = decision is None
         if decision == APPROVE:
-            self._pending = dataclasses.replace(self._pending, approved=True)
-            logger.info("[confirm-gate] approval heard for %s", self._pending.tool)
+            self._state.approve()
+            logger.info("[confirm-gate] approval heard for %s", pending.tool)
             return
         # An explicit refusal and a silent turn both clear the pending state, but
         # they stay separate branches: DEC-16 states them as two rules, and only
         # one of them would survive a change to the expiry policy.
         logger.info("[confirm-gate] %s for %s — pending cleared",
                     "refusal heard" if decision == REFUSE else "no approval this turn",
-                    self._pending.tool)
-        self._pending = None
+                    pending.tool)
+        self._state.clear()
 
     def refusal_for(self, tool: str, args: Mapping[str, Any], *,
                     high_impact: bool, tainted: bool) -> Optional[str]:
@@ -242,30 +207,27 @@ class ConfirmGate:
         if not (high_impact and tainted):
             return None
         canonical, fingerprint = canonical_call(tool, args)
-        pending = self._pending
-        if pending is not None and pending.approved and pending.fingerprint == fingerprint:
-            self._pending = None      # SINGLE-USE: consumed the moment it matches
-            self._missed = False      # nothing outstanding to explain any more
-            self._spoken = None       # nothing outstanding to SAY either
+        if self._state.released_by(fingerprint):
+            self._state.consume()     # SINGLE-USE, and nothing left to explain or say
             logger.info("[confirm-gate] approved call released: %s", tool)
             return None
         # Any mismatch — no pending, not yet approved, or DIFFERENT arguments —
         # refuses and (re)places the pending. Rebinding on a modified call is the
         # point: an approval must never travel to a call the user never heard.
-        self._pending = _Pending(fingerprint=fingerprint, tool=tool)
+        self._state.place(fingerprint, tool)
         # The log distinguishes the two refusals for the same reason the NOTE
         # does: three identical lines were what made the live loop unreadable.
         logger.info("[confirm-gate] high-impact %s refused — awaiting spoken "
                     "approval%s", tool,
                     " (RETRY: last utterance matched no approval word)"
-                    if self._missed else "")
+                    if self._state.missed else "")
         # DEC-138: the USER-facing half, built HERE because this is the only
         # place holding the canonical bytes and the fingerprint together.
         # `spoken_request` is handed `canonical` and NEVER `args`, so it is
         # structurally unable to describe a payload the fingerprint does not
         # cover — the divergence is an absence of means, not a check.
-        self._spoken = spoken_request(tool, canonical, APPROVAL_WORDS_AR)
-        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._missed)
+        self._state.spoken = spoken_request(tool, canonical, APPROVAL_WORDS_AR)
+        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._state.missed)
 
 
 __all__ = [
