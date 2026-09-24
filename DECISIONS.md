@@ -17893,3 +17893,281 @@ one batch at a time, in Sultan's order (⑦). This entry takes none.
   does.
 
 ---
+
+## DEC-143 (2026-09-24) — **THE AUTHORIZATION MODEL, FROZEN: `web__search` IS APPROVED FOR A TURN, `web__fetch` STAYS PER CALL.** Sultan's task-scoped grant, in the one form the gate can represent — "capability × turn" became TOOL × TURN, because the gate holds no capability identity and one `RouteImpact` covers a whole plugin, so a `net.fetch` grant IS the unified grant he rejected · the `:209` consequence ACCEPTED on the split's own grounds, with their boundary recorded · no search cap · the barge-in window accepted · mode exit NOT wired · DEC-18's announce-before-search made MEASURE-BEFORE-ADOPTION · the DEC-20 badge recorded as NOT an egress record · FOUR tests flip, not two, and the per-call binding is pinned on search ONLY · the provider regression PLANNED — RULED (Sultan), DESIGN FROZEN, **NOTHING BUILT.**
+
+The design session of 2026-09-24 verified every premise against the code at `d73b8f1`, reading only;
+Sultan approved the verification and ruled on its open points. This entry freezes the result. **`src/`,
+the tests, AGENTS.md and every model-facing string are untouched; 2,085 green.** `file:N` references
+are to `d73b8f1`.
+
+---
+
+## ① THE RULING — TOOL × TURN, BECAUSE "CAPABILITY" HAS NO KEY IN THE GATE
+
+Sultan's direction: approval must NOT bind to `sha256(tool + args)` in a way that lets the model's
+rewording of the same intent destroy the grant, and must NOT become open-ended permission. A grant
+confers a capability within the current task, stays valid for its several operations, and ends at a
+defined boundary. **Two corrections made it representable; neither changes its intent.**
+
+- **THE TASK IS THE TURN.** The kernel stores, numbers and bounds-checks and never interprets text
+  (DEC-66), so "the same intent" cannot be recognised. The turn can.
+- **THE CAPABILITY IS THE TOOL.** `refusal_for` is handed a tool name, the arguments and two booleans
+  (`confirm_gate.py:229-230`) — no capability identity. The only per-route capability fact is
+  `RouteImpact.capabilities`, and `mount_plugin` gives ONE `RouteImpact` to every descriptor a plugin
+  offers (`router_registry.py:93-112`), so `web__search` and `web__fetch` both carry `{net.fetch}`
+  (`composition_mounts.py:69`). **A grant keyed on `net.fetch` IS the unified grant Sultan rejected.**
+  What the gate represents with no new fact is the tool name it is already handed.
+
+**THE RULING (Sultan): `web__search` → TOOL × TURN. `web__fetch` → PER CALL, DEC-16 unchanged.**
+**The class has exactly ONE member.** Every other high-impact route keeps DEC-16's per-call binding
+until a ruling names it; a route that drifts into the class without one is the defect this sentence
+exists to name.
+
+## ② THE DESIGN, AS FROZEN
+
+- **TAINT ASKS; THE GRANT ANSWERS.** They are held independently today and stay so: `SessionTaint` is
+  router-owned, lives as long as the process, has no clearing path and knows nothing of the gate; the
+  gate holds only `_pending`; the two meet only as arguments at `tool_router.py:257-259`. A grant
+  neither consumes nor clears taint (DEC-15), and a search's own taint does not consume a grant.
+- **WHEN TO ASK — UNCHANGED.** The first high-impact call under taint that a turn DISPATCHES and no live
+  grant covers (`confirm_gate.py:242`). A pass's other router calls are answered by name and never reach
+  the gate (`turn_pass.py:211-214`); the DEC-131 brake forces text after a refusal and lifts on an
+  approval. The first tainting call of a process still runs unasked (DEC-139 ⑥).
+- **THE GRANT'S TURN IS THE TURN THAT CARRIES THE APPROVAL.** Born in `observe()` when the approval word
+  is heard for a pending `web__search`; dead at the next `new_turn()` (`confirm_gate.py:186`, fired once
+  per turn at `turn_pass.py:119` — the DEC-19 boundary, no second mechanism). `observe()` runs after
+  `new_turn()` in the same turn (`turn_pass.py:161`). Clearing at the next turn's START is clearing at
+  this turn's END for every dispatch: `router.service` has ONE caller (`pass_servicing.py:163`), inside
+  a turn.
+- **NEW STATE: ONE SCOPE RECORD, BESIDE `_Pending`, NEVER INSIDE IT.** `_Pending` is one slot, "Replaced,
+  never queued" (`confirm_gate.py:122`, replaced at `:255`). A `web__fetch` refused inside a granted turn
+  must set a pending without touching the grant; in the same slot it would destroy the grant and bring
+  the treadmill back.
+- **NO NEW MOUNT FACT.** The split keys on the tool name the router already dispatches on. The fixed
+  destination is the JUSTIFICATION for the search grant (③), not a field the kernel reads.
+- **`web__fetch` KEEPS ALL OF DEC-16:** the fingerprint, single use, replace-on-mismatch
+  (`confirm_gate.py:244-255`) — including DEC-139 ②'s known cost: any other refused call in the approval
+  turn replaces an approved fetch, because the slot it lives in is DEC-16's, unchanged.
+
+## ③ THE `:209` CONSEQUENCE — ACCEPTED EXPLICITLY, AND WHY
+
+**Accepted (Sultan):** a turn grant for search releases a later «حسابي البنكي» after an approved
+«بايثون» — the exact case `tests/test_confirm_gate.py:209` was written to refuse.
+
+**THE GROUNDS.** Search reaches ONE fixed provider: its destination is configuration, read when the
+provider is built (`tavily.py:66-69`), with no URL, host or endpoint argument anywhere
+(`schema.py:10-16`). So a steered query carrying a secret reaches the provider — **the trust every
+clean-session search already extends**, since the gate has never asked about a search in an untainted
+session (`confirm_gate.py:242`) — and Mut'his's own request never goes to attacker infrastructure.
+**Every path to an attacker-chosen endpoint in the production composition runs through `web__fetch`,
+which stays per call. The split is what makes the search grant safe; unified, it would not be.**
+
+**THE BOUNDARY OF THOSE GROUNDS, RECORDED WITH THEM:**
+
+- **"Fixed" covers Mut'his's request, not the provider's behaviour.** What the provider does with a query
+  is vendor behaviour the source cannot show; the ruling trusts the provider exactly as every clean
+  search already does. A steered secret CAN reach the provider's side — that is the accepted cost, not
+  a hidden one.
+- **"Every path" is a statement about the PRODUCTION composition.** MCP routes mount with
+  `read_only_hint=True` (`host.py:128`) and are never gated at all; they are dormant by configuration
+  (DEC-142 ⑦). A configured MCP server re-opens the sentence above, independently of this entry, which
+  neither widens nor narrows that exposure.
+- **THE GROUNDS REST ON EXISTING PINS, WHICH ARE NOW LOAD-BEARING FOR THIS ENTRY:** the first property of
+  `tests/test_search_provider.py` (the destination is configuration, never an argument, `:10-17`) and
+  the byte-pinned catalog, where `web__search` takes `query` and `max_results` and nothing else
+  (`tests/snapshots/look_tools_v8.json`). **A change to either re-opens this ruling:** a search that
+  could name its destination would make the grant an attacker path that nobody decided.
+
+## ④ THE BOUNDS AND THE WINDOW — RECORDED AND ACCEPTED
+
+- **NO NEW SEARCH CAP (Sultan).** A granted turn is bounded by ONE router call per pass — the first
+  router-serviced non-precondition call wins (`turn_pass.py:211-214`) — × `MAX_AGENTIC_ITERATIONS = 4`
+  (`orchestrator.py:65`): at most four searches, reaching only the provider. **The DEC-22 fetch cap does
+  NOT bound search** — `_search` has no gate (`plugin.py:133-152`) — and that is accepted because the
+  only thing an extra search reaches is the provider. Two facts about that cap, recorded so nobody leans
+  on it: it belongs to the PLUGIN, not the capability — DEC-22 placed it "in the `web_research` plugin
+  (T6), not the fetcher", and the broker hands the same fetcher to any `net.fetch` grantee without one
+  (`broker.py:105-111`); and under the split it stays UNREACHABLE — one approval releases one fetch, so
+  confirmation, not the cap, remains the binding limit (`DECISIONS.md:2272`).
+- **THE BARGE-IN WINDOW — ACCEPTED (Sultan).** The gate is not an interrupt hook, and the hooks run on
+  daemon threads (`interrupt_hooks.py:34-38`). `_do_interrupt` silences first and cancels second
+  (`activation.py:148-161`), so a granted search can still dispatch between F9 and `task.cancel()`.
+  Narrow — a new call needs a provider stream to finish inside the silence's awaits — and closed by the
+  next turn boundary.
+- **MODE EXIT — NOT WIRED (Sultan).** The exit word and the idle expiry run in `TurnPrelude.begin_turn`
+  (`turn_prelude.py:119-136`), before `new_turn_voice()` (`orchestrator.py:189` against `:198`), so the
+  turn boundary covers them. The mid-turn exit is the model's `navigator__step` `"done"` → `LEAVE`
+  (`navigator_service.py:64`), kernel-serviced and never at the gate. Wiring it would make mode state an
+  input to authorization, which the mode modules are guarded against naming
+  (`tests/test_session_mode.py:349`, `tests/test_mode_authority.py:314`) — DEC-65: a mode
+  "changes conversational behaviour ONLY" and "does not touch the security model".
+- **AN EXPLICIT REFUSAL CANNOT END A GRANT, BY CONSTRUCTION.** `observe()` reads one transcript, at a
+  turn's start, and the only mid-turn input is F9, which means barge-in (DEC-16), so a «لا» can only
+  arrive after the grant's turn has ended. It remains the end of a PENDING request.
+
+## ⑤ DEC-18's ANNOUNCE-BEFORE-SEARCH BECOMES LOAD-BEARING — MEASURE BEFORE ADOPTION
+
+Under a grant, **the model's own announcement is the ONLY disclosure of each additional query**: the
+kernel speaks only for a refused call, and the badge records fetches only (⑥). The rule is the persona
+clause at `persona_laws.py:68-69` (C047) — MODEL SPEECH, whatever its source comment claims
+("transparency BY CONSTRUCTION", `:58-59`). **Recorded as a MEASURE-BEFORE-ADOPTION item for the
+regression, not an assumption (Sultan).** It is DEC-142 ⑦'s K3, whose recorded need is "MEASUREMENT —
+instrument first": nothing logs what the model says in a pass (DEC-142 ⑧), so it is either OBSERVED BY
+EAR, as DEC-132 ③ and DEC-135 were, or it waits on the DEC-61 instrument ruling. Which is Sultan's. The
+same law's first half — no screen text and no identifier in a query (`:62-65`) — is the only brake on
+what a steered query carries, and ③ already accepts it as model-side.
+
+## ⑥ THE CORRECTED COST — THE DEC-20 BADGE IS NOT AN EGRESS RECORD
+
+Stated plainly because the brief that opened this session claimed it as a compensating control. **The
+badge does NOT show every outward request.** It records:
+
+- **successful reads only** — `if result.ok` (`fetcher.py:154-163`). A request that reached the host and
+  came back unreadable leaves no trace: refused by robots (whose robots.txt itself went to that host), a
+  disallowed content type, an empty extraction, over 2 MB, a timeout, too many redirects. Each is the
+  destination's choice, and the data left when the request was sent — DNS included, for a subdomain.
+  **An attacker serving the wrong content type makes an exfiltration fetch invisible.**
+- **the FINAL host after redirects** (`fetcher.py:157-160`): an exfiltration hop that redirects to a
+  benign page shows the benign domain.
+- **fetches only** (`provenance.py:30`): no search ever appears.
+
+It is also ephemeral — cleared with the caption at audio end and on every hide, barge-in included
+(`voice_out.py:157`, `turn_voice.py:192`, `window_commands.py:111-114` and `:151-152`). **It is what
+DEC-20 built, an ATTRIBUTION device, and nothing more. Under the split the real control on the attacker
+path is the per-call fetch gate, not the badge.**
+
+## ⑦ DEC-16 BOUND (a) AND DEC-138
+
+DEC-16 bounded the messenger with (a) the tool and its arguments named aloud and (b) the binding to the
+sha256 of the real call (`DECISIONS.md:15927-15928`).
+
+- **`web__fetch`: DEC-138 SURVIVES INTACT.** One canonicalisation, hashed and spoken (`call_binding.py`,
+  `confirm_gate_speech.py`); a URL's host lies inside the 160-character spoken bound. (a) and (b) stand.
+- **`web__search`: (b) is replaced by the scope, so (a) must name the scope.** The kernel's request must
+  voice the SCOPE — the turn that carries the approval — rendered from the same scope definition the
+  release check reads, so what is heard and what is enforced cannot be two scopes. Voicing the refused
+  call alone would describe ONE call while authorising a CLASS: DEC-138's defect in reverse.
+  `SPOKEN_REQUEST_AR` (`confirm_gate_speech.py:74-78`) is that sentence today; it changes WITH the grant.
+
+## ⑧ WHAT THE TREADMILL AND THE SELF-TAINT BECOME
+
+DEC-142 named these as the two rulings Sultan would open. Against DEC-139 ③'s three roads to
+"approve → asked again":
+
+1. **The detector heard no accepted word — UNTOUCHED.** The detector is not in this ruling.
+2. **The approval destroyed by an argument mismatch — DISSOLVED for `web__search`:** any search in the
+   approval turn is released, so the `max_results` twin (`45ce6e60…` / `71e81c22…`) no longer matters.
+   **It PERSISTS for `web__fetch`.**
+3. **The released call ran and the next outward call is a new one — SURVIVES BY DESIGN for
+   search → fetch; that IS the split.** Gone for search → search inside the approval turn.
+
+**THE SELF-TAINT** is the composition DEC-138 ① described, and still is: the first outward call taints
+and the gate asks about the second. The grant ANSWERS it for searches, for one turn — up to four searches
+per approval instead of one.
+
+## ⑨ WHAT THE IMPLEMENTATION OWES — RECORDED, NOT DONE
+
+**THE TESTS THAT FLIP, DELIBERATELY, AND CITE THIS ENTRY.** The brief named `:209` and `:223`. **The
+true list is FOUR, all on `web__search`:**
+
+- `tests/test_confirm_gate.py:209` (a modified call) and `:223` (single use);
+- `tests/test_kernel_spoken_request.py:168` — its "a changed value" and "an extra argument" cases flip;
+  **its "another tool" case (`web__fetch` after a search approval) must STAY refused — it becomes the pin
+  on the SPLIT;**
+- `tests/test_kernel_spoken_request.py:192` — its final "the approval was reusable" assertion.
+
+Shape-dependent, not flipped by the ruling: the control in `tests/test_confirm_forces_text.py:84`
+(`pending_tool == SEARCH` after an approval) holds only if an approval leaves `_Pending` in place. Green
+by design: `tests/test_web_servicing.py:236`, the pinned self-gating case, is fetch → fetch, and fetch
+stays per call.
+
+**FOUND AT THE FREEZE — THE PER-CALL BINDING IS PINNED ON `web__search` ONLY.** The stand-in plugin in
+`tests/test_confirm_gate.py` offers search alone (`:42-57`), and no test anywhere approves a
+`web__fetch`. After the flip, the property ③ rests on — fetch stays per call — is guarded by nothing but
+that one "another tool" case, which pins the split and not fetch's own binding. **Whether the
+implementation must carry fetch-shaped twins of `:209` and `:223` is OPEN — Sultan's.**
+
+**MODEL-FACING TEXT — reworded AFTER this freeze, not now (Sultan).** When each becomes false, in its
+one true version:
+
+- `CONFIRM_RETRY_AR`'s «فالإذن مرتبط بهذا الاستدعاء بعينه لا بغيره» (`confirm_gate_notes.py:164-165`) —
+  false for EVERY search request, since approving one grants the turn.
+- `CONFIRM_DIRECTIVE_AR`'s «كل أداة أثرها يخرج من الجهاز … موقوفة الآن بنفس الطريقة» (`:129-131`) —
+  false when a fetch is refused inside a turn holding a search grant. Pinned word for word by
+  `tests/test_confirm_directive_spoken.py:183`.
+- ALSO FOUND, an instruction rather than a false claim: «واذكر اسم الأداة … ومعاملاتها كما هي» (`:133`)
+  has a relaying model voice ONE call for a search request — ⑦'s defect on the model's side, live on any
+  model that relays (`claude`, DEC-135).
+
+**TIMING, a consequence and not a ruling:** each of these sentences is TRUE until the grant exists and
+false after it, so the only rewording with no window of falsity lands WITH the grant — not in a later
+pass, the shape DEC-142 ④ recorded failing three ways.
+
+**DERIVED COPIES THAT STATE THE PER-CALL LAW FOR EVERY TOOL** — true until the implementation, and owed
+by it: `AGENTS.md:179`, `:331` and `:343`; the BINDING paragraph of `confirm_gate.py` (`:30-34`);
+`confirm_gate_notes.py:49-52` and its treadmill paragraph (`:74-82`), which reserved this very ruling;
+the docstrings of `tests/test_confirm_gate.py:209` and `tests/test_confirm_word_set_and_retry.py:153`.
+
+## ⑩ THE PROVIDER — THE REGRESSION PLAN, RECORDED, NOTHING EXECUTED
+
+Sultan is moving the second reasoner from `gpt-5.6-luna` to GPT-6 Luna. **`gpt-5.6-luna` stays the
+historical baseline for every prior measurement; no old result is reinterpreted retroactively. The
+model string is NOT changed here.**
+
+**WHERE IT IS PINNED.** One executable home: `luna_agent.py:81`,
+`os.getenv("MUTHIS_LUNA_MODEL", "gpt-5.6-luna")`. `.env` sets `MUTHIS_REASONER=luna` and leaves
+`MUTHIS_LUNA_MODEL` unset, so the default runs. The price rows `pricing.py:56` (0.20 / 1.20) and `:67`
+(cached 0.02) are keyed on the configured string (`luna_agent.py:209`); a string with no row prices at
+3.00 / 15.00 WITH a warning (`pricing.py:177-178`) — loud and fail-closed, unlike the Claude path's
+silent fallback. Copies that will not follow it: `scripts/probe_effort.py:226`,
+`scripts/probe_step_verification.py:309`, `tests/test_luna_agent.py:196`,
+`tests/test_luna_pricing.py:38` and `:53-54`, `tests/test_reasoner_selection.py:142`, `AGENTS.md:29`,
+`.env.example:111`.
+
+**THE PLAN, IN ORDER:**
+
+1. **DEC-103's gate first.** If the API id comes from the same account's model list — the same provider
+   family — DEC-103's own reasoning for Sol holds: the family's data terms are already accepted, so the
+   gate is passed. Recorded as DEC-103's reasoning, not re-ruled.
+2. **The name, verified live (DEC-11).** "GPT-6 Luna" is a product name. The API id comes from the
+   account's own model list (`scripts/probe_provider.py models`, free), then is exercised in the app's
+   EXACT request shape, as DEC-134 did for `claude-sonnet-5` — which for this provider includes
+   `store=False`, a privacy control (`luna_agent.py:177`).
+3. **Priced by measurement (DEC-93).** The price row and the cached rate from the vendor's own
+   documentation (the DEC-90 method, `pricing.py:53-56`), never quoted from memory.
+4. **RE-MEASURE what 5.6 measured and the name does not carry:** the INCLUSIVE cache direction (DEC-88 ③,
+   `pricing.py:31`); `REASONING_EFFORT = "high"` (DEC-89 ruling 2 and DEC-98, `luna_agent.py:90`); and
+   the image request's missing `detail` field, on which the 23/25 pointing result depends
+   (`luna_messages.py:186-190`; 23/0/2, DEC-88).
+5. **THE APPROVAL PATH.** 5.6 did not relay the request (DEC-132 ③, n=2). If the new model does, DEC-138
+   ⑤'s duplication item becomes LIVE: the user hears the request twice, the model's relay and the
+   kernel's. The forced pass's last utterance (on 5.6, an apology and an answer from memory, DEC-138 ⑤)
+   is re-observed, and ⑤'s announce-before-search joins the regression as MEASURE-BEFORE-ADOPTION.
+
+**No new behaviour is adopted on the new model before this comparison. Nothing in this section is
+executed.**
+
+## ⑪ TWO CLOSURES
+
+- **"OPTION ①" (DEC-138 ②) — RESOLVED BY SULTAN.** It was the STATUS QUO from his own list: one free
+  search per session, approval not working on `luna`. Not a per-tool or per-turn binding; it does not
+  bear on this design. The list was never in the repository, and this sentence is its record.
+- **THE CITATION, CORRECTED.** 5.6's relay failure is DEC-132 ③ (n=2, Sultan's report, not log
+  evidence); DEC-135 is the `claude` run that made it model-specific. **A derived copy carries the old
+  attribution:** `confirm_gate.py:53` — "DEC-135 measured the messenger WORKING on `claude` and failing
+  on `luna`". Found and LEFT: this entry touches no `src/`.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **Nothing built.** `src/`, the tests, AGENTS.md and every model-facing string are byte-identical to
+  `d73b8f1`; 2,085 green.
+- **This entry is the input to the implementation and to the regression plan.** Neither is opened, and
+  nothing is built before Sultan opens it.
+- **OPEN, and Sultan's:** fetch-shaped twins of `:209` / `:223` (⑨) · the announce measurement's method,
+  by ear or the DEC-61 instrument (⑤) · the rewording batch (⑨), which lands with the grant.
+- **Untouched:** DEC-97's counter and the retry-family ruling.
+
+---
