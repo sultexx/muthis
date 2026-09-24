@@ -47,6 +47,12 @@ permanence-and-audience test; and the alternative is worse, because a decision
 that can be heard but not read leaves a user who mishears with no recourse.
 IT GENERALISES TO NO OTHER KERNEL SPEECH, AND DEC-20'S BADGE RULING STANDS.
 
+A TURN-GRANTED TOOL IS ASKED FOR BY ITS SCOPE (DEC-143). Its approval covers every
+call to it until the user next speaks, so voicing the one call that asked would
+describe ONE call while authorising a CLASS — DEC-138's defect in reverse. The
+scope sentence takes the tool and the words and NOTHING ELSE: handed no
+arguments, it cannot describe a single call. The absence of means, turned round.
+
 IT IS A SERIALISATION, NEVER A SUMMARY. No paraphrase, no selection, no
 translation: the kernel STORES, NUMBERS and BOUNDS-CHECKS and never INTERPRETS
 TEXT (DEC-66), and `step_verification.py` refuses the same temptation one domain
@@ -73,6 +79,16 @@ from .confirm_gate_notes import render_words
 # defend. It names EVERY accepted word, for DEC-136 ruling 2's reason exactly.
 SPOKEN_REQUEST_AR = (
     "وقفت طلباً لأنه يحتاج إذنك. الأداة «{tool}»، ومعاملاتها: {args}. "
+    "إن أذنت فقل {words} — كلمة واحدة وحدها في دور مستقل، بلا أي كلام "
+    "قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً."
+)
+
+# THE SCOPE SENTENCE (DEC-143) — the tool the grant is held under and the reach of
+# the approval, then the SAME words clause as the per-call sentence above, which a
+# test holds equal so an offer can never differ between the two.
+SPOKEN_SCOPE_AR = (
+    "وقفت طلباً لأنه يحتاج إذنك. الأداة «{tool}»، وإذنك لها يشمل كل استدعاء "
+    "لها من لحظة إذنك إلى أن تتكلم مرة أخرى، لا هذا الاستدعاء وحده. "
     "إن أذنت فقل {words} — كلمة واحدة وحدها في دور مستقل، بلا أي كلام "
     "قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً."
 )
@@ -141,5 +157,12 @@ def spoken_request(tool: str, canonical: str, words: Sequence[str]) -> str:
                                     words=render_words(words))
 
 
+def spoken_scope(tool: str, words: Sequence[str]) -> str:
+    """The kernel's OWN sentence for a refused TURN-GRANTED call (DEC-143): the
+    SCOPE the approval grants, never the call that happened to ask. It takes the
+    tool — the name the grant is held under — and the words, and nothing else."""
+    return SPOKEN_SCOPE_AR.format(tool=tool, words=render_words(words))
+
+
 __all__ = ["MAX_SPOKEN_VALUE_CHARS", "SPOKEN_CUT_AR", "SPOKEN_REQUEST_AR",
-           "speakable", "spoken_request"]
+           "SPOKEN_SCOPE_AR", "speakable", "spoken_request", "spoken_scope"]

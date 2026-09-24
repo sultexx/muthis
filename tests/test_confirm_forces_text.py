@@ -31,32 +31,37 @@ from muthis.trust.high_impact import NETWORK_CAPABILITY, RouteImpact
 from muthis_sdk import ToolDescriptor, ToolPlugin, ToolResult
 
 SEARCH = namespaced_name("web", "search")
+FETCH = namespaced_name("web", "fetch")
+URL = {"url": "https://docs.python.org/3/"}
 NETWORK = frozenset({NETWORK_CAPABILITY})
 ARGS = {"query": "بايثون"}
 
 
 class _WebPlugin(ToolPlugin):
+    def __init__(self, names=("search",)):
+        self._names = names
+
     def descriptors(self):
-        return [ToolDescriptor(name="search",
-                               schema={"name": "search", "description": "d",
+        return [ToolDescriptor(name=name,
+                               schema={"name": name, "description": "d",
                                        "input_schema": {}},
-                               kernel_serviced=False)]
+                               kernel_serviced=False) for name in self._names]
 
     async def execute(self, tool, args, ctx):
         return ToolResult(text_ar="نتائج البحث")
 
 
-def _web_router(*, tainted: bool) -> ToolRouter:
+def _web_router(*, tainted: bool, names=("search",)) -> ToolRouter:
     router = ToolRouter()
-    router.mount(_WebPlugin(), namespace="web", provenance="web:test",
+    router.mount(_WebPlugin(names), namespace="web", provenance="web:test",
                  taint=True, impact=RouteImpact(capabilities=NETWORK))
     if tainted:
         router.session_taint.raise_taint("web:test")
     return router
 
 
-def _service(router):
-    return asyncio.run(router.service(SEARCH, dict(ARGS)))
+def _service(router, tool=SEARCH, args=ARGS):
+    return asyncio.run(router.service(tool, dict(args)))
 
 
 # ─── The brake ───────────────────────────────────────────────────────────────
@@ -85,13 +90,18 @@ def test_an_APPROVED_pending_does_NOT_force():
     """THE PREDICATE TRAP, with its control. After the word is heard the brake
     must LIFT, or the approved call can never be re-issued and the approval can
     never be spent. The control is the `pending_tool` assertion: the pending is
-    still there, so a brake keyed on ITS presence would fire here and deadlock."""
-    router = _web_router(tainted=True)
-    _service(router)                                   # turn N: refused
+    still there, so a brake keyed on ITS presence would fire here and deadlock.
+
+    RE-POINTED TO FETCH AT DEC-143: only a PER-CALL approval leaves its pending in
+    place, so only a fetch still distinguishes the two predicates. A search
+    approval ANSWERS its pending — it becomes the turn's grant — and its brake is
+    asserted by the test below."""
+    router = _web_router(tainted=True, names=("search", "fetch"))
+    _service(router, FETCH, URL)                       # turn N: refused
     router.confirm_gate.new_turn()                     # turn N+1 begins
     router.confirm_gate.observe(APPROVAL_WORD_AR)      # the user approves
 
-    assert router.confirm_gate.pending_tool == SEARCH, (
+    assert router.confirm_gate.pending_tool == FETCH, (
         "CONTROL FAILED: the pending is gone, so this test no longer "
         "distinguishes the two predicates and proves nothing")
     assert router.confirm_gate.awaiting_approval is False
@@ -99,7 +109,22 @@ def test_an_APPROVED_pending_does_NOT_force():
         "the brake stayed on after approval — the approved call is gagged and "
         "the user can never spend the word they were asked for")
 
-    assert _service(router).result.is_error is False, "the approval never released"
+    assert _service(router, FETCH, URL).result.is_error is False, "the approval never released"
+
+
+def test_a_SEARCH_approval_becomes_the_grant_and_lifts_the_brake():
+    """DEC-143: a search approval ANSWERS its pending — nothing is pending and the
+    grant stands for the turn — so the brake lifts exactly as it does for an
+    approved per-call pending, and the REWORDED search the model issues next runs."""
+    router = _web_router(tainted=True)
+    _service(router)                                   # turn N: refused
+    router.confirm_gate.new_turn()
+    router.confirm_gate.observe(APPROVAL_WORD_AR)
+
+    assert router.confirm_gate.pending_tool is None
+    assert router.confirm_gate.awaiting_approval is False
+    assert loop_tool_choice(HighlightGate(), router.confirm_gate) == "auto"
+    assert _service(router, SEARCH, {"query": "صياغة أخرى"}).result.is_error is False
 
 
 def test_a_high_impact_call_in_a_CLEAN_session_forces_nothing():

@@ -208,7 +208,13 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # move is behaviour-identical: the suite green with ZERO test edits, 169,759
     # lockstep steps against the base gate identical, and 168 of 168 moved
     # prose units found verbatim.
-    ("trust/confirm_gate.py", 252),
+    # 252 -> 286, DECLARED (DEC-143): the grant's POLICY — the one-member
+    # `TURN_GRANTED_TOOLS`, the release by the turn grant, the choice between
+    # speaking the SCOPE and speaking the hashed bytes, and the BINDING
+    # docstring made true for both shapes. The grant itself is STATE and lives
+    # in `confirm_gate_state.py`. FOURTEEN lines of headroom — more than the TEN
+    # this file had before DEC-143, because the state left first.
+    ("trust/confirm_gate.py", 286),
     # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
     # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
     # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.
@@ -223,7 +229,13 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # silence. A pin is what stops a row from being the only thing watching.
     # Nothing extracted and no content moved: DECLARING it IS the change.
     # ELEVEN becomes TWELVE.
-    ("trust/confirm_gate_notes.py", 209),
+    # 209 -> 234, DECLARED (DEC-143 ruling ③): the two notes shipped WITH the
+    # grant, never before or after — a `{scope}` and a `{binding}` slot, the
+    # retry note's per-call sentence kept byte for byte as `PER_CALL_BINDING_AR`,
+    # `TURN_SCOPE_AR` for a turn-granted tool, the stop no longer claiming every
+    # outward tool is stopped NOW, and the docstring's per-call claims bounded.
+    # The pin met its arrival as a declared number — what it was taken for.
+    ("trust/confirm_gate_notes.py", 234),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's

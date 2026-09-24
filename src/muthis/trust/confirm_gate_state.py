@@ -23,6 +23,11 @@ THE THIRD HOME. DEC-138 found no coherent home for the spoken hand-over: the onl
 candidates were the gate and the speech module, which is pure and stateless. The
 hand-over is STATE, so it lives here, and the speech module stays pure.
 
+DEC-143's GRANT LIVES HERE TOO — BESIDE the pending and never inside it: the tool
+an approval covers for the rest of the turn that carried it. The gate decides
+WHICH tools may be granted and WHETHER a call is released; this object records
+the grant, answers whether it covers a tool, and ends it at the turn boundary.
+
 IT DECIDES NOTHING, and that is guarded rather than promised: no detector, no
 note, no binding, no classification and NO LOGGER — every log line stays in the
 gate, on the gate's logger, so the durable log reads the same across the move.
@@ -65,6 +70,11 @@ class GateState:
         # outstanding to say — which is every state but "refused, not yet
         # spoken", so a pass that refuses nothing can never speak.
         self.spoken: Optional[str] = None
+        # DEC-143: the ONE turn grant — the tool an approval covers until the next
+        # turn, or None. BESIDE `pending`, never inside it: the pending is one slot
+        # that every refusal REPLACES, so a grant kept there would die the moment
+        # an uncovered call was refused in its own turn — the treadmill, rebuilt.
+        self.grant: Optional[str] = None
 
     @property
     def pending_tool(self) -> Optional[str]:
@@ -85,8 +95,10 @@ class GateState:
         return self.pending is not None and not self.pending.approved
 
     def arm(self) -> None:
-        """Open the coming turn's ONE look — the gate's `new_turn`."""
+        """Open the coming turn's ONE look — the gate's `new_turn` — and end the
+        last turn's grant: it lives for the turn that carried it, not a call longer."""
         self.observed_this_turn = False
+        self.grant = None
 
     def take_look(self) -> bool:
         """Spend the turn's ONE look: True the first time, False after it.
@@ -104,6 +116,17 @@ class GateState:
     def approve(self) -> None:
         """The heard approval, marked on the ONE pending call and left in place."""
         self.pending = dataclasses.replace(self.pending, approved=True)
+
+    def grant_turn(self) -> None:
+        """The approval of a TURN-GRANTED tool: the request is ANSWERED — nothing
+        pending and nothing left to say, exactly as `consume()` leaves a per-call
+        release — and its tool is granted until the next `arm()` (DEC-143)."""
+        self.grant, self.pending, self.spoken = self.pending.tool, None, None
+
+    def covers(self, tool: str) -> bool:
+        """Does the turn's grant release this call? The tool NAME is the whole key;
+        the arguments are never read (DEC-143)."""
+        return self.grant is not None and tool == self.grant
 
     def clear(self) -> None:
         """A refusal, or a turn that carried no approval: nothing is pending."""

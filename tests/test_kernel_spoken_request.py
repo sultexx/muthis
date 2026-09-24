@@ -35,7 +35,7 @@ from muthis.trust.call_binding import canonical_call
 from muthis.trust.confirm_gate import ConfirmGate
 from muthis.trust.confirm_gate_detector import APPROVAL_WORDS_AR
 from muthis.trust.confirm_gate_notes import render_args
-from muthis.trust.confirm_gate_speech import speakable, spoken_request
+from muthis.trust.confirm_gate_speech import speakable, spoken_request, spoken_scope
 from muthis.trust.high_impact import NETWORK_CAPABILITY, RouteImpact
 from muthis_sdk import ToolDescriptor, ToolPlugin, ToolResult
 
@@ -165,31 +165,49 @@ def _refuse(gate, tool, args):
     return gate.refusal_for(tool, args, high_impact=True, tainted=True)
 
 
-def test_an_approval_releases_ONLY_the_call_it_was_given_for():
-    """Both directions (DEC-51's rule): the matching call is released AND every
-    near-miss is refused. One assertion alone is satisfiable by a mutation that
-    hard-codes the other."""
-    approved = {"query": "x"}
-    for name, tool, args in (
-            ("another tool", FETCH, dict(approved)),
-            ("a changed value", SEARCH, {"query": "x "}),
-            ("an extra argument", SEARCH, {"query": "x", "max_results": 5})):
-        gate = ConfirmGate()
-        _refuse(gate, SEARCH, dict(approved))
-        gate.new_turn()
-        gate.observe(APPROVAL_WORDS_AR[0])
-        assert _refuse(gate, tool, args) is not None, (
-            f"{name}: an approval travelled to a call the user never heard")
-
+def _approved(tool, args):
+    """A gate whose turn N refused (tool, args) and whose turn N+1 approved it."""
     gate = ConfirmGate()
-    _refuse(gate, SEARCH, dict(approved))
+    _refuse(gate, tool, dict(args))
     gate.new_turn()
     gate.observe(APPROVAL_WORDS_AR[0])
-    assert _refuse(gate, SEARCH, dict(approved)) is None, (
-        "the approved call was NOT released — the success path is broken")
+    return gate
 
 
-def test_the_released_approval_is_SINGLE_USE_and_leaves_nothing_to_say():
+def test_an_approval_releases_ONLY_what_it_was_given_for():
+    """Both directions (DEC-51's rule): what an approval covers is released AND
+    every near-miss is refused. One assertion alone is satisfiable by a mutation
+    that hard-codes the other.
+
+    FLIPPED IN PART BY DEC-143. For `web__search` the approval covers the TOOL for
+    its turn, so a changed value or an extra argument IS released — the grant never
+    reads arguments. ANOTHER TOOL is still refused: `web__fetch` after a search
+    approval is the case that pins the SPLIT, and the design rests on it. A
+    per-call tool keeps both directions exactly, and is asserted beside it."""
+    query = {"query": "x"}
+    assert _refuse(_approved(SEARCH, query), FETCH, dict(query)) is not None, (
+        "another tool: a SEARCH grant released a FETCH — the split is gone (DEC-143)")
+    for name, args in (("a changed value", {"query": "x "}),
+                       ("an extra argument", {"query": "x", "max_results": 5}),
+                       ("the approved call itself", dict(query))):
+        assert _refuse(_approved(SEARCH, query), SEARCH, args) is None, (
+            f"{name}: the search grant did not release it (DEC-143: tool x turn)")
+
+    url = {"url": "https://a.test/"}
+    for name, tool, args in (("another tool", SEARCH, {"query": "x"}),
+                             ("a changed value", FETCH, {"url": "https://a.test/x"}),
+                             ("an extra argument", FETCH, {"url": "https://a.test/", "depth": 1})):
+        assert _refuse(_approved(FETCH, url), tool, args) is not None, (
+            f"{name}: a FETCH approval travelled to a call the user never heard")
+    assert _refuse(_approved(FETCH, url), FETCH, dict(url)) is None, (
+        "the approved fetch was NOT released — the success path is broken")
+
+
+def test_a_released_approval_leaves_nothing_to_say_and_ends_as_ruled():
+    """A release leaves nothing to SAY, under either binding (DEC-138). FLIPPED IN
+    PART BY DEC-143: a SEARCH approval serves its whole turn — the same search is
+    released again — and ends at the next turn boundary; a FETCH approval is still
+    spent on its one call."""
     gate = ConfirmGate()
     _refuse(gate, SEARCH, {"query": "x"})
     gate.new_turn()
@@ -198,7 +216,14 @@ def test_the_released_approval_is_SINGLE_USE_and_leaves_nothing_to_say():
     assert gate.take_spoken_request() is None, (
         "a released call left a spoken request behind — the user would hear a "
         "request for a call that already ran")
-    assert _refuse(gate, SEARCH, {"query": "x"}) is not None, "the approval was reusable"
+    assert _refuse(gate, SEARCH, {"query": "x"}) is None, "the search grant did not serve its turn"
+    gate.new_turn()
+    assert _refuse(gate, SEARCH, {"query": "x"}) is not None, "a search grant outlived its turn"
+
+    gate = _approved(FETCH, {"url": "u"})
+    assert _refuse(gate, FETCH, {"url": "u"}) is None
+    assert gate.take_spoken_request() is None
+    assert _refuse(gate, FETCH, {"url": "u"}) is not None, "the fetch approval was reusable"
 
 
 # ═══ R3 — EVERY ACCEPTED WORD IS OFFERED ══════════════════════════════════════
@@ -227,16 +252,27 @@ def test_the_request_is_handed_over_ONCE_and_then_cleared():
 
 
 def test_several_refusals_in_one_pass_produce_ONE_request_for_the_LAST_call():
-    """The S3 case: a pass carried `web__search` three times. Only the first is
-    dispatched today, but the gate must not depend on that."""
+    """The S3 case: a pass carried the tool three times. Only the first is
+    dispatched today, but the gate must not depend on that.
+
+    RE-POINTED TO FETCH AT DEC-143. The rebind this pins is DEC-138's PER-CALL
+    property — the spoken bytes follow the LAST refused call — and a search no
+    longer speaks arguments at all: it speaks its SCOPE, identical for every
+    search, and still exactly once."""
     gate = ConfirmGate()
-    _refuse(gate, SEARCH, {"query": "one"})
-    _refuse(gate, SEARCH, {"query": "two"})
+    _refuse(gate, FETCH, {"url": "https://one.test/"})
+    _refuse(gate, FETCH, {"url": "https://two.test/"})
     said = gate.take_spoken_request()
-    assert said.count("query=") == 1, "more than one call was described in one breath"
+    assert said.count("url=") == 1, "more than one call was described in one breath"
     assert "two" in said and "one" not in said, (
         "the request describes a superseded call — the pending rebinds, so the "
         "spoken text must rebind with it")
+    assert gate.take_spoken_request() is None
+
+    gate = ConfirmGate()
+    _refuse(gate, SEARCH, {"query": "one"})
+    _refuse(gate, SEARCH, {"query": "two"})
+    assert gate.take_spoken_request() == spoken_scope(SEARCH, APPROVAL_WORDS_AR)
     assert gate.take_spoken_request() is None
 
 
@@ -309,10 +345,12 @@ def test_the_speech_module_holds_no_opinion_about_which_words_are_accepted():
             "about which words are accepted")
 
 
-def test_the_directive_the_MODEL_reads_is_untouched():
-    """DEC-138 ruling 3: the stronger property stays byte-identical while the
-    weaker one is worked on (DEC-42). `claude` DOES relay, so deleting the order
-    would break what works."""
+def test_the_directive_the_MODEL_reads_still_names_the_tool_and_arguments():
+    """DEC-138 ruling 3 kept this directive byte-identical while the weaker half was
+    worked on (DEC-42); `claude` DOES relay, so deleting the order would break what
+    works. DEC-143 ruling ③ then CHANGED it, WITH the grant and never before: one
+    clause of the stop and, for a turn-granted tool, the scope sentence. What this
+    still pins is the order to name the tool and the arguments."""
     from muthis.trust.confirm_gate_notes import CONFIRM_DIRECTIVE_AR
     assert "{args}" in CONFIRM_DIRECTIVE_AR and "{tool}" in CONFIRM_DIRECTIVE_AR
     gate = ConfirmGate()

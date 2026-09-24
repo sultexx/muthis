@@ -154,7 +154,9 @@ def test_the_retry_note_STILL_names_the_tool_and_its_arguments():
     """DEC-16's bound (a) survives the shorter follow-up. The failed observation
     CLEARED the pending, so this refusal is binding a FRESH fingerprint over
     whatever the model is asking for NOW — an approval must never travel to a
-    call the user never heard."""
+    call the user never heard. Since DEC-143 that holds PER CALL; for this tool,
+    `web__search`, the retry still names the tool and the arguments and states the
+    SCOPE its approval grants in place of the per-call sentence."""
     gate = ConfirmGate()
     gate.new_turn()
     _refuse(gate)

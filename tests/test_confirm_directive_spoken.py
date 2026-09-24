@@ -54,8 +54,11 @@ ARGS = "query=أسعار الذهب"
 def _rendered() -> str:
     # `{word}` became `{words}` at DEC-136 ruling 2 — the slot takes the whole
     # accepted tuple now, rendered the way the model must offer it aloud.
+    # `{scope}` joined at DEC-143: empty for a per-call tool, the scope sentence
+    # for a turn-granted one. Every phrase pinned in this file reads the same
+    # either way; `test_turn_grant.py` pins the scope sentence itself.
     return CONFIRM_DIRECTIVE_AR.format(
-        tool=TOOL, args=ARGS, words=render_words(APPROVAL_WORDS_AR))
+        tool=TOOL, args=ARGS, words=render_words(APPROVAL_WORDS_AR), scope="")
 
 
 # ─── The defect itself ──────────────────────────────────────────────────────

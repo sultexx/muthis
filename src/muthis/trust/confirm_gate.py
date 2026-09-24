@@ -34,11 +34,17 @@ whether it is RELEASED — and owns ONE `GateState`, built in its own constructo
 and never injected, so every router's gate is this gate and DEC-40's condition
 cannot arise. Read that module before touching what is REMEMBERED.
 
-BINDING. Approval is pinned to a sha256 of (tool name + canonical arguments) —
-the grants-store pattern, applied to a CALL instead of a manifest — so a MODIFIED
-call needs fresh approval, exactly as a changed manifest invalidates a grant. It
-is SINGLE-USE (consumed on match), the pending state EXPIRES at the first turn
-that carries no approval, and an explicit refusal clears it at once.
+BINDING — TWO SHAPES SINCE DEC-143. `web__fetch`, and every high-impact tool not
+named in `TURN_GRANTED_TOOLS`, is PER CALL: approval is pinned to a sha256 of
+(tool name + canonical arguments) — the grants-store pattern, applied to a CALL
+instead of a manifest — so a MODIFIED call needs fresh approval, exactly as a
+changed manifest invalidates a grant. It is SINGLE-USE (consumed on match), the
+pending state EXPIRES at the first turn that carries no approval, and an explicit
+refusal clears it at once. `web__search` alone is TOOL × TURN: its approval
+becomes a GRANT for that tool for the rest of the turn that carried it, held in
+its own record BESIDE the pending and ended by the next `new_turn()`. The split
+IS the safety argument: search reaches one configured provider, and every
+attacker-chosen endpoint runs through fetch, which stays per call (DEC-143 ③).
 
 **DEC-136 CHANGED NONE OF THAT, AND THE RECORD SHOULD NOT READ AS IF IT DID.**
 Its three rulings are a wider accepted SET (the detector), a request that names
@@ -57,10 +63,10 @@ arguments named ALOUD, and the approval binds to the hash of the REAL call, not
 to whatever was said about it. Removing the limit entirely required the KERNEL to
 author the spoken confirmation, which was taken to mean touching `TurnVoice` —
 recorded as POST-LAUNCH research ("kernel-authored confirmation"), accepted for
-launch. **DEC-135 measured the messenger WORKING on `claude` and failing on `luna`,
-so the kernel-messenger case was NOT made; a prompt half that holds on one model and
-not the other is precisely a non-guarantee.** SUPERSEDED by DEC-138, which built it
-without touching `TurnVoice`; the limit is BOUNDED now, not gone (DEC-138 ⑤).
+launch. **DEC-132 ③ measured the messenger failing on `luna`, and DEC-135 WORKING on
+`claude`, so the kernel-messenger case was NOT made; a prompt half that holds on one
+model and not the other is precisely a non-guarantee.** SUPERSEDED by DEC-138, which
+built it without touching `TurnVoice`; the limit is BOUNDED now, not gone (DEC-138 ⑤).
 
 THE LIMIT MATERIALISED IN PRODUCTION, and this file's constant is what changed
 (DEC-95). A live session logged `high-impact web__search refused — awaiting spoken
@@ -118,14 +124,24 @@ from .call_binding import call_fingerprint, canonical_call  # noqa: F401 — re-
 # `confirm_gate_speech.py` (DEC-138). Its own module because the renderer needs
 # `json` and the notes module is import-locked to `__future__` and `typing` by
 # its own guard — which is never lowered to let work through.
-from .confirm_gate_speech import spoken_request  # noqa: F401 — re-export
+from .confirm_gate_speech import spoken_request, spoken_scope  # noqa: F401 — re-export
 # ─── The STATE, EXTRACTED ────────────────────────────────────────────────────
 # Moved to `confirm_gate_state.py` ahead of DEC-143 — MECHANISM, not policy, on
 # the binding's precedent: what the gate remembers, never what it decides.
 # `_Pending` went with it; nothing outside the package ever imported it.
 from .confirm_gate_state import GateState
+# DEC-11's ONE separator, so the grant's key is derived exactly as the router
+# exposes the name — never spelled out a second time.
+from ..kernel.router_surfaces import namespaced_name
 
 logger = logging.getLogger("muthis.trust.confirm_gate")
+
+# ─── THE TURN-GRANTED CLASS — EXACTLY ONE MEMBER, BY RULING (DEC-143) ────────
+# An approval of a tool in this set becomes a GRANT for the rest of the turn that
+# carried it; every other high-impact tool stays PER CALL until a ruling names
+# it. Membership is an AUTHORIZATION decision — never configuration, never a
+# mount fact — so a tool cannot drift in without a ruling and a red test.
+TURN_GRANTED_TOOLS = frozenset({namespaced_name("web", "search")})
 
 
 class ConfirmGate:
@@ -153,7 +169,7 @@ class ConfirmGate:
         return self._state.awaiting_approval
 
     def new_turn(self) -> None:
-        """Arm the coming turn's ONE observation.
+        """Arm the coming turn's ONE observation, and end the last turn's grant.
 
         Called from the SAME per-turn hook that resets the sandbox gate
         (`TurnPass.new_turn_voice`) — DEC-19 forbids inventing a second
@@ -180,7 +196,12 @@ class ConfirmGate:
         # that he was not understood would be a false claim about his intent.
         self._state.missed = decision is None
         if decision == APPROVE:
-            self._state.approve()
+            if pending.tool in TURN_GRANTED_TOOLS:
+                # DEC-143: the approval ANSWERS the request — the pending goes and
+                # the grant stands for this turn, so the DEC-131 brake lifts too.
+                self._state.grant_turn()
+            else:
+                self._state.approve()
             logger.info("[confirm-gate] approval heard for %s", pending.tool)
             return
         # An explicit refusal and a silent turn both clear the pending state, but
@@ -206,6 +227,11 @@ class ConfirmGate:
         separate call — `docs__open` does, and is not high-impact (DEC-134)."""
         if not (high_impact and tainted):
             return None
+        if self._state.covers(tool):
+            # DEC-143: released by the turn grant, arguments unread — rewording a
+            # search can no longer destroy its approval (DEC-139 ②).
+            logger.info("[confirm-gate] granted call released: %s", tool)
+            return None
         canonical, fingerprint = canonical_call(tool, args)
         if self._state.released_by(fingerprint):
             self._state.consume()     # SINGLE-USE, and nothing left to explain or say
@@ -226,8 +252,14 @@ class ConfirmGate:
         # `spoken_request` is handed `canonical` and NEVER `args`, so it is
         # structurally unable to describe a payload the fingerprint does not
         # cover — the divergence is an absence of means, not a check.
-        self._state.spoken = spoken_request(tool, canonical, APPROVAL_WORDS_AR)
-        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._state.missed)
+        # DEC-143: a turn-granted tool is asked for by its SCOPE, rendered from the
+        # tool name the grant will be held under — never from arguments it does
+        # not bind. Every per-call tool keeps DEC-138's hashed bytes exactly.
+        scoped = tool in TURN_GRANTED_TOOLS
+        self._state.spoken = (spoken_scope(tool, APPROVAL_WORDS_AR) if scoped
+                              else spoken_request(tool, canonical, APPROVAL_WORDS_AR))
+        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._state.missed,
+                            scoped=scoped)
 
 
 __all__ = [
@@ -241,6 +273,7 @@ __all__ = [
     "MAX_ARGS_CHARS",
     "MAX_ARG_CHARS",
     "REFUSE",
+    "TURN_GRANTED_TOOLS",
     "call_fingerprint",
     "canonical_call",
     "confirm_note",
@@ -248,5 +281,6 @@ __all__ = [
     "render_args",
     "render_words",
     "spoken_request",
+    "spoken_scope",
     "strip_directive_lines",
 ]

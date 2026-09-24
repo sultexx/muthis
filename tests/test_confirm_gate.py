@@ -217,23 +217,31 @@ def test_turn_n_plus_one_approval_unlocks_that_exact_call():
     assert "نتائج البحث" in outcome.result.text_ar
 
 
-def test_a_modified_call_is_not_unlocked_by_the_earlier_approval():
-    """The binding is a hash of tool + arguments — the grants-store pin applied
-    to a CALL. An approval must never travel to a call the user never heard."""
+def test_a_reworded_SEARCH_is_released_by_the_turn_grant():
+    """FLIPPED DELIBERATELY BY DEC-143 (ruling ②). This test used to assert that an
+    approval of «بايثون» never released «حسابي البنكي» — the per-call binding, for
+    every tool. Since DEC-143 `web__search` is TOOL × TURN: its approval grants the
+    tool for the rest of the turn that carried it, so the reworded search RUNS.
+    ACCEPTED because search reaches ONE configured provider — the trust every
+    clean-session search already extends — and every attacker-chosen endpoint runs
+    through fetch, which stays per call. What this test used to guard is guarded
+    for fetch by `test_a_FETCH_approval_does_not_release_a_DIFFERENT_url`."""
     router, plugin = _tainted_web_router()
     _service(router, args={"query": "بايثون"})
     _speak(router, APPROVE_AR)
 
     outcome = _service(router, args={"query": "حسابي البنكي"})
 
-    assert outcome.result.is_error is True
-    assert outcome.provenance == "kernel:confirm"
-    assert plugin.calls == []
+    assert outcome.result.is_error is False, "the turn grant did not release a reworded search"
+    assert plugin.calls == [{"query": "حسابي البنكي"}]
 
 
-def test_the_approval_is_single_use():
-    """Consumed on match: the second identical call is a NEW request for
-    permission, not a continuation of the first."""
+def test_a_SEARCH_approval_serves_its_whole_turn_and_ends_with_it():
+    """FLIPPED DELIBERATELY BY DEC-143. This test used to assert SINGLE USE for
+    search; a search approval now serves every search in the turn that carried
+    it — and ENDS at the next turn boundary, which this test asserts too, so the
+    flip can never become open-ended permission. Single use is guarded for fetch
+    by `test_a_FETCH_approval_is_single_use`."""
     router, plugin = _tainted_web_router()
     _service(router)
     _speak(router, APPROVE_AR)
@@ -242,8 +250,12 @@ def test_the_approval_is_single_use():
     second = _service(router)
 
     assert first.result.is_error is False
-    assert second.result.is_error is True
-    assert len(plugin.calls) == 1
+    assert second.result.is_error is False, "the grant did not serve its whole turn"
+    assert len(plugin.calls) == 2
+
+    router.confirm_gate.new_turn()                  # the grant's turn is over
+    assert _service(router).result.is_error is True, "a search grant outlived its turn"
+    assert len(plugin.calls) == 2
 
 
 def test_a_FETCH_approval_does_not_release_a_DIFFERENT_url():
