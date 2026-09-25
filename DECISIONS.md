@@ -18656,3 +18656,169 @@ a fetch still refused.
   waits on the live check.
 
 ---
+
+## DEC-146 (2026-09-25) — **DEC-143 IS LIVE-VERIFIED: ONE APPROVAL RELEASED THREE SEARCHES, AND THE FETCH STILL ASKED.** The signature DEC-144 ⑩ predicted, line for line, and the line it said could not appear did not · DEC-144's pending item CLOSES, and the push follows this entry · the grant can exhaust the agentic cap and cut the answer — a new interaction DEC-143 introduced, diagnosed, five options UNRULED, the cap staying at 4 · the fetch treadmill observed live · the approval request is too long to speak — both exact texts recorded, three options UNRULED · Sultan's preference that search need no approval recorded with its cost and the caveat that decides it, which the source cannot settle · `AGENTS.md:333` corrected — LIVE-VERIFIED (Sultan), RECORDED, **NOTHING RULED.**
+
+Sultan re-ran DEC-144's live check on `gpt-5.6-luna` on 2026-09-25, and it PASSED for the grant. Every
+claim below was verified against the durable log — lines 2062–2260 as read on 2026-09-25, a snapshot of a
+rotating file — and the code at `b6b35c4`, whose `src/` is `0b72f19`'s: **the check ran DEC-144's build
+exactly, as DEC-145 ⑪ ruled.** This entry changes no `src/`, test or model-facing string; one AGENTS.md
+line is corrected, as Sultan authorised (⑥). 2,109 green, run serially (≤6 workers).
+
+---
+
+## ① THE LIVE CHECK PASSED — THE SIGNATURE, EXACTLY
+
+Four sessions followed DEC-145's two. Sessions 3 and 4 (`:2062-2105`) ended before any pass, each with
+ElevenLabs reporting `voice_id_does_not_exist`; Session 5's speech fell back to Gemini TTS for the same
+reason; Session 6 logged no TTS failure. All ran `luna` / `gpt-5.6-luna`.
+
+- **SESSION 6 — THE SIGNATURE.** Turn 1 (73 characters): `#1 tools=web__search` ran and tainted; `#2
+  tools=web__search,web__fetch` → `high-impact web__search refused` (`:2202`); `#3 tools=-`. Turn 2, **five
+  characters** → **`approval heard for web__search` ONCE** (`:2214`) → passes #1, #2 and #3 each
+  **`granted call released: web__search`** (`:2217`, `:2223`, `:2228`), three Tavily calls → `#4
+  tools=web__fetch,web__search` → **`high-impact web__fetch refused`** (`:2233`).
+- **SESSION 5 CORROBORATES.** Turn 2, five characters → `approval heard for web__search` once (`:2149`)
+  → granted twice (`:2152`, `:2159`) → `#3 tools=web__fetch,web__search` → the fetch refused (`:2164`) →
+  `#4 tools=-`, the answer.
+- **THE NEGATIVE MARKER HELD.** `approved call released: web__search` — which DEC-144 ⑩ said cannot
+  appear after `0b72f19` — appears ZERO times after line 2061.
+
+**One approval released three searches, and the fetch still asked: Sultan's security split held live.
+DEC-144's pending item CLOSES — DEC-143 is LIVE-VERIFIED on `gpt-5.6-luna`.** The push follows this
+entry. The precondition GPT-6 Luna waited on (DEC-143 ⑩) is met; its regression plan is unexecuted and
+Sultan's to open.
+
+## ② THE GRANT CAN EXHAUST THE AGENTIC CAP — A NEW INTERACTION, DIAGNOSED
+
+**WHAT FILLED THE PASSES (Session 6, turn 2).** Passes #1–#3 carried one granted search each; pass #4
+carried a fetch, refused, with a search answered by name. Then `agentic cap (4) hit — stopping cleanly`
+(`:2234`), and the loop spoke `AGENTIC_CAP_NOTE_AR` (`orchestrator.py:294-295`) — «انقطع الجواب قبل ما
+يكمل…», "the answer was cut before it finished…" — right after the kernel's request for the fetch, so the
+user heard two different next steps in one breath. **The answer the three searches were for was never
+generated.**
+
+**THE MECHANISM, IN DEC-111's SHAPE.** A pass services ONE router call (first-wins,
+`turn_pass.py:192-214`); DEC-131's brake forces text on the pass AFTER a refusal (`highlight_gate.py:115`);
+and `MAX_AGENTIC_ITERATIONS = 4` (`orchestrator.py:65`, `:246`). So a refusal at pass k brings the answer at
+k+1, and **the answer is lost whenever pass 4 carries a tool call, granted or refused.** Session 5's
+refusal landed on pass 3, and its answer came on pass 4.
+
+**WHY IT IS NEW.** Before DEC-143 an approval released ONE search; the next search was refused at pass 2,
+and the brake brought the answer at pass 3, inside the cap. The grant turns each of passes 1–3 into a
+search. The outcome is still better — three searches against one — but the answer can be lost.
+
+**THE CAP STAYS AT 4 (DEC-111).** The 90 s timeout path speaks nothing, so raising the cap can turn an
+audible ending into a silent truncation (DEC-111, `:13240-13244`). Every option below keeps four provider
+passes. **None is ruled:**
+
+- **(a) THE LAST PASS ANSWERS:** `tool_choice="none"` on pass 4, a third reason for the brake —
+  API-enforced. Cost: every turn gets at most three tool passes, not only granted ones; the pass index
+  lives at `orchestrator.py:246` (299/300), and `loop_tool_choice` takes none today, so an extraction
+  comes first. Measurable beforehand: the `[pass] #4` lines show how often a fourth pass calls a tool.
+- **(b) A KERNEL NOTE ON THE THIRD PASS:** tell the model its next reply is the last. Advisory and
+  model-dependent (DEC-132 ③), so MEASURE-BEFORE-ADOPTION; it needs the same pass index.
+- **(c) MORE WORK PER PASS:** service every granted search a pass carries — both runs had passes carrying
+  two calls (`:2151`, `:2163`, `:2232`). This reverses the one-router-call-per-pass bound and DEC-143 ④'s
+  "at most four searches", and enlarges each pass's payload.
+- **(d) A GRANT THAT STOPS SHORT:** bound the granted releases so a pass remains. This reverses DEC-143 ④'s
+  "NO NEW SEARCH CAP (Sultan)", and does nothing for a fetch or any other tool on pass 4.
+- **(e) DEC-111's OWN REMEDY — A PASS ECONOMY BY AUTHORING:** a clause steering the model to answer before
+  a fourth tool pass, the shape DEC-111 ruled because it "COSTS THE KERNEL NOTHING". Model-side, so
+  MEASURE-BEFORE-ADOPTION.
+- **EXCLUDED BY THE CONSTRAINT:** any fifth provider call — an answer pass after the cap, or not counting a
+  refused pass — raises the cap in effect.
+
+## ③ THE FETCH TREADMILL — OBSERVED LIVE
+
+Session 6, turn 3 — after a barge-in (`:2240`) and an empty capture (`:2244`): five characters →
+**`approval heard for web__fetch`** (`:2251`) → `#1 tools=web__fetch` → **`high-impact web__fetch
+refused`** (`:2254`) → `#2 tools=-`. **The approval was DESTROYED, not consumed** (DEC-139 ②): the
+re-issued call hashed differently, and `place()` replaced the approved record. `web__fetch` declares ONE
+argument, `url` (`muthis_plugins/web_research/schema.py:84-92`), so the URL was re-composed — unless the
+model added a key the schema does not declare; arguments are never logged (DEC-20/DEC-28), so the log
+cannot say which.
+
+**DEC-143 ⑧ recorded this road as persisting for `web__fetch`; it is now OBSERVED.** Fetch stays per call
+by DEC-143 ①, and nothing here reopens it.
+
+## ④ THE REQUEST IS TOO LONG TO SPEAK — THE EXACT TEXTS AND THE OPTIONS
+
+**THE SEARCH-SCOPE FORM, EXACT — 292 characters** (`confirm_gate_speech.py:89-94`):
+
+> وقفت طلباً لأنه يحتاج إذنك. الأداة «web__search»، وإذنك لها يشمل كل استدعاء لها من لحظة إذنك إلى أن
+> تتكلم مرة أخرى، لا هذا الاستدعاء وحده. إن أذنت فقل «أوافق» أو «موافق» أو «وافق» أو «اعتمد» — كلمة
+> واحدة وحدها في دور مستقل، بلا أي كلام قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً.
+
+**THE FETCH FORM — 222 characters plus the URL** (`:80-84`), rendered here with a 78-character example:
+
+> وقفت طلباً لأنه يحتاج إذنك. الأداة «web__fetch»، ومعاملاتها:
+> url="https://docs.python.org/3/library/asyncio-task.html#running-tasks-concurrently". إن أذنت فقل
+> «أوافق» أو «موافق» أو «وافق» أو «اعتمد» — كلمة واحدة وحدها في دور مستقل، بلا أي كلام قبلها أو بعدها،
+> فالجملة التي تحوي الكلمة لا تُقرأ إذناً.
+
+The URL is spoken JSON-encoded and whole up to 160 characters (`MAX_SPOKEN_VALUE_CHARS`), past which the
+cut is declared aloud (DEC-138 ④). Both forms end with the same 153-character words clause, all four words
+and the bare-word rule. The tool names and the URL are Latin script inside Arabic speech, and Sultan heard
+the URL's dots garble — by ear, and not attributable to one voice provider from the log (①). **None of the
+options is ruled:**
+
+- **(a) SPEAK ONE WORD, KEEP ACCEPTING FOUR.** This REVERSES DEC-136 ruling ②, under which the request
+  names every accepted word — `render_words` is imported so that a word cannot be accepted without being
+  offered (`confirm_gate_speech.py:62-63`) — and it flips that ruling's guards
+  (`tests/test_kernel_spoken_request.py:229`, `tests/test_turn_grant.py:183`). The detector is untouched.
+- **(b) FOR FETCH, SPEAK THE DOMAIN AND SHOW THE FULL URL,** both derived from the same canonical bytes.
+  G5 (DEC-138 ③) stands on four grounds: ground 2, "the arguments are already ordered spoken", falls away,
+  while grounds 1, 3 and 4 remain. Speaking the domain alone is a SELECTION where the module says
+  "SERIALISATION, NEVER A SUMMARY" (`:56-60`), so it must declare its cut (DEC-138 ④). And the caption
+  carries what is spoken, sentence by sentence (`turn_voice.py:286`): `VoiceOut.show_caption` exists
+  (`voice_out.py:76`), but every call site pairs it with speech, so a caption carrying unspoken text is a
+  new path. The domain still has dots.
+- **(c) A SHORT WHY FOR SEARCH** (DEC-145 ②): "content from sources we do not trust has entered this session"
+  is true every time the gate speaks. Explain WHY, never WHAT.
+
+## ⑤ SULTAN'S PREFERENCE — SEARCH WITH NO APPROVAL AT ALL — RECORDED, NOT RULED
+
+**WHAT IT WOULD GAIN.** For search-only research, the ask, the forced-pass contradiction (DEC-145 ③), the
+silent failure (DEC-145 ⑥) and ②'s cap interaction all go. A search still taints, so a fetch still asks.
+
+**WHAT IT WOULD COST:**
+
+1. **Two rulings reversed:** DEC-15 names `web.search` high-impact under taint, and DEC-143 froze search as
+   TOOL × TURN.
+2. **Every search under taint would leave with no user decision.** DEC-143 ③ accepted that a steered query
+   can carry what the model sees to the provider inside a granted turn; this makes it every search.
+3. **Disclosure would become model-side alone for every search:** C047's announcement (DEC-143 ⑤,
+   unmeasured, and DEC-145 ③'s candidate cause) and DEC-18's query-privacy law (`persona_laws.py:62-65`).
+   The badge records fetches only (DEC-143 ⑥).
+4. **Guarding it:** an exemption written in the gate's policy is invisible to
+   `tests/test_gate_coverage.py`, which reads route classification, so it would need a guard of its own.
+   At the route level, search would need its own mount — one `RouteImpact` covers a plugin (DEC-143 ①) —
+   and that guard turns red until the route is listed EXEMPT with a reason.
+
+**THE CAVEAT THAT DECIDES IT — DEC-143 ③'s own boundary.** The grounds are that search reaches ONE fixed,
+configured destination, so Mut'his's own request never goes to attacker infrastructure. **What the provider
+then does with the query — whether it ever fetches, crawls or resolves something the query names, in a way
+that reaches attacker-controlled infrastructure — is VENDOR BEHAVIOUR THE SOURCE CANNOT SHOW.** It applies
+to whichever provider is configured: Tavily in every run on record, Brave and SearXNG the alternatives
+(`broker/search/`). **That argument decides it, and it is Sultan's to weigh.**
+
+## ⑥ `AGENTS.md:333` CORRECTED — AUTHORISED IN THIS COMMIT
+
+The derived copy DEC-145 ⑨ made incomplete said `CONFIRM_RETRY_AR` "is returned when the previous utterance
+was HEARD and came back as neither answer". It now also states the confirmed defect: the flag outlives its
+turn, so the first refusal after a miss gets the note however many turns later — unfixed, message layer
+only. It is the only line of AGENTS.md this commit touches.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **LIVE-VERIFIED: DEC-143, on `gpt-5.6-luna`.** DEC-144's pending item is closed; the push follows this
+  entry.
+- **RECORDED, UNRULED, AND SULTAN'S:** ②'s cap options · ④'s request options · ⑤'s preference · DEC-145's
+  open items — the forced pass, the "hear nothing" clause, the silent failure, the `missed` defect.
+- **NEXT, AND SULTAN'S TO OPEN:** GPT-6 Luna's regression (DEC-143 ⑩); its precondition is met.
+- **Untouched:** DEC-97's counter and the retry-family ruling.
+
+---
