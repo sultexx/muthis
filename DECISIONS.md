@@ -18171,3 +18171,267 @@ executed.**
 - **Untouched:** DEC-97's counter and the retry-family ruling.
 
 ---
+
+## DEC-144 (2026-09-25) — **DEC-143 IS BUILT: SUITE-VERIFIED, LIVE VERIFICATION PENDING.** Three commits on `d01af07`, in the ruled order, on `gpt-5.6-luna` · the build's own rulings recorded, because the tree already cites them as "DEC-143 ruling ①–③" and DEC-143's own ①–③ say something else · seam (e) left `confirm_gate.py` at 286 with FOURTEEN lines of headroom, against TEN before the feature · the fetch twins confirmed the property was UNGUARDED — two fetch loosenings each passed the whole suite, re-run for this entry · the extraction behaviour-identical three ways, and the harness tested against itself · DEC-143's flip list corrected: SIX tests, four flipped and two re-pointed to fetch, one of them missed · a web mount that loses `net.fetch` stays gated through the fail-closed externality arm — two layers, not one · two stale AGENTS.md numbers, self-caused and self-caught · `PROJECT_STATE.md:341` left for the milestone sweep · the live check OPEN, with its log signature — RECORDED (Sultan), **BUILT, NOT PUSHED; THE LIVE CHECK IS THE MILESTONE BOUNDARY.**
+
+DEC-143 froze the design and closed on **NOTHING BUILT**. That stopped being true at `0b72f19`, and a status
+claim left stale in the source of truth is DEC-116's class — so Sultan ordered the build recorded NOW,
+before the live check, in the one form that stays true whatever the live run shows: **BUILT,
+SUITE-VERIFIED, LIVE VERIFICATION PENDING.** Every claim below was verified for this entry against the
+three commits, the code at `0b72f19` and the build session's own transcript, where its closing report
+survived; the two fetch loosenings and the fetch path's byte-identity were RE-RUN, not quoted. **This entry
+changes no `src/`, test or model-facing string; 2,109 green, run serially** — inside the ≤6-worker bound,
+since `pytest-xdist` is not installed. `file:N` references are to `0b72f19` unless a revision is named.
+
+---
+
+## ① WHAT IS BUILT — THREE COMMITS, IN THE RULED ORDER
+
+On `gpt-5.6-luna`, the known baseline, so a regression stays attributable to one variable (DEC-143 ⑩):
+
+1. **`783a23d` — the fetch twins** (build ruling ①; ④ below). Tests only. 2,085 → 2,087.
+2. **`c556ec9` — the gate's STATE moves to `confirm_gate_state.py`** (seam (e), ③), behaviour-identical
+   (⑤). 2,087 → 2,092.
+3. **`0b72f19` — DEC-143 on top.** `TURN_GRANTED_TOOLS` is exactly `{web__search}` (`confirm_gate.py:144`).
+   Its approval ANSWERS the pending and becomes a GRANT held in `GateState` BESIDE the pending, released by
+   tool NAME with the arguments unread, ended by the next `new_turn()`. `web__fetch` keeps all of DEC-16.
+   A search is asked for by its SCOPE (`spoken_scope`, whose signature cannot take arguments); a fetch keeps
+   DEC-138's hashed bytes. The two notes shipped with it (build ruling ③). 2,092 → 2,109.
+
+**THE FETCH PATH, CHECKED BY VALUE FOR THIS ENTRY.** The real gate at `d01af07` and at `0b72f19`, driven
+through the same refusals: DEC-138's spoken request for a fetch and the fetch RETRY note are
+BYTE-IDENTICAL, and the fetch DIRECTIVE differs by one clause alone — «الآن» out of «موقوفة الآن بنفس
+الطريقة», «ما لم يأذن بها المستخدم» in. `0b72f19` is the only commit between the two revisions that
+touches the notes, the speech, the detector or the binding.
+
+Each guard count was declared in its commit (+2, +5, +17). The ruled mutations each went RED, asserted
+APPLIED by a whole-file landing check: a grant surviving `new_turn()` (4), a search grant releasing a fetch
+(3), a grant kept in the pending slot (10), a network route mounted outside coverage (3, ⑦) and a
+registered MCP server (1); beside them a new mount site (2), fetch joining the class (9), search speaking
+its arguments (2) and the stop claiming «الآن» again (1). One anchor went stale against the built state
+module, and the uniqueness assertion REFUSED it before any run — DEC-129 ③ doing its job: a mutation that
+never lands reads exactly like one the code survived.
+
+## ② THE BUILD'S OWN RULINGS — RECORDED HERE, BECAUSE THE TREE ALREADY CITES THEM
+
+Sultan's build brief (2026-09-24) carried three numbered rulings, and the G1 ruling that followed chose
+the seam. **None of them is in the ledger, and the tree cites them as "DEC-143 ruling ①/②/③"** — while
+DEC-143's own ①, ② and ③ are the TOOL × TURN ruling, the design as frozen, and the `:209` consequence. A
+citation into a real entry at a section that says something else fails QUIETLY. Recorded here, in
+Sultan's words, so each one resolves:
+
+- **BUILD RULING ① — THE FETCH TWINS.** "ADD the fetch versions of :209 and :223, in the SAME change. An
+  approved fetch of one URL must not release a different URL; a fetch approval is single-use. And keep
+  test_kernel_spoken_request.py:168's search-then-fetch case REFUSED — … it becomes the test that pins the
+  split." **Closes DEC-143 ⑨'s OPEN item.** Cited at `tests/test_confirm_gate.py:15`, `:263`, `:278`,
+  `AGENTS.md:345`, and `783a23d`'s subject line.
+- **BUILD RULING ② — "the MCP condition gets a GUARD, not a note":** a test that FAILS if any route that can
+  reach the network is mounted outside the gate's coverage, so enabling an MCP server reddens the suite and
+  reopens DEC-143 by construction. Accepted at G1 as a test with both limits recorded — per-machine by
+  design, because registrations are git-ignored, and trusting the launch from the repo root — and with the
+  finding recorded in its own right: every MCP route mounts `read_only_hint=True` UNCONDITIONALLY
+  (`broker/mcp/host.py:128`), so it is never gated whatever the server does, **which makes this guard the
+  ONLY protection against it, not a redundant one.** → `tests/test_gate_coverage.py`; cited at its `:3`
+  and `AGENTS.md:348`.
+- **BUILD RULING ③ — "the two notes ship WITH the grant, never before or after."** **Closes DEC-143 ⑨'s
+  rewording item.** Cited at `AGENTS.md:333` and `:642`, `tests/test_kernel_spoken_request.py:351`,
+  `tests/test_module_line_ceiling.py:232` and `tests/test_turn_grant.py:191`.
+- **THE G1 RULING — seam (e): SEPARATE POLICY FROM STATE** (③). The two seams that fit were REJECTED, each
+  for contradicting a prior ruling: (b)+(c) revives the relocation DEC-138 rejected as having "no coherent
+  home", and lands at exactly 300; (d) re-creates DEC-40's measured failure — fifteen test files build routers
+  with the default gate, so production would run one gate while the suite tests another. "A seam landing
+  at exactly 300 is NOT a fit — report headroom, not merely fitting." The order: the twins first, the
+  extraction as its own byte-identical commit, DEC-143 on top.
+- **DEC-143 ⑤'s OPEN METHOD — ruled in the same brief:** the announce-before-search rule "is observed by
+  ear in that run, pending the DEC-61 instrument ruling" (⑩).
+
+**FOUND AND LEFT:** `tests/test_confirm_gate.py:221` cites "DEC-143 (ruling ②)" for the `:209` flip. Build
+ruling ② is the MCP guard; the ledger section that accepted exactly this case is DEC-143 ③. This entry
+touches no test.
+
+## ③ SEAM (e) — THE MEASUREMENT: THE GATE ENDS ROOMIER THAN IT STARTED
+
+G1 measured DEC-143 against scratchpad copies of `confirm_gate.py` — 290, pinned at 290 — and STOPPED the
+build, as the brief required: in place the grant measured **332** in the file's own comment density, and
+**302** even as bare code with its BINDING docstring left false. The overage was wiring, not logic. The
+seams, measured and not chosen: the one-member class alone 325 · the records 314 · the spoken hand-over
+318 · records and hand-over together **exactly 300** · a subclass 298.
+
+(e), as built:
+
+| | at `d01af07` | the state leaves (`c556ec9`) | the grant arrives (`0b72f19`) |
+|---|---|---|---|
+| `confirm_gate.py` | 290 — TEN lines of headroom | 252 | **286 — FOURTEEN lines of headroom** |
+| `confirm_gate_state.py` | — | 144 | 167 |
+
+**Separating state from policy left the gate ROOMIER than it was before the feature.** Both gate numbers
+were DECLARED in the ceiling pins (`tests/test_module_line_ceiling.py:217`); the notes 209 → 234, DECLARED
+(`:238`); the speech module 145 → 168.
+
+What G1's ruling asked to be confirmed, confirmed. **"ONE confirmation site" (`AGENTS.md:179`) still
+holds:** `refusal_for` has one caller (`kernel/tool_router.py:257`), and every refuse-or-release decision
+stays in `confirm_gate.py` — only what the gate REMEMBERS moved. **DEC-40's condition cannot arise:** no
+subclass and no injection; the gate builds its one `GateState` in its own constructor (`:152-155`), and
+both constructions — the composition root (`composition.py:171`) and the router's default
+(`kernel/tool_router.py:114`) — build the same class, guarded by `tests/test_confirm_gate_state.py:88` and
+`:97`. The speech module stays pure: the hand-over is state, and the state module is the third home
+DEC-138 never had.
+
+## ④ THE FETCH TWINS — THE PROPERTY WAS GENUINELY UNGUARDED
+
+DEC-143 ⑨ found that no test approved a `web__fetch`. **Measured on `d01af07`, before the twins existed,
+each mutation asserted APPLIED — and RE-RUN for this entry, in a scratch clone, with the same result:**
+
+- an approved FETCH pending releases a fetch of ANY url (`… or tool == pending.tool == "web__fetch"`):
+  **2,085 passed — it survived the entire suite;**
+- a FETCH approval never consumed, so it can be spent twice: **2,085 passed — survived.**
+
+**The property DEC-143 ③ rests on — fetch stays per call — was guarded by NOTHING. The concern was real,
+not theoretical.** At `783a23d` each turns exactly its own twin RED —
+`test_a_FETCH_approval_does_not_release_a_DIFFERENT_url` and `test_a_FETCH_approval_is_single_use`, one
+failure of 2,087 each (re-run).
+
+The build's first draft of the first mutation also let a SEARCH approval release a fetch, and ONE test
+caught it: `tests/test_kernel_spoken_request.py:168` at `d01af07`, the "another tool" case (re-run). That
+is DEC-143 ⑨'s sentence, measured — **the SPLIT was guarded; fetch's own binding was not** — and it is why
+the mutation had to be narrowed to fetch alone before its survival meant anything.
+
+## ⑤ THE STATE EXTRACTION — BEHAVIOUR-IDENTICAL THREE WAYS, AND THE HARNESS TESTED AGAINST ITSELF
+
+`c556ec9` moved `_Pending`, the pending call, the turn's one look, the missed flag and DEC-138's spoken
+hand-over, with every transition and every docstring. Proven against the base gate at `d01af07`:
+
+1. **The suite green with ZERO edits to any existing test** — the ceiling pin aside: 2,092.
+2. **Differential lockstep.** The base gate loaded from `git show d01af07:…` INTO the same package and
+   driven beside the new one over **20,004 call sequences — 20,000 random (seed 143) and four directed —
+   169,759 lockstep steps:** every return value, `pending_tool`, `awaiting_approval` and every log line
+   identical.
+3. **Prose conservation.** 168 of 168 comment and docstring units of the base gate found verbatim in the
+   new pair — moved, never shortened.
+
+**THE HARNESS WAS TESTED AGAINST ITSELF.** A differential harness that cannot diverge proves nothing, so a
+behaviour change was planted in the new module. The first — `consume()` keeping `missed` — stayed
+IDENTICAL over all 20,004 sequences. It was an EQUIVALENT mutant, invisible to any behavioural instrument
+by construction: a release needs an APPROVE, which has already set `missed` False. It was replaced with
+two changes that DO alter behaviour — a released call leaving its spoken request behind, and a turn's one
+look never spent — and **both DIVERGED.** That is "what would a cheating implementation score" turned on
+the verification instrument itself: a negative control has to be shown to change behaviour before its
+detection means anything.
+
+## ⑥ DEC-143 ⑨'S FLIP LIST, CORRECTED — SIX TESTS, NOT FOUR
+
+DEC-143 ⑨ named FOUR tests that flip, all on `web__search`. **Six existing tests changed an assertion
+because of the ruling: four flipped, and two were re-pointed to fetch.** Line numbers are `d73b8f1`'s, as
+in DEC-143.
+
+- **FLIPPED, each citing DEC-143 — the four ⑨ named:** `tests/test_confirm_gate.py:209` (a reworded search
+  is now released) and `:223` (a search approval serves its whole turn and ENDS with it, asserted in the
+  same test); `tests/test_kernel_spoken_request.py:168` IN PART — a changed value and an extra argument are
+  released, while the "another tool" case, `web__fetch` after a search approval, stays REFUSED and now pins
+  the split — and `:192` IN PART.
+- **RE-POINTED TO FETCH, where the property still bites:**
+  - `tests/test_kernel_spoken_request.py:229`, the S3 rebind — **MISSED by ⑨.** It pinned DEC-138's
+    per-call property, the spoken bytes following the LAST refused call, on SEARCH, which now speaks its
+    scope and no arguments. Its search half asserts one scope sentence, spoken once.
+  - `tests/test_confirm_forces_text.py:84`, the predicate-trap control — LISTED by ⑨ as shape-dependent.
+    The built shape ANSWERS a search's pending, so only a fetch still distinguishes the two predicates;
+    the search case is a new test beside it.
+- **Changed without changing an assertion:** `tests/test_kernel_spoken_request.py:312`, renamed because its
+  name said "untouched" and build ruling ③ touched the directive; `tests/test_confirm_directive_spoken.py`'s
+  shared `_rendered()`, which passes the new `{scope}` slot empty; the docstring of
+  `tests/test_confirm_word_set_and_retry.py:153`, a derived copy ⑨ listed. The ceiling pins moved as
+  DECLARED (③). `tests/test_web_servicing.py:236` stayed green and untouched, as ⑨ said.
+- **A CLAIM IN ⑨'s REWORDING PARAGRAPH, CORRECTED:** `tests/test_confirm_directive_spoken.py:183` was
+  recorded as pinning the stop «… موقوفة الآن بنفس الطريقة» "word for word". It pins «كل أداة أثرها يخرج
+  من الجهاز» and three other phrases, never the stop's «الآن» — so the ruled rewording left it green, and
+  the word that made the stop false was pinned by NOTHING until `tests/test_turn_grant.py:203` asserted
+  its ABSENCE.
+
+The lesson the miss paid for: **a brief's test list is a PREMISE.** The real list comes from running the
+full suite against the change, not from reading the tests that look relevant.
+
+## ⑦ THE FAIL-CLOSED FINDING — TWO LAYERS OF DEFENCE, NOT ONE
+
+The ruled mutation "a mounted network route outside gate coverage" was first written as the web mount
+losing `net.fetch` ALONE (`impact=RouteImpact()`). **The coverage guard stayed GREEN — correctly, because
+the route was still gated.** `RouteImpact.high_impact` has TWO arms (`trust/high_impact.py:89-93`): the
+granted capability, and the FAIL-CLOSED externality arm — an external route is high-impact unless the
+KERNEL states `read_only_hint` (`:46-52`). That arm is DEC-15's classification ("MCP tools lacking
+`readOnlyHint`"), read off the mount's `taint` flag by DEC-32's deliberate coupling, and the web mount is
+external (`composition_mounts.py:68`), so it held. Only `tests/test_web_servicing.py`'s pin on the
+capability the mount records went red.
+
+**A web route escapes the gate only when BOTH arms are defeated:** `net.fetch` gone AND the externality
+arm silenced — by the kernel stating `read_only_hint=True`, the docs' own shape (DEC-51,
+`composition_mounts.py:115-116`), or by mounting the route non-external, which is the same `taint` flag
+that carries DEC-14's wrap and DEC-15's raise (DEC-32) and so cannot move for the gate alone. Rewritten to
+the docs' shape, the mutation went RED (3), `tests/test_gate_coverage.py` among them. **The design, not a
+gap.** The build's closing report named the arm DEC-15's "external means gated" default; those words are
+the report's, not DEC-15's — the arm is DEC-15's classification through DEC-32, as above.
+
+## ⑧ TWO STALE AGENTS.md NUMBERS — SELF-CAUSED, SELF-CAUGHT, REPORTED RATHER THAN BURIED
+
+- `tests/test_confirm_gate.py`'s row read **477** after `783a23d` made the file 520 — corrected one commit
+  later, in `c556ec9`.
+- The ≤300 pin list read `trust/confirm_gate.py` **290** after `c556ec9` made it 252 — corrected in
+  `0b72f19`.
+
+Each commit that fixed one says so. (The build's closing report put both fixes in the third commit; the
+first landed in the second.) Found on the way and NOT the build's: `tests/test_module_line_ceiling.py`'s
+row read **176** for a 259-line file at `d01af07`, corrected in `c556ec9` — the stale-row defect once more.
+The rule the two slips paid for: **a file's row and its pin-list number move in the SAME commit as the
+file — grep the NUMBER, not only the row.**
+
+## ⑨ THE DERIVED COPIES — DISCHARGED, AND `PROJECT_STATE.md:341` LEFT FOR THE SWEEP
+
+DEC-143 ⑨ listed the derived copies stating the per-call law for every tool, owed by the implementation;
+`0b72f19` rewrote each — the three AGENTS.md lines it named (`:179`; the gate's row, which now reads "PER
+CALL — `web__fetch` and every high-impact tool but one"; `tests/test_confirm_gate.py`'s row), the BINDING
+paragraph of `confirm_gate.py` (`:37-47`), `confirm_gate_notes.py`'s two paragraphs and the flipped tests'
+docstrings. DEC-143 ⑪'s found-and-left
+attribution at `confirm_gate.py:53` is FIXED, as the build brief ordered (`:66-68`: DEC-132 ③ measured
+`luna`, DEC-135 `claude`).
+
+**LEFT, BY RULE:** `PROJECT_STATE.md:341` still states the per-call law for the one confirmation site —
+"bound to sha256(tool+args), single-use" — a copy ⑨'s list did not name. It is the closed M2 record,
+**swept AS A BLOCK at the next milestone close, never line by line.** Found for this entry: the same
+claim stands in `docs/reports/phase2_m2_web_research.md:49` and `:63`, M2's closing report. Not touched,
+and whether it joins the sweep is Sultan's.
+
+## ⑩ THE LIVE CHECK — THE ONE OPEN ITEM, AND THE LOG SIGNATURE IT READS
+
+Sultan's, on `gpt-5.6-luna`, as the build brief set it: **open a document FIRST** — `docs__open` taints and
+is never gated, and the first tainting call of a process can never be gated (`confirm_gate.py:224-227`) —
+then ask for research that needs several searches, **approve ONCE**, and confirm that every search in that
+turn runs **while a fetch still asks.** The durable log (`~/.muthis/logs/muthis.log`) should show:
+
+- `[confirm-gate] high-impact web__search refused — awaiting spoken approval` — the request (`:246`);
+- `[confirm-gate] approval heard for web__search` — **ONCE** (`:205`);
+- `[confirm-gate] granted call released: web__search` — **once per search** in that turn (`:233`), at most
+  four: one router call per pass × `MAX_AGENTIC_ITERATIONS = 4` (DEC-143 ④);
+- `[confirm-gate] high-impact web__fetch refused — awaiting spoken approval` — **the fetch still asks**
+  (`:246`).
+
+The per-call line `approved call released: web__search` (`:238`) cannot appear after `0b72f19` — a search
+approval leaves no pending to match — so its presence would mean the running code is not this build. The
+two grant lines are pinned by `tests/test_turn_grant.py:217`, which also asserts that no search argument
+reaches the log (DEC-20/DEC-28). **The announce-before-search rule (DEC-18, C047) is observed BY EAR in the
+same run, pending the DEC-61 instrument ruling** — nothing logs what the model says in a pass (DEC-142 ⑧).
+
+**No push until the live check passes: that is the milestone boundary.** GPT-6 Luna waits on it (DEC-143
+⑩), so a regression stays attributable to one variable, never two.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **BUILT, SUITE-VERIFIED, LIVE VERIFICATION PENDING.** `783a23d` · `c556ec9` · `0b72f19` on `d01af07`;
+  2,109 green, re-run for this entry.
+- **NOT PUSHED.** `origin/main` is `3fe6c57` (`git ls-remote`); `main` is ten commits ahead of it, eleven
+  with this entry. The push waits for the live check.
+- **OPEN, and Sultan's:** the live check (⑩) · whether M2's closing report joins the milestone sweep (⑨) ·
+  the `tests/test_confirm_gate.py:221` citation (②).
+- **Untouched:** DEC-97's counter and the retry-family ruling; the provider regression (DEC-143 ⑩), which
+  waits on the live check.
+
+---
