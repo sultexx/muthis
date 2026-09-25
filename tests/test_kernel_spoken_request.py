@@ -33,7 +33,7 @@ from muthis.kernel.tool_router import ToolRouter, namespaced_name
 from muthis.cloud.protocol import ToolCall
 from muthis.trust.call_binding import canonical_call
 from muthis.trust.confirm_gate import ConfirmGate
-from muthis.trust.confirm_gate_detector import APPROVAL_WORDS_AR
+from muthis.trust.confirm_gate_detector import APPROVAL_WORD_AR, APPROVAL_WORDS_AR
 from muthis.trust.confirm_gate_notes import render_args
 from muthis.trust.confirm_gate_speech import speakable, spoken_request, spoken_scope
 from muthis.trust.high_impact import NETWORK_CAPABILITY, RouteImpact
@@ -229,9 +229,10 @@ def test_a_released_approval_leaves_nothing_to_say_and_ends_as_ruled():
 # ═══ R3 — EVERY ACCEPTED WORD IS OFFERED ══════════════════════════════════════
 
 def test_the_spoken_request_names_EVERY_accepted_word():
-    """DEC-136 ruling 2 re-armed at the new surface: the detector accepted three
-    words while the request named one, and that refused Sultan three turns
-    running. The words are named HERE independently of the module's tuple."""
+    """DEC-136 ruling 2 at the PER-CALL surface, which still names every word.
+    DEC-147 ① reversed it for the search request alone — and corrected the
+    mechanism this docstring once gave: naming one had refused nobody (DEC-135 ③).
+    The words are named HERE independently of the module's tuple."""
     canonical, _ = canonical_call(SEARCH, {"query": "x"})
     said = spoken_request(SEARCH, canonical, APPROVAL_WORDS_AR)
     for word in EVERY_ACCEPTED_WORD:
@@ -272,7 +273,7 @@ def test_several_refusals_in_one_pass_produce_ONE_request_for_the_LAST_call():
     gate = ConfirmGate()
     _refuse(gate, SEARCH, {"query": "one"})
     _refuse(gate, SEARCH, {"query": "two"})
-    assert gate.take_spoken_request() == spoken_scope(SEARCH, APPROVAL_WORDS_AR)
+    assert gate.take_spoken_request() == spoken_scope(SEARCH, APPROVAL_WORD_AR)  # DEC-147 ①
     assert gate.take_spoken_request() is None
 
 
@@ -283,8 +284,11 @@ def test_a_refused_call_is_SPOKEN_through_the_turns_voice():
     _pass(_router(tainted=True), _call(), voice)
     assert len(voice.spoken) == 1, f"expected one utterance, got {len(voice.spoken)}"
     assert SEARCH in voice.spoken[0]
-    for word in EVERY_ACCEPTED_WORD:
-        assert word in voice.spoken[0]
+    # DEC-147 ①: a search is asked for with ONE word; the per-call request still
+    # offers every accepted word, and R3 pins that at its own surface. Matched as
+    # «quoted» forms: «وافق» is a substring of the other two.
+    offered = [word for word in EVERY_ACCEPTED_WORD if f"«{word}»" in voice.spoken[0]]
+    assert offered == [APPROVAL_WORD_AR], f"the search request offered {offered}"
 
 
 def test_the_utterance_never_takes_VoiceOut_speak_directly():

@@ -33,7 +33,9 @@ from muthis.kernel.session_taint import SessionTaint
 from muthis.kernel.tool_router import ToolRouter, namespaced_name
 from muthis.trust.call_binding import canonical_call
 from muthis.trust.confirm_gate import TURN_GRANTED_TOOLS, ConfirmGate
-from muthis.trust.confirm_gate_detector import APPROVAL_WORDS_AR
+from muthis.trust.confirm_gate_detector import (
+    APPROVAL_WORD_AR, APPROVAL_WORDS_AR, APPROVE as APPROVED, detect_confirmation,
+)
 from muthis.trust.confirm_gate_notes import (
     CONFIRM_DIRECTIVE_AR, PER_CALL_BINDING_AR, TURN_SCOPE_AR, confirm_note,
 )
@@ -160,14 +162,14 @@ def test_taint_and_grant_are_held_independently():
 
 def test_a_search_is_asked_for_by_its_SCOPE_never_its_arguments():
     """DEC-138's defect in reverse is voicing ONE call while authorising a CLASS.
-    The scope sentence is built from the tool the grant is held under and the
-    words — and it CANNOT take arguments: that is its signature."""
+    The scope sentence is built from the tool the grant is held under and ONE
+    word (DEC-147 ①) — and it CANNOT take arguments: that is its signature."""
     gate = ConfirmGate()
     gate.refusal_for(SEARCH, {"query": "حسابي البنكي"}, high_impact=True, tainted=True)
     said = gate.take_spoken_request()
-    assert said == spoken_scope(SEARCH, APPROVAL_WORDS_AR)
+    assert said == spoken_scope(SEARCH, APPROVAL_WORD_AR)
     assert SEARCH in said and "حسابي البنكي" not in said
-    assert list(inspect.signature(spoken_scope).parameters) == ["tool", "words"]
+    assert list(inspect.signature(spoken_scope).parameters) == ["tool", "word"]
 
 
 def test_a_fetch_still_speaks_exactly_the_bytes_it_hashed():
@@ -180,11 +182,54 @@ def test_a_fetch_still_speaks_exactly_the_bytes_it_hashed():
     assert gate.take_spoken_request() == spoken_request(FETCH, canonical, APPROVAL_WORDS_AR)
 
 
-def test_both_spoken_forms_offer_the_SAME_words_clause():
-    """A word cannot be ACCEPTED without being OFFERED (DEC-136 ruling 2), and it
-    must be offered the same way whichever binding is being asked for."""
-    tail = SPOKEN_REQUEST_AR[SPOKEN_REQUEST_AR.index("إن أذنت"):]
-    assert SPOKEN_SCOPE_AR.endswith(tail)
+def test_the_per_call_form_offers_EVERY_word_and_the_search_form_ONE():
+    """FLIPPED DELIBERATELY BY DEC-147 ①. This test held both spoken forms to one
+    words clause (DEC-136 ruling 2). The search request now offers ONE accepted
+    word; the per-call request still offers every one, so a fetch is unchanged.
+    Matched as «quoted» forms, because «وافق» is a substring of the other two."""
+    per_call = spoken_request(FETCH, canonical_call(FETCH, {"url": "u"})[0],
+                              APPROVAL_WORDS_AR)
+    search = spoken_scope(SEARCH, APPROVAL_WORD_AR)
+    assert [w for w in APPROVAL_WORDS_AR if f"«{w}»" in per_call] == list(APPROVAL_WORDS_AR)
+    assert [w for w in APPROVAL_WORDS_AR if f"«{w}»" in search] == [APPROVAL_WORD_AR]
+
+
+def test_the_search_request_names_ONE_word_and_the_detector_accepts_all_four():
+    """DEC-147 ①, through the REAL gate: the search request offers exactly ONE
+    accepted word, so saying the word it names approves — and the three it does
+    not name are still accepted, as silent tolerance."""
+    gate = ConfirmGate()
+    gate.refusal_for(SEARCH, {"query": "x"}, high_impact=True, tainted=True)
+    said = gate.take_spoken_request()
+    offered = [w for w in APPROVAL_WORDS_AR if f"«{w}»" in said]
+    assert offered == [APPROVAL_WORD_AR], f"the search request offered {offered}"
+    for word in APPROVAL_WORDS_AR:
+        assert detect_confirmation(word) == APPROVED, f"«{word}» is no longer accepted"
+
+
+def test_the_search_request_says_WHY_and_never_WHAT_happened():
+    """DEC-147 ①: the gate speaks only under taint, so "content from sources we
+    do not trust has entered this session" is true every time it is spoken —
+    where "I already searched" would sometimes lie: the taint keeps no source.
+    Measured 292 → 157 characters; growing it back is a re-ruling."""
+    said = spoken_scope(SEARCH, APPROVAL_WORD_AR)
+    assert said.startswith("دخلت هذه الجلسة نصوصٌ من مصادر لا نثق فيها"), said
+    assert SPOKEN_SCOPE_AR.startswith("دخلت هذه الجلسة")
+    assert "بحثت" not in said and "وقفت" not in said, "the request claims what happened"
+    assert "وحدها" in said, "the bare-word rule is no longer taught"
+    assert len(said) <= 157, f"the search request grew back to {len(said)} characters"
+
+
+def test_a_fetch_request_is_NOT_shortened():
+    """DEC-147 ④: a fetch's path and query are the exfiltration channel, so its
+    request still speaks the whole argument and offers every accepted word."""
+    gate = ConfirmGate()
+    gate.refusal_for(FETCH, {"url": "https://attacker.test/collect?d=secret"},
+                     high_impact=True, tainted=True)
+    said = gate.take_spoken_request()
+    assert "/collect?d=secret" in said, "the path and query were not spoken"
+    assert [w for w in APPROVAL_WORDS_AR if f"«{w}»" in said] == list(APPROVAL_WORDS_AR)
+    assert "{words}" in SPOKEN_REQUEST_AR and "{args}" in SPOKEN_REQUEST_AR
 
 
 def test_the_notes_tell_the_truth_under_the_split():

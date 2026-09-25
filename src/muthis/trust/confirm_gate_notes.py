@@ -36,9 +36,9 @@ both in this file:
 
   * **THE REQUEST NAMES EVERY ACCEPTED WORD** (ruling 2). It named one while the
     detector accepted three; `render_words` now renders the detector's OWN tuple,
-    so the offer cannot fall behind the set. A user refused for saying a word the
-    system accepts is the same class as a note that invites a retry it cannot
-    satisfy — DEC-58's law, applied to an authorization surface.
+    so the offer cannot fall behind the set. Naming one had NOT refused anyone —
+    DEC-135 ③ found the detector never saw a bare accepted form — and the KERNEL's
+    search request names ONE again by DEC-147 ①; this note still names every word.
   * **`CONFIRM_RETRY_AR` IS A SECOND, DIFFERENT NOTE** (ruling 3), returned when
     the previous utterance was heard and was not an approval. It reports the
     STATE — no approval word was heard — names the accepted words, and spells out

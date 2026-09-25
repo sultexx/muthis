@@ -50,7 +50,7 @@ IT GENERALISES TO NO OTHER KERNEL SPEECH, AND DEC-20'S BADGE RULING STANDS.
 A TURN-GRANTED TOOL IS ASKED FOR BY ITS SCOPE (DEC-143). Its approval covers every
 call to it until the user next speaks, so voicing the one call that asked would
 describe ONE call while authorising a CLASS — DEC-138's defect in reverse. The
-scope sentence takes the tool and the words and NOTHING ELSE: handed no
+scope sentence takes the tool and ONE word and NOTHING ELSE: handed no
 arguments, it cannot describe a single call. The absence of means, turned round.
 
 IT IS A SERIALISATION, NEVER A SUMMARY. No paraphrase, no selection, no
@@ -60,7 +60,9 @@ over. Whether to call, what arguments to compose and any framing of why all stay
 with the MODEL; this module only says what the model already chose.
 
 Stdlib plus ONE sibling — `render_words`, imported rather than copied so a word
-cannot be ACCEPTED without being OFFERED (DEC-136 ruling 2). Never raises.
+cannot be ACCEPTED without being OFFERED (DEC-136 ruling 2) in the per-call
+sentence. The scope sentence offers ONE accepted word since DEC-147 ①, which
+reversed that ruling for it alone. Never raises.
 """
 
 from __future__ import annotations
@@ -83,14 +85,20 @@ SPOKEN_REQUEST_AR = (
     "قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً."
 )
 
-# THE SCOPE SENTENCE (DEC-143) — the tool the grant is held under and the reach of
-# the approval, then the SAME words clause as the per-call sentence above, which a
-# test holds equal so an offer can never differ between the two.
+# THE SCOPE SENTENCE (DEC-143), SHORTENED AT DEC-147 ① — WHY, the reach of the
+# approval, then ONE word. The WHY is the one fact true every time this gate
+# speaks: it speaks only under taint, so "content from sources we do not trust
+# has entered this session" never lies — where "I already searched" would, since
+# the taint keeps no source and may come from a document or an earlier turn
+# (DEC-145 ②). Explain WHY, never WHAT happened. ONE WORD reverses DEC-136 ruling
+# ② for this sentence alone: naming one accepted word cannot cause a refusal for
+# saying it, the detector still accepts all four — the other three are silent
+# tolerance — and all the user loses is knowing that the variants work. The
+# per-call sentence above still names every word: a fetch is NOT shortened.
 SPOKEN_SCOPE_AR = (
-    "وقفت طلباً لأنه يحتاج إذنك. الأداة «{tool}»، وإذنك لها يشمل كل استدعاء "
-    "لها من لحظة إذنك إلى أن تتكلم مرة أخرى، لا هذا الاستدعاء وحده. "
-    "إن أذنت فقل {words} — كلمة واحدة وحدها في دور مستقل، بلا أي كلام "
-    "قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً."
+    "دخلت هذه الجلسة نصوصٌ من مصادر لا نثق فيها، لذلك تحتاج الأداة «{tool}» "
+    "إذنك، وإذنك يشمل كل استدعاء لها إلى أن تتكلم مرة أخرى. "
+    "إن أذنت فقل {word} وحدها."
 )
 
 # AN ABBREVIATION MUST DECLARE ITSELF IN WORDS, NEVER IN AN ELLIPSIS. A trailing
@@ -157,11 +165,12 @@ def spoken_request(tool: str, canonical: str, words: Sequence[str]) -> str:
                                     words=render_words(words))
 
 
-def spoken_scope(tool: str, words: Sequence[str]) -> str:
+def spoken_scope(tool: str, word: str) -> str:
     """The kernel's OWN sentence for a refused TURN-GRANTED call (DEC-143): the
     SCOPE the approval grants, never the call that happened to ask. It takes the
-    tool — the name the grant is held under — and the words, and nothing else."""
-    return SPOKEN_SCOPE_AR.format(tool=tool, words=render_words(words))
+    tool — the name the grant is held under — and ONE accepted word (DEC-147 ①),
+    and nothing else. The word is rendered by `render_words`, as every offer is."""
+    return SPOKEN_SCOPE_AR.format(tool=tool, word=render_words((word,)))
 
 
 __all__ = ["MAX_SPOKEN_VALUE_CHARS", "SPOKEN_CUT_AR", "SPOKEN_REQUEST_AR",

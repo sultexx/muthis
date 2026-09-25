@@ -80,12 +80,12 @@ REFUSE = "refuse"
 #
 # ONE TUPLE IS THE SOURCE (DEC-136 ruling 2). `_APPROVALS` normalizes it for
 # matching and `confirm_gate_notes.render_words` renders it for speech, so a
-# word cannot be ACCEPTED without being OFFERED. That asymmetry was a live
-# defect, not a hypothetical: the detector accepted three words, the request
-# named one, and a user told «أوافق» was refused three turns running — while
-# «موافق», which he may well have said, had been accepted the whole time
-# (DEC-135). A user refused for saying a word the system accepts is the same
-# class as a note that invites a retry it cannot satisfy.
+# word cannot be ACCEPTED without being OFFERED in the per-call request. The
+# search request offers ONE of them since DEC-147 ①, which reversed ruling 2
+# for it alone: naming one accepted word cannot cause a refusal for saying it,
+# and the three it does not name stay accepted. DEC-136 recorded the asymmetry
+# as what refused a user three turns running; DEC-135 ③ had already found the
+# detector never saw a bare accepted form, and DEC-147 ① corrects the record.
 #
 # «اعتمد» ADDED; «تم» AND «أوكيه» REFUSED (DEC-136 ruling 1, Sultan's). THE
 # BOUND THAT DECIDES IT: whole-utterance matching already excludes a word

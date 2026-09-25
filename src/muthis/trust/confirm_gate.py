@@ -256,7 +256,7 @@ class ConfirmGate:
         # tool name the grant will be held under — never from arguments it does
         # not bind. Every per-call tool keeps DEC-138's hashed bytes exactly.
         scoped = tool in TURN_GRANTED_TOOLS
-        self._state.spoken = (spoken_scope(tool, APPROVAL_WORDS_AR) if scoped
+        self._state.spoken = (spoken_scope(tool, APPROVAL_WORD_AR) if scoped
                               else spoken_request(tool, canonical, APPROVAL_WORDS_AR))
         return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._state.missed,
                             scoped=scoped)
