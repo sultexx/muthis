@@ -110,12 +110,12 @@ def log_pass(result: Any) -> None:
     EVERY accepted call to: draw, refresh, router-serviced, nav and run. The
     watermark slice below is therefore the whole pass, not the serviced half.
 
-    `tool_choice` IS DELIBERATELY ABSENT AND DELIBERATELY NOT MISSED.
-    `loop_tool_choice` is `"none" if gate.drawn else "auto"`, and `gate.drawn` is
-    set by the first draw's PAIRING — so a reader of this table derives it: every
-    pass is "auto" until a draw appears on an earlier line, and "none" from the
-    pass after it. Recording the DRAW rather than the flag keeps the ground truth
-    instead of a value computed from it, and costs no pinned file.
+    `tool_choice` IS DELIBERATELY ABSENT AND DELIBERATELY NOT MISSED: every
+    reason `loop_tool_choice` has is already in the log — "none" on the pass after
+    a draw, after a `[confirm-gate] ... refused` line until an approval (DEC-131),
+    and on the last pass the loop allows (DEC-147 ②); "auto" otherwise. Recording
+    the DRAW rather than the flag keeps the ground truth instead of a value
+    computed from it, and costs no pinned file.
 
     NAMES ONLY — NEVER ARGUMENTS. A tool name is a control-flow fact; a tool
     argument is user content (a path, a query, a program), which DEC-61 governs

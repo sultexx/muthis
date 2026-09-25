@@ -27,6 +27,12 @@ from dataclasses import dataclass
 
 from typing import Optional
 
+# ─── THE LOOP BOUND — moved here from `orchestrator.py` at DEC-147 ② ──────────
+# The final-pass brake in `loop_tool_choice` compares against it, and this module
+# cannot import the orchestrator that imports it. Re-exported there unchanged.
+# Hard cap on agentic run() calls per utterance — bounds a never-ending tool_use.
+MAX_AGENTIC_ITERATIONS = 4
+
 
 @dataclass
 class HighlightGate:
@@ -112,8 +118,9 @@ def highlight_result_text(gate: Optional[HighlightGate]) -> str:
     return draw_result_text(gate, "highlight_target")
 
 
-def loop_tool_choice(gate: HighlightGate, confirm: object | None = None) -> str:
-    """THE PASS'S tool_choice — the API-enforced brake, with TWO reasons to fire.
+def loop_tool_choice(gate: HighlightGate, confirm: object | None = None,
+                     passes_serviced: int | None = None) -> str:
+    """THE PASS'S tool_choice — the API-enforced brake, with THREE reasons to fire.
 
     DRAW (the original): once ANYTHING has been drawn this turn (gate.drawn — set
     by the first highlight_target OR draw_shapes pairing), the NEXT agentic run()
@@ -142,7 +149,18 @@ def loop_tool_choice(gate: HighlightGate, confirm: object | None = None) -> str:
     the truth about the one concern it has. Optional so the seven existing test
     call sites stay untouched — and precisely BECAUSE that default is FAIL-OPEN,
     the production wiring is asserted structurally in `test_confirm_forces_text.py`
-    rather than trusted to whoever next edits the call."""
+    rather than trusted to whoever next edits the call.
+
+    FINAL (DEC-147 ②): the LAST pass the loop allows is always text — DEC-131's
+    brake applied to the final pass. A tool started on pass MAX_AGENTIC_ITERATIONS
+    has no pass left to explain it, so the turn ended on the cap note instead of an
+    answer: all eight cap hits in the durable log were a tool on pass 4 (DEC-147).
+    `passes_serviced` is DEC-111 ②'s counter on `TurnResult` — the passes ALREADY
+    serviced this turn — so this pass is the last once it reaches the bound less
+    one. Optional and FAIL-OPEN like `confirm`, so its production wiring is
+    asserted structurally by the same guard."""
+    if passes_serviced is not None and passes_serviced >= MAX_AGENTIC_ITERATIONS - 1:
+        return "none"
     if getattr(confirm, "awaiting_approval", False):
         return "none"
     return "none" if gate.drawn else "auto"
@@ -162,5 +180,6 @@ INTERRUPTED_NOTE_AR = (
 __all__ = [
     "HighlightGate", "HIGHLIGHT_ACK_TEXT_AR", "HIGHLIGHT_ALREADY_SHOWN_AR",
     "SHAPES_ACK_TEXT_AR", "SHAPES_ALREADY_SHOWN_AR", "INTERRUPTED_NOTE_AR",
+    "MAX_AGENTIC_ITERATIONS",
     "draw_result_text", "highlight_result_text", "loop_tool_choice",
 ]

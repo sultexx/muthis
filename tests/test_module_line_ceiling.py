@@ -92,7 +92,10 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # existed (packing two kwargs onto one 76-char line) and was REFUSED: a pin
     # that reads 298 because a line was stuffed is a lie in the pin, and the law
     # says split, never compress. ONE line of headroom remains.
-    ("kernel/orchestrator.py", 299),
+    # 299 -> 298, DECLARED (DEC-147 ②): the loop bound `MAX_AGENTIC_ITERATIONS`
+    # moved to `highlight_gate.py`, whose final-pass brake reads it and which
+    # cannot import this module — two lines out, one pointer in. TWO of headroom.
+    ("kernel/orchestrator.py", 298),
     ("turn_voice.py", 300),
     ("persona.py", 209),
     # 240 -> 285 (DEC-107 Gate 1's authoring law), and pinned by Sultan's ruling

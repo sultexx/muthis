@@ -35,7 +35,7 @@ from ..stubs import (stub_downscale, stub_mic, stub_overlay, stub_read_file,
                      stub_screen_capture, stub_stt, stub_tts)
 # turn.py holds the contracts, Arabic strings, TurnResult, the tool_result builder.
 from .frame_capture import FrameCapture
-from .highlight_gate import HighlightGate
+from .highlight_gate import MAX_AGENTIC_ITERATIONS, HighlightGate
 from .interrupt_hooks import InterruptHooks
 from .tool_router import ToolRouter
 from .turn_pass import REFRESH_TOOL, TurnPass
@@ -61,8 +61,7 @@ SESSION_TIMEOUT_S = 90.0
 # One follow-up un-stales a view; more is a model loop burning the budget.
 MAX_REFRESH_FOLLOWUPS = 1
 
-# Hard cap on agentic run() calls per utterance — bounds a never-ending tool_use.
-MAX_AGENTIC_ITERATIONS = 4
+# MAX_AGENTIC_ITERATIONS lives in highlight_gate.py since DEC-147 ② (imported above).
 
 ALLOWED_OVERLAY_TOOL = "highlight_target"
 # REFRESH_TOOL moved to turn_pass.py with the pass-draining code (re-exported

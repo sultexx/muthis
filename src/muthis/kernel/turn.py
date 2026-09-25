@@ -128,6 +128,8 @@ STT_EMPTY_AR = "ما سمعت شي واضح، جرّب مرة ثانية."
 # than completed · the limit is TRANSIENT and the note says what changes · the
 # valid NEXT STEP is named. It attributes the ending to neither Mut'his nor the
 # user — `tests/test_cap_note_attribution.py` fails if a rewording does.
+# SINCE DEC-147 ② THE LAST PASS IS FORCED TO TEXT, so a provider that honours
+# tool_choice never reaches this note: it stays as the fallback for one that does not.
 AGENTIC_CAP_NOTE_AR = (
     "انقطع الجواب قبل ما يكمل، لأن الجولة وصلت للحد المسموح به عندي. "
     "هذا حد مؤقت يبدأ من جديد مع كل سؤال، فاسألني عن الباقي وأكمله لك."

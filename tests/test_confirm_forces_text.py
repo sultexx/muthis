@@ -165,13 +165,16 @@ def test_the_PRODUCTION_call_site_actually_wires_the_confirm_gate():
     and that default is FAIL-OPEN: a `loop_tool_choice(gate)` in production
     would silently restore the defect with every test still green. The ONE site
     that matters is asserted here rather than trusted — the same shape as the
-    'exactly one FileHandler construction site' guard."""
+    'exactly one FileHandler construction site' guard. DEC-147 ② added
+    `passes_serviced` with the same fail-open default, so this pins both."""
     turn_pass = (pathlib.Path(__file__).resolve().parents[1]
                  / "src" / "muthis" / "kernel" / "turn_pass.py")
     text = turn_pass.read_text(encoding="utf-8")
-    assert "loop_tool_choice(gate, self._router.confirm_gate)" in text, (
-        "turn_pass.py no longer passes the confirm gate into loop_tool_choice, "
-        "so the DEC-131 brake is wired to nothing in production")
+    assert ("loop_tool_choice(gate, self._router.confirm_gate, result.passes_serviced)"
+            in text), (
+        "turn_pass.py no longer passes the confirm gate AND the pass count into "
+        "loop_tool_choice, so the DEC-131 brake or the DEC-147 ② final-pass brake "
+        "is wired to nothing in production")
     assert text.count("loop_tool_choice(") == 1, (
         "a second tool_choice decision site appeared — the reason this fix "
         "cost zero lines was that there is exactly one")
