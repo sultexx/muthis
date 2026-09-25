@@ -18435,3 +18435,224 @@ same run, pending the DEC-61 instrument ruling** — nothing logs what the model
   waits on the live check.
 
 ---
+
+## DEC-145 (2026-09-25) — **THE LIVE CHECK WAS NOT PERFORMED: THE GRANT PATH NEVER RAN, AND THE RUN SURFACED FOUR UX DEFECTS AND ONE CONFIRMED DEFECT.** Zero `approval heard`, zero `granted call released` — a 16-character reply was not a bare word, and the second session's refused call was a fetch · the disclosure ORDER is design and the confusion is WORDING: "untrusted content entered this session" is always true, "I already searched" is not representable · the forced pass is handed C047's pre-search announcement, a tool list whose `"none"` nothing states, and a note saying the user hears nothing unless the model speaks — C047 a CANDIDATE cause, and the same law DEC-143 ⑤ made load-bearing · five options, UNRULED · the bare-word rule IS taught, and the FAILURE is silent · a two-part question's second half is recoverable only if the model re-issues it · "it forgot" is correct behaviour producing a misleading experience · a stale `missed` flag puts a later, unrelated refusal in the RETRY form — CONFIRMED, present since DEC-136 · DEC-132 declined suppression ONCE — DIAGNOSED AND APPROVED (Sultan), RECORDED, **NOTHING FIXED; NOTHING IS BUILT BEFORE THE LIVE CHECK.**
+
+Sultan ran DEC-144's live check on `gpt-5.6-luna` on 2026-09-25, and it never reached DEC-143. The
+diagnosis read the durable log and the code at `8397d85` — whose `src/` is `0b72f19`'s — and drove the
+real gate; Sultan approved it with two of the brief's premises corrected, ③ wholly and ① in half. **This
+entry changes no `src/`, test or model-facing string; 2,109 green, run serially (≤6 workers).** `file:N`
+references are to `8397d85`. Log lines are the durable log as read on 2026-09-25; it rotates, so they
+are a snapshot.
+
+---
+
+## ① THE LIVE CHECK — NOT PERFORMED, AND WHY
+
+Both sessions are the log's last two, lines 1986–2061, reasoner `luna` / `gpt-5.6-luna` (`:1992`,
+`:2036`). `budget.json` puts both on 2026-09-25: that day's 0.024723 USD is Session 2's closing figure,
+and its two `web_research` calls are the two searches. **`approval heard` and `granted call released`
+appear ZERO times.**
+
+- **SESSION 1.** Turn 1 (96 characters): `[pass] #1 tools=web__search,web__search` — first-wins ran one,
+  and the session was `TAINTED by web_research`; `#2 tools=web__search` → `high-impact web__search
+  refused — awaiting spoken approval`; `#3 tools=-`, the forced text pass. Turn 2: a 1.87 s recording,
+  **16 characters** → `no approval this turn for web__search — pending cleared` → `#1 tools=-`. The
+  accepted words are at most five characters («أوافق» «موافق» «وافق» «اعتمد»), and the detector approves
+  only when the whole normalised utterance EQUALS one (`confirm_gate_detector.py:140-145`).
+- **SESSION 2.** Turn 1 (65 characters): `#1 tools=web__search` ran and tainted; `#2 tools=web__fetch` →
+  refused; `#3 tools=-`. No further turn. **`web__fetch` is per call by design** (DEC-143 ①), so this
+  session could not exercise the grant whatever the reply.
+
+**DEC-144's status — BUILT, SUITE-VERIFIED, LIVE VERIFICATION PENDING — stays exactly true: the live check
+is NOT YET PERFORMED.** No log line distinguishes the build; the one line only it can write, `granted call
+released`, is the line that never appeared. A re-run needs the two conditions these sessions lacked: **a
+refused SEARCH, and a reply that is one accepted word alone.**
+
+## ② THE DISCLOSURE ORDER IS DESIGN; THE CONFUSION IS WORDING
+
+On the build, a refused search speaks `SPOKEN_SCOPE_AR` (`confirm_gate_speech.py:89-94`): «وقفت طلباً
+لأنه يحتاج إذنك. الأداة «web__search»، وإذنك لها يشمل كل استدعاء لها من لحظة إذنك إلى أن تتكلم مرة
+أخرى، لا هذا الاستدعاء وحده…» — "I stopped a request because it needs your permission. The tool
+web__search; your permission covers every call to it until you speak again, not this call alone…". **It
+does not acknowledge the search that already ran, and it gives no reason why this search needs permission
+when the last one did not.** The reason exists only in the note the MODEL reads, «سبق أن دخلت هذه
+الجلسة نصوصٌ من مصادر لا نثق فيها» (`confirm_gate_notes.py:137-138`).
+
+- **THE ORDER IS DESIGN, twice over.** The first search cannot be asked about: taint is raised only after
+  a call returns (DEC-15, `confirm_gate.py:224-227`), so the search that taints runs unasked (DEC-139 ⑥).
+  And the kernel's request deliberately queues behind the pass's own speech (`pass_servicing.py:221-228`,
+  DEC-138). The model announces a search before sending it (C047) and is never told the session is
+  tainted (DEC-15), so it can announce a search the gate then stops.
+- **THE CONFUSION IS WORDING.** The gate speaks only when the session is tainted
+  (`confirm_gate.py:228-229`), so "content from sources we do not trust has entered this session" is true
+  every time it is spoken — in Session 1, and in a document-first session alike.
+- **"I ALREADY SEARCHED" IS NOT REPRESENTABLE — the brief's ① corrected in half.** `SessionTaint` holds
+  one boolean (`session_taint.py:53`, `:73`); the source is logged at the first raise and never kept.
+  The router hands the gate `tainted` alone (`tool_router.py:257-259`, a file at 300/300). And the taint
+  may come from a document (DEC-51) or any earlier turn (DEC-2), so that sentence would sometimes LIE —
+  it is false in the live check's own document-first staging.
+
+**Sultan's direction for the wording, when it is ruled: EXPLAIN WHY, NEVER WHAT.** No wording is written
+or ruled here.
+
+## ③ THE FORCED PASS — WHAT IT RECEIVES, AND C047 AS A CANDIDATE CAUSE
+
+Pass #3 (`tools=-`) was forced to text by DEC-131's brake on a refused, unapproved call
+(`highlight_gate.py:115`). What it is handed, on `luna`:
+
+1. **The system prompt, with C047** (`persona_laws.py:68-69`): «وقبل ما ترسل البحث انطق ما تدوّر عليه في
+   كلمتين مثل "أدوّر لك عن ..."» — before sending a search, say what you are looking for, like «أدوّر لك
+   عن ...» ("I'm searching for you about…"). **No exception for a reply that cannot search.**
+2. **The full tool list, with `tool_choice="none"` enforced silently by the API** (`luna_agent.py:180-182`).
+   Nothing tells the model that tools are off for this reply.
+3. **As its last input, the refusal note `CONFIRM_DIRECTIVE_AR`** (`confirm_gate_notes.py:133-150`) with
+   the scope sentence. It forbids CALLING a tool again, but not CLAIMING to search; it orders the model to
+   speak the request the kernel has already spoken; and it says the user hears nothing unless the model
+   speaks (④).
+4. **It streams** to the voice as it is generated (`turn_pass.py:171-176`), AFTER the kernel's request —
+   DEC-132's heading: nothing at its sync point can pre-empt it.
+
+**What Sultan heard: the kernel ask for «أوافق», then the model say it would search now** — which it cannot,
+tools being forbidden on that pass. That is the contradiction DEC-132 foresaw (`:15916-15920`), now
+observed — by ear, n=1, on `luna`. **C047 is recorded as a CANDIDATE cause, NOT PROVEN:** it prescribes
+exactly that kind of utterance, but nothing logs what the model says in a pass (DEC-142 ⑧), so which
+instruction produced it cannot be established from the record.
+
+**THE TENSION THAT MAKES THIS MORE THAN A WORDING FIX.** DEC-143 ⑤ made C047 LOAD-BEARING: under a grant,
+the model's own announcement is the ONLY disclosure of each additional search. So the law the grant needs
+is the same law that is the candidate cause of the false announcement. **Sultan's condition on any fix: it
+must keep announcing the searches that ARE sent.**
+
+## ④ THE FALSE CLAIM IN BOTH CONFIRM NOTES — RECORDED AT DEC-139 ④, LEFT IN BY THE BUILD
+
+`CONFIRM_DIRECTIVE_AR` (`confirm_gate_notes.py:145-146`) and `CONFIRM_RETRY_AR` (`:176-177`) both tell the
+model «وإن لم تقله الآن فلن يسمع المستخدم شيئاً وينتهي الدور بلا جواب» — "if you do not say it now, the
+user will hear nothing and the turn ends without an answer". **False since DEC-138: the kernel has already
+spoken the request** (`pass_servicing.py:225-228`). DEC-139 ④ recorded it (`:17414-17416`) and left it
+while the review ran; the review closed (DEC-142 ⑨), and build ruling ③'s rewording (DEC-144 ②) did not
+include it. **Checked by value:** the clause is in both notes at `40838c2` (DEC-139), `d01af07`, `0b72f19`
+and `8397d85`, and `0b72f19` is the only commit to touch the notes since DEC-139. The same directive still
+ORDERS the model to repeat the request (`:142`); DEC-138 ⑤ kept it byte-identical because `claude` relays,
+and recorded the duplication as a MEASURE-AFTER item (`:17212-17214`). **Recorded, not changed.**
+
+## ⑤ THE OPTIONS FOR THE FORCED PASS — UNRULED
+
+Ways to constrain the forced pass without suppressing it, as the diagnosis reported them. **None is
+ruled, and each must meet Sultan's condition (③).**
+
+- **(a) A clause in the refusal note:** no tool can run in this reply, so do not say you are searching or
+  will search now. Home `confirm_gate_notes.py` (234, pinned — a declared pin move). Limit: `luna` already
+  ignores this same note's order to repeat the request (DEC-132 ③), so it is MEASURE-BEFORE-ADOPTION.
+- **(b) Make the note true for a kernel that speaks:** drop "the user will hear nothing" and the order to
+  repeat the request (④). This reverses DEC-138 ⑤'s byte-identical choice, taken because `claude` relays.
+- **(c) An exception in C047:** announce only a search sent in the same reply. `persona_laws.py` is pinned
+  at 244, the change touches every search turn, and DEC-143 ⑤ already made C047 MEASURE-BEFORE-ADOPTION.
+- **(d) An instruction on the forced pass alone,** outside the tool result the model is taught to distrust
+  (DEC-14). New wiring in `turn_pass.py` (294, pinned) or `orchestrator.py` (299): an extraction first.
+- **(e) The other lever, not a constraint:** give the kernel the last word, with a short reminder after
+  the forced pass. DEC-132 found pass N the only workable slot for the full request, so this is a new
+  kernel utterance, and a ruling.
+- **EXCLUDED by existing rulings:** discarding the forced pass's text (DEC-132, DEC-138 ⑤), and filtering
+  it — it streams, and the kernel never interprets text (DEC-66).
+
+## ⑥ THE BARE-WORD RULE IS TAUGHT; THE FAILURE IS SILENT
+
+**The brief's ③ held that the rule was not taught. It is.** Both spoken forms end «كلمة واحدة وحدها في
+دور مستقل، بلا أي كلام قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ إذناً» — "one word, alone, in its
+own turn, with nothing before or after it; a sentence containing the word does not count as permission"
+(`confirm_gate_speech.py:82-83`, `:92-93`). It is the last clause of a long sentence, and the model speaks
+right after it. **What goes untaught is the FAILURE:**
+
+- A reply that is heard but is not a bare word clears the pending with a log line only
+  (`confirm_gate.py:207-213`). Nothing is spoken, and the model is not told.
+- `CONFIRM_RETRY_AR` does explain it, but only on the NEXT refused call — which needs the model to call
+  again — and it reaches the user only through the model. In Session 1's turn 2 the model did not call
+  (`tools=-`), so it never fired.
+- The kernel's own sentence has NO retry form (`confirm_gate_speech.py:152-155`, DEC-138 ruling 2): on a
+  retry, the user hears the first request again.
+
+## ⑦ THE TWO-PART QUESTION — RECOVERABLE BY DEC-143 ONLY IF THE MODEL RE-ISSUES IT
+
+Session 1's pass #1 carried two searches. First-wins serviced one (`turn_pass.py:192-214`); the other was
+answered by name (`tool_result_pairing.py:137-147`) with `WEB_ONE_PER_PASS_AR` (`deferral_notes.py:61-64`)
+— «توجيه داخلي (لا يراه المستخدم): أخدم طلب ويب واحدًا في كل خطوة تفكير. اطلبه مرة أخرى في الخطوة
+التالية» ("internal, not seen by the user: one web request per step; request it again in the next step").
+Pass #2's search was refused. The log records tool names only (DEC-20/DEC-28), so that pass #2 carried
+the second half is an INFERENCE, consistent with the note.
+
+- **RECOVERABLE — ONLY IF THE MODEL RE-ISSUES IT.** An approval heard in the next turn becomes the grant,
+  which releases any search in that turn by name with the arguments unread, up to four (DEC-143 ④) —
+  guarded by `tests/test_turn_grant.py:103`, NOT live-verified. The kernel never replays a refused call.
+- **THE MODEL IS TOLD; THE USER IS NOT.** The model reads the by-name note and a refusal note that names
+  the query. The user hears neither: the first is internal, and the scope sentence by design never
+  carries arguments (DEC-143 ⑦), so which half is waiting is spoken only if the model names it — which
+  `luna` does not do (DEC-132 ③). This is DEC-138 ①'s self-taint, live; DEC-143 ⑧ answers it only after
+  an approval.
+
+## ⑧ "IT FORGOT" — CORRECT BEHAVIOUR, A MISLEADING EXPERIENCE
+
+Sultan believed Mut'his had forgotten the approval and begun describing the document. **There was no
+`docs__open` in either session: the document was on SCREEN only.** The approval never registered — 16
+characters, `pending cleared` (log `:2019`, `:2023`) — so there was no pending call, and the model answered
+the utterance from a fresh screenshot (`:2020-2022`) with no tool (`:2025`). **Every part did what its
+ruling says** — DEC-16's expiry, DEC-136's whole-utterance rule, a model answering an ordinary turn — **and
+nothing told the user the approval had not counted** (⑥), so an answer about the screen read as
+forgetting. **Recorded as correct behaviour producing a misleading experience.**
+
+## ⑨ THE `missed` DEFECT — CONFIRMED, PRESENT SINCE DEC-136
+
+**After a missed approval, `missed` stays set across turns.** `observe()` returns before updating it
+whenever nothing is pending (`confirm_gate.py:186-190`). It is re-evaluated only by an observation that
+finds a pending (`:197`) and cleared by a release (`confirm_gate_state.py:143`); `place()` never touches it
+(`:146-148`). So the NEXT refusal, whenever it comes and for whatever call, is returned in the RETRY form.
+
+**REPRODUCED on the real gate:** a missed approval in turn 2, three unrelated turns, then a new search
+refused in turn 5 → the RETRY form. With an explicit «لا» in turn 2 instead → the first-refusal form.
+**Identical at DEC-136's own commit `8b29304` and at `d01af07`, `c556ec9`, `0b72f19` and `8397d85`: present
+since `_missed` arrived, and the build neither introduced nor changed it.**
+
+- **WHAT IS FALSE.** The RETRY note tells the model that the user's LAST words were heard and matched no
+  approval word, and orders it to say that what the user said was not read as permission
+  (`confirm_gate_notes.py:168-173`) — about a miss three turns earlier, with no request pending when those
+  last words were spoken. That breaks the note's own precondition: "Returned only when the previous
+  utterance was HEARD and came back as NEITHER answer while a pending existed" (`:154-155`). A model that
+  relays (`claude`, DEC-135) says it to the user; on `luna`, which does not relay (DEC-132 ③), the model
+  is misinformed.
+- **WHAT IT CANNOT DO: release a call.** `_missed` selects a NOTE and nothing else (DEC-136, `:16875-16876`).
+- **REACH: immediately after Session 1's pattern** — the next refusal anywhere later in that process.
+- **SAME SYMPTOM, ANOTHER ROAD:** DEC-138's recorded barge-in gap (`:17226-17229`).
+
+## ⑩ A CITATION CORRECTED — DEC-132 DECLINED SUPPRESSION ONCE
+
+DEC-138 ⑤ says "DEC-132 declined it twice" (`:17215`). **DEC-132 declined it ONCE:** "Suppressing the
+third means discarding the forced pass's text, which is a separate ruling and is NOT taken here"
+(`:15919-15920`). The "twice" counts DEC-138 ⑤'s own decline. Corrected by appending; no derived copy
+carries the claim.
+
+## ⑪ THE RULING ON SEQUENCE — NOTHING IS BUILT BEFORE THE LIVE CHECK
+
+**Sultan's ruling: nothing is built before the live check, and it tests DEC-144 exactly as built** — `src/`
+as at `0b72f19`, unchanged at `8397d85` and by this entry — so a result is attributable to one variable.
+Nothing recorded here is fixed first: not ②'s wording, ⑤'s options, ⑥'s silent failure or ⑨'s defect.
+
+**SO THE RE-RUN CAN STILL SHOW THEM, and none of them is a result about the grant:** the kernel's request
+followed by the forced pass's own voice (③); a non-bare reply clearing silently (⑥); and, after any missed
+approval, the next refusal in the RETRY form (⑨). **What the grant alone produces is the signature DEC-144
+⑩ recorded:** `approval heard for web__search` once, `granted call released: web__search` per search, and
+a fetch still refused.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **LIVE VERIFICATION: NOT YET PERFORMED.** DEC-144 stands as written — built, suite-verified, pending. The
+  re-run needs a refused search and a bare-word reply (①).
+- **RECORDED, UNRULED, AND SULTAN'S:** ②'s wording (explain WHY, never WHAT) · ⑤'s options, under ③'s
+  condition · ④'s false clause · ⑥'s silent failure · ⑨'s defect.
+- **NOTHING FIXED, NOTHING BUILT before the live check (⑪).** 2,109 green. NOT pushed: `main` is twelve
+  commits ahead of `origin/main` (`3fe6c57`) with this entry.
+- **Untouched:** DEC-97's counter and the retry-family ruling; the provider regression (DEC-143 ⑩), which
+  waits on the live check.
+
+---
