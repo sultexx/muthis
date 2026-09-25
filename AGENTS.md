@@ -239,8 +239,8 @@ PTT hold → mic streaming capture (record while held, flush on release) →
   variance IS the answer — the T4 rule is written on a STABLE OBSERVED gap, and the genuinely guided path
   reaches the verbs reliably. See [`docs/reports/phase3_navigator.md`](docs/reports/phase3_navigator.md);
   rulings DEC-65..DEC-86.
-- **PHASE 4A — CODE INTELLIGENCE (COMPLETE 2026-08-22, DEC-112 → DEC-114; NOT merged, NOT tagged, NOT pushed
-  — those are Sultan's).** **THE MILESTONE IS SMALL BECAUSE THE MEASUREMENTS RULED IT SMALL, and what P0
+- **PHASE 4A — CODE INTELLIGENCE (COMPLETE 2026-08-22, DEC-112 → DEC-114; MERGED into main,
+  TAGGED `v4a-code-intelligence-complete` at `205d9f5` and PUSHED — corrected at DEC-147 ⑥).** **THE MILESTONE IS SMALL BECAUSE THE MEASUREMENTS RULED IT SMALL, and what P0
   KILLED is the better half of the result:** the retrieval index (D-2 measured a TIE on whole files — four of
   five fixtures 35/36 vs 35/36, and one REGRESSED, because a table can be misread where raw text has no such
   mode), a thirteenth tool, catalog v9, and a parser. **The catalogue is still TWELVE and no schema moved.**
