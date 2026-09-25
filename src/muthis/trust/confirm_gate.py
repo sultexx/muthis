@@ -187,6 +187,9 @@ class ConfirmGate:
             return
         pending = self._state.pending
         if pending is None:
+            # DEC-147 ③: nothing was asked, so nothing was missed — a flag left by an
+            # earlier miss must never select the retry note turns later (DEC-145 ⑨).
+            self._state.missed = False
             return
         decision = detect_confirmation(user_text)
         # THE THREE OUTCOMES ARE NOT TWO (DEC-136 ruling 3). A REFUSAL is a

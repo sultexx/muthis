@@ -217,7 +217,10 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # docstring made true for both shapes. The grant itself is STATE and lives
     # in `confirm_gate_state.py`. FOURTEEN lines of headroom — more than the TEN
     # this file had before DEC-143, because the state left first.
-    ("trust/confirm_gate.py", 286),
+    # 286 -> 289, DECLARED (DEC-147 ③): a look that finds nothing pending clears
+    # `missed`, so a miss cannot select the retry note turns later (DEC-145 ⑨).
+    # ELEVEN lines of headroom.
+    ("trust/confirm_gate.py", 289),
     # 118 -> 209 in ONE gate (DEC-136's retry note, `render_words` and the
     # `confirm_note` chooser). PINNED HERE, ALONE, by Sultan's ruling — and the
     # reason is `deferral_notes.py`'s exactly, not proximity to the ceiling.
