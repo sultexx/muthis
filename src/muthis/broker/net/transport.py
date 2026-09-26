@@ -24,7 +24,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-from .address_guard import PinnedRequest, Resolver, validate_and_pin
+from .address_guard import UNRESOLVABLE_AR, PinnedRequest, Resolver, validate_and_pin
 
 logger = logging.getLogger("muthis.broker.net")
 
@@ -42,6 +42,12 @@ TIMEOUT_AR = "الموقع بطيء وانتهت المهلة — افتحه ع�
 NETWORK_ERROR_AR = "ما قدرت أوصل للموقع. تأكد من الرابط والاتصال، أو افتحه على شاشتك."
 TOO_LARGE_AR = "محتوى الرابط أكبر من الحد المسموح (٢ ميغابايت). جرّب صفحة أصغر أو افتحه على شاشتك."
 TOO_MANY_REDIRECTS_AR = "الرابط فيه إعادة توجيه كثيرة. جرّب الرابط النهائي مباشرة."
+
+# The notes that mean the NETWORK failed — a timeout, a transport error (a
+# redirect with no Location, a server fault, included), a name that does not
+# resolve — as opposed to a LIMIT or a REFUSAL of ours. RFC 9309 §2.3.1.4 calls
+# a robots.txt lost this way "unreachable": complete disallow (robots.py).
+NETWORK_FAILURE_NOTES = frozenset({TIMEOUT_AR, NETWORK_ERROR_AR, UNRESOLVABLE_AR})
 
 
 @dataclass(frozen=True)
@@ -157,4 +163,5 @@ __all__ = [
     "PinnedTransport", "ClientProvider", "_Raw",
     "USER_AGENT", "USER_AGENT_TOKEN", "MAX_BYTES", "TIMEOUT_S", "MAX_REDIRECTS",
     "TIMEOUT_AR", "NETWORK_ERROR_AR", "TOO_LARGE_AR", "TOO_MANY_REDIRECTS_AR",
+    "NETWORK_FAILURE_NOTES",
 ]

@@ -35,7 +35,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, replace
-from typing import Optional
+from typing import Optional, Union
 from urllib.parse import urlsplit
 
 from .address_guard import Resolver, system_resolver
@@ -47,14 +47,15 @@ from .extract import (  # re-exported below so importers keep working
     cap_extract,
     extract_html,
 )
-from .http_status import is_success, status_note
+from .http_status import is_success, robots_unreachable_note, status_note
 from .provenance import FetchedDomains
-from .robots import RobotsCache
+from .robots import UNREACHABLE, Refusal, RobotsCache
 from .session_policy import RateLimiter, SessionCache
 from .transport import (  # re-exported below so importers keep working
     MAX_BYTES,
     MAX_REDIRECTS,
     NETWORK_ERROR_AR,
+    NETWORK_FAILURE_NOTES,
     TIMEOUT_AR,
     TIMEOUT_S,
     TOO_LARGE_AR,
@@ -127,6 +128,7 @@ class HardenedFetcher:
         self._robots = RobotsCache(
             fetch_text=self._fetch_robots_text,
             user_agent_token=USER_AGENT_TOKEN,
+            disallowed_note=ROBOTS_BLOCKED_AR,
             enabled=robots_enabled,
         )
         self._total_budget_s = total_budget_s
@@ -186,9 +188,9 @@ class HardenedFetcher:
             return replace(cached, from_cache=True)
 
         domain = urlsplit(url).hostname or ""
-        if not await self._robots.allows(url):
-            logger.info("[fetch] %s robots-disallowed", domain)
-            return FetchResult(ok=False, text_ar=ROBOTS_BLOCKED_AR, domain=domain)
+        if (refusal := await self._robots.refusal(url)) is not None:
+            logger.info("[fetch] %s robots-%s", domain, refusal.reason)
+            return FetchResult(ok=False, text_ar=refusal.note, domain=domain)
         if domain:
             await self._rate.acquire(domain)
 
@@ -242,12 +244,17 @@ class HardenedFetcher:
         )
         return result
 
-    async def _fetch_robots_text(self, robots_url: str) -> Optional[str]:
+    async def _fetch_robots_text(self, robots_url: str) -> Union[str, Refusal, None]:
         """The RobotsCache seam: fetch robots.txt through the SAME hardened
-        transport (so it is SSRF-guarded too). Decoded text on success, None on
-        any blocked / unreachable / capped result."""
+        transport (so it is SSRF-guarded too), sorted by RFC 9309 §2.3.1 (see
+        robots.py): the rules on a 2xx; an UNREACHABLE refusal on a 5xx or a
+        network failure, carrying the note the model reads; else None."""
         raw = await self._transport.fetch_raw(robots_url)
-        if isinstance(raw, str):
+        if isinstance(raw, str):  # a network failure is "unreachable"; ours is not
+            return Refusal(UNREACHABLE, raw) if raw in NETWORK_FAILURE_NOTES else None
+        if raw.status >= 500:
+            return Refusal(UNREACHABLE, robots_unreachable_note(raw.status))
+        if not is_success(raw.status):  # a 4xx: "unavailable", no rules to obey
             return None
         return raw.body.decode("utf-8", errors="replace")
 

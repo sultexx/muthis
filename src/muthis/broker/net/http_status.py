@@ -27,6 +27,11 @@ site's answer to THIS link, so the same link gets the same answer; a 5xx, a 408
 or a 429 is the site failing or throttling for now, so it may pass — but not
 within this reply. One clause for both would be false for one of them.
 
+AND ROBOTS.TXT (RFC 9309 §2.3.1.4): a 5xx there means its rules cannot be read,
+and the crawler MUST assume complete disallow — so the page is never requested,
+and `robots_unreachable_note` is what the model reads instead. The fetcher's
+robots seam does the sorting; robots.py records the rest of the RFC's reading.
+
 Imports nothing and logs nothing: the fetcher logs domain + status (DEC-20).
 """
 
@@ -61,6 +66,17 @@ RETRY_LATER_AR = (
 )
 
 
+# A 5xx robots.txt: the page itself was never requested. The retry clause is
+# RETRY_LATER_AR's — an outage is time's to change, not a retry's in this reply.
+ROBOTS_UNREACHABLE_AR = (
+    "ردّ الموقع على ملف قواعده للقراءة الآلية برمز الحالة {status}، والمعيار يمنع "
+    "فتح صفحاته آلياً ما دامت هذه القواعد ما تنقرأ، فما فتحت الصفحة ولا قرأت منها "
+    "شي. {retry} بدل التكرار: إن كان فيما عندك من نتائج سابقة ما يجيب، جاوب منه "
+    "واذكر مصدره؛ وإلا خبّر المستخدم إن قواعد الموقع للقراءة الآلية ما انقرأت "
+    "الحين، واقترح عليه يفتح الصفحة على شاشته وأنا أقرأ منها."
+)
+
+
 def is_success(status: int) -> bool:
     """True only for a 2xx — the one class whose body is the page."""
     return 200 <= status < 300
@@ -78,7 +94,15 @@ def status_note(status: int) -> str:
     return HTTP_STATUS_AR.format(status=status, retry=retry)
 
 
+def robots_unreachable_note(status: int) -> str:
+    """The note a 5xx robots.txt earns (RFC 9309 §2.3.1.4): the status stated,
+    the page never opened, and time — not a retry in this reply — as what can
+    change it."""
+    return ROBOTS_UNREACHABLE_AR.format(status=status, retry=RETRY_LATER_AR)
+
+
 __all__ = [
-    "HTTP_STATUS_AR", "RETRY_FUTILE_AR", "RETRY_LATER_AR",
-    "TRANSIENT_CLIENT_STATUSES", "is_success", "is_transient", "status_note",
+    "HTTP_STATUS_AR", "RETRY_FUTILE_AR", "RETRY_LATER_AR", "ROBOTS_UNREACHABLE_AR",
+    "TRANSIENT_CLIENT_STATUSES", "is_success", "is_transient", "robots_unreachable_note",
+    "status_note",
 ]
