@@ -19648,3 +19648,140 @@ Whether those three honoured it is not ruled here.
 - **Binding:** the next change to `fetcher.py` extracts before it adds.
 
 ---
+
+## DEC-153 (2026-09-27) — **THE REBUILD MEASUREMENT: SIX RESULTS, AND TWO OF SULTAN'S FOUR HYPOTHESES REFUTED BY THEM.** Cost is not near zero — halving the instructions would have saved 22.2% of the logged Claude spend and 4.9–24.9% of luna's · 9 of 11 conflicts are live, K1 only through DEC-51's ruled taint · text fixes were tried first in 10 of 11 and failed live four times · four clauses are kernel-decidable and prompt-only, three of them privacy · 40 of 89 rules state no trigger and no exception · the one earlier off-log comparison bypassed the gate, the forced passes and the notes · the ③④⑤ labels are JUDGEMENT, not computation — APPROVED (Sultan), RECORDED; **THE PATH IS NOT RULED, AND NOTHING IS BUILT**
+
+Sultan's record of the measurement. Reading only; `src/` untouched; suite 2,201 before and after. Every table
+and all 106 per-clause labels are the artifact **https://claude.ai/artifact/8h9RpyT6TJKyV7ro9RwS7X**
+("Mut'his Rebuild Evidence", private), the reference for every count below. Evidence: the code at `3043588`
+(no `src/` change through `a16acef`), `~/.muthis/logs/muthis.log` (2,729 lines, 45 process starts, last written
+2026-09-26 08:06), this file, and DEC-139's inventory.
+
+---
+
+## ① THE BRIEF, THE HYPOTHESES, AND THE VERDICT
+
+The brief (2026-09-26), verbatim: "THEN THE SESSION SULTAN HAS RULED THE MOST IMPORTANT: whether to rebuild the instruction architecture, and in what order relative to GPT-6. MEASUREMENT ONLY — I will not answer his five questions from impression, and neither will you." And: "REPORT THE NUMBERS AND STOP. Rule nothing, recommend nothing. Sultan and I decide from the numbers."
+
+**The four hypotheses were SULTAN'S, stated so the measurement could refute them**, verbatim: "My current view, stated so you can refute it — each is a HYPOTHESIS: a full rebuild before GPT-6 is wrong, because every instruction-caused defect so far was fixed by ONE targeted change · a rebuild now is BLIND, since no test measures what the model says · cost savings are near zero, because the instructions sit in the cached prefix · and Sultan's attribution concern is right but narrower than stated: known conflicts are LATENT VARIABLES that different models resolve differently, which argues for removing LIVE conflicts before migration, not for rebuilding everything."
+
+Sultan's verdict (2026-09-26), verbatim: "The six measurements are APPROVED. They refute two of my four hypotheses and weaken a third — and Sultan's instinct was more right than my scepticism."
+
+"Cost is NOT near zero: halving the instructions would have saved 22.2% of logged Claude spend, 4.9–24.9% on luna. I assumed the cached prefix was nearly free; cached, the instructions are still 26.7% of the median Claude pass, and a cache rewrite costs over twelve times as much."
+
+"Conflicts are LIVE, not dormant: 9 of 11 had both sides triggered in real turns. That is nine latent variables a new model could resolve differently — Sultan's attribution concern is broader than I said."
+
+"Text fixes are unreliable: tried first in 10 of 11, failing live 4 times before the fix that holds."
+
+**In the order the verdict gives them: REFUTED — "cost savings are near zero, because the instructions sit in the
+cached prefix", and "Sultan's attribution concern is right but narrower than stated"; WEAKENED — "a full rebuild
+before GPT-6 is wrong, because every instruction-caused defect so far was fixed by ONE targeted change".** The
+fourth, "a rebuild now is BLIND, since no test measures what the model says", is not named by the verdict; ⑥
+bears on it.
+
+Every figure the verdict quotes was checked against the measurement before this entry: 22.2%, 4.9–24.9%,
+26.7%, "over twelve times" (a cache write at 1.25× against a read at 0.10× is 12.5×), 9 of 11, 10 of 11, and
+four failed text fixes.
+
+## ② COST — MEASUREMENT ①
+
+Instruction tokens per pass, measured with each provider's free count endpoint (nothing generated; the only
+image a blank 1280×720 frame):
+
+| model | persona | 12 tool descriptions | instructions | share of a pass-1 request |
+|---|---|---|---|---|
+| `claude-sonnet-4-6` | 10,882 | 3,715 | 14,597 | 92.3% of 15,820 |
+| `gpt-5.6-luna` | 5,466 | 2,366 | 7,832 | 87.5% of 8,949 |
+
+**Controls:** the frame counts 1,200 on Claude, DEC-59's measured figure; the components add exactly on both.
+
+What the logged turns cost (one `[budget]` line per pass): luna 118 turns, 260 passes, median $0.003004 a turn,
+$0.4155 in all; Claude 11 turns, 31 passes, median $0.048955 a turn, $0.6471 in all. Priced with the app's own
+functions: the instructions cost $0.004379 on a warm Claude pass (26.7% of the median pass) and $0.054739 on a
+5-minute cache write, which three first passes in the log show; $0.000157 on a warm luna pass (12.0%) and
+$0.001566 uncached. **Halving them would have saved 22.2% of the logged Claude spend, and 4.9% (every luna pass
+warm) to 24.9% (every turn's first pass cold) of luna's**; a quarter, 11.1% and 2.5–12.5%. Luna's cache state is
+not in the log. GPT-6 is unpriced.
+
+## ③ LIVE CONFLICTS — MEASUREMENT ②
+
+A conflict is live when the situation that triggers both of its sides occurs in a logged turn. **The log shows
+the trigger and never the resolution.** The parser was validated first: at the first 31 starts it returns
+DEC-139/140/142's counts exactly.
+
+| conflict | co-trigger in the log | turns |
+|---|---|---|
+| K1 | its own trigger, a `docs__query` result without the answer: never; through DEC-51's ruled taint, a web call after a document opened | 0; 12 (24 attempts, 24 refused) |
+| K2 | a turn that points or draws | 37 |
+| K3 | a turn that asks for `web__search` | 47 |
+| K4 | a refused high-impact call | 44 (56 refusals) |
+| K5 | a sandbox run, the observable part of its trigger | 6 |
+| K6 | a `draw_shapes` turn (`dim_screen` unlogged) | 12 |
+| K7, K8 | a `docs__query`; two opens in one pass | 0 — DORMANT |
+| K9 | a one-pass turn with no tool | 22 |
+| K10 | a `navigator__verify` pass (which verify note fired is unlogged; the other four notes, 0) | 21 |
+| C047's missing exception | a pass after a refused web call | 42 |
+
+K4's resolution is the only one measured, by ear: luna did not relay (DEC-132 ③, n=2), Claude did (DEC-135).
+
+## ④ HOW PAST INSTRUCTION DEFECTS WERE FIXED — MEASUREMENT ③
+
+**Twelve defects the ledger attributes to existing model-facing text.** The fix in force today: **text-only 8**
+(DEC-35's PDF note · the Docker note · the multi-pass ack, DEC-84 · the identity law, DEC-89 · the refusal
+note's «هذه الأداة», DEC-131 ② · the verifier's instruction, DEC-100/110 · `FILE_NOT_FOUND_AR`, DEC-124 · the
+forced-pass note, DEC-148 ⑤) · **structural 3** (the re-open loop, DEC-58 → DEC-62 · the re-emitted document
+identifier, DEC-63 → DEC-71 · the unspoken approval request, DEC-95 → DEC-131 → DEC-138) · **open 1** (the
+inject surface, DEC-133). **Text was tried first in 10 of the 11 fixed; four text fixes failed live, in three
+of the defects, before the fix that holds.** Recorded outside the twelve: 1 latent text defect fixed by text,
+4 open latent ones, 4 defects from an ABSENT instruction, 2 false texts produced by code, and 3 exclusions.
+
+## ⑤ ENFORCEMENT THE KERNEL COULD TAKE — MEASUREMENT ④
+
+Of the 106 clauses: **15** restate a rule the kernel already enforces (each checked in the code) · **4** are
+kernel-decidable and prompt-only — C011 (coordinate bounds: `scale_bbox_to_physical` checks none), C045 and C046
+(query privacy: no query filter exists), C047 (announce before the search leaves: the kernel holds the query at
+the call) — three of them privacy · **17** need judgement of intent or screen content · **5** are speech rules
+stated as closed lists, with no filter in the speech path · **65** are speech, reasoning or identity only.
+`read_local_file` has no per-turn gate.
+
+## ⑥ LAWS WITH NO STATED SCOPE — MEASUREMENT ⑤
+
+Of 89 rules (17 clauses are not rules): **40 state no trigger and no exception** · 41 have a trigger and no
+exception · 8 have an exception. A word-level detector finds 36 / 47 / 6, agrees on 75 of 89, and passes 7 of 7
+fixed controls; each of its 14 disagreements is listed on the artifact with its cause. 6 of the 11 conflicts
+have one of the 40 on a side.
+
+## ⑦ A HARNESS WITHOUT THE DURABLE LOG — MEASUREMENT ⑥
+
+- **By their text**, `AGENTS.md:937-938` and DEC-122 govern the app's own logging. DEC-61 classifies any other
+  surface by who hears it and how long it lasts. DEC-142 ⑧'s ruling requirement names a record of PRODUCTION
+  passes. DEC-63 requires a diagnostic instruction to be checked against the privacy law before it runs.
+- **A precedent exists:** DEC-113 → DEC-114 compared two configurations off the log — 36 + 36 trials,
+  $0.0745 + $0.0666 — and neither entry cites DEC-61. **Its loop was re-implemented** (`tool_choice="auto"` on
+  every pass), so it had no confirm gate, no forced text passes and no notes: it cannot reproduce K3, K4 or
+  C047's exception.
+- **Run cost at the measured medians:** $0.30 per 100 luna turns; $4.90 per 100 Claude turns.
+
+## ⑧ WHAT IS JUDGEMENT, NOT COMPUTATION
+
+**The ③ defect list and its counting rule, and every ④ and ⑤ label, are AUTHORED** — judgement, and they travel
+with every number above. ⑤ carries a mechanical cross-check and ④'s "already enforced" labels a code check;
+neither makes the labels computed. Computed: the token counts, the spend, and the conflict co-trigger counts.
+
+## ⑨ FOUND ON THE WAY
+
+- DEC-150 ②'s "Constraints kept: DEC-23" — corrected by DEC-152, which also rules that the next change to
+  `fetcher.py` extracts first.
+- `PROJECT_STATE.md`'s two stale sentences in the ceiling block — fixed at `a16acef`. Still not in its list:
+  `kernel/mode_transition.py` 298, `composition.py` 298, `file_reader.py` 292.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **The six measurements are APPROVED; the path is NOT ruled.**
+- **Next, and Sultan's:** the behaviour-regression harness is designed, not built — it must drive the real
+  orchestrator, router, gate and notes, with only the provider real and the screen fixed, because it is the
+  prerequisite for every path. Sultan rules on the path before anything is built.
+
+---
