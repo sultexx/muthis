@@ -33,8 +33,8 @@ NO RESULTS — its signature is pinned below, and the module is import-locked to
 `{__future__, typing}` (`test_confirm_gate_notes.py`). Whether a result answers the
 question is the MODEL's judgement; the note only makes the sharing conditional.
 
-MEASURED BY EAR IN THE NEXT LIVE RUN. These guards prove the TEXT. What the model
-does with it is not logged, so only Sultan can hear it.
+MEASURED BY EAR AT DEC-149 ①, three `luna` sessions. These guards prove the TEXT.
+What the model does with it is not logged, so only Sultan can hear it.
 """
 
 from __future__ import annotations
