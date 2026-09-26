@@ -598,9 +598,10 @@ Phase 4 — read-only perception) — NEVER click/type/press/clipboard. RTX 4060
   the stale entries read 269 for `turn_pass.py` (real 293) and 280 for
   `sidekick_window.py` (real 296). Both sit in the near-ceiling list, which is
   exactly where an understated
-  count is dangerous: it reports headroom that does not exist. `turn_pass.py` has
-  **7 lines left, not 31**. `tests/test_module_line_ceiling.py` enforces the law
-  itself and pins the four drift-critical files, but it does not read this prose —
+  count is dangerous: it reports headroom that does not exist. `turn_pass.py` had
+  **7 lines left, not 31**, at that audit (6 at 294, re-measured 2026-09-27).
+  `tests/test_module_line_ceiling.py` enforces the law itself and pins twelve
+  drift-critical files (re-measured 2026-09-27), but it does not read this prose —
   so this list is kept honest by measurement, not by the guard.
 - **Language split**: user-facing strings Arabic; logs/comments/identifiers/commits English.
 - **Threading**: Tk lives on its own daemon thread; asyncio↔Tk only via
