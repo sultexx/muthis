@@ -172,9 +172,9 @@ class WebResearchPlugin(ToolPlugin):
         except Exception:  # noqa: BLE001 — the fetcher owns its own never-raise
             return ToolResult(text_ar=FETCH_FAILED_AR, is_error=True)
         if not getattr(page, "ok", False):
-            # The fetcher already speaks Arabic for every refusal it owns
-            # (robots, PDF, content-type, too large, timeout) — pass its own note
-            # through rather than inventing a second, less accurate wording.
+            # The fetcher already speaks Arabic for every refusal it owns (robots,
+            # PDF, content-type, too large, timeout, a non-2xx status) — pass its
+            # own note through rather than inventing a second, less accurate wording.
             return ToolResult(
                 text_ar=str(getattr(page, "text_ar", "") or FETCH_FAILED_AR),
                 is_error=True,

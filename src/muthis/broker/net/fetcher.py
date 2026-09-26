@@ -6,12 +6,13 @@ receive `ctx.net.fetch_readable(url)` backed by this object, and web_research
 (first party) eats the same dogfood with NO privileged path.
 
 This module is the READABLE ORCHESTRATION layer: cache → robots → rate-limit →
-(wire) → content-type → decode → EXTRACT → cap → FetchResult. The wire layer
-(SSRF re-validation per hop, manual redirects, the 2 MB cap) lives in
+(wire) → status → content-type → decode → EXTRACT → cap → FetchResult. The wire
+layer (SSRF re-validation per hop, manual redirects, the 2 MB cap) lives in
 `transport.py` (PinnedTransport); the HTML→text extraction + the ~4k-token cap
 live in `extract.py` — both split out under the ≤300-line law (DEC-23) and
 re-exported here so importers are unaffected. Address validation is
-`address_guard`; robots and the rate-limit/LRU are `robots` / `session_policy`.
+`address_guard`; robots and the rate-limit/LRU are `robots` / `session_policy`;
+the status rule — only a 2xx is the page (DEC-149 ⑤) — is `http_status`.
 
 Defenses, each a DEC-17 clause: content-type allowlist (html/plain/json), honest
 MuthisBot agent, per-domain rate limit, RAM-only session LRU (never launders
@@ -46,6 +47,7 @@ from .extract import (  # re-exported below so importers keep working
     cap_extract,
     extract_html,
 )
+from .http_status import is_success, status_note
 from .provenance import FetchedDomains
 from .robots import RobotsCache
 from .session_policy import RateLimiter, SessionCache
@@ -159,7 +161,8 @@ class HardenedFetcher:
                     # point of DEC-20 (a redirect is exactly the case where the
                     # requested host and the read host differ). robots.txt goes
                     # through `_fetch_robots_text`, never here, so it can never
-                    # be mistaken for content the user was shown.
+                    # be mistaken for content the user was shown. A non-success
+                    # status is ok=False (DEC-149 ⑤): a block page is no source.
                     self._domains.record(result.domain)
                 return result
         except TimeoutError:
@@ -192,6 +195,17 @@ class HardenedFetcher:
         raw = await self._transport.fetch_raw(url)
         if isinstance(raw, str):  # an Arabic-note failure (SSRF / limit / network)
             return FetchResult(ok=False, text_ar=raw, domain=domain)
+
+        if not is_success(raw.status):
+            # DEC-149 ⑤: only a 2xx is the page. Checked BEFORE the content type,
+            # the extraction and the cache: a block / missing / error page reaches
+            # the model as a failure STATING its status, is never cached, and —
+            # ok=False — never reaches the badge's recording site.
+            logger.info("[fetch] %s status=%s non-success", raw.domain, raw.status)
+            return FetchResult(
+                ok=False, text_ar=status_note(raw.status), domain=raw.domain,
+                status=raw.status, content_type=raw.content_type,
+            )
 
         note = _content_type_note(raw.content_type)
         if note is not None:
