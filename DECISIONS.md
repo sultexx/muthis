@@ -19175,3 +19175,131 @@ test it sits in, which ⑤ flips. `git grep` finds no other copy outside this le
 - **NEXT:** ⑤'s build, one commit, **NOT PUSHED**; Sultan listens in the next live run.
 
 ---
+
+## DEC-149 (2026-09-26) — **THE APPROVAL ROUND CLOSES: THE FORCED-PASS NOTE, RULING ③, AND THE FIRST FETCH APPROVED END TO END — ALL VERIFIED LIVE.** Three `luna` sessions on DEC-148 ⑤'s build · the forced pass never said it cannot search, and in two of three shared the results in hand (by ear) — the old note had left "I can't" as the ONLY thing it was permitted to say: the model did not fail, it obeyed · ③'s signature in the log — a miss, the RETRY form in its own turn, a second miss, two turns with no call, then a new refusal in the NORMAL form, which pre-③ code could not have produced · `approval heard for web__fetch` → `approved call released: web__fetch` → `[fetch] alnassr.sa status=403` — the only fetch the durable log has ever held, released because the re-issued arguments did not drift · a new search after an approved fetch asked for its own permission, by design · DEC-148's heading was premature: ③ is verified only now · a 403 block page reaches the model as ordinary page text, its status never passed on — observed, not fixed · open: the fetch request's form, C047, the deferral note — RECORDED (Sultan); **the push follows this entry, and Sultan opens the next project himself.**
+
+Sultan's record after three live sessions on the forced-pass build. `file:N` references are to `85281b7`; log
+`:N` references are to the durable log, 2,729 lines at this read. All three sessions ran on
+`reasoner=luna model=gpt-5.6-luna` (`:2529`, `:2589`, `:2641`). The log carries no build stamp: every line
+after `:2522` was written after the read that preceded the build, and its last write (08:06) followed
+`85281b7` (07:19). **For ③ the log itself proves which code ran (②).**
+
+---
+
+## ① THE FORCED-PASS NOTE (DEC-148 ⑤) — VERIFIED LIVE, BY EAR
+
+Six forced passes followed a refusal, each with search results already in hand: **E** `:2548` → `:2550`
+(`results=3` at `:2543`); **F** `:2608` → `:2610` (`results=5` at `:2603`) and `:2628` → `:2630` (after the
+fetch at `:2624`); **G** `:2660` → `:2662` (`results=5` at `:2655`), `:2675` → `:2677` and `:2723` → `:2725`.
+
+**By Sultan's ear:** in no session did the pass say it cannot search — confirmed explicitly for the first —
+and in two of the three it shared results already in hand. Where it mentioned a limit, it was the site's
+block, which was true (`status=403`, `:2624`). **Sultan's reading of DEC-148 ⑤'s diagnosis stands as this
+round's finding: the old note left "I can't" as the ONLY thing the pass was permitted to say. The model did
+not fail — it obeyed.** The model's speech is never logged (DEC-142 ⑧): three sessions, by ear, on `luna`.
+
+E also repeats DEC-147 ②'s signature a third time (after DEC-148 ①'s B and C): `approval heard for
+web__search` (`:2560`) → `granted call released` ×3 (`:2563`, `:2569`, `:2574`) → `#4 tools=-` (`:2578`).
+
+## ② RULING ③ (DEC-147 ③) — VERIFIED LIVE, AND THE LOG PROVES WHICH CODE RAN
+
+Session G (`:2635`), line for line:
+
+1. `web__fetch` refused in the NORMAL form (`:2660`); the forced pass (`:2662`).
+2. A 15-character reply (`:2668`) → `no approval this turn for web__fetch — pending cleared` (`:2672`): a
+   miss. In that same turn the model called `web__search`, refused in the **RETRY** form (`:2675`) — the
+   designed same-turn case DEC-147 ③ had to keep. Its claim was true: the user's last words matched no
+   approval word. It named the search, the call then refused, not the fetch that was missed.
+3. A 39-character reply (`:2683`) → `no approval this turn for web__search — pending cleared` (`:2687`): a
+   second miss, and no call (`:2689`).
+4. Two turns with no call (`:2695`/`:2700`, `:2706`/`:2711`).
+5. A 29-character turn (`:2717`) → `web__search` refused in the **NORMAL** form (`:2723`).
+
+**Pre-③ code could not have produced `:2723`.** `GateState.clear()` never touches `missed`
+(`confirm_gate_state.py:131-133`); only `consume()` resets it (`:143`), after an approved release, and none
+came; `__init__` (`:67`) runs once per gate, and the log shows no restart between `:2635` and `:2729`. Before
+③, `observe()` returned early whenever nothing was pending (`313876a`, `confirm_gate.py:188-190` there). So
+the flag set at `:2687` would have survived both empty turns and put `:2723` in the RETRY form — telling the
+model the user's last words were not read as permission, about an utterance three turns back. **Sultan
+confirmed he heard no such claim.** It is DEC-145 ⑨'s reproduction (`tests/test_missed_lifetime.py`), live.
+
+**THE CORRECTION DEC-148 OWES.** Its heading and ① title read "DEC-147 IS LIVE-VERIFIED" when ③ had never
+been exercised — its own ① body said so. **The heading was premature when written. ③ is verified only NOW,
+and with it all three of DEC-147's rulings.** The same phrase stands in the subject of `42d1a6d`. Sultan owns
+the overstatement in his brief; that the heading did not carry its own body's qualification is the
+recorder's.
+
+## ③ FETCH, APPROVED END TO END — FOR THE FIRST TIME
+
+Session F (`:2583`): a search returning `results=5` (`:2603`) → `web__fetch` refused (`:2608`) → the forced
+pass (`:2610`) → a 5-character reply (`:2616`) → `approval heard for web__fetch` (`:2620`) → `web__fetch`
+(`:2622`) → **`approved call released: web__fetch`** (`:2623`) → **`[fetch] alnassr.sa status=403
+bytes=6064 chars=460`** (`:2624`).
+
+**The first in the durable log.** Its only other `approval heard for web__fetch` (`:2251`, DEC-146 ③) was
+followed by a fresh refusal (`:2254`) — the treadmill. `:2623` is its only `approved call released:
+web__fetch`, and `:2624` the only `[fetch]` line it has ever held.
+
+**Why it released this time.** The line is logged only when the re-issued call's fingerprint equals the
+approved one: `released_by` (`confirm_gate_state.py:135`, checked at `confirm_gate.py:239`) compares
+sha256(tool + canonical arguments). Arguments are never logged (DEC-20/28), so the line IS the evidence that
+the model re-issued the identical URL. **The treadmill fires only when the arguments drift** — the path
+that re-places the pending (`confirm_gate.py:246`).
+
+**By Sultan's ear and eye:** the model reported the block honestly and fell back to the earlier search
+result, and the domain badge showed the source.
+
+## ④ A NEW SEARCH AFTER AN APPROVED FETCH ASKS FOR ITS OWN PERMISSION — BY DESIGN
+
+Sultan asked why the next request named search, not fetch. After the release, the model called a NEW
+`web__search` (`:2627`), refused (`:2628`). The approval at `:2620` answered the FETCH's pending — per call
+and single-use, spent at `:2623` — and grants nothing for search, which is released only by its own grant
+(DEC-143 ①). So the kernel asked for search by name. **Correct behaviour, by design — recorded as such.**
+
+## ⑤ A 403 BLOCK PAGE REACHES THE MODEL AS ORDINARY PAGE TEXT — OBSERVED, NOT FIXED
+
+The 403 returned extractable text — the block page, `chars=460` — and the model correctly read it as a block
+(by ear). **Reported as asked: the model is NOT told the status.**
+
+- The fetcher never tests `status` for success. Any supported content type with a non-empty extraction
+  returns `ok=True` with the extracted text (`broker/net/fetcher.py:219-222`), is CACHED for the session as ok
+  (`:224`), and is logged with its status (`:225-228`). `FetchResult.status` is carried and read nowhere
+  downstream.
+- The plugin renders every ok page the same way — «نص الصفحة من alnassr.sa:» and the text
+  (`src/muthis_plugins/web_research/plugin.py:219-223`); `status` does not occur in that file.
+- The badge records the domain for every ok result (`fetcher.py:154`, `:163`), so a block page registers as
+  a source.
+
+**The ONLY signal that a page is a block page is the page's own wording. A less careful model could present
+a block page — or a 404 or 500 page — as the site's content.** And because the 403 is cached as ok, a
+re-fetch of that URL in the same session returns the same text without a request. No test pins a page's
+status path (the one non-2xx response in `tests/test_net_fetcher.py` is a missing `robots.txt`, `:272`), and
+no ruling covers it. **Recorded, not fixed — Sultan's.**
+
+## ⑥ WHAT REMAINS OPEN — SULTAN'S
+
+- **The fetch request's form.** Still DEC-138's per-call sentence, byte-identical through DEC-148 ⑤ —
+  «وقفت طلباً لأنه يحتاج إذنك…» — with the URL spoken as canonical bytes (up to 160 characters per value,
+  `MAX_SPOKEN_VALUE_CHARS`) and all four words. Sultan heard it as "the old message". It belongs to the
+  reopened fetch question (DEC-148 ③).
+- **C047**, the announce-before-search law, still has no exception for a reply that cannot search — DEC-145
+  ⑤(c).
+- **`WEB_ONE_PER_PASS_AR` after a refusal** stayed unchanged. The shape DEC-148 ⑤ recorded recurred once — G's
+  pass #2 issued `web__fetch,web__fetch` (`:2659`), so the deferred call's note followed the refusal into the
+  forced pass (`:2662`) — and nothing audible undermined the batch. n=1, by ear.
+- **The silent failure** (DEC-148 ④), and **the 403 block page** (⑤).
+- **Untouched:** DEC-97's counter and the retry-family ruling; GPT-6 Luna's regression (DEC-143 ⑩).
+- **Stale after this entry, left as it is (the record only):** `AGENTS.md:351` still says the note "is
+  measured by ear in the next live run".
+
+---
+
+## THE STATE THIS LEAVES
+
+- **VERIFIED LIVE:** DEC-148 ⑤, by ear · DEC-147 ③, in the log · a fetch approved end to end, in the log.
+- **CORRECTED:** DEC-148's heading was premature — DEC-147 is verified in full only now.
+- **RECORDED, NOT FIXED:** the 403 block page (⑤).
+- **THE APPROVAL ROUND CLOSES** — opened by Sultan on 2026-09-24 (DEC-143), closed here. The push follows
+  this entry; **Sultan opens the next project himself.**
+
+---
