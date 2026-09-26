@@ -590,9 +590,10 @@ Phase 4 — read-only perception) — NEVER click/type/press/clipboard. RTX 4060
   2026-08-04 against the real files — every count below is exact**): `tool_router.py`
   **300 — AT the ceiling AND irreducible**, any addition needs a funnel-split RULING
   (DEC-38); `turn_voice.py` **300**; `broker/docs/service.py` **300**;
-  `orchestrator.py` **299**; `broker/docs/ingest.py` **298**; `broker/docs/zones.py`
-  **298**; `tts.py` **296**; `sidekick_window.py` **296**; `turn_pass.py` **293**;
-  `fetcher.py` **294** (re-measured 2026-09-26); `confirm_gate.py` **269**.
+  `orchestrator.py` **298** (re-measured 2026-09-26); `broker/docs/ingest.py` **298**;
+  `broker/docs/zones.py` **298**; `tts.py` **296**; `sidekick_window.py` **300** (re-measured
+  2026-09-26); `turn_pass.py` **294** (re-measured 2026-09-26); `fetcher.py` **294**
+  (re-measured 2026-09-26); `confirm_gate.py` **289** (re-measured 2026-09-26).
   **Two of these had DRIFTED in this file and were corrected at the DEC-87 audit:**
   the stale entries read 269 for `turn_pass.py` (real 293) and 280 for
   `sidekick_window.py` (real 296). Both sit in the near-ceiling list, which is
