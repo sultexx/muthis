@@ -18947,3 +18947,231 @@ and the one guard that pins `turn_pass.py`'s call text.
 - **Untouched:** DEC-97's counter and the retry-family ruling; GPT-6 Luna's regression (DEC-143 ⑩).
 
 ---
+
+## DEC-148 (2026-09-26) — **DEC-147 IS LIVE-VERIFIED AND PUSHED; THE FETCH QUESTION REOPENS; THE NOTE THE FORCED PASS READS IS RULED.** Two sessions each released three granted searches and ended on text — zero caps — and `origin/main` is `822414a` · pointing unbroken, ② kept with no carve-out, and "research, then point" recorded as a watched edge — 0 of 37 logged draws on pass 4 · the rarity ground WITHDRAWN — fetch in 3 of 4 research sessions at DEC-147's count, 4 of 8 now — while the exfiltration ground STANDS: the question is OPEN · DEC-145 ⑥'s silent failure OBSERVED LIVE, under an answer that read as the approval's success · the forced-pass note made true for a kernel that speaks — no "hears nothing", no relay, ONE word, no tool in this reply, and one true job — DEC-145 ⑤ (a) and (b) RULED, (c)–(e) not; the share needs no interpretation of results, by construction · the note is the LAST thing that pass reads in three of four sessions — in the fourth, a deferral note after it ordered the search again · a fifth copy of DEC-147 ①'s false mechanism, in a test message — RULED (Sultan), RECORDED BEFORE THE BUILD so every citation of this entry resolves; **the build follows in one commit, NOT PUSHED: Sultan measures it by ear in the next live run.**
+
+Sultan's rulings after four live sessions on DEC-147's build. The sections are numbered so that "DEC-148 ⑤" in
+the tree names the forced-pass ruling and nothing else. `file:N` references are to `822414a`; log `:N`
+references are to the durable log, 2,522 lines at this read. **Every number here is supplied from the tree
+and the log:** from 2026-09-26 Sultan cites none from memory, and a number in a brief is a premise, verified
+before it is written.
+
+---
+
+## ① DEC-147 IS LIVE-VERIFIED — AND PUSHED
+
+The log holds four session starts after `:2261`. **A** (`:2293`) never reached a pass: a 13-character
+transcript (`:2306`), then shutdown (`:2312`). **B** (`:2315`) and **C** (`:2382`) each ran the grant end to
+end — a search returning `results=5` (`:2335` / `:2402`), the next refused (`:2340` / `:2407`), the forced text
+pass (`:2342` / `:2409`), a 5-character reply heard as approval (`:2359` / `:2419`), three `granted call
+released: web__search` (`:2362` `:2368` `:2373` / `:2422` `:2428` `:2433`) — and **`#4 tools=-`** (`:2377` /
+`:2437`): the turn DEC-146 ② recorded ending on the cap note now ends on text. **Zero `agentic cap (4) hit`
+lines in the four sessions**, so no cap note was spoken. All four ran on `reasoner=luna model=gpt-5.6-luna`
+(`:2299`, `:2321`, `:2388`, `:2448`).
+
+**By Sultan's ear:** no cap note and no double next-step after the answer — so ②'s claimed side effect, which
+DEC-147 ② said was to be VERIFIED rather than assumed, is now OBSERVED, not only re-run
+(`tests/test_final_pass_is_text.py`) — and ①'s search request heard as one short sentence and one word.
+
+**What the log can and cannot show.** It carries no build stamp, so that these sessions ran on `822414a` is
+Sultan's; the log is CONSISTENT with ② — every cap hit on record was a tool on pass 4 (DEC-147 ②), and none
+occurred — but a model could have chosen text on pass 4 before the build too. ① is not logged. **③ was not
+exercised:** D's miss (`:2479`) was followed by three more turns, none refused, so no later refusal could
+show which note a stale flag would have chosen.
+
+**THE PUSH:** `c2a7c26..822414a`, four commits, fast-forward; `git ls-remote origin main` returns `822414a` —
+the boundary DEC-147 named.
+
+## ② POINTING UNBROKEN · ② STAYS WITH NO CARVE-OUT · "RESEARCH, THEN POINT" IS A WATCHED EDGE
+
+D's last turn drew `highlight_target` on pass #1 (`:2515`) and explained on pass #2 (`:2517`), in a session
+tainted since the search at `:2462`: a draw is not gated, and the final-pass brake does not reach pass 1.
+
+**THE COUNT THAT SETTLES IT:** the durable log holds **37 draws — 33 on pass 1, 3 on pass 2, 1 on pass 3,
+none on pass 4** (the 36 counted on 2026-09-26, plus D's). Against it stand the three pass-4 draws DEC-111
+DERIVED from `agentic cap (4) hit` ×3 before the per-pass line existed (it arrived at DEC-121) — whose cause,
+a pass spent before the draw, DEC-111's Option B removed (`e2cc746`, an authoring clause; DEC-120 ③).
+**Ruling (Sultan): DEC-147 ② stays, with no carve-out for a draw.**
+
+**THE WATCHED EDGE (Sultan): "research, then point".** The one draw on pass 3, before DEC-147: `web__search`
+(`:1233`, `results=3` at `:1235`) → `docs__open` (`:1239`) → `draw_shapes` (`:1243`) → text (`:1245`). **One
+more tool before it, and the draw falls on pass 4, which is now text only: the turn would answer without the
+pointer.** Recorded, not changed. What to listen for: a research turn that ends explained but unpointed.
+
+## ③ THE FETCH QUESTION — REOPENED, AND OPEN
+
+DEC-147 ④ recorded Sultan's note that fetch "is rare with Tavily" beside the count that contradicted it.
+**The rarity ground is WITHDRAWN (Sultan).** The count, reproduced from the log — research sessions (a turn
+calling `web__search`) since the live checks began at `:1986`: fetch was called in the sessions starting
+`:2030`, `:2106` and `:2177`, not in `:1986` — **3 of 4 at DEC-147's count**; of the four since, only in
+`:2442` (`:2466`) — **4 of 8 running**.
+
+**The exfiltration ground STANDS (Sultan):** speaking only the domain would hide the path and the query, which
+carry the secret (DEC-147 ④, from Sultan's DEC-143 design brief). **The question is OPEN — neither ruled nor
+closed.** Nothing about fetch changes here: still per call, and its spoken request is byte-identical (⑤).
+
+## ④ THE SILENT FAILURE — OBSERVED LIVE, UNDER A MISLEADING SUCCESS
+
+**Sultan's report:** in his third session, a 25-character reply to a fetch request was not a bare word, was
+cleared silently, and he believed his approval had worked — because the answer arrived from the first search.
+
+**The log agrees, line for line.** The session is D (`:2442`) — the third of the four to reach a pass, A never
+having done so: a search returning `results=5` (`:2462`); pass #2 issued `web__fetch` and `web__search`
+(`:2466`) and the fetch was refused (`:2467`); the forced pass (`:2469`); next turn a **25-character**
+transcript (`:2475`) → `no approval this turn for web__fetch — pending cleared` (`:2479`) → `#1 tools=-`
+(`:2481`). No search and no fetch ran in that turn: the answer came from the five results already held.
+
+**This is DEC-145 ⑥'s finding, now observed:** "a reply that is heard but is not a bare word clears the
+pending with a log line only … Nothing is spoken, and the model is not told" — `confirm_gate.py:213-216` at
+`822414a`. **And it is worse than silent in one dimension: the answer that followed read as the approval's
+success, so the user cannot tell a released fetch from a dropped one** — DEC-132 ③'s shape, a stale answer
+that looks like an answer. `CONFIRM_RETRY_AR` cannot reach it: it is read only on the NEXT refused call, and
+the model did not call. ⑤ changes what that note says, not when it is read. **RECORDED, NOT FIXED — Sultan's.**
+
+## ⑤ THE NOTE THE FORCED PASS READS — MADE TRUE FOR A KERNEL THAT SPEAKS
+
+**THE COMPLAINT (Sultan, by ear, on `luna`):** on the forced pass after a refusal, the model says it cannot
+search — while it already holds five results from the first search. **VERIFIED where the log can:** each
+forced pass after a refusal followed a search that returned `results=5` — `:2281`→`:2288` (the session at
+`:2261`), `:2335`→`:2342`, `:2402`→`:2409`, `:2462`→`:2469`. Which of them Sultan heard is not recoverable:
+the model's speech is never logged (DEC-142 ⑧).
+
+**THE DIAGNOSIS — BY READING, NOT MEASURED.** The forced pass was handed `CONFIRM_DIRECTIVE_AR`
+(`confirm_gate_notes.py:133-150`), and it gave that pass:
+
+1. **ONE job — relay the request** (`:142-145`), which the KERNEL had already spoken at the refused pass
+   (`pass_servicing.py:225-228`, DEC-138) and which `luna` does not do (DEC-132 ③, DEC-138 ⑤).
+2. **A ban on every other job:** «ردّك في هذا الدور هو هذا الطلب لا غير» — "your reply in this turn is this
+   request and nothing else" (`:145`). The results in hand were excluded by the note's own words.
+3. **The stop, framed as the model's own:** «قل له بصراحة إنك وقفت» (`:142`), with «بحث» named first among the
+   stopped capabilities (`:139`).
+4. **A false reason to speak:** «وإن لم تقله الآن فلن يسمع المستخدم شيئاً» (`:145-146`) — DEC-139 ④, DEC-145 ④.
+5. **Nothing saying no tool can run in this reply** — `tool_choice="none"` is enforced silently (DEC-145 ③).
+
+A model that does not relay, forbidden everything but the relay, is left with the stop to announce: DEC-132
+③'s «ما أقدر أتحقق لحظياً…», which DEC-138 ⑤ recorded as the forced pass's known cost on `luna`. **A reading of
+the text, consistent with both records — not proven;** C047 stays the other candidate (DEC-145 ③).
+
+**THE RULING (Sultan) — scoped to the note the model reads on that pass, NOT the persona,** whose
+announce-before-search law touches every search turn and needs its own measurement:
+
+- (1) remove the claim that the user hears nothing unless the model speaks;
+- (2) remove the order to repeat the request the kernel already spoke;
+- (3) name ONE word, matching the kernel — the gap DEC-147 ① recorded as "KNOWN AND DEFERRED" and ⑤ deferred;
+- (4) state that no tool can run in this reply;
+- (5) give the pass something true to do: share in one short sentence what the earlier search already found,
+  if anything — without claiming it cannot search and without announcing a search.
+
+That is DEC-145 ⑤'s **(a)** and **(b)**, with (3) and (5); **(c) — C047's exception — (d) and (e) are NOT
+taken.** **(b) REVERSES DEC-138 ⑤'s byte-identical choice** ("`claude` DOES relay, so deleting the order
+breaks what works"), and with it that entry's MEASURE-AFTER item: the duplicate can no longer be ordered, and
+whether a model relays by habit is heard in the next live run. **Utterance ③ is NOT suppressed** (DEC-132,
+DEC-138 ⑤): the pass keeps its voice and is given a true use for it. The kernel keeps the enforcement — the
+prompt half at this gate has failed twice (DEC-132 ③) — and this changes only what the model is TOLD.
+
+**REPORTED AS ASKED — CAN THE SHARE BE EXPRESSED WITHOUT THE NOTE INTERPRETING RESULTS? YES, BY
+CONSTRUCTION.** The note is a static template with four slots: the tool, its arguments, ONE word, and the
+approval's reach. `confirm_note` is handed **NO results** — it has no parameter through which one could
+arrive, and its module is import-locked to `{__future__, typing}`. The share is a CONDITIONAL addressed to the
+model, «وإن كان فيما بين يديك من نتائج سابقة ما يجيب عن جزء من السؤال …»: whether anything answers, and what,
+is the MODEL's judgement. The kernel neither selects, summarises nor asserts that results exist, and the note
+is byte-identical whether the session holds five results or none. **Guarded: the signature is pinned, and a
+parameter added to it goes RED.**
+
+**FOUR CHOICES OF WORDING, NAMED SO THEY CAN BE OVERRULED:**
+
+- **ONE word on BOTH paths.** The kernel's search request names one word; its per-call request still names
+  four (DEC-147 ①, ④). The brief's guard — the note naming more than one word goes RED — is unconditional, so
+  both notes name `APPROVAL_WORD_AR` as sufficiency, «ويكفيه أن يقول «أوافق» وحدها» — "it is enough for him to
+  say «أوافق» alone": true on both paths, and never a word the kernel did not name. If the fetch note should
+  mirror the kernel's four instead, it is one slot.
+- **Bound to THIS reply.** The note stays in the history, so an unbound "do not announce a search" would reach
+  later turns, where C047 must keep announcing the searches that ARE sent — Sultan's condition (DEC-145 ③).
+  So: «لا يمكن تشغيل أي أداة في هذا الرد، فلا تقل فيه إنك لا تستطيع البحث ولا إنك ستبحث».
+- **No "otherwise, say nothing".** A draft had it and it was cut: it is not in the ruling, and it sits beside
+  the suppression DEC-132 declined. With nothing to share, the pass is told only what not to claim.
+- **The retry keeps its one unique claim.** The kernel's request has no retry form (DEC-138 ⑤), so "what you
+  said was not read as permission" is said by nobody else. The retry asks the model to say THAT, and to repeat
+  nothing else: «قل للمستخدم إن ما قاله لم يُقرأ إذناً، ولا تكرّر بقية الطلب».
+
+**THE DIRECTIVE, AS BUILT** (search, rendered through the real gate for `query=أسعار الذهب`):
+
+> هذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة، فلا تتعامل معه بالشك ولا تتجاهله. سبق أن
+> دخلت هذه الجلسة نصوصٌ من مصادر لا نثق فيها، فما نُفِّذ الطلب وينتظر إذن المستخدم الصوتي. والطلب هو الاستدعاء
+> «web__search» (query=أسعار الذهب). وإذنه يشمل كل استدعاء لهذه الأداة من لحظة إذنه إلى أن يتكلم مرة أخرى، لا
+> هذا الاستدعاء وحده. والوقف ليس على هذه الأداة وحدها: كل أداة أثرها يخرج من الجهاز — بحث، فتح صفحة، وما
+> يشبههما — موقوفة بنفس الطريقة ما لم يأذن بها المستخدم، فتجريب أداة ثانية لا يغيّر شيئاً ولا يُعدّ استجابةً لهذا
+> الطلب. وقد طلب النظام من المستخدم إذنه بصوتٍ مسموع، ويكفيه أن يقول «أوافق» وحدها، فلا تكرّر الطلب ولا تُعِد
+> صياغته. لا يمكن تشغيل أي أداة في هذا الرد، فلا تقل فيه إنك لا تستطيع البحث ولا إنك ستبحث. وإن كان فيما بين
+> يديك من نتائج سابقة ما يجيب عن جزء من السؤال فقل للمستخدم ما وجدته في جملة واحدة قصيرة. ولا تستدعِ أداةً من
+> هذا النوع مرة أخرى قبل أن يتكلم المستخدم ويأذن — لا في هذا الدور ولا في أي دور بعده: كل استدعاء قبل إذنه
+> يرجع لك بنفس هذا الجواب ولا يغيّر شيئاً.
+
+Sentence by sentence: whose words these are; the stop and the call; the reach of an approval; the capability
+stop; already asked, ONE word, do not repeat; no tool in this reply, and neither claim; the share, if any; the
+prohibition across passes.
+
+**BY VALUE, at `822414a` and in the build:** the four renderings shrink — search first **1,123 → 1,006**
+characters, search retry **847 → 712**, fetch first **1,023 → 915**, fetch retry **791 → 665**. **What the user
+HEARS is byte-identical:** `SPOKEN_SCOPE_AR`, `SPOKEN_REQUEST_AR`, both rendered requests (157 and 238
+characters), `PER_CALL_BINDING_AR`, and the composed persona prompt (15,926 characters, the same sha256) — C047
+untouched. Kept byte-identical inside the notes: the capability stop, the closing prohibition with «ولا في أي
+دور بعده», «فما نُفِّذ الطلب وينتظر إذن المستخدم الصوتي», and the retry's «لم يطابق أي كلمة من كلمات الإذن».
+
+**ONE PREMISE HOLDS IN THREE OF FOUR — RECORDED, NOT CHANGED.** The brief scopes the batch to the note
+because it is "the LAST thing the model reads on that one pass". Results are paired in the order the model
+issued its calls (`tool_result_pairing.py`), and a second web call in one pass is answered with
+`WEB_ONE_PER_PASS_AR` (`deferral_notes.py:61-64`). In three of the four forced passes the refused call was the
+pass's only call (`:2285`, `:2339`, `:2406`), so the note WAS last. **In D it was not:** pass #2 issued
+`web__fetch,web__search` (`:2466`); the fetch was refused, and the search was answered after it with
+«توجيه داخلي (لا يراه المستخدم): أخدم طلب ويب واحدًا في كل خطوة تفكير. اطلبه مرة أخرى في الخطوة التالية.» —
+"request it again in the next step" — read on a pass that can call no tool, in a turn with no pass after it.
+After this build, that pass reads "no tool can run in this reply" and then an order to search again. **Outside
+this batch's scope and not changed — a surface of its own, and Sultan's.** It is the shape to listen for: a
+fetch refused beside a search.
+
+**MEASURED AT G1** (scratch copies of `822414a`): `trust/confirm_gate_notes.py` **234 → 245**, a declared pin
+move — the two constants SHRANK by four lines, and the docstrings and comments that would otherwise lie grew
+by fifteen, each rewritten where it stood; 55 lines of headroom, nothing extracted. `trust/confirm_gate.py`
+stays **289** (the call site at `:264` passes `APPROVAL_WORD_AR`, edited in place; the TURN N docstring
+rewritten line for line). `trust/confirm_gate_speech.py` stays **177**. **The flip list, measured in two
+stages:** the new source against the old tests fails **15**; nine of them fail only in
+`test_confirm_directive_spoken.py`'s `_rendered()` helper, whose format slot changed (`{words}` → `{word}`).
+With the helper's slots alone updated, **FIVE tests flip, each by the ruling, plus the declared pin:**
+`test_its_OPENING_addresses_the_user_and_orders_the_request_spoken` and
+`test_it_is_a_COMMAND_for_THIS_pass_and_names_the_cost_of_silence` (the relay, "hears nothing");
+`test_confirm_gate.py`'s `"بصوتك" in note` (the relay); `test_the_REQUEST_names_every_word_the_detector_accepts`
+and `test_the_RETRY_request_names_them_too` (four words). The directive's nine other guards — authority, the
+capability stop, pass-scoping, retry futility, the standing note law, the boundary vocabulary, DEC-14's
+channel, the missing marker, the tool and arguments — hold unchanged.
+
+**WHAT THE BUILD MUST PROVE — mutation-verified, each asserted APPLIED:** the false "user hears nothing"
+restored goes RED · a repeat-the-request order restored goes RED · the note naming more than one word goes RED
+— Sultan's three — and the no-tool sentence, its binding to this reply, the share, the no-results signature,
+and the brake that makes the sentence true. **Measured by ear in the next live run: the model's speech is not
+logged.**
+
+## ⑥ A FIFTH COPY OF DEC-147 ①'S FALSE MECHANISM
+
+DEC-147 ① corrected "a user refused for saying a word the gate accepts" — which the detector cannot do — in
+four derived copies. **A fifth stood in an assertion message** (`tests/test_confirm_word_set_and_retry.py:120`):
+"… a user refused for saying a word the gate accepts is the defect DEC-136 ruling 2 closed". It goes with the
+test it sits in, which ⑤ flips. `git grep` finds no other copy outside this ledger.
+
+## ⑦ WHAT STAYS DEFERRED — SULTAN'S
+
+- **C047's exception** for a reply that cannot search — DEC-145 ⑤(c). `persona_laws.py` is untouched.
+- **DEC-145 ⑤(d) and (e).**
+- **The silent failure** (④), **the fetch question** (③), and **`WEB_ONE_PER_PASS_AR` after a refusal** (⑤).
+- **Untouched:** DEC-97's counter and the retry-family ruling; GPT-6 Luna's regression (DEC-143 ⑩).
+
+---
+
+## THE STATE THIS LEAVES
+
+- **LIVE-VERIFIED AND PUSHED:** DEC-147 — `origin/main` is `822414a`.
+- **RULED AND RECORDED:** ② kept with no carve-out; the watched edge; the fetch question reopened and open; ⑤.
+- **RECORDED, NOT FIXED:** the silent failure (④); the deferral note after a refusal (⑤).
+- **NEXT:** ⑤'s build, one commit, **NOT PUSHED**; Sultan listens in the next live run.
+
+---
