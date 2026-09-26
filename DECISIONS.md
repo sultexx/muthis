@@ -19303,3 +19303,122 @@ no ruling covers it. **Recorded, not fixed — Sultan's.**
   this entry; **Sultan opens the next project himself.**
 
 ---
+
+## DEC-150 (2026-09-26) — **DEC-149 ⑤ CLOSED: ONLY A 2xx IS THE PAGE.** A non-success status reaches the model as a failure that STATES the status, is never cached, and never reaches the badge · the note's retry clause is chosen by status class, accepted as written · before `6235bbd` no revision of the fetch path had ever tested whether a status was a success, so nothing had ever guarded it · eight mutants RED, pushed (`866d10c..3a4bf83`) — **NOT yet exercised live** — RULED (Sultan), EXECUTED
+
+Sultan's record of the fix. `file:N` references are to `6235bbd`. **This entry supersedes DEC-149 ⑤'s
+«RECORDED, NOT FIXED», which was true when written at `866d10c` and stands as written.**
+
+---
+
+## ① THE RULING
+
+Sultan's brief (2026-09-26), verbatim: "FIX THE 403 DEFECT — it must land before GPT-6." Why now:
+"GPT-6's regression will exercise this path, and 'a less careful model' may be the new one. A known
+defect left in place would confound that measurement."
+
+The fix, as properties, verbatim: "a non-success status reaches the model as a failure, stating the
+status, never as page content · a non-success response is NOT cached · and it is NOT recorded on the
+badge, since nothing was read." "The note it produces follows the standing note obligations: what
+happened, whether retrying can help, what the model can do instead." "Mutation-verify: a 403
+presented as content goes RED · a non-success cached goes RED · a non-success badged goes RED." And,
+before any change: "Report whether any of the three conflicts with a prior ruling on the fetcher."
+
+The next brief: "All three items are APPROVED" — and the retry clause "is accepted as you wrote it".
+
+## ② THE CONFLICT CHECK — RUN BEFORE ANY CHANGE, AND IT FOUND NONE
+
+- **Content.** DEC-17 (every failure is a short Arabic note; the fetcher never raises) agrees with a
+  failure note. The search client already treats any status ≥ 300 as a failure
+  (`broker/search/client.py:130`). **Corrected here:** `6235bbd`'s message also cites "DEC-18 (no raw
+  fallback)" — DEC-18's ruling does not say it; that discipline lives in the code (`extract.py`,
+  `fetcher.py`), so the check stands on DEC-17 alone and its result does not change.
+- **Cache.** DEC-17's session LRU rules nothing on WHAT is cached. Not caching a failure launders no
+  taint: the router raises taint on, and wraps, every result of a tainted route, error or not
+  (DEC-14, DEC-15, and DEC-29's item 2; `kernel/tool_router.py:205-216`).
+- **Badge.** DEC-20 words the badge as "these domains were fetched this turn"; DEC-36, the ruling that
+  delivered it, defines it as what was actually READ (③) and made "a failed fetch being recorded" one
+  of its RED mutations.
+- **Constraints kept:** DEC-23 (nothing extracted, nothing compressed), the note law (AGENTS.md),
+  DEC-20's logging (domain and status only).
+
+## ③ WHAT WAS BUILT
+
+- **`broker/net/http_status.py` — NEW, 84 lines.** `is_success` (`:64`): 200 ≤ status < 300, RFC 9110
+  §15.3. `is_transient` (`:69`): a 5xx, or a 408 or 429 (`TRANSIENT_CLIENT_STATUSES`, `:39`).
+  `status_note` (`:74`).
+- **`broker/net/fetcher.py` 273 → 287.** The rule is applied at `:199-208`, after the transport returns
+  and BEFORE the content type, the extraction and the cache. The three properties follow from WHERE it
+  sits: the branch returns before `self._cache.put` (`:238`), and its `ok=False` never reaches the one
+  recording site (`:156-166`).
+- **One new log line**, `[fetch] <domain> status=<N> non-success` (`:204`) — domain and status only. A
+  non-success fetch logs it INSTEAD of the success line, so a fetch still logs one line; the call site
+  joins the network-identity class of the 248-site audit (sized at DEC-124 ④, not opened).
+- `web_research/plugin.py`: a comment only (223 lines, unchanged).
+
+## ④ THE NOTE — ACCEPTED AS WRITTEN
+
+The template, `HTTP_STATUS_AR` (`:45`), verbatim:
+
+«ردّ الموقع برمز الحالة {status}، يعني ما سلّم الصفحة: اللي رجع منه رسالة رفض أو خطأ وليس محتوى الصفحة، فما قرأت منها شي. {retry} بدل التكرار: إن كان فيما عندك من نتائج سابقة ما يجيب، جاوب منه واذكر مصدره؛ وإلا خبّر المستخدم إن الموقع ما سلّم الصفحة، واقترح عليه يفتحها على شاشته وأنا أقرأ منها.»
+
+`{retry}` is chosen by status class:
+
+- a 4xx other than 408 and 429 — the site's answer to THIS link — `RETRY_FUTILE_AR` (`:53`):
+  «وهذا رد الموقع على هذا الرابط بالذات، ونفس الرابط يرجع نفس الرد في كل مرة، فلا تفتحه مرة ثانية.»
+- a 5xx, a 408 or a 429 — the site failing or throttling for now — `RETRY_LATER_AR` (`:58`):
+  «وهذا عطل أو ضغط مؤقت عند الموقع قد يزول بعد مدة، لكن فتح نفس الرابط في هذا الرد يرجع غالباً نفس الرد، فلا تكرره الآن.»
+
+**Why by class:** one clause would be false for one of the two classes — "the same link gets the same
+answer every time" is false of a 503, and "it may pass after a while" invites a retry of a 403. **The
+brief's "false for half the cases" repeats the loose wording of the build report: no frequency was
+measured, and the precise claim is one of the two classes.**
+
+The three obligations: what happened (the status, stated; what came back is not the page; nothing was
+read), whether a retry can help (the class clause), and what the model can do instead (answer from
+results in hand and name the source, or tell the user and offer the screen — the vision path DEC-17
+prescribes for a robots refusal).
+
+## ⑤ THE GUARD — AND WHY THERE HAD NEVER BEEN ONE
+
+**2,127 → 2,180 (+53, `tests/test_net_http_status.py`, 327 lines)**, declared at the commit. Each
+property is driven through the real fetcher beside a CONTROL proving the check can see what it guards
+(the same body at 200 IS the page; a success IS cached and IS recorded), and what the model reads is
+asserted through the real router, plugin and `TurnPass`.
+
+Mutation-verified in a scratch copy, the full suite per mutant, each asserted APPLIED by a whole-file
+landing check and every failure attributed by name:
+
+| mutant | result |
+|---|---|
+| the status never tested — a 403 presented as content | RED, 18 |
+| a non-success cached | RED, 2 |
+| a non-success badged | RED, 3 |
+| the status checked after the content type and the extraction | RED, 2 |
+| the note stops stating the status | RED, 20 |
+| the retry clause inverted by class | RED, 10 |
+| 408 and 429 dropped from the transient class | RED, 2 |
+| success widened to the 3xx class | RED, 1 |
+| negative control: a comment-only edit | GREEN, 2,180 |
+
+**No test that existed before this commit caught the first mutant — and none could have.** Before
+`6235bbd`, no revision of `fetcher.py` (six of its seven) and no revision of `transport.py` (all
+three) ever tested whether a status was a success; the transport's only status test is its redirect
+set. Serving a block page as the site's content had no guard in the project's history because the
+behaviour such a guard would protect had never existed.
+
+## ⑥ WHAT THIS ENTRY DOES NOT CLAIM
+
+- **Not exercised live.** No session has fetched a non-success page on this build; what a model does
+  with the note is unmeasured, and nothing logs what the model says in a pass (DEC-142 ⑧).
+- The note is a model-facing surface. Its wording is ruled here, by acceptance, as written — no other
+  note changed.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **DEC-149 ⑤: CLOSED** — built `6235bbd`, pushed with `3a4bf83` (`866d10c..3a4bf83`).
+- **VERIFIED:** in the suite and by mutation. **NOT VERIFIED:** live.
+
+---
