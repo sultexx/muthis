@@ -9,12 +9,12 @@ by name: F9 is reserved for barge-in and must not become state-dependent,
 turn, and the turn lives inside a 90 s bound. A prompt that waits for speech
 would dismantle all four. So the gate spends the turn it already has:
 
-  TURN N    the router REFUSES the call and returns an Arabic note that is
-            addressed TO THE USER and says so in its first clause — it names the
-            tool, its arguments and the EXACT words to ask for, and it refuses
-            further calls until the user speaks. The model speaks the request;
-            nothing executed. It is NOT an internal directive and deliberately
-            does not carry that family's marker — see the constant.
+  TURN N    the router REFUSES the call and the KERNEL speaks the request
+            (DEC-138); the model reads a note addressed to IT (DEC-148 ⑤) —
+            already asked, no tool can run in this reply, nothing repeated, ONE
+            word named, and one short sentence of what earlier results found,
+            if any. Nothing executed. It is NOT an internal directive and does
+            not carry that family's marker — see the constant.
   TURN N+1  the user presses F9 normally and speaks. A DETERMINISTIC detector
             reads the RAW transcript and decides. The model never participates
             in its own authorization — DEC-12 ("drive the guard directly, never
@@ -261,7 +261,7 @@ class ConfirmGate:
         scoped = tool in TURN_GRANTED_TOOLS
         self._state.spoken = (spoken_scope(tool, APPROVAL_WORD_AR) if scoped
                               else spoken_request(tool, canonical, APPROVAL_WORDS_AR))
-        return confirm_note(tool, args, APPROVAL_WORDS_AR, missed=self._state.missed,
+        return confirm_note(tool, args, APPROVAL_WORD_AR, missed=self._state.missed,
                             scoped=scoped)
 
 

@@ -24,8 +24,8 @@ import re
 
 from muthis.kernel.verbosity import normalize_ar
 from muthis.trust.confirm_gate import (
-    APPROVAL_WORDS_AR, APPROVE, ConfirmGate, _APPROVALS, confirm_note,
-    detect_confirmation,
+    APPROVAL_WORD_AR, APPROVAL_WORDS_AR, APPROVE, ConfirmGate, _APPROVALS,
+    confirm_note, detect_confirmation,
 )
 
 TOOL = "web__search"
@@ -100,7 +100,9 @@ def test_a_refused_word_does_not_sneak_in_through_normalisation():
         assert detect_confirmation(word) is None, word
 
 
-# ─── RULING 2 — the request names every word the detector accepts ────────────
+# ─── RULING 2 — NARROWED AT DEC-148 ⑤: each NOTE names ONE accepted word ─────
+# The KERNEL speaks the request since DEC-138, and its per-call sentence still
+# names every word — DEC-136 ruling 2 holds THERE (`test_kernel_spoken_request.py`).
 
 def test_the_tuple_the_request_RENDERS_FROM_is_the_set_the_detector_MATCHES():
     """THE PROPERTY, not a substring: one source, two consumers. If a word ever
@@ -110,26 +112,28 @@ def test_the_tuple_the_request_RENDERS_FROM_is_the_set_the_detector_MATCHES():
     assert {normalize_ar(word) for word in APPROVAL_WORDS_AR} == _APPROVALS
 
 
-def test_the_REQUEST_names_every_word_the_detector_accepts():
-    """Driven through the real gate, so it fails whether the shortfall is in the
-    note's rendering or in what the gate hands it."""
-    note = _refuse(ConfirmGate())
-    missing = _APPROVALS - _quoted_approvals(note)
-    assert not missing, (
-        f"the request offers {len(_APPROVALS) - len(missing)} of {len(_APPROVALS)} "
-        "accepted words — a user refused for saying a word the gate accepts is "
-        "the defect DEC-136 ruling 2 closed")
+def test_the_REQUEST_names_exactly_ONE_word_the_detector_accepts():
+    """FLIPPED DELIBERATELY AT DEC-148 ⑤ — the known gap DEC-147 ① recorded: a note
+    naming four where the kernel's search request names one. The note is read by
+    the MODEL; ONE word, the gate's `APPROVAL_WORD_AR`, so the model can never name
+    a word the kernel did not. Driven through the real gate, so it fails whether
+    an extra word is in the text or in what the gate hands the renderer."""
+    offered = _quoted_approvals(_refuse(ConfirmGate())) & _APPROVALS
+    assert offered == {normalize_ar(APPROVAL_WORD_AR)}, (
+        f"the note offers {sorted(offered)} — DEC-148 ⑤ names ONE word, the kernel's")
+    assert detect_confirmation(APPROVAL_WORD_AR) == APPROVE, "the ONE word is refused"
 
 
-def test_the_RETRY_request_names_them_too():
-    """The second note is where naming them matters MOST — it is the one sent to
-    a user who has already failed once."""
+def test_the_RETRY_note_names_the_same_ONE_word():
+    """FLIPPED DELIBERATELY AT DEC-148 ⑤, with its twin above."""
     gate = ConfirmGate()
     gate.new_turn()
     _refuse(gate)
     gate.new_turn()
     gate.observe("وش رايك في الجو اليوم")
-    assert not (_APPROVALS - _quoted_approvals(_refuse(gate)))
+    note = _refuse(gate)
+    assert "لم يطابق" in note, "the retry form was never selected — the fixture is void"
+    assert _quoted_approvals(note) & _APPROVALS == {normalize_ar(APPROVAL_WORD_AR)}
 
 
 # ─── RULING 3 — a failed attempt is not silence ──────────────────────────────
@@ -212,5 +216,5 @@ def test_the_two_notes_are_selected_by_the_flag_and_not_by_the_arguments():
     """`confirm_note` is the ONE chooser; the same call renders two texts purely
     on `missed`. Guards against a future edit that makes the retry depend on
     something incidental (an empty-args branch, a tool name)."""
-    assert (confirm_note(TOOL, ARGS, APPROVAL_WORDS_AR, missed=True)
-            != confirm_note(TOOL, ARGS, APPROVAL_WORDS_AR, missed=False))
+    assert (confirm_note(TOOL, ARGS, APPROVAL_WORD_AR, missed=True)
+            != confirm_note(TOOL, ARGS, APPROVAL_WORD_AR, missed=False))

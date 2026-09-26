@@ -35,6 +35,11 @@ AND THE RELEASE IS ANCHORED TO AN OBSERVABLE EVENT. The old text said «في ه�
 this gate has NO COUNTER — so the reading WAS the enforcement, and a model reading
 each pass as a fresh «جولة» saw the constraint already satisfied.
 
+SUPERSEDED IN PART AT DEC-148 ⑤. The note was addressed to the user because it was
+the ONLY channel — until DEC-138 gave the KERNEL the request. It now speaks to the
+MODEL, orders no relay and names ONE word; the two tests that held the relay are
+FLIPPED, each citing DEC-148, and every other guard here still holds.
+
 Run:  set PYTHONDONTWRITEBYTECODE=1 && set PYTHONPATH=src && python -m pytest tests/test_confirm_directive_spoken.py -q
 """
 
@@ -43,7 +48,7 @@ from __future__ import annotations
 from muthis.kernel.untrusted_content import WRAP_CLOSE_AR, WRAP_OPEN_AR
 from muthis.persona import build_saudi_persona_prompt
 from muthis.trust.confirm_gate import (
-    APPROVAL_WORD_AR, APPROVAL_WORDS_AR, DIRECTIVE_MARKER_AR,
+    APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR,
     CONFIRM_DIRECTIVE_AR, render_words,
 )
 
@@ -52,13 +57,13 @@ ARGS = "query=أسعار الذهب"
 
 
 def _rendered() -> str:
-    # `{word}` became `{words}` at DEC-136 ruling 2 — the slot takes the whole
-    # accepted tuple now, rendered the way the model must offer it aloud.
+    # `{word}` became `{words}` at DEC-136 ruling 2 and `{word}` again at DEC-148
+    # ⑤: ONE word, the one the kernel names, rendered as the gate renders it.
     # `{scope}` joined at DEC-143: empty for a per-call tool, the scope sentence
     # for a turn-granted one. Every phrase pinned in this file reads the same
     # either way; `test_turn_grant.py` pins the scope sentence itself.
     return CONFIRM_DIRECTIVE_AR.format(
-        tool=TOOL, args=ARGS, words=render_words(APPROVAL_WORDS_AR), scope="")
+        tool=TOOL, args=ARGS, word=render_words((APPROVAL_WORD_AR,)), scope="")
 
 
 # ─── The defect itself ──────────────────────────────────────────────────────
@@ -77,19 +82,20 @@ def test_it_does_NOT_wear_the_invisible_directive_syntax():
         "purpose is to produce user-facing speech")
 
 
-def test_its_OPENING_addresses_the_user_and_orders_the_request_spoken():
-    """A model reads linearly (DEC-84), so the instruction to speak has to be in
-    the FIRST clause — that is the whole difference between this text and the one
-    it replaced, which put it fourth."""
+def test_its_OPENING_is_the_AUTHORITY_sentence_and_orders_no_relay():
+    """FLIPPED DELIBERATELY AT DEC-148 ⑤. DEC-95 put the order to speak in the
+    FIRST clause because this note was then the ONLY channel to the user; DEC-138
+    gave the KERNEL the request, and the order became a duplicate. The opening now
+    says whose words these are — DEC-14's half, which never needed to go — and
+    nothing in the note addresses the user or orders a relay."""
     rendered = _rendered()
-    opening = rendered.split(":")[0]
 
-    assert "المستخدم" in opening, "the opening no longer addresses the user"
-    assert "بصوتك" in opening, (
-        "the opening no longer orders the message spoken; an instruction to "
-        "speak that arrives after the preamble is the defect's shape")
-    assert "ولا تعاملها كتوجيه صامت" in rendered, (
-        "the clause heading off the silent-directive reading is gone")
+    assert rendered.startswith("هذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته"), (
+        "the note no longer OPENS with whose words these are")
+    for relay in ("رسالة من النظام إلى المستخدم", "بلّغها له", "بصوتك",
+                  "ولا تعاملها كتوجيه صامت"):
+        assert relay not in rendered, (
+            f"«{relay}» is back — an order to relay what the kernel already spoke")
 
 
 def test_it_keeps_the_AUTHORITY_half_it_never_needed_to_lose():
@@ -142,14 +148,15 @@ def test_it_still_satisfies_the_standing_note_law():
     assert APPROVAL_WORD_AR in rendered, "the note no longer names the next step"
 
 
-def test_it_still_names_the_tool_and_its_arguments_for_the_user():
-    """DEC-16's damage bound on the messenger limit: the user must hear WHICH
-    call they are approving, because the approval binds to the real call's hash
-    rather than to whatever was said about it."""
+def test_it_still_names_the_tool_and_its_arguments():
+    """DEC-16's bound (a) — the user hears WHICH call he approves — is the
+    KERNEL's since DEC-138: it speaks the call it hashed, or for a turn-granted
+    tool the scope it grants (DEC-143). The note still names the call so the
+    MODEL knows which one waits; since DEC-148 ⑤ it orders nothing said."""
     rendered = _rendered()
 
-    assert TOOL in rendered, "the tool is no longer named aloud"
-    assert ARGS in rendered, "the arguments are no longer named aloud"
+    assert TOOL in rendered, "the tool is no longer named"
+    assert ARGS in rendered, "the arguments are no longer named"
 
 
 # ─── The line the fix must not cross ────────────────────────────────────────
@@ -202,20 +209,17 @@ def test_the_stop_is_scoped_to_the_CAPABILITY_not_to_one_TOOL():
         "the prohibition names one tool again instead of the kind of tool")
 
 
-def test_it_is_a_COMMAND_for_THIS_pass_and_names_the_cost_of_silence():
-    """`HIGHLIGHT_ACK_TEXT_AR`'s form, and the reason it has that form: a note
-    that merely DESCRIBED a state produced a bare ack and nothing else, twice.
-    This one is now read on a pass forced to tool_choice="none" (DEC-131 ruling
-    1), so it must order the request NOW and say what silence costs."""
+def test_it_no_longer_commands_the_relay_nor_names_a_cost_of_silence():
+    """FLIPPED DELIBERATELY AT DEC-148 ⑤. DEC-131 ③ made this a command for THIS
+    pass and named what silence cost — true while the model was the only
+    messenger. Since DEC-138 the kernel speaks the request at the refused pass, so
+    silence costs nothing and «the user hears nothing» is false (DEC-139 ④,
+    DEC-145 ④). What the pass may do instead: `tests/test_forced_pass_note.py`."""
     rendered = _rendered()
 
-    assert "الآن، وفي هذا الدور بالذات" in rendered, (
-        "the request is no longer ordered for THIS pass")
-    assert "ردّك في هذا الدور هو هذا الطلب لا غير" in rendered, (
-        "the note no longer says the reply IS the request")
-    assert "فلن يسمع المستخدم شيئاً وينتهي الدور بلا جواب" in rendered, (
-        "the cost of silence is gone — the clause that made the draw breaker's "
-        "note work where a description did not")
+    for gone in ("الآن، وفي هذا الدور بالذات", "ردّك في هذا الدور هو هذا الطلب لا غير",
+                 "فلن يسمع المستخدم شيئاً وينتهي الدور بلا جواب"):
+        assert gone not in rendered, f"«{gone}» is back — DEC-148 ⑤ removed it"
 
 
 def test_it_answers_DEC_14_s_distrust_of_its_own_CHANNEL():

@@ -352,9 +352,9 @@ def test_the_speech_module_holds_no_opinion_about_which_words_are_accepted():
 def test_the_directive_the_MODEL_reads_still_names_the_tool_and_arguments():
     """DEC-138 ruling 3 kept this directive byte-identical while the weaker half was
     worked on (DEC-42); `claude` DOES relay, so deleting the order would break what
-    works. DEC-143 ruling ③ then CHANGED it, WITH the grant and never before: one
-    clause of the stop and, for a turn-granted tool, the scope sentence. What this
-    still pins is the order to name the tool and the arguments."""
+    works. DEC-143 ruling ③ then changed one clause and, for a turn-granted tool, the
+    scope; DEC-148 ⑤ took the relay ORDER out, the kernel speaking the request. What
+    this still pins is that the MODEL reads which call waits: tool and arguments."""
     from muthis.trust.confirm_gate_notes import CONFIRM_DIRECTIVE_AR
     assert "{args}" in CONFIRM_DIRECTIVE_AR and "{tool}" in CONFIRM_DIRECTIVE_AR
     gate = ConfirmGate()

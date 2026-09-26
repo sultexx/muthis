@@ -180,9 +180,9 @@ def test_an_unmarked_prefix_line_fails_SAFE():
 # ─── The two-turn flow, through the REAL router ──────────────────────────────
 
 def test_turn_n_refuses_and_the_directive_names_tool_arguments_and_the_word():
-    """The model is the MESSENGER (the recorded honest limit), so the directive
-    has to give it everything the user needs to hear: which tool, which
-    arguments, and the exact word to say."""
+    """The KERNEL speaks the request since DEC-138; since DEC-148 ⑤ the note tells
+    the MODEL which call waits — tool and arguments — and the ONE word the kernel
+    asked for, and orders nothing relayed."""
     router, plugin = _tainted_web_router()
 
     outcome = _service(router, args={"query": "أسعار الذهب"})
@@ -193,15 +193,15 @@ def test_turn_n_refuses_and_the_directive_names_tool_arguments_and_the_word():
     note = outcome.result.text_ar
     assert SEARCH in note                       # the tool, by its model-visible name
     assert "أسعار الذهب" in note                # its arguments, verbatim
-    assert APPROVAL_WORD_AR in note             # the exact word to ask for
+    assert APPROVAL_WORD_AR in note             # the ONE word the kernel asked for
     # DEC-95 INVERTED THE NEXT TWO ASSERTIONS, and the old ones are worth naming
     # because they asserted the defect. They read `"توجيه داخلي" in note` with the
     # comment "never read aloud" — the family marker whose persona law FORBIDS
-    # speaking, on the one directive that exists to be SPOKEN. The constant is now
-    # addressed to the user and says so; the family marker must be absent, or the
-    # contradiction is back. Full argument: `trust/confirm_gate.py`.
+    # speaking, on the one directive that then existed to be SPOKEN. DEC-148 ⑤
+    # FLIPPED the second: the kernel speaks the request, so the note orders no
+    # relay — and the family marker must STILL be absent. `trust/confirm_gate.py`.
     assert DIRECTIVE_MARKER_AR not in note      # NOT an internal directive
-    assert "بصوتك" in note                       # it orders the request SPOKEN
+    assert "بصوتك" not in note                   # FLIPPED at DEC-148 ⑤: no relay order
     assert "ولا تستدعِ" in note                  # and refuses further calls
 
 

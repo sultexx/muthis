@@ -237,13 +237,13 @@ def test_the_notes_tell_the_truth_under_the_split():
     old; a turn-granted tool states its scope; and the stop no longer claims every
     outward tool is stopped NOW, because one may be granted."""
     args = {"query": "x"}
-    search_retry = confirm_note(SEARCH, args, APPROVAL_WORDS_AR, missed=True, scoped=True)
-    fetch_retry = confirm_note(FETCH, {"url": "u"}, APPROVAL_WORDS_AR, missed=True)
+    search_retry = confirm_note(SEARCH, args, APPROVAL_WORD_AR, missed=True, scoped=True)
+    fetch_retry = confirm_note(FETCH, {"url": "u"}, APPROVAL_WORD_AR, missed=True)
     assert TURN_SCOPE_AR in search_retry and PER_CALL_BINDING_AR not in search_retry
     assert PER_CALL_BINDING_AR in fetch_retry and TURN_SCOPE_AR not in fetch_retry
     assert PER_CALL_BINDING_AR == "فالإذن مرتبط بهذا الاستدعاء بعينه لا بغيره."
-    search_first = confirm_note(SEARCH, args, APPROVAL_WORDS_AR, missed=False, scoped=True)
-    fetch_first = confirm_note(FETCH, {"url": "u"}, APPROVAL_WORDS_AR, missed=False)
+    search_first = confirm_note(SEARCH, args, APPROVAL_WORD_AR, missed=False, scoped=True)
+    fetch_first = confirm_note(FETCH, {"url": "u"}, APPROVAL_WORD_AR, missed=False)
     assert TURN_SCOPE_AR in search_first and TURN_SCOPE_AR not in fetch_first
     assert "موقوفة الآن" not in CONFIRM_DIRECTIVE_AR
     assert "ما لم يأذن بها المستخدم" in CONFIRM_DIRECTIVE_AR

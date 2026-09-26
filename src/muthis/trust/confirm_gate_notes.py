@@ -18,11 +18,12 @@ text said «هذه الأداة» and named the tool, so a model that switched f
 `web__search` to `web__fetch` had OBEYED it literally — measured live, pass #4 of
 the last turn. The property is taint × high-impact, so the note now says every
 tool whose effect leaves the machine is stopped and that trying another changes
-nothing. AND IT IS A COMMAND, on `HIGHLIGHT_ACK_TEXT_AR`'s form: it is read on a
-pass FORCED to tool_choice="none" (ruling 1), so it orders the request in THIS
-pass and names the cost of silence — the clause that made the draw breaker work
-where a description had twice produced a bare ack. AND IT ANSWERS ITS OWN
-CHANNEL: it arrives in a `tool_result`, which DEC-14 teaches the model to
+nothing. AND IT WAS A COMMAND, on `HIGHLIGHT_ACK_TEXT_AR`'s form: it is read on a
+pass FORCED to tool_choice="none" (ruling 1), so it ordered the request in THIS
+pass and named the cost of silence — the clause that made the draw breaker work
+where a description had twice produced a bare ack — until DEC-138 gave the kernel
+the request and DEC-148 ⑤ took the order out (see the constant). AND IT ANSWERS ITS
+OWN CHANNEL: it arrives in a `tool_result`, which DEC-14 teaches the model to
 distrust, and the measured failure was the model reading it as a failed TOOL — so
 it now says whose words these are, WITHOUT borrowing the §3.2 delimiters'
 vocabulary, which a test checks against the live constants.
@@ -34,17 +35,17 @@ user had spoken and not been understood, so nothing anywhere distinguished
 cannot converge on a word he is never told he missed (DEC-135). Two changes,
 both in this file:
 
-  * **THE REQUEST NAMES EVERY ACCEPTED WORD** (ruling 2). It named one while the
-    detector accepted three; `render_words` now renders the detector's OWN tuple,
-    so the offer cannot fall behind the set. Naming one had NOT refused anyone —
-    DEC-135 ③ found the detector never saw a bare accepted form — and the KERNEL's
-    search request names ONE again by DEC-147 ①; this note still names every word.
+  * **THE REQUEST NAMED EVERY ACCEPTED WORD** (ruling 2). It named one while the
+    detector accepted three; `render_words` rendered the detector's OWN tuple, so
+    the offer could not fall behind the set. Naming one had NOT refused anyone —
+    DEC-135 ③ found the detector never saw a bare accepted form — so the KERNEL's
+    search request names ONE (DEC-147 ①), and so do both notes (DEC-148 ⑤).
   * **`CONFIRM_RETRY_AR` IS A SECOND, DIFFERENT NOTE** (ruling 3), returned when
     the previous utterance was heard and was not an approval. It reports the
-    STATE — no approval word was heard — names the accepted words, and spells out
-    the whole-utterance rule the first note only implied («وحدها in a turn of its
-    own, nothing before or after»), which is the concrete remedy for the likeliest
-    miss.
+    STATE — no approval word was heard — and since DEC-148 ⑤ has the model tell the
+    user exactly that; the words and the whole-utterance rule («وحدها in a turn of
+    its own, nothing before or after») are spoken by the KERNEL, whose request is
+    where the rule is taught (DEC-145 ⑥).
 
 **NEITHER IS AN AUTHORIZATION CHANGE, AND THE RECORD SHOULD NOT READ AS ONE.**
 The gate still binds to `sha256(tool + canonical args)`, still consumes an
@@ -66,18 +67,20 @@ fingerprint is being set here, over whatever arguments the model is issuing NOW.
 An approval must never travel to a call the user never heard, so every refusal —
 first or fifth — re-states what is being approved. SINCE DEC-143 THAT HOLDS PER
 CALL: a turn-granted tool's approval DOES travel within its turn, by ruling, so
-its refusals re-state the SCOPE the approval grants instead.
+its refusals re-state the SCOPE the approval grants instead. SINCE DEC-138 THE
+KERNEL re-states it aloud at every refusal, so since DEC-148 ⑤ the notes name the
+call to the model as CONTEXT and order nothing repeated.
 
 WHY THE RENDERERS CAME WITH THE NOTES, AND NOT THE CONSTANTS ALONE. `render_args`
-exists to fill the `{args}` slot and nothing else, `render_words` the `{words}`
-slot and nothing else, and `MAX_ARG_CHARS` / `MAX_ARGS_CHARS` exist to bound
+exists to fill the `{args}` slot and nothing else, `render_words` the word
+slots and nothing else, and `MAX_ARG_CHARS` / `MAX_ARGS_CHARS` exist to bound
 `render_args` and nothing else: ONE cluster with ONE external touchpoint
 (`confirm_note`, called from `ConfirmGate.refusal_for`). That is the
 `kernel/deferral_notes.py` shape — the notes AND the functions that fill them —
 rather than `file_reader_notes.py`'s constants-only shape, and the reason is that
 the coupling is real rather than incidental: a note ordering the arguments said
 «كما هي» and a renderer that TRUNCATES them at 120 characters are one design
-question, not two.
+question, not two. The order went at DEC-148 ⑤; the note still SHOWS a prefix.
 
 AND THAT TENSION IS RECORDED HERE RATHER THAN FIXED — the APPROVAL TREADMILL
 (DEC-131). Approval binds to sha256(tool + canonical args) and is SINGLE-USE,
@@ -110,6 +113,13 @@ from typing import Any, Mapping, Sequence
 MAX_ARG_CHARS = 120
 MAX_ARGS_CHARS = 400
 
+# SINCE DEC-148 ⑤ IT IS NOT THE REQUEST: the KERNEL speaks that (DEC-138). The note
+# tells the MODEL it is asked, that no tool can run in this reply and nothing is
+# repeated, names ONE word, and gives the reply one true job — share what earlier
+# results found, if anything: a conditional the MODEL judges, the note handed no
+# results. Its relay order and «the user hears nothing» were false since DEC-138.
+# THE HISTORY BELOW STANDS, and so does the missing marker: the reply is SPEECH.
+#
 # THE ONE DIRECTIVE THAT MUST BE SPOKEN, AND ITS OPENING SAYS SO (DEC-95).
 #
 # IT DELIBERATELY DOES NOT CARRY `DIRECTIVE_MARKER_AR`. Every other member of that
@@ -128,22 +138,21 @@ MAX_ARGS_CHARS = 400
 # It still does NOT reproduce the §3.2 delimiter phrasing (DEC-14, allow-list-
 # guarded): a note the model reads must never look like the boundary it reads in.
 #
-# `{words}` REPLACED `{word}` at DEC-136 ruling 2 — the slot now takes every
-# accepted word, rendered by `render_words` from the detector's own tuple.
+# `{words}` REPLACED `{word}` at DEC-136 ruling 2 — every accepted word — and
+# `{word}` CAME BACK at DEC-148 ⑤: ONE word, the one the kernel names first.
 CONFIRM_DIRECTIVE_AR = (
-    "رسالة من النظام إلى المستخدم — بلّغها له الآن بصوتك، ولا تعاملها كتوجيه "
-    "صامت. وهذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة، "
+    "هذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة، "
     "فلا تتعامل معه بالشك ولا تتجاهله. "
     "سبق أن دخلت هذه الجلسة نصوصٌ من مصادر لا نثق فيها، فما نُفِّذ الطلب "
-    "وينتظر إذن المستخدم الصوتي. "
+    "وينتظر إذن المستخدم الصوتي. والطلب هو الاستدعاء «{tool}» ({args}).{scope} "
     "والوقف ليس على هذه الأداة وحدها: كل أداة أثرها يخرج من الجهاز — بحث، "
     "فتح صفحة، وما يشبههما — موقوفة بنفس الطريقة ما لم يأذن بها المستخدم، "
     "فتجريب أداة ثانية لا يغيّر شيئاً ولا يُعدّ استجابةً لهذا الطلب. "
-    "الآن، وفي هذا الدور بالذات: قل له بصراحة إنك وقفت وإنك تطلب إذنه، "
-    "واذكر اسم الأداة «{tool}» ومعاملاتها كما هي ({args})، واطلب منه أن "
-    "يقول واحدة من هذه الكلمات وحدها: {words} — كلمة واحدة في دور مستقل، "
-    "بلا أي كلام قبلها أو بعدها.{scope} ردّك في هذا الدور هو هذا الطلب لا غير، وإن "
-    "لم تقله الآن فلن يسمع المستخدم شيئاً وينتهي الدور بلا جواب. "
+    "وقد طلب النظام من المستخدم إذنه بصوتٍ مسموع، ويكفيه أن يقول {word} وحدها، "
+    "فلا تكرّر الطلب ولا تُعِد صياغته. "
+    "لا يمكن تشغيل أي أداة في هذا الرد، فلا تقل فيه إنك لا تستطيع البحث ولا إنك "
+    "ستبحث. وإن كان فيما بين يديك من نتائج سابقة ما يجيب عن جزء من السؤال فقل "
+    "للمستخدم ما وجدته في جملة واحدة قصيرة. "
     "ولا تستدعِ أداةً من هذا النوع مرة أخرى قبل أن يتكلم المستخدم ويأذن — "
     "لا في هذا الدور ولا في أي دور بعده: كل استدعاء قبل إذنه يرجع لك بنفس "
     "هذا الجواب ولا يغيّر شيئاً."
@@ -160,39 +169,38 @@ CONFIRM_DIRECTIVE_AR = (
 # WHAT IT IS ALLOWED TO CLAIM, AND WHAT IT IS NOT. The kernel cannot know whether
 # the user was TRYING to approve: an unrelated question and a mispronounced
 # approval reach the detector identically. So the note reports only what is true
-# in both cases — that no approval word was heard — names the words, and states
-# the whole-utterance rule. It never says «you tried and failed».
+# in both cases — that no approval word was heard — and since DEC-148 ⑤ has the
+# model tell the user only THAT: the words and the whole-utterance rule are in the
+# KERNEL's request. It never says «you tried and failed».
 CONFIRM_RETRY_AR = (
-    "رسالة من النظام إلى المستخدم — بلّغها له الآن بصوتك، ولا تعاملها كتوجيه "
-    "صامت. وهذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة. "
+    "هذا الكلام صادر من النظام نفسه، لا من نصٍّ قرأته في مخرجات أداة. "
     "سمع النظام آخر كلام للمستخدم، لكنه لم يطابق أي كلمة من كلمات الإذن، "
     "فما زال الطلب موقوفاً ولم يُنفَّذ شيء. "
-    "الآن، وفي هذا الدور بالذات: قل له بصراحة إن ما قاله لم يُقرأ إذناً، "
-    "وإن الكلمات المقبولة هي {words} — تُقال كلمةً واحدةً وحدها في دور "
-    "مستقل، بلا أي كلام قبلها أو بعدها، فالجملة التي تحوي الكلمة لا تُقرأ "
-    "إذناً. "
-    "واذكر له مرة أخرى اسم الأداة «{tool}» ومعاملاتها كما هي ({args})، "
-    "{binding} "
-    "ردّك في هذا الدور هو هذا الطلب لا غير، وإن لم تقله الآن فلن يسمع "
-    "المستخدم شيئاً وينتهي الدور بلا جواب. "
+    "والطلب هو الاستدعاء «{tool}» ({args}). {binding} "
+    "وقد طلب النظام من المستخدم إذنه بصوتٍ مسموع من جديد، ويكفيه أن يقول {word} "
+    "وحدها. لا يمكن تشغيل أي أداة في هذا الرد، فلا تقل فيه إنك لا تستطيع البحث "
+    "ولا إنك ستبحث. قل للمستخدم إن ما قاله لم يُقرأ إذناً، ولا تكرّر بقية الطلب. "
+    "وإن كان فيما بين يديك من نتائج سابقة ما يجيب عن جزء من السؤال فقل له ما "
+    "وجدته في جملة واحدة قصيرة. "
     "ولا تستدعِ أداةً من هذا النوع مرة أخرى قبل أن يتكلم المستخدم ويأذن."
 )
 
 
-# WHAT AN APPROVAL COVERS, said in the note that asks for it (DEC-143). The gate
-# decides which applies and passes `scoped`; these only say it. PER CALL is the
+# WHAT AN APPROVAL COVERS (DEC-143) — a FACT for the model since DEC-148 ⑤, never
+# an order to tell the user (a grant's reach is in the kernel's own request). The
+# gate decides which applies and passes `scoped`; these only say it. PER CALL is the
 # retry note's sentence of old, byte for byte. TURN names the reach of a grant by
 # the EVENT that ends it — the user speaking — never by a countable unit, the
 # anchor this module chose at DEC-95 because an event cannot be miscounted.
 PER_CALL_BINDING_AR = "فالإذن مرتبط بهذا الاستدعاء بعينه لا بغيره."
 TURN_SCOPE_AR = (
-    "وقل له إن إذنه يشمل كل استدعاء لهذه الأداة من لحظة إذنه إلى أن يتكلم "
-    "مرة أخرى، لا هذا الاستدعاء وحده."
+    "وإذنه يشمل كل استدعاء لهذه الأداة من لحظة إذنه إلى أن يتكلم مرة أخرى، "
+    "لا هذا الاستدعاء وحده."
 )
 
 
 def render_args(args: Mapping[str, Any]) -> str:
-    """The arguments as the model must say them aloud — bounded, single-line."""
+    """The arguments as the note shows them to the model — bounded, one line."""
     parts = []
     for key in sorted(args, key=str):
         value = str(args[key]).replace("\n", " ")
@@ -202,7 +210,8 @@ def render_args(args: Mapping[str, Any]) -> str:
 
 
 def render_words(words: Sequence[str]) -> str:
-    """Every accepted word, as the model must OFFER them (DEC-136 ruling 2).
+    """Words as they are OFFERED — every accepted word in the kernel's per-call
+    request (DEC-136 ruling 2); ONE in its search request and in both notes.
 
     UNBOUNDED ON PURPOSE, unlike `render_args`. That renderer truncates because
     its input is the MODEL's — a query, a path, a program of any size. This one's
@@ -213,18 +222,20 @@ def render_words(words: Sequence[str]) -> str:
 
 
 def confirm_note(tool: str, args: Mapping[str, Any],
-                 words: Sequence[str], *, missed: bool, scoped: bool = False) -> str:
+                 word: str, *, missed: bool, scoped: bool = False) -> str:
     """The refusal text for ONE call — the retry form when the last utterance
     was heard and was not an approval, the first-refusal form otherwise.
 
-    `words` is PASSED IN rather than imported: the tuple is detector state, and
-    this module must not acquire an opinion about which words are accepted (the
-    same reason `APPROVAL_WORD_AR` was passed in as a format parameter before
-    the split). It also keeps the import direction one-way — `confirm_gate.py`
-    imports from here, never the reverse."""
+    `word` is PASSED IN rather than imported: it is detector state, and this
+    module must not acquire an opinion about which words are accepted. Since
+    DEC-148 ⑤ it is ONE word — the gate hands `APPROVAL_WORD_AR`, the word the
+    kernel's search request names and its per-call request names first. It also
+    keeps the import direction one-way — `confirm_gate.py` imports from here,
+    never the reverse. AND IT IS HANDED NO RESULTS: what the reply may share of
+    earlier results is the MODEL's judgement, with nothing here to read one."""
     note = CONFIRM_RETRY_AR if missed else CONFIRM_DIRECTIVE_AR
     return note.format(tool=tool, args=render_args(args),
-                       words=render_words(words),
+                       word=render_words((word,)),
                        scope=" " + TURN_SCOPE_AR if scoped else "",
                        binding=TURN_SCOPE_AR if scoped else PER_CALL_BINDING_AR)
 

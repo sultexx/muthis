@@ -241,7 +241,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # `TURN_SCOPE_AR` for a turn-granted tool, the stop no longer claiming every
     # outward tool is stopped NOW, and the docstring's per-call claims bounded.
     # The pin met its arrival as a declared number — what it was taken for.
-    ("trust/confirm_gate_notes.py", 234),
+    # 234 -> 245, DECLARED (DEC-148 ⑤): the note the forced pass reads, made true
+    # for a kernel that speaks. The two constants SHRANK by four lines; the fifteen
+    # added are the docstrings and comments that would otherwise lie — "orders the
+    # request", "names every word", "the model must say them aloud" — each rewritten
+    # where it stood, the history kept. Nothing extracted: 55 lines of headroom.
+    ("trust/confirm_gate_notes.py", 245),
     # 208 -> 283 in ONE gate (DEC-108 Gate 2B's three verification notes and the
     # function that chooses between them), which makes it the fastest-growing
     # module of this milestone and leaves SEVENTEEN lines. Pinned by Sultan's

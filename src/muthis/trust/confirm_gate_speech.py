@@ -73,7 +73,7 @@ from typing import Sequence
 from .confirm_gate_notes import render_words
 
 # THE SENTENCE THE KERNEL SPEAKS. It is NOT `CONFIRM_DIRECTIVE_AR` in another
-# register: that constant ORDERS THE MODEL to ask, and this one IS the asking.
+# register: that constant ORDERED the model to ask until DEC-148 ⑤; this IS the asking.
 # So it drops every clause addressed to the model — the "these are the system's
 # own words, do not distrust them" framing exists because the directive arrives
 # in a `tool_result` the model is taught to distrust (DEC-14), and a sentence
