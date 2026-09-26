@@ -19422,3 +19422,156 @@ behaviour such a guard would protect had never existed.
 - **VERIFIED:** in the suite and by mutation. **NOT VERIFIED:** live.
 
 ---
+
+## DEC-151 (2026-09-26) — **ROBOTS.TXT READ BY RFC 9309: A 5xx OR UNREACHABLE ROBOTS.TXT IS COMPLETE DISALLOW.** A docstring called "allow" the crawler standard while the RFC requires the opposite — the behaviour and the comment fixed together · no prior ruling chose "allow": DEC-17 rules robots.txt RESPECTED, and the allow sentence lived only in a docstring written at `0b38c5a` · a 4xx is "unavailable" and allows, and its body is no longer read as rules · an unreachable outcome is never cached · the stdlib matcher's RFC gaps recorded as HONEST LIMITS, not fixed · ten mutants RED, re-run for this entry with identical failing sets, pushed (`3a4bf83..3043588`) — **NOT yet exercised live** — RULED (Sultan), EXECUTED
+
+Sultan's record of the fix, as DEC-150 is of the 403 one. `file:N` references are to `3a2cb66`; no
+source file has changed since. **No earlier entry records this defect:** it was reported as found, not
+fixed, in the report that closed the `6235bbd` gate, and fixed in the next one.
+
+---
+
+## ① THE RULING
+
+What was reported, verbatim: "`robots.py` treats a robots.txt that is unreachable or returns 5xx as
+"allow" and calls that "the crawler standard". RFC 9309 §2.3.1.4 says such a crawler "MUST assume
+complete disallow". This affects whether a fetch happens, not what the model reads."
+
+Sultan's brief (2026-09-26), verbatim: "Fix robots.py to RFC 9309. You verified against the RFC
+itself: an unreachable or 5xx robots.txt MUST be treated as complete disallow, while the code allows it
+and its comment calls that "the crawler standard" — a comment asserting compliance with the rule the
+code violates. Fix the behaviour and the comment together. Report first whether any prior ruling chose
+"allow" deliberately; if one did, STOP — that is Sultan's to overrule."
+
+The next brief: "The cleanup is APPROVED" — and "Record the robots ruling in the ledger like the 403
+one."
+
+RFC 9309, verbatim. §2.3.1.4: "If the robots.txt file is unreachable due to server or network errors,
+this means the robots.txt file is undefined and the crawler MUST assume complete disallow. For example,
+in the context of HTTP, server errors are identified by status codes in the 500-599 range." §2.3.1.3,
+for the 400-499 range: "If a server status code indicates that the robots.txt file is unavailable to
+the crawler, then the crawler MAY access any resources on the server."
+
+## ② THE PRIOR-RULING CHECK — RUN BEFORE ANY CHANGE, AND NONE CHOSE "ALLOW"
+
+- **DEC-17** rules "robots.txt is RESPECTED; when disallowed, the refusal is SPOKEN and redirects the
+  user to the vision path" (`DECISIONS.md:578`). It rules nothing on a robots.txt that cannot be read.
+  The V2 Roadmap says the same («احترام robots.txt», `V2_ROADMAP.md:370`), and so does T2's commit,
+  `0b38c5a`: "robots.txt respected -> an Arabic vision-path note".
+- **The allow sentence was never a ruling.** "A miss / unreachable / unparseable robots defaults to
+  ALLOW (the crawler standard); only an EXPLICIT Disallow returns False." was written into `robots.py`'s
+  docstring at `0b38c5a` (2026-07-24) and not changed again until `3a2cb66`. No ledger entry, no
+  AGENTS.md row and no commit message rules it.
+- **What stayed true:** two diagnostic scripts serve a 404 for robots.txt under the comment "no
+  robots.txt → the crawler standard allows" (`scripts/diag_web_research.py:659`,
+  `scripts/diag_doc_rag.py:508`), and `tests/test_net_fetcher.py:269`
+  (`test_missing_robots_defaults_to_allow`) pins the same case. A 404 is "unavailable" under §2.3.1.3,
+  so all three are true under the RFC, and none changed.
+
+## ③ WHAT WAS BUILT
+
+**Before, the seam read any response as rules.** `_fetch_robots_text` returned the decoded body of a
+response of ANY status, and None on every failure: a 5xx or a 4xx error page was parsed as robots
+rules, and a network failure allowed.
+
+**Now the seam sorts a robots.txt fetch by RFC 9309 §2.3.1** (`fetcher.py:247-258`):
+
+| the robots.txt fetch | the RFC's reading | the page |
+|---|---|---|
+| a 2xx | the rules are parsed and obeyed; a line that does not parse is skipped (§2.3.1.5) | allowed or refused by the rules |
+| a 4xx, or more than five redirects | "unavailable" (§2.3.1.3, §2.3.1.2) — the body is NOT read as rules, a 401 or 403 included | allowed |
+| a 5xx, or a network failure — a timeout, a transport error, a name that does not resolve | "unreachable" (§2.3.1.4) | **COMPLETE DISALLOW: never requested, and the outcome NEVER cached, so the next fetch asks again** |
+| a refusal of our own — the SSRF guard, the 2 MB cap | no rules read | allowed: the page fetch meets the same guard next, with its own note |
+
+- **`robots.py` 91 → 136.** `Refusal(reason, note)` (`:51-57`), truthy by construction, so no refusal
+  can pass as allowed; `RobotsCache.refusal(url) -> Optional[Refusal]` (`:100`) replaces `allows()`,
+  whose one caller was the fetcher; the unreachable outcome returns before the cache is written
+  (`:110-111`). The docstring's allow sentence is replaced by the reading above (`:15-26`).
+- **`transport.py` 160 → 167.** `NETWORK_FAILURE_NOTES` (`:50`) names the transport's network failures —
+  `TIMEOUT_AR`, `NETWORK_ERROR_AR` and the resolver's `UNRESOLVABLE_AR` — as against a limit or a
+  refusal of ours.
+- **`fetcher.py` 287 → 294** — seven lines added, nothing extracted, nothing compressed; six lines of
+  headroom remain. The seam above, and the refusal branch (`:191-193`), which returns the refusal's own
+  note.
+- **`http_status.py` 84 → 108.** `ROBOTS_UNREACHABLE_AR` (`:71`) and `robots_unreachable_note` (`:97`).
+- **The log** (`fetcher.py:192`) is `[fetch] <domain> robots-<reason>`: the `robots-disallowed` line it
+  writes is byte-identical to the old one, `robots-unreachable` is new, and it is still one call site
+  logging the domain and the reason only.
+- `AGENTS.md:320` (the `broker/net/` row) moved with the files.
+
+## ④ WHAT THE MODEL READS
+
+- **An explicit Disallow:** `ROBOTS_BLOCKED_AR` (`fetcher.py:77`), unchanged.
+- **A 5xx robots.txt:** `ROBOTS_UNREACHABLE_AR`, with `RETRY_LATER_AR` — the clause accepted at
+  DEC-150 ④ — in its `{retry}` slot, verbatim:
+
+«ردّ الموقع على ملف قواعده للقراءة الآلية برمز الحالة {status}، والمعيار يمنع فتح صفحاته آلياً ما دامت هذه القواعد ما تنقرأ، فما فتحت الصفحة ولا قرأت منها شي. {retry} بدل التكرار: إن كان فيما عندك من نتائج سابقة ما يجيب، جاوب منه واذكر مصدره؛ وإلا خبّر المستخدم إن قواعد الموقع للقراءة الآلية ما انقرأت الحين، واقترح عليه يفتح الصفحة على شاشته وأنا أقرأ منها.»
+
+  The three obligations: what happened (the status, stated; the page never opened), whether a retry
+  can help (the class clause), and what to do instead (the results in hand, or the screen — the vision
+  path DEC-17 prescribes).
+- **A network failure:** the transport's own note, verbatim. **So a DNS failure is "unreachable" and
+  refuses the page, while the model still reads «ما قدرت أحدد عنوان هذا الموقع. تأكد من الرابط.»** — a
+  mistyped domain still reads as one.
+- **Two choices were flagged in the build report and approved with the cleanup, not singled out:** a
+  DNS failure counts as unreachable (the RFC's "network errors"), and a 401 or 403 robots.txt allows
+  (the RFC's "unavailable"), where the stdlib parser's own `read()` would refuse every path.
+
+## ⑤ THE GUARD — RE-RUN FOR THIS ENTRY
+
+**2,180 → 2,201 (+21, `tests/test_net_robots.py`, 207 lines)**, declared at the commit.
+
+Mutation-verified in a scratch copy, the full suite per mutant, each asserted APPLIED by a whole-file
+landing check and every failure attributed by name — and **re-run for this entry on a clean clone at
+`3043588` with the build's own runner, byte-identical, which reproduced every verdict, every count and
+every failing test by name:**
+
+| mutant | result |
+|---|---|
+| R0 the pre-fix seam restored — any body read as rules, any failure as none | RED, 14 |
+| R1 a 5xx robots.txt read as unavailable (allow) | RED, 6 |
+| R2 a network failure on robots.txt read as no rules (allow) | RED, 3 |
+| R3 an unreachable robots.txt cached for the session | RED, 1 |
+| R4 a 4xx robots.txt read as unreachable (disallow) | RED, 6 |
+| R5 a 4xx robots.txt body parsed as rules | RED, 5 |
+| R6 a refusal of our own (redirect cap, SSRF guard) read as unreachable | RED, 1 |
+| R7 every refusal spoken as the Disallow note | RED, 8 |
+| R8 a DNS failure dropped from the network failures | RED, 1 |
+| R9 the robots note stops stating the status | RED, 6 |
+| NC negative control: a comment edit outside every guard | GREEN, 2,201 |
+
+**R0 is the pre-fix seam itself, and all 14 of its failures are in the new file: no earlier test
+pinned the unreachable case either way.** R4 is the one mutant a pre-existing test also catches —
+`test_missing_robots_defaults_to_allow`, the 404 case. R6 is caught by the redirect cap alone; on the
+SSRF case it is equivalent, since the guard's own note reaches the model either way.
+
+## ⑥ HONEST LIMITS — RECORDED IN `robots.py`, NOT FIXED
+
+Outside this ruling, and written into the docstring (`:28-36`) so that no comment claims more than the
+code does. The matcher is the stdlib `RobotFileParser`, which predates the RFC: no `*` or `$` (§2.2.3:
+MUST support both); the first matching rule wins, not the most specific (§2.2.2); the agent token
+matches as a substring, and only the first matching group is read (§2.2.1). Rules are cached for the
+process, where §2.4 says a copy SHOULD NOT outlive 24 hours. A robots.txt over the 2 MB cap is refused
+whole and allows, where §2.5 asks that at least the first 500 KiB be parsed.
+
+## ⑦ WHAT THIS ENTRY DOES NOT CLAIM
+
+- **Not exercised live.** No session has met a 5xx or unreachable robots.txt on this build. The
+  durable log (2,729 lines, last written 2026-09-26 08:06, before `6235bbd`) holds no `robots-` line at
+  all: no robots refusal of either kind has been logged, and before the fix an unreachable robots.txt
+  allowed without one.
+- What a model does with the new note is unmeasured; nothing logs what the model says in a pass
+  (DEC-142 ⑧).
+- The note is a model-facing surface; its wording stands as built, under the cleanup's approval. No
+  other note changed.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **robots.txt is read by RFC 9309 §2.3.1** — built `3a2cb66`, pushed with `3043588`
+  (`3a4bf83..3043588`).
+- **VERIFIED:** in the suite and by mutation, twice. **NOT VERIFIED:** live.
+- **OPEN, AND OUTSIDE THIS RULING:** the matcher's RFC gaps (⑥).
+
+---
