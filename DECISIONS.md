@@ -19575,3 +19575,76 @@ whole and allows, where §2.5 asks that at least the first 500 KiB be parsed.
 - **OPEN, AND OUTSIDE THIS RULING:** the matcher's RFC gaps (⑥).
 
 ---
+
+## DEC-152 (2026-09-27) — **DEC-150 ②'s "CONSTRAINTS KEPT: DEC-23" WAS FALSE WHEN WRITTEN, AND THE NEXT CHANGE TO `fetcher.py` EXTRACTS FIRST.** DEC-23 binds every touch of `fetcher.py` to extract before adding · `6235bbd` added fourteen lines and `3a2cb66` seven, and neither moved code out of the file first · only DEC-23's "never compress" half was kept · the same claim rides both commits' messages, which are pushed and cannot be edited, so this entry corrects all three · DEC-150 is not edited: this entry supersedes that clause · the candidate the robots build report named is recorded as named, NOT ruled — RULED (Sultan), RECORDED
+
+Sultan's correction of the record. `file:N` references are to `e61ac43`; `DECISIONS.md:N` is this file as it
+stood before this entry.
+
+---
+
+## ① THE RULING
+
+Sultan's brief (2026-09-26), verbatim: "correct DEC-150 by APPENDING: it records "Constraints kept: DEC-23",
+but the two fetcher fixes added 14 and 7 lines without extracting. Record the claim as false when written, and
+that the next change to fetcher.py extracts first."
+
+The finding it answers was reported at the close of the six-measurement session (2026-09-26), as found and
+not fixed.
+
+## ② THE CLAIM, AND WHY IT WAS FALSE WHEN WRITTEN
+
+- **DEC-150 ②** (`DECISIONS.md:19342`), verbatim: "**Constraints kept:** DEC-23 (nothing extracted, nothing
+  compressed), the note law (AGENTS.md), DEC-20's logging (domain and status only)."
+- **DEC-23** (`DECISIONS.md:916-917`), verbatim: "**ANY future touch to `fetcher.py`** (notably a T7-driven fix)
+  MUST **extract before adding, NEVER compress**, and the extraction candidate is identified at **PLANNING
+  time**, not mid-fix." And (`:927-928`): "The CONSTRAINT then stands for all future touches."
+- **What the two commits did to the file**, from their diffs:
+
+| commit | `fetcher.py` | lines added / removed | what the removed lines were |
+|---|---|---|---|
+| `6235bbd` (DEC-150) | 273 → 287 | +18 / −4 | docstring and a comment, reworded |
+| `3a2cb66` (DEC-151) | 287 → 294 | +17 / −10 | the robots seam and its imports, rewritten in place |
+
+  Neither moved code out of the file before adding. **The parenthesis was accurate — nothing was extracted and
+  nothing was compressed — and "kept" was false:** DEC-23 requires an extraction BEFORE adding, and only its
+  second half, "never compress", held. The claim was false when it was written, at `c6c9512`.
+- **The same claim in two commit messages, both pushed and immutable:** `6235bbd` — "fetcher.py 273 -> 287: no
+  extraction needed, nothing compressed (DEC-23)." — and `3a2cb66` — "Sizes: fetcher.py 287 -> 294 (6 left; no
+  extraction, nothing compressed, DEC-23)". A pushed message cannot be edited, so this entry is where both are
+  corrected. DEC-151 ③ records the facts ("seven lines added, nothing extracted, nothing compressed") and
+  claims no compliance.
+
+## ③ THE FILE SINCE DEC-23's SPLIT — FACTS ONLY
+
+| commit | date | `fetcher.py` |
+|---|---|---|
+| `aa43ee7` — the DEC-23 split: the wire layer to `transport.py` | 2026-07-24 | 297 → 203 |
+| `30e7045` — the DEC-22 fix the split was made for | 2026-07-24 | 203 → 219 |
+| `bda9149` — readable extraction (DEC-18) | 2026-07-25 | 219 → 253 |
+| `a04c3b4` — the badge's fetcher-side provenance (DEC-20/DEC-36) | 2026-07-28 | 253 → 272 |
+| `b885d22` — one client per hostname (DEC-42) | 2026-07-29 | 272 → 273 |
+| `6235bbd` — only a 2xx is the page (DEC-150) | 2026-09-26 | 273 → 287 |
+| `3a2cb66` — robots.txt by RFC 9309 (DEC-151) | 2026-09-26 | 287 → 294 |
+
+The DEC-22 fix is the change the split was made for, and DEC-22 records that (`DECISIONS.md:905`). No ledger
+entry for the three touches after it cites DEC-23, and DEC-150 is the only entry that claims it was kept.
+Whether those three honoured it is not ruled here.
+
+## ④ THE RULING GOING FORWARD
+
+- **The next change to `fetcher.py` extracts first** (Sultan). The file stands at 294, six lines under the law.
+  Under DEC-23 the extraction candidate is identified at planning time; under DEC-56 it is re-measured against
+  the file when the change comes, before anything is written.
+- **The candidate the `3a2cb66` build report named is recorded as NAMED, NOT RULED:** the content-type
+  allowlist and the policy-layer notes (`fetcher.py:70-79`) with `_content_type_note` (`:265-272`).
+
+---
+
+## THE STATE THIS LEAVES
+
+- **DEC-150 ②'s "Constraints kept: DEC-23" is SUPERSEDED by this entry.** DEC-150 stands as written.
+- **Corrected here, since they cannot be edited:** the DEC-23 clauses in `6235bbd`'s and `3a2cb66`'s messages.
+- **Binding:** the next change to `fetcher.py` extracts before it adds.
+
+---
