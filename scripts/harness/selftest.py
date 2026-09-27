@@ -32,7 +32,7 @@ from harness.canned import placeholder_png
 from harness.config import (Configuration, canonical_catalogue, comparison_type,
                             production_catalogue_sha, production_persona, sha)
 from harness.policies import ScriptedReasoner
-from harness.prereg import load, missing_in_production
+from harness.prereg import PREREG_PATH, load, missing_in_production
 from harness.record import MemoryLogHandler, RunRecorder
 from harness.selftest_drive import SCREENS, Results, cheats, scripted
 from harness.selftest_units import live_gates, unit_signals
@@ -192,6 +192,16 @@ def main() -> Results:
         width, height = sent.sent_width, sent.sent_height   # (0, 0) on a Pillow failure
         res.check("a 1920x1080 frame is SENT at the pre-registered size",
                   (width, height) == tuple(prereg.sent_image), (width, height))
+        stand_in = pathlib.Path(tempfile.mkdtemp(prefix="muthis_prereg_standin_"))
+        try:
+            text = PREREG_PATH.read_bytes().replace(b"\r\n", b"\n")
+            (stand_in / "lf.json").write_bytes(text)
+            (stand_in / "crlf.json").write_bytes(text.replace(b"\n", b"\r\n"))
+            res.check("the pre-registration hash is the same under LF and CRLF",
+                      load(stand_in / "lf.json").sha256 == load(stand_in / "crlf.json").sha256
+                      == prereg.sha256)
+        finally:
+            shutil.rmtree(stand_in, ignore_errors=True)
         word_rules(res, prereg)
         limits = unit_signals(res, prereg)
         prodlog_fires(res)

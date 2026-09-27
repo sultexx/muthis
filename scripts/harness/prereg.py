@@ -123,7 +123,9 @@ def load(path: pathlib.Path = PREREG_PATH) -> Prereg:
     thresholds = {t["id"]: Threshold(id=t["id"], value=int(t["value"]),
                                      source=_source(t["source"]))
                   for t in raw["thresholds"]}
-    return Prereg(sha256=hashlib.sha256(raw_bytes).hexdigest(),
+    # Hashed with CRLF folded to LF: the file's identity is its text, and a
+    # checkout's line endings (core.autocrlf) must not make it "another" one.
+    return Prereg(sha256=hashlib.sha256(raw_bytes.replace(b"\r\n", b"\n")).hexdigest(),
                   runs_per_configuration=int(raw["runs_per_configuration"]),
                   sent_image=tuple(raw["sent_image"]), scenarios=scenarios, rules=rules,
                   thresholds=thresholds,
