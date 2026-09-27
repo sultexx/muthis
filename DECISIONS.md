@@ -19785,3 +19785,60 @@ neither makes the labels computed. Computed: the token counts, the spend, and th
   prerequisite for every path. Sultan rules on the path before anything is built.
 
 ---
+
+## DEC-154 (2026-09-27) — **THE BLINDNESS HYPOTHESIS HELD — "TRUE BUT FIXABLE", AND THE HARNESS IS ITS FIX; AND A LIVE HAZARD: TWO DIAGNOSTIC SCRIPTS WOULD WRITE INTO THE PRODUCTION LOG.** DEC-153's pairing of the refuted and the weakened hypotheses confirmed · the one hypothesis DEC-153 ① left unnamed held, and Sultan's verdict on it is appended · `configure_logging()` attaches the durable log unless `MUTHIS_DEBUG=1` refuses it, and two diagnostic scripts call it — both written before DEC-122 made that call attach a file · none of the 45 logged process starts was a diagnostic run, so DEC-153's counts stand · the first commit of the harness build fixes it — RULED (Sultan), RECORDED; **NOTHING BUILT**
+
+Sultan's record. `file:N` references are to `abdcebb`; `DECISIONS.md:N` is this file as it stood before this
+entry.
+
+---
+
+## ① THE BLINDNESS HYPOTHESIS: "TRUE BUT FIXABLE"
+
+Sultan's brief (2026-09-27), verbatim: "DEC-153's pairing is correct. For the fourth hypothesis — a rebuild now is blind — my verdict was "true but fixable": it held, and this harness is its fix. Append that if the entry does not already say it."
+
+- **DEC-153 did not say it.** Its ① records the hypothesis as "not named by the verdict; ⑥ bears on it"
+  (`DECISIONS.md:19678-19680`). This entry appends the verdict and supersedes that clause.
+- **The ordinal, stated once so it does not travel.** DEC-153 ① calls it "The fourth" because it is the fourth
+  hypothesis that section takes up. In the brief's own list (`DECISIONS.md:19666`) it is the second: "a full
+  rebuild before GPT-6 is wrong … · a rebuild now is BLIND, since no test measures what the model says · cost
+  savings are near zero … · and Sultan's attribution concern is right but narrower than stated …". It is the same
+  hypothesis under either count.
+- **DEC-153's verdict, complete:** REFUTED — "cost savings are near zero" and "the attribution concern is right
+  but narrower than stated"; WEAKENED — "every instruction-caused defect so far was fixed by ONE targeted
+  change"; HELD, "true but fixable" — "a rebuild now is BLIND", and the behaviour-regression harness is its fix.
+- **What it held on, from DEC-153:** the durable log records tool names per pass and never the model's speech
+  (DEC-142 ⑧); the persona's guards are on its words and bytes, 89 specific and 17 byte-only (DEC-139 ⑦); and the
+  one off-log comparison re-implemented the loop, so it ran without the confirm gate, the forced passes and the
+  notes (DEC-153 ⑦).
+
+## ② THE HAZARD: TWO DIAGNOSTIC SCRIPTS WOULD WRITE INTO THE PRODUCTION LOG
+
+Sultan's brief (2026-09-27), verbatim: "RECORD, fix with the build — the live hazard you found: configure_logging() always attaches the durable log, and two diagnostic scripts call it, so running either today would write into the production log. DEC-153's counts rest on that log holding app sessions only. Record it now; the first commit of the harness build fixes it."
+
+- **The mechanism.** `configure_logging()` (`logging_policy.py:169`) returns `attach_file_log(...)` (`:184`),
+  which builds the one `RotatingFileHandler` in `src/` (`:155`) unless `MUTHIS_DEBUG=1` refuses it (`:143-145`).
+  **"Always" holds except under `MUTHIS_DEBUG=1`, which gives the console only** — and that switch also unseals
+  the transcript, so it is no remedy.
+- **The callers.** `main.main()` (`main.py:219`) — and two diagnostic scripts, `scripts/diag_web_research.py:1075`
+  and `scripts/diag_doc_rag.py:2138`, each commented "the PRODUCTION logging posture (DEC-28)". No other script
+  calls it. Their last changes are `92ef232` (2026-07-29) and `b8fc315` (2026-08-02); the durable log landed at
+  `2b75cf5` (2026-08-29, DEC-122). **The call was written when it attached no file, and began attaching one
+  then** — the scripts did not change; the function under them did.
+- **The consequence.** Running either script today appends a diagnostic session to `~/.muthis/logs/muthis.log`,
+  the record that DEC-153 and every live verification since DEC-122 read as app sessions.
+- **DEC-153's counts stand, and the check is recorded so it can be repeated.** Neither script opens a hotkey
+  listener, and every one of the log's 45 process starts logged `[hotkey] listening`: none was a diagnostic run,
+  and all 291 logged passes belong to app sessions.
+- **THE RULING:** the first commit of the harness build fixes it. Its shape is not ruled here.
+
+---
+
+## THE STATE THIS LEAVES
+
+- **DEC-153's verdict is complete:** two hypotheses refuted, one weakened, one held and fixable.
+- **The harness design** is approved in its foundation, with one critical flaw and four revisions made on its page
+  (https://claude.ai/artifact/NWUYbkh2j1fkNWGhzaV2kt, private). **Nothing is built until Sultan rules on it.**
+- **The hazard is open** until the harness build's first commit.
+
+---
