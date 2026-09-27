@@ -117,7 +117,7 @@ from muthis.kernel.turn import DownscaledImage, RUN_CODE_TOOL               # no
 from muthis.kernel.untrusted_content import (                              # noqa: E402
     NONCE_HEX_CHARS, WRAP_CLOSE_AR, WRAP_OPEN_AR,
 )
-from muthis.logging_policy import configure_logging                         # noqa: E402
+from muthis.logging_policy import LOG_FORMAT, silence_third_party_http_logs  # noqa: E402
 from muthis.trust.confirm_gate import (                                     # noqa: E402
     APPROVAL_WORD_AR, DIRECTIVE_MARKER_AR, ConfirmGate,
 )
@@ -1072,7 +1072,11 @@ def _dump(title: str, evidence: "dict[str, Any]") -> None:
 async def main() -> None:
     deterministic_only = "--deterministic" in sys.argv
     tap = LogTap()
-    configure_logging()               # the PRODUCTION logging posture (DEC-28)
+    # Console only (DEC-154): the production posture MINUS the durable log.
+    # configure_logging() attaches ~/.muthis/logs/muthis.log since DEC-122, and
+    # that log is the record of APP sessions; a diagnostic run must never join it.
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    silence_third_party_http_logs()   # the DEC-28 URL-leak control, kept
     logging.getLogger().addHandler(tap)
 
     checks = Checks()
