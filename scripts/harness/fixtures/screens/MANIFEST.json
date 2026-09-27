@@ -1,0 +1,9 @@
+{
+  "note": "Ruling 2: each screen is captured ONCE from a real application and must hold NO personal data - the repository is public. A screen is usable by a live run only when its sha256 below matches the file AND reviewed is true; both are set by Sultan after he has looked at the image. Capture with: python scripts/harness/capture.py <name> (see that file).",
+  "screens": {
+    "desktop": {"file": "desktop.png", "shows": "an ordinary desktop, no documents or names visible", "sha256": null, "reviewed": false},
+    "editor_save": {"file": "editor_save.png", "shows": "a text editor whose toolbar shows a Save button", "sha256": null, "reviewed": false},
+    "editor_code": {"file": "editor_code.png", "shows": "an editor displaying fixtures/explain_me.py", "sha256": null, "reviewed": false},
+    "notepad_text": {"file": "notepad_text.png", "shows": "Notepad holding a few lines of neutral text to copy", "sha256": null, "reviewed": false}
+  }
+}
