@@ -20,10 +20,23 @@ policy attaches the file.
 THE GUARD, AND WHAT MAKES IT A CHECK. Every script under `scripts/` — the
 behaviour harness included — is parsed. An import or a call of
 `configure_logging` or `attach_file_log`, any import of `muthis.main` (whose
-`main()` applies the policy), and any file-handler construction are violations.
-An alias import is caught at the import, so renaming the function cannot slip it
-past the call check. The scanner is first shown to FIRE on every forbidden form:
-a scan that found nothing is indistinguishable from a broken scan.
+`main()` applies the policy), and a file handler built BY NAME in the script
+(`FileHandler`, `RotatingFileHandler`, `TimedRotatingFileHandler`,
+`WatchedFileHandler`) are violations. An alias import is caught at the import,
+so renaming the function cannot slip it past the call check. The scanner is
+first shown to FIRE on every forbidden form: a scan that found nothing is
+indistinguishable from a broken scan.
+
+WHAT IT DOES NOT SEE (DEC-155 ②). Three paths into the log pass this scan:
+`logging.basicConfig(filename=...)`, which builds its file handler inside the
+`logging` package, never by name in the script; a `logging.config.dictConfig`
+or `fileConfig` whose configuration names a file-handler class as a string; and
+a raw `open()` on the log file. When this was written no script used any of them
+against the production log — the one `open()` of a file named `muthis.log` is
+the harness self-test's stand-in, in a fresh temporary directory. So this guard
+catches the known forms; it is NOT proof that no script can write into the log,
+which is more than the subject line of `1c38f1b`, the commit that added it,
+claimed. Widening it is a separate decision.
 """
 
 from __future__ import annotations
@@ -46,7 +59,8 @@ def _is_main_module(name: str) -> bool:
 
 
 def violations(source: str) -> "list[str]":
-    """Every way a script could reach the durable log, as readable strings."""
+    """The forms of reaching the durable log that this scan RECOGNISES, as
+    readable strings — not every way there is (WHAT IT DOES NOT SEE, above)."""
     found = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
