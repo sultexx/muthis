@@ -14,8 +14,9 @@ arrived — and the usage the provider returned, with `TurnComplete.model`.
 configured id (`luna_agent.py:209` via `build_turn_complete`, `claude_agent.py`
 `model=self.model`), so comparing it with the configuration catches a wrapper
 that built the agent with the WRONG id — never a provider that served another
-model. Revision 2 ④ named it "the provider's echo"; that premise is false, and
-the report says so rather than this module pretending otherwise.
+model. Revision 2 ④ named it "the provider's echo"; that premise is false
+(DEC-155 ⑤), and until a real echo exists a comparison across models is
+REFUSED (`config.cross_model_refusal`).
 
 Everything is held in memory and written by the runner to the harness home,
 outside the repository. Nothing here touches `logging` configuration: the

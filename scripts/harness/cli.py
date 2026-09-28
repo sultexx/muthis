@@ -7,6 +7,10 @@ cli.py — the harness's commands.
   run        ONE configuration, LIVE. Refuses unless every gate below holds.
   score      two configurations' recorded runs → counts, Fisher, the blind queue
 
+A COMPARISON ACROSS MODELS IS REFUSED (`preflight` and `score`, DEC-155 ⑤): two
+configurations that name different models cannot be told apart by the model that
+ANSWERED, only by the one asked for (`config.cross_model_refusal`).
+
 THE LIVE GATES (`run`): an explicit `--live`; a clean preflight; every screen the
 scenarios use present, hashed as the manifest records and marked reviewed, and
 SENT at the pre-registered size; Docker answering; an explicit budget; the key
@@ -27,7 +31,7 @@ import sys
 from typing import Optional
 
 from harness import prodlog
-from harness.config import Configuration, comparison_type
+from harness.config import Configuration, comparison_type, cross_model_refusal
 from harness.prereg import HERE, load, missing_in_production
 from harness.record import MemoryLogHandler
 from harness.runner import (HOME, calibrate, catalogue_now, cost, fingerprint_constants, gates,
@@ -61,8 +65,18 @@ def _prepared(paths: list[str]):
     return prereg, configs, [prepare(c, prereg, constants, catalogue) for c in configs]
 
 
+def _refuse_cross_model(preps: list[dict]) -> bool:
+    """DEC-155 ⑤, enforced: print the refusal and report it, or pass."""
+    refusal = cross_model_refusal(preps[0]["fingerprint"], preps[1]["fingerprint"])
+    if refusal:
+        print(refusal)
+    return refusal is not None
+
+
 def _preflight(args: argparse.Namespace) -> int:
     prereg, configs, preps = _prepared([args.a, args.b])
+    if _refuse_cross_model(preps):  # before a single declaration is reported
+        return 2
     bad = 0
     for cfg, prep in zip(configs, preps):
         print(f"{cfg.label}: {'declaration OK' if not prep['errors'] else prep['errors']}")
@@ -161,6 +175,8 @@ def _load_runs(path: pathlib.Path) -> dict[str, list[dict]]:
 
 def _score(args: argparse.Namespace) -> int:
     prereg, configs, preps = _prepared([args.a, args.b])
+    if _refuse_cross_model(preps):  # before a single run is read
+        return 2
     kind = comparison_type(preps[0]["fingerprint"], preps[1]["fingerprint"])
     enabled, on = gates(prereg, preps[0]["texts"], preps[1]["texts"])
     runs = [_load_runs(pathlib.Path(p)) for p in (args.a_runs, args.b_runs)]

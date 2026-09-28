@@ -30,12 +30,13 @@ from muthis.vision.downscale import downscale_to_max_width
 from harness import prodlog
 from harness.canned import placeholder_png
 from harness.config import (Configuration, canonical_catalogue, comparison_type,
-                            production_catalogue_sha, production_persona, sha)
+                            cross_model_refusal, production_catalogue_sha,
+                            production_persona, sha)
 from harness.policies import ScriptedReasoner
 from harness.prereg import PREREG_PATH, load, missing_in_production
 from harness.record import MemoryLogHandler, RunRecorder
 from harness.selftest_drive import SCREENS, Results, cheats, scripted
-from harness.selftest_units import live_gates, unit_signals
+from harness.selftest_units import live_gates, model_block, unit_signals
 from harness.runner import (HOME, catalogue_now, fingerprint_constants, prepare,
                             run_configuration, signals_for)
 from harness.words import rule_matches
@@ -139,11 +140,17 @@ def fingerprints(res: Results, prereg, catalogue: list) -> None:
     constants = fingerprint_constants(prereg, configs)
     fp_a = prepare(base, prereg, constants, catalogue)
     res.check("baseline A passes its own declaration", fp_a["errors"] == [], fp_a["errors"])
+    # Written out by hand, not derived: the test must not reuse the logic it checks.
+    names_another_model = {"M (model id changed)", "I3 (model AND persona)"}
     for name, (cfg, expected) in variants.items():
         fp = prepare(cfg, prereg, constants, catalogue)
         got = comparison_type(fp_a["fingerprint"], fp["fingerprint"])
         res.check(f"fingerprint: A vs {name} derives '{expected}'", got == expected, got)
         res.check(f"{name} passes its OWN declaration", fp["errors"] == [], fp["errors"])
+        refused = cross_model_refusal(fp_a["fingerprint"], fp["fingerprint"]) is not None
+        want = name in names_another_model
+        res.check(f"cross-model refusal {'FIRES' if want else 'is silent'}: A vs {name}",
+                  refused == want, refused)
     lies = {
         "a wrong persona sha": Configuration(**{**base.__dict__, "persona_sha256": "0" * 64}),
         "a baseline that rebinds a note": Configuration(**{**base.__dict__,
@@ -206,6 +213,7 @@ def main() -> Results:
         limits = unit_signals(res, prereg)
         prodlog_fires(res)
         live_gates(res, prereg)
+        model_block(res, prereg)
         fingerprints(res, prereg, catalogue)
         echo(res, prereg)
         res.report = {**cheats(res, prereg, catalogue), "limits": limits}

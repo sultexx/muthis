@@ -117,4 +117,43 @@ def live_gates(res: Results, prereg) -> None:
               code == 2 and read == [], (code, read))
 
 
-__all__ = ["live_gates", "unit_signals"]
+def model_block(res: Results, prereg) -> None:
+    """DEC-155 ⑤ as ENFORCEMENT, shown firing at both doors: `preflight` and
+    `score` refuse a pair that names different models — `score` before it reads
+    a run, with a valid calibration in hand, so no other refusal can stand in for
+    it — while the same model twice still passes."""
+    from harness import cli
+    home = pathlib.Path(tempfile.mkdtemp(prefix="muthis_model_block_"))
+    a_path, a2_path = HERE / "configs" / "A.json", HERE / "configs" / "A2.json"
+
+    def call(argv: list[str]) -> tuple[int, str]:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cli.main(argv)
+        return code, out.getvalue()
+
+    try:
+        other = json.loads(a_path.read_text(encoding="utf-8"))
+        other.update(label="G", model="gpt-6-hypothetical")
+        g_path = home / "G.json"
+        g_path.write_text(json.dumps(other), encoding="utf-8")
+        calibration = home / "calibration.json"
+        calibration.write_text(json.dumps({"repeat": 0.0, "distinct": 1.0, "allowance": 0,
+                                           "prereg_sha256": prereg.sha256}), encoding="utf-8")
+        empty = home / "runs"
+        empty.mkdir()
+        code, text = call(["preflight", "--a", str(a_path), "--b", str(g_path)])
+        res.check("preflight REFUSES a pair naming different models (exit 2)",
+                  code == 2 and "name different models" in text, (code, text[:200]))
+        code, text = call(["score", "--a", str(a_path), "--b", str(g_path), "--a-runs",
+                           str(empty), "--b-runs", str(empty), "--calibration", str(calibration)])
+        res.check("score REFUSES it too, before a run is read, calibration in hand",
+                  code == 2 and "name different models" in text, (code, text[:200]))
+        code, text = call(["preflight", "--a", str(a_path), "--b", str(a2_path)])
+        res.check("preflight PASSES the same model twice (A against A2: identical)",
+                  code == 0 and "identical" in text and "REFUSED" not in text, (code, text[:200]))
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+
+
+__all__ = ["live_gates", "model_block", "unit_signals"]

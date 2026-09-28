@@ -29,7 +29,7 @@ import json
 import pathlib
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 V8_SNAPSHOT = REPO / "tests" / "snapshots" / "look_tools_v8.json"
@@ -134,6 +134,29 @@ def comparison_type(fp_a: dict, fp_b: dict) -> str:
     return "instruction"
 
 
+def cross_model_refusal(fp_a: dict, fp_b: dict) -> Optional[str]:
+    """THE GPT-6 BLOCK, ENFORCED (DEC-155 ⑤) — the refusal text, or None.
+
+    A comparison whose two configurations name different models (a different
+    reasoner or model id) is REFUSED. Attribution between models is what such a
+    comparison is for, and nothing here can attribute: `TurnComplete.model` is
+    the agent's OWN configured id (`record.py`), so a run proves which model was
+    ASKED FOR, never which one answered.
+
+    UNCONDITIONAL, WITH NO SWITCH TO FLIP. The commit that builds a real provider
+    echo is the one that lifts this, and it must change the self-test that proves
+    the refusal fires (`selftest_units.py`) — a recorded intention with no guard
+    is the pattern DEC-155 ⑤ names. Same-model comparisons (identical,
+    instruction, effort) pass: both arms ask for one model."""
+    a, b = fp_a["model"], fp_b["model"]
+    if (a["reasoner"], a["model"]) == (b["reasoner"], b["model"]):
+        return None
+    return (f"REFUSED: the two configurations name different models ({a['reasoner']} "
+            f"{a['model']} against {b['reasoner']} {b['model']}). A comparison across models "
+            "needs a provider echo, and none exists: TurnComplete.model is the agent's own "
+            "configured id (DEC-155 ⑤). Building that echo is what lifts this refusal.")
+
+
 def verify_declared(cfg: Configuration, persona: str, catalogue: list,
                     texts: dict[str, Any], sent: tuple[int, int]) -> list[str]:
     """Every mismatch between what the configuration DECLARED and what this
@@ -164,5 +187,5 @@ def verify_declared(cfg: Configuration, persona: str, catalogue: list,
 
 
 __all__ = ["Configuration", "apply_notes", "canonical_catalogue", "comparison_type",
-           "compose_persona", "fingerprint", "production_catalogue_sha",
+           "compose_persona", "cross_model_refusal", "fingerprint", "production_catalogue_sha",
            "production_persona", "sha", "texts_for", "verify_declared"]
