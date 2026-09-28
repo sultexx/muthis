@@ -1,7 +1,8 @@
 """
 capture.py — Sultan's tool for the four fixture screens (ruling ②). NEVER run
 by an agent: it photographs the live primary monitor, which is personal data
-until a human has looked at it.
+until a human has looked at it. Step by step, screen by screen:
+`CAPTURE_GUIDE.md`, beside this file.
 
   python scripts/harness/capture.py <name>            capture after a countdown
   python scripts/harness/capture.py <name> --review   record the file as reviewed

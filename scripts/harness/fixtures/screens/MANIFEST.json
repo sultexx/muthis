@@ -1,9 +1,29 @@
 {
-  "note": "Ruling 2: each screen is captured ONCE from a real application and must hold NO personal data - the repository is public. A screen is usable by a live run only when its sha256 below matches the file AND reviewed is true; both are set by Sultan after he has looked at the image. Capture with: python scripts/harness/capture.py <name> (see that file).",
+  "note": "Ruling 2: each screen is captured ONCE from a real application and must hold NO personal data - the repository is public, and every screen is sent to the model on every turn. A screen is usable by a live run only when its sha256 below matches the file AND reviewed is true; capture.py sets both only through its --review step, after Sultan has looked at the image. Follow scripts/harness/CAPTURE_GUIDE.md step by step.",
   "screens": {
-    "desktop": {"file": "desktop.png", "shows": "an ordinary desktop, no documents or names visible", "sha256": null, "reviewed": false},
-    "editor_save": {"file": "editor_save.png", "shows": "a text editor whose toolbar shows a Save button", "sha256": null, "reviewed": false},
-    "editor_code": {"file": "editor_code.png", "shows": "an editor displaying fixtures/explain_me.py", "sha256": null, "reviewed": false},
-    "notepad_text": {"file": "notepad_text.png", "shows": "Notepad holding a few lines of neutral text to copy", "sha256": null, "reviewed": false}
+    "desktop": {
+      "file": "desktop.png",
+      "shows": "the plain desktop only - no window, no desktop icon, a solid background (CAPTURE_GUIDE.md, screen 1)",
+      "sha256": null,
+      "reviewed": false
+    },
+    "editor_save": {
+      "file": "editor_save.png",
+      "shows": "Paint filling the screen, one line on the canvas, its save-your-changes question open with a button labelled Save (CAPTURE_GUIDE.md, screen 2)",
+      "sha256": null,
+      "reviewed": false
+    },
+    "editor_code": {
+      "file": "editor_code.png",
+      "shows": "VS Code filling the screen, explain_me.py as its only tab, its line numbers and the path above the code visible (CAPTURE_GUIDE.md, screen 3)",
+      "sha256": null,
+      "reviewed": false
+    },
+    "notepad_text": {
+      "file": "notepad_text.png",
+      "shows": "a new Notepad window filling the screen, one Untitled tab holding three neutral lines, nothing highlighted (CAPTURE_GUIDE.md, screen 4)",
+      "sha256": null,
+      "reviewed": false
+    }
   }
 }
