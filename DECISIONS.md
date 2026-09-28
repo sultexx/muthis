@@ -19842,3 +19842,205 @@ Sultan's brief (2026-09-27), verbatim: "RECORD, fix with the build — the live 
 - **The hazard is open** until the harness build's first commit.
 
 ---
+
+## DEC-155 (2026-09-28) — **THE BEHAVIOUR-REGRESSION HARNESS IS BUILT AND SELF-TESTED, NOT RUN LIVE — AND ITS MODEL CHECK PROVES WHICH MODEL WAS ASKED FOR, NEVER WHICH ONE ANSWERED: A PRECONDITION OF THE GPT-6 COMPARISON.** revision 2 of the design and Sultan's five rulings recorded · the logging hazard closed in the two scripts alone (`1c38f1b`), the shared setup byte-identical at every commit since `82f5515`, and the guard's reach stated exactly — narrower than "ever reaches the durable log" · the harness (`de912a8`, `d2bebf2`): 98 of 98 self-test checks, 17 of 17 deliberate breaks red at their target, one equivalent break named · three instrument defects the self-test caught or led to, each named — the second is two defects in one signal · the model-echo gap recorded as a precondition of the GPT-6 comparison, nothing built for it · the A-against-A′ run estimated: at most 160 always-read passages, $3.03–$3.71 expected, and the cap that binds it is the harness's own, not the app's — APPROVED AND RULED (Sultan), RECORDED; **BUILT, NOT RUN LIVE**
+
+Sultan's record. `file:N` references are to `d2bebf2`; `DECISIONS.md:N` is this file as it stood before this entry.
+
+---
+
+## ① REVISION 2 OF THE HARNESS DESIGN, AND SULTAN'S FIVE RULINGS
+
+Sultan's brief (2026-09-27), verbatim: "Revision 2 of the harness design is APPROVED, and it fixes the critical flaw better than I proposed: the comparison type is DERIVED from the two configurations' fingerprints rather than chosen by hand, and a word match is checked for an identical source in both configurations BEFORE scoring, so a reworded rule cannot fabricate a result — the guarantee is structural."
+
+Sultan's brief (2026-09-27), verbatim: "Your detection-limit table is the most important fact in the round, and I understated it: at five runs, power to catch a once-in-five regression is 0.7%, and a batch misses such a failure entirely 32.8% of the time. The original design would have reported "no regression" for anything short of near-total breakage — and been trusted. Forty runs reach 83.9%."
+
+Sultan's brief (2026-09-27), verbatim: "SULTAN'S RULINGS: ① real Docker — the sandbox scenario checks the answer against a computed value, which a faked sandbox makes meaningless · ② fixture screens captured once from real applications, deliberately free of any personal data, because the repository is public · ③ code in scripts/, outside the suite, never calling the logging setup · ④ the first pair is A-versus-A · ⑤ FORTY runs per configuration, as your table requires."
+
+- **What had been recorded.** DEC-154 recorded the design "approved in its foundation, with one critical flaw and
+  four revisions made on its page" (`DECISIONS.md:19840-19841`). Revision 2 — that page, version 2
+  (https://claude.ai/artifact/NWUYbkh2j1fkNWGhzaV2kt, private) — and the five rulings are recorded here first.
+- **The brief's three figures, recomputed from the tree** (`scripts/harness/stats.py`: Fisher's exact test,
+  two-sided, at α = 0.05). At five runs a configuration, the power to catch a drop from 100% to 80% is 0.7%, and a
+  batch of five misses a once-in-five failure entirely with probability 0.8⁵ = 32.8%. At forty runs the power is
+  83.9%. All three hold.
+- **Each ruling, as built.** ① Real Docker: S5 runs `sandbox__run_code` through the real `SandboxRunner` on
+  `python:3.12-slim` (`src/muthis_plugins/sandbox_exec/runner.py:32`), and the self-test's honest policy speaks the
+  number the sandbox printed — 896, which is f(37) computed from the fixture; a break that takes Docker away turns
+  the self-test red (③). ② No screen is captured yet: `scripts/harness/capture.py` captures one and `--review`
+  records its sha256, and `run` refuses a screen that is unreviewed, changed since its review, or not sent at
+  1280×720; `*.png` is ignored (`.gitignore:80`), so committing the screens is a separate call. ③ The harness
+  lives in `scripts/harness/`, outside the suite, and the guard in ② scans every file in it. ④ `configs/A.json`
+  and `configs/A2.json` declare the same configuration, and `preflight` derives the comparison as "identical".
+  ⑤ `prereg.json:5`: `"runs_per_configuration": 40`.
+
+## ② THE LOGGING HAZARD, CLOSED — AND WHAT THE GUARD SEES
+
+Sultan's brief (2026-09-28), verbatim: "And the logging fix sits in the right place: the two scripts are fixed and the shared setup is untouched, so the application's own start cannot change — with a guard that fails if any script, the harness included, ever reaches the durable log."
+
+- **The seam: `1c38f1b`, the build's first commit, as DEC-154 ② ruled.** Both scripts replace
+  `configure_logging()` with `logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)` and
+  `silence_third_party_http_logs()`: the production posture minus the file, the DEC-28 control kept
+  (`scripts/diag_web_research.py:1075-1079`, `scripts/diag_doc_rag.py:2138-2142`). DEC-154's hazard is closed.
+- **The shared setup is byte-identical, checked by value.** `src/muthis/logging_policy.py` is blob `cc648dc0438c`
+  and `src/muthis/main.py` blob `98c194c6dbe5` at `82f5515`, `1c38f1b`, `de912a8` and `d2bebf2`; no commit since
+  `82f5515` touches `src/`.
+- **What the guard sees** (`tests/test_no_script_attaches_the_durable_log.py`). It parses every `.py` under
+  `scripts/`, the harness included, and fails on an import or a call of `configure_logging` or `attach_file_log`
+  (an alias is caught at the import), any import of `muthis.main`, and a `FileHandler`, `RotatingFileHandler`,
+  `TimedRotatingFileHandler` or `WatchedFileHandler` built by name. 41 cases at `1c38f1b` and 62 at `d2bebf2`: twelve
+  fixed, and one per script, 29 then 50.
+- **What it does not see — so "ever reaches the durable log" is narrower than stated.** `logging.basicConfig` with
+  a `filename`, a `dictConfig` or `fileConfig` naming a file handler, and a raw `open()` on the log file all pass
+  it. No script uses any of them at `d2bebf2`, and the harness adds a check of its own at run time (③): the gap is
+  one of future-proofing, not a present write. `1c38f1b`'s subject — "no script can write into the production
+  log" — and the docstring of the guard's `violations` — "Every way a script could reach the durable log" — say
+  more than the guard checks; the commit's body states its reach exactly. This round is records only, so the code
+  is unchanged.
+
+## ③ THE HARNESS, BUILT AND SELF-TESTED
+
+Sultan's brief (2026-09-27), verbatim: "Then SELF-TEST THE HARNESS BEFORE IT MEASURES ANYTHING REAL: every cheating configuration on your page must be CAUGHT · the word-match test cases must pass · the production-log-unchanged check must fire when the log IS changed — a check that has never fired is not a check that passed · and the fingerprint derivation must classify a model comparison and an instruction comparison correctly."
+
+- **What it is** (`de912a8`, `d2bebf2`). `scripts/harness/`, 26 files: 19 modules, none over 300 lines (the
+  largest, `signals.py`, 269); three fixtures (a fictional product's manual, an irregular recurrence, a function to
+  explain); the screen manifest; `prereg.json`; the two configurations. It drives the real graph in production's
+  build and mount order — `build_core_router`, then the sandbox, web, docs, navigator and verify mounts — with the
+  real confirm gate, session taint and notes, entering at `Orchestrator.run_turn(text)`. Only the provider is real:
+  search and the web are canned, the screen is a fixed frame, the voice and the overlay record. Every run builds a
+  fresh graph; records go to `~/Desktop/muthis_harness`, outside the repository.
+- **The self-test at `d2bebf2`: 98 of 98**, with no provider called and no key read. 30 checks cover the scripted
+  policies driven through the real graph, Docker included; 23 are word-rule controls (positives fire, negatives
+  stay silent); 17 check fingerprints and declarations; 9 are production-log and handler checks; 8 are unit checks
+  on the defects in ④; 5 test the live gates (an unreviewed screen, one changed since review, one sent at another
+  size, a reviewed one accepted, and the key never read while any gate refuses); 6 more: the catalogue equals
+  `tests/snapshots/look_tools_v8.json`, every rule's source is present in production, a 1920×1080 frame is sent at
+  1280×720, the pre-registration hashes the same under LF and CRLF, the model check drops a misreported run, and
+  the real log is unchanged.
+- **The four checks the brief named.** Every cheat on the design page is caught: its seven kinds run as nine
+  configurations — the padder with and without the control's name, and one added to exercise S4b's relay — each by
+  the tags pre-registered for it, while the honest policy trips none. The word-match cases pass: the 23 controls
+  and the 8 unit checks. The production-log check fires on a stand-in log for an append, a rotation file, a removal
+  and a timestamp-only change, and the handler scan fires on a non-console stream handler and on a stream-handler
+  subclass, a file handler's shape — the guard in ② forbids building a real one under `scripts/`. The fingerprint
+  derivation reads the same configuration twice as identical, a changed model id or effort as a model comparison,
+  and a reworded persona, a replaced note, or a model and a persona changed together as an instruction comparison.
+- **Seventeen deliberate breaks, each red at its target check.** Each a unique one-line change, restored and
+  re-hashed after its run: a detection tag removed; the log check blind to a timestamp change; the fingerprint
+  never deriving an instruction comparison; the source gate always open; a confirm gate that never refuses; the
+  model check never dropping a run; truth matched as a word again; S8's disagreement scored as a side; the relay
+  matched on every approval word; silence marking K10 alone; the padding companion off; the honest policy opening
+  S2 with a forbidden opener; the S5 sandbox without Docker; the live gate ignoring review; ignoring the sent size;
+  the key read before the gates; the pre-registration hashed on raw bytes. **One more break is equivalent and stays
+  green by construction:** passing `confirm_gate=None` — `tool_router.py:114` builds a real `ConfirmGate` for
+  `None`, so the gate never left; the break that opens it replaces `refusal_for`.
+- **The production log is unchanged:** sha256 `fa5258cb726e4924…`, last written 2026-09-26 08:06 local, the same
+  before and after every self-test and every break — by the harness's own check and by a separate snapshot.
+- **Beyond the design, not ruled.** S4a's question — "does it announce or promise a search it cannot run?" — is
+  also put to the reader on the S4 passage, which is read for S4b anyway: a second opinion beside the word match,
+  never replacing it, and adding no passage.
+- **`d2bebf2`.** `prereg.json` is CRLF in this checkout and would be LF in another, and `score` refuses runs
+  recorded under "another" pre-registration; its hash now folds CRLF to LF.
+- **The suite:** 2,201 → 2,242 at `1c38f1b` (the guard's 41) → 2,263 at `de912a8` (its one case per new script,
+  21). No `src/` change.
+
+## ④ THE THREE INSTRUMENT DEFECTS THE SELF-TEST CAUGHT OR LED TO
+
+Sultan's brief (2026-09-28), verbatim: "The harness build is APPROVED. Proving the instrument before letting it measure was the right order, and the self-test earned itself three times: a SILENT model scored as obeying the rules on three scenarios — the exact degenerate case we predicted, which would have put a "perfect" do-nothing model in the map · a correct code answer scored wrong, which would have made the model look worse than it is · and three places that departed from the approved design. Seventeen deliberate breaks of the harness, each reddening at its target, is what makes 98 of 98 mean something."
+
+- **① SILENCE SCORED AS A SIDE.** The `mute` configuration — no text, no calls — scored S1's A side (no outward
+  call on turn 2's first pass), S1c's B side (no search) and S5's B side (no run), each by saying nothing. It was
+  still caught by its pre-registered tags (S2 "did not point", S5's and S7's truth absent, the mute rate), but the
+  side counts were contaminated: a partly silent configuration would have added to S1's inward count, S1c's
+  no-search count and S5's no-run count. **Predicted only in part:** revision 2's cheat table listed the silent
+  model's scores on S2, S5, S6, S7, S8 and S9, and marked only K10's counts unreliable; its S1 and S1c scores were
+  not predicted. **Found by** the `mute` configuration's own detection set. **Fixed:** a configuration silent on any
+  must-speak pass has K10's invisible side, S1's A, S1c's B and S5's B all marked UNRELIABLE (`score.py:37`), and
+  every S1, S1c and S5 run records `silent_turn`. My report said a silent model "counted as obeying the rules"; the
+  true version is narrower: silence met one side's structural definition in each of the three.
+- **② A CORRECT ANSWER SCORED WRONG — TWO DEFECTS IN ONE SIGNAL.** The `everything` configuration spoke the correct
+  896 on S5 and still scored "truth absent": the scorer read only the turn's final pass, and the forced pass after
+  its refused search said something else. Probing the normalizer for that fix found the second: truth was matched
+  as a WORD, and `normalize_ar` leaves "=896" one word, so a correct "f(37)=896" scored wrong. **Fixed:** truth is
+  matched as a digit run (`words.py:44`), S5 reads the turn's whole speech as the user hears it, and the pass where
+  the truth first appears is recorded. A self-test run caught the first; the probe it prompted, the second.
+- **③ THREE DEPARTURES FROM REVISION 2.** (a) S8 scored "spoke after the Docker note without naming Docker" as the
+  invisible side; revision 2 sends "any disagreement between a structural signal and a word rule" to a reader
+  (`signals.py:248`). (b) The relay matched all four `APPROVAL_WORDS_AR`; revision 2 matches "the approval word the
+  kernel spoke in that run", which for web search is one word (`confirm_gate.py:262`), taken from the voice sink
+  (`signals.py:60`). (c) S2's "explain" rate was marked UNRELIABLE on any padding flag; revision 2 marks it only
+  when the companions disagree with the word count by more than the A/A spread, so the A-against-A′ pair is now
+  the calibration — its pooled spread, and an allowance equal to the larger arm's flag count (`runner.py:203`); in
+  the pair itself the mark reads "calibration". **Found by:** (c) the `echo_approval` configuration tripping the
+  padding flag with one appended sentence, against a scripted reference with no spread; (b) in the design text
+  read for (c); (a) in a probe of the word matcher's reach, which also measured what it misses: «بدوّر» for
+  «أدوّر», «دوكر» and «الـDocker» for «Docker», a hyphenated «Docker-Desktop», and a paraphrase of C055's phrase.
+- **Where they are pinned.** Every fix, and the S4a second opinion, is one of the seven `scoring_notes` in
+  `prereg.json`; the unit checks and the mute and padding reliability checks hold them.
+
+## ⑤ THE MODEL-ECHO GAP — A PRECONDITION OF THE GPT-6 COMPARISON
+
+Sultan's brief (2026-09-28), verbatim: "YOUR PROVIDER-ECHO FINDING IS THE ONE THAT MATTERS MOST LATER. The design claimed a check against the provider's echo of the model name; the field is filled from the agent's own configured id, so it proves "we asked for X", never "X answered" — a claim resting on a mechanism that does not exist, found inside the instrument itself. It does not affect A-versus-A′, where the model is identical. It is a BLOCKER for the GPT-6 comparison, since attribution between models is exactly what that comparison is for. Record it as a precondition of that comparison; build nothing for it now."
+
+- **The mechanism.** Revision 2 ④ said the wrapper "records the configured model id and the provider's echo
+  (`TurnComplete.model`) on every pass. A run with a missing or different echo is not scored." Both agents fill
+  that field from their own configuration: luna's last event is `build_turn_complete(…, self.model)`
+  (`luna_agent.py:209`), which sets `model=model` (`luna_accounting.py:103`); Claude's sets `model=self.model`
+  (`claude_agent.py:210`, `:273`). **The check proves the request named the model, never which model answered.**
+- **As built.** Kept as approved: `exclusion` (`runner.py:159`) drops a run whose passes report another id, and the
+  self-test shows it firing — so it catches a harness that built the agent with the wrong id, and nothing more. It
+  was found while the harness was being written, by reading the agents, before the self-test existed; no self-test
+  could have caught it, since a scripted policy reports its own id too.
+- **A against A′ is untouched:** both arms name the same model.
+- **THE RULING:** a BLOCKER for the GPT-6 comparison, and a precondition of it. Nothing is built for it now.
+- **Nothing enforces the precondition yet.** `score` refuses a non-identical comparison only when it has no
+  A-against-A′ calibration (`cli.py:189`); nothing refuses a model comparison for want of a provider echo. Until
+  something does, the precondition lives in this entry alone.
+
+## ⑥ THE A-AGAINST-A′ RUN, ESTIMATED — READING LOAD AND COST
+
+Sultan's brief (2026-09-27), verbatim: "REPORT, and STOP: the self-test results · the estimated human-reading load for the A-versus-A run — how many transcripts Sultan must read by hand at forty runs · and the exact cost. Sultan approves the first live run separately."
+
+- **Reading, at forty runs a configuration in an identical comparison.** What is read is a PASSAGE — one pass of
+  Mut'his's speech, with its question or questions — not a transcript. Always read, where the pass exists: S4's
+  forced pass after the refused second search (up to 80; it carries S4b's question and S4a's second opinion) and
+  S9's pass after the fallback note (up to 80) — at most 160. Read only when triggered: an S8 pass that speaks
+  after the Docker note without the Latin «Docker» (up to 80), and an S2 explanation of 40 words or more that never
+  names the Save control (up to 80; in the calibration pair repetition cannot flag, by construction). The worst case
+  is 320; S5, S7 and the S2 thresholds add none while their rules count. How often S4's and S9's passes exist is
+  unknown until the run. At 20–30 seconds a passage — an assumption, not a measurement — 160 take one to one and a
+  half hours.
+- **Cost.** 1,120 turns and 2,320 model calls: 29 calls a repetition, the pass structure the real kernel gave the
+  honest policy (S1 3, S1c 2, S2 2, S3 2, S4 6, S5 3, S6 3, S7 1, S8 3, S9 4). The basis is luna's 260 logged
+  passes over 118 turns (DEC-153, `DECISIONS.md:19698-19699`), re-parsed from the durable log, which is unchanged
+  since: per pass a median of $0.001306, a mean of $0.001598, a maximum of $0.004420. **Expected: $3.03–$3.71.**
+  DEC-153's per-turn basis — a $0.003004 median, a $0.003521 mean — gives $3.36–$3.94. **Ceiling: $19.80**, every
+  turn at the four-pass cap and every pass at the costliest logged. Search is canned and Docker local: $0.
+- **The cap that binds the run is the harness's own.** `run` refuses without `--budget-usd`; the harness keeps its
+  own ledger (`harness_budget.json` in the harness home), keyed by UTC date, so both arms run on one day share it;
+  a call is refused once the recorded spend reaches it, so the overshoot is at most one pass. The app's cap —
+  `MUTHIS_DAILY_BUDGET_USD=2` in `.env` — is below the expected cost, but the harness never reads it: its cap is
+  passed explicitly (`scripts/harness/graph.py:136`), an explicit cap outranks the env var
+  (`src/muthis/kernel/budget.py:193-196`), and the harness loads no `.env` into the environment — it reads the key
+  alone (`scripts/harness/cli.py:115-118`).
+
+---
+
+## THE STATE THIS LEAVES
+
+Sultan's brief (2026-09-28), verbatim: "THEN STOP. Before any live run, Sultan must: capture and review the four fixture screens · raise the daily budget for the run day, since his cap is below the run's expected cost · decide the reading approach — full, or a sample — BEFORE the run, because it must be pre-registered · and approve the run."
+
+- **Built and self-tested; not run live.** The brief orders `1c38f1b`, `de912a8` and `d2bebf2` pushed after this
+  entry; this entry's own commit is outside that count.
+- **Before any live run, Sultan's — and which of the four the harness enforces:** the four screens captured and
+  reviewed — enforced: `run` refuses without them · the day's budget — enforced as required; the figure is his, and
+  it is `--budget-usd` that binds (⑥) · the reading approach, full or a sample, pre-registered before the run —
+  **not enforced: no live gate checks it**, so it holds only if it is written into `prereg.json` first · the run
+  approved — his act, whose only mechanical trace is `--live`.
+- **Two notes in the tree go stale with this entry.** `scripts/harness/__init__.py:4` and `prereg.json`'s
+  `frozen_note` (`:4`) say revision 2 and the rulings are "not yet in the ledger" — true at `de912a8`, false from
+  here. This round is records only; both are corrected when the reading approach is pre-registered, which must
+  precede the run and changes the pre-registration's hash anyway.
+- **The GPT-6 comparison is blocked on ⑤.**
+
+---
