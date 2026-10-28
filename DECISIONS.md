@@ -20044,3 +20044,106 @@ Sultan's brief (2026-09-28), verbatim: "THEN STOP. Before any live run, Sultan m
 - **The GPT-6 comparison is blocked on ⑤.**
 
 ---
+
+## DEC-156 (2026-10-28) — **THREE RULINGS FOR THE PUBLICATION CRITERIA: SEARCH NEEDS NO APPROVAL AND FETCH STAYS PER CALL, ON A NEW HONEST MOUNT FACT · LOOK-ONLY STANDS FOR FILES, TWO MILESTONES RECORDED, NOT BUILT · ONE PRIORITY ORDER, HIGHEST WINS.** Two deviations recorded: the sandbox image is pinned by TAG, not by the digest DEC-3 (D) required, and nothing recorded it · the run-code schema's "staged files are READ-ONLY" has been false since DEC-9 · two counts in the brief corrected, both of them mine — RULED (Sultan), RECORDED; **NOTHING BUILT — the instruction architecture is DESIGNED on its own page, not ruled**
+
+Sultan's rulings after the publication-criteria gap report (approved in the same brief), and the two records
+that brief asked for. Records and design only: `src/` untouched, suite 2,263 green before and after. The design
+the rulings feed is the private page **https://claude.ai/artifact/HpSpzX392fMxzAZq6vjin2** ("Mut'his
+Instruction Architecture").
+
+---
+
+## ① THE RULINGS, VERBATIM
+
+> ① SEARCH needs no approval; FETCH stays per-call. Implement it TRUTHFULLY: search must not be marked read-only, because it sends the user’s query out — that would be a false mount claim. Instead, the fact your earlier report identified: a route whose destination is a configured fixed provider, never an arbitrary URL — a new, honest mount fact. Fetch keeps its gate. Report the design; do not build.
+
+> ② FILES: LOOK-ONLY STANDS, unchanged. Mut’his reads, runs in the sandbox, and reports whether it worked or failed — it never modifies anything on the user’s machine. Two later milestones are recorded, not built: kernel-side byte-exact staging of the user’s files into the sandbox, read-only — so the sandbox tests the real code rather than a re-typed copy — which the project’s own documents promised and never built · and a Mut’his-owned output folder for generated code, new files only — because Mut’his is voice-first and code cannot be spoken, so a file is the only way to deliver a Fusion or Onshape script.
+
+> ③ THE PRIORITY ORDER, highest wins: safety · truth (separate confirmed from unconfirmed; never claim unverified) · execution (do the task, don’t describe it) · visual (draw early when it adds value, never forced) · brevity (the shortest complete answer) · critique (a real problem in one line, only when material).
+
+> Also record: the sandbox image is not digest-pinned although the original ruling required it, and the deviation was never recorded · the run-code schema tells the model staged files are read-only, which is false.
+
+## ② SEARCH — WHAT THE RULING REVERSES, AND WHAT IT DOES NOT
+
+- **It rules DEC-146 ⑤**, recorded there as Sultan's preference with its costs and the caveat that decides it
+  (`DECISIONS.md:18780`). **Reversed:** DEC-15's classification of `web.search` as gated under taint
+  (`trust/high_impact.py:14`), and DEC-143's TOOL × TURN grant for search (`TURN_GRANTED_TOOLS`,
+  `trust/confirm_gate.py:144`, whose only member is `web__search`).
+- **Not reversed:** DEC-16's two-turn confirmation, which stays for fetch; and DEC-51's accepted consequence,
+  whose text names `web__fetch` and a networked sandbox run (`DECISIONS.md:3536-3537`), both still gated.
+- **Accepted with it, as DEC-146 ⑤ stated them:** every search under taint leaves with no user decision;
+  disclosure of a search becomes model-side unless the kernel takes it; and the deciding caveat — what the
+  provider then does with the query is vendor behaviour the source cannot show.
+- **The constraint, in the ruling's own terms:** search is never marked read-only. `RouteImpact(read_only_hint=True)`
+  is DEC-51's fact for a route that sends nothing, and on search it would be false. The fact the design uses
+  instead is the one DEC-143 ③'s grounds rest on: the destination is ONE provider fixed by configuration, never
+  a tool argument — which the tree already proves for the provider classes by name
+  (`tests/test_search_provider.py:514`, `:540`). The design is on the page (⑦). **Nothing is built.**
+
+## ③ FILES — LOOK-ONLY STANDS
+
+- **Unchanged:** LOOK-only (`AGENTS.md:33-39`), DEC-6, and DEC-3's sandbox-only execution (`AGENTS.md:40-46`).
+- **Milestone 1 — recorded, not built: kernel-side byte-exact staging of the user's files into the sandbox,
+  read-only.** What the documents said: "no user-file access without explicit per-run consent"
+  (`AGENTS.md:42-43`), and files copied through `FileReader`'s own gates on the raw and resolved path
+  (V2_ROADMAP §2.4, `V2_ROADMAP.md:296-298`). What was built: the model re-emits a file's text inside the call
+  (`sandbox_exec/schema.py:51-64`), so the sandbox tests a re-typed copy. DEC-9's "no bind mounts" binds the
+  mechanism this milestone may use.
+- **Milestone 2 — recorded, not built: a Mut'his-owned output folder for generated code, new files only.**
+  V2_ROADMAP §6.2 names this idea (the outbox, `~/Muthis/outbox`) a deferred constitutional amendment
+  (`V2_ROADMAP.md:493-496`), and DEC-3 (E) deferred `/work/out` retrieval past launch (`DECISIONS.md:106`).
+  **Recording the milestone is not that sign-off;** building it needs it ("only by explicit sign-off",
+  `AGENTS.md:40-46`).
+
+## ④ THE PRIORITY ORDER
+
+Safety · truth · execution · visual · brevity · critique, highest wins. It orders the designed architecture,
+in which the reading order of the composed prompt is made the order of precedence: DEC-84 measured the earlier
+rule winning, and today the laws stand in the order they were ruled (`persona_rules.py:132-134`).
+
+## ⑤ TWO DEVIATIONS, RECORDED
+
+- **The sandbox image.** DEC-3 (D) (`DECISIONS.md:105`) requires "a pre-packaged, fingerprint(sha256)-pinned
+  image"; V2_ROADMAP §2.3 names `images.lock` (sha256 digests) and §2.4 a curated `muthis/runner-python`. Built:
+  `DEFAULT_IMAGE = "python:3.12-slim"` (`sandbox_exec/runner.py:32`) — a tag. `git grep -i` for `digest`,
+  `images.lock` and `@sha256` over every tracked `.md`, `.py` and `.txt` finds no record of the deviation, and
+  `docs/reports/phase2_m1_sandbox.md` never names the image. Not checked: whether that image carries the `node`
+  and `sqlite3` the schema advertises (`schema.py:18`); the bootstrap exits 127 when an interpreter is missing
+  (`bootstrap.py:41-43`), and the durable log holds no `exit=127`. **Recorded, not fixed.**
+- **The run-code schema.** `sandbox_exec/schema.py:33-35` ("Staged files are READ-ONLY; /work is the only
+  writable directory … to modify an input copy it into /work first") and `:54` ("staged READ-ONLY") have been
+  false since DEC-9: `bootstrap.py:32-34` writes every staged file into `/work`, the tmpfs mounted read-write
+  (`docker_cmd.py:22`), as the container's own user — the outcome DEC-8's T2 finding foresaw, "DEC-8's
+  'read-only inputs' property becomes UNENFORCEABLE" (`DECISIONS.md:250`). Byte-pinned in
+  `tests/snapshots/look_tools_v2.json` through `v8.json`. Harmless in effect: a model that obeys copies a file to
+  where it already is. Model-facing, so not changed (DEC-139's no-change ruling, scoped by DEC-140 ①).
+  **Recorded, not fixed;** the page carries a replacement for a catalogue v9.
+
+## ⑥ PREMISES CHECKED — TWO COUNTS CORRECTED, BOTH MINE
+
+- **"The 40–60-word cap stated three times": five clauses, in three places** — C018 (`persona_rules.py:58-59`),
+  C027 (`:91-94`), C034 (`:115`), C036 (`:117-118`), C037 (`:120-121`). My report counted the verbosity block
+  once.
+- **"'No preamble, no ack' stated four times": twelve statements** — seven clauses, C017
+  (`persona_rules.py:52`), C018 (`:59-61`), C027 (`:93-94`), C038 (`:122-124`), C063 (`persona_laws.py:161-163`),
+  C064 (`:164-166`), C074 (`:228-230`); and five kernel notes, `ACK_SCOPE_AR` (`kernel/ack_scope.py:56-60`),
+  `HIGHLIGHT_ACK_TEXT_AR` (`kernel/highlight_gate.py:64-72`), `HIGHLIGHT_ALREADY_SHOWN_AR` (`:76-79`),
+  `SHAPES_ACK_TEXT_AR` (`:82-88`), `SHAPES_ALREADY_SHOWN_AR` (`:89-92`). The four I reported were four of these.
+- **"Recorded three times and never fixed" (the inject surface): held** — seen at three triggers, DEC-95,
+  DEC-133 and DEC-134 ("a third unrelated trigger", `DECISIONS.md:16231`), and deferred at DEC-96;
+  `FULL_HEADER_AR` (`doc_rag/plugin.py:78-81`) is unchanged since `cb914a8` (2026-07-30).
+- **Held as stated:** the persona's prefix-hash proofs (ten anchors from 6,850 to 14,822 chars, plus DEC-84's
+  delta pin); 29 of 151 logged turns tool-free and single-pass; no path returns a modified file, and staging is
+  the model re-typing; C047's missing exception (DEC-145 ③, `DECISIONS.md:18506`).
+
+## THE STATE THIS LEAVES
+
+- **Ruled and recorded:** ①, ②, ③ and the two deviations. **Nothing built;** `src/` untouched.
+- **Designed, not ruled:** the canonical instruction architecture on the page — six tiers, a scope on every
+  law, 106 clauses and 130 notes each given one fate, the manifest proof mechanism, the search mount fact and
+  what dies with it, the size estimate and the test plan. Its open decisions are listed at its end.
+- **Next, and Sultan's:** the review of that page. The behaviour harness still waits for a revised instruction
+  set, then runs once: old, old again, new.
+
+---
