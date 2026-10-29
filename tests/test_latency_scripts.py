@@ -9,7 +9,10 @@ split is computed from httpcore's trace marks; every reasoner call gets an image
 other call sent, lossless WebP keeps every pixel and JPEG does not; WebP is named
 for what it is; the number test's table is what it claims (digits, Arabic-Indic
 digits, words); and a TTS generation counts what it sends and sends the end of
-stream only after the first audio.
+stream only after the first audio. Added with the eleven_v4_turbo probe and the
+transcripts command: each round's shares fit that round's caps; the model override
+changes the URI and nothing else; a refused handshake keeps the provider's reason
+and bills nothing; and the transcripts record keeps no words.
 """
 
 from __future__ import annotations
@@ -47,8 +50,15 @@ numbers = _load("tts_numbers_ab")
 # ─── Spend ────────────────────────────────────────────────────────────────────
 
 def test_the_shares_fit_inside_the_brief_caps():
-    assert sum(usd for usd, _ in lc.SHARES.values()) <= 0.50
-    assert sum(chars for _, chars in lc.SHARES.values()) <= 15_000
+    dec160 = [lc.SHARES[s] for s in lc.ROUNDS["DEC-160"][1]]
+    assert sum(usd for usd, _ in dec160) <= 0.50
+    assert sum(chars for _, chars in dec160) <= 15_000
+    for (usd_cap, chars_cap), shares in lc.ROUNDS.values():
+        assert sum(lc.SHARES[s][0] for s in shares) <= usd_cap
+        assert sum(lc.SHARES[s][1] for s in shares) <= chars_cap
+    assert lc.SHARES["v4_turbo"][1] <= 6_000
+    owned = [s for _, shares in lc.ROUNDS.values() for s in shares]
+    assert sorted(owned) == sorted(lc.SHARES), "every share belongs to exactly one round"
 
 
 def test_a_call_that_would_cross_its_share_is_refused_before_it_is_made():
@@ -187,6 +197,43 @@ def test_a_generation_counts_what_it_sends_and_ends_the_stream_after_the_first_a
     assert sock.sent[1]["flush"] and sock.sent[1]["try_trigger_generation"]
     assert row["error"] is None and round(row["first_chunk_ms_of_audio"]) == 100
     assert "key" not in json.dumps(row)
+
+
+def test_the_model_override_changes_the_uri_and_nothing_else():
+    assert "model_id=eleven_flash_v2_5&" in lc.tts_uri("v")
+    v4 = lc.tts_uri("v", extra="&language_code=ar", model=lc.V4_TURBO)
+    assert v4 == lc.tts_uri("v", extra="&language_code=ar").replace("eleven_flash_v2_5", "eleven_v4_turbo")
+
+
+def test_a_refused_handshake_keeps_the_providers_reason_and_bills_nothing(monkeypatch):
+    import websockets
+
+    class Refused(Exception):
+        response = type("R", (), {"body": b'{"detail":{"code":"unsupported_model"}}'})()
+
+    def refuse(*a, **k):
+        raise Refused("HTTP 400")
+    monkeypatch.setattr(websockets, "connect", refuse)
+    row = asyncio.run(lc.tts_generate("key", "wss://x", "مرحبا"))
+    assert row["chars_sent"] == 0 and "unsupported_model" in row["rejected"]
+    assert row["error"].startswith("Refused") and "key" not in json.dumps(row)
+
+
+def test_the_transcripts_record_keeps_no_words(monkeypatch, tmp_path):
+    """`transcripts` PRINTS the words (authorised for B0's scripted clips); its record
+    file keeps classes and ratios only."""
+    async def fake(*args, keep_text=False):
+        return {"match": "miss", "error": None, "text": SECRET if keep_text else None}
+    monkeypatch.setattr(stt, "clips", lambda: [("search", "وش آخر إصدار", b"wav", b"pcm", 1.0)])
+    monkeypatch.setattr(stt, "batch", fake)
+    monkeypatch.setattr(stt, "realtime", fake)
+    monkeypatch.setattr(lc, "key", lambda name: "k")
+    monkeypatch.setattr(lc, "log_guard", lambda: {})
+    monkeypatch.setattr(lc, "log_changes", lambda before: [])
+    monkeypatch.setattr(lc, "results_dir", lambda kind: tmp_path)
+    assert asyncio.run(stt.transcripts()) == 0
+    record = (tmp_path / "transcripts.json").read_text(encoding="utf-8")
+    assert SECRET not in record and '"match": "miss"' in record
 
 
 def test_results_never_land_inside_the_repository():

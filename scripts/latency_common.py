@@ -14,6 +14,8 @@ THE CAPS ARE THE BRIEF'S, SPLIT IN ADVANCE (DEC-160): $0.50 of provider spend an
 15,000 ElevenLabs characters across every measurement of the round. Each script
 holds its own SHARE, and a call is refused BEFORE it is made when its worst case
 would cross the share — so the round can stop short, and can never overspend.
+A later round adds its own caps to ROUNDS and its shares beside them: the
+eleven_v4_turbo probe (6,000 characters) and the B0 transcripts.
 """
 
 from __future__ import annotations
@@ -39,8 +41,16 @@ SHARES = {  # usd, ElevenLabs characters — sums: $0.49 ≤ $0.50, 4,200 ≤ 15
     "stt": (0.05, 0),
     "voice_start": (0.16, 4_000),
     "numbers_probe": (0.01, 200),
+    "v4_turbo": (0.24, 6_000),            # the eleven_v4_turbo round: its own 6,000-character STOP
+    "transcripts": (0.01, 0),             # one realtime + one batch transcription per B0 clip
 }
-TTS_USD_PER_CHAR = 0.04 / 1000            # Flash/Turbo v2.5, ElevenLabs API pricing 2026-10-29
+ROUNDS = {  # each round's caps, and the shares split from them in advance
+    "DEC-160": ((0.50, 15_000), ("reasoner", "stt", "voice_start", "numbers_probe")),
+    "v4_turbo": ((0.24, 6_000), ("v4_turbo",)),
+    "transcripts": ((0.01, 0), ("transcripts",)),
+}
+TTS_USD_PER_CHAR = 0.04 / 1000            # Flash/Turbo v2.5 AND v4 Turbo: ElevenLabs API pricing 2026-10-29
+V4_TURBO = "eleven_v4_turbo"              # documented on the Text to Dialogue websocket only (models page)
 
 
 def console() -> None:
@@ -118,9 +128,10 @@ def log_changes(before: dict) -> list:
 
 # ─── ONE ElevenLabs generation, timed at the provider (no player, no device) ────
 
-def tts_uri(voice_id: str, *, extra: str = "") -> str:
+def tts_uri(voice_id: str, *, extra: str = "", model: str | None = None) -> str:
+    """The app's stream-input URI; `model` overrides the app's model in this process only."""
     from muthis.tts_elevenlabs import build_uri, DEFAULT_MODEL_ID, DEFAULT_OUTPUT_FORMAT
-    return build_uri(voice_id, DEFAULT_MODEL_ID, DEFAULT_OUTPUT_FORMAT) + extra
+    return build_uri(voice_id, model or DEFAULT_MODEL_ID, DEFAULT_OUTPUT_FORMAT) + extra
 
 
 async def tts_generate(api_key: str, uri: str, text: str, *, schedule=(90, 160, 250, 290),
@@ -165,6 +176,9 @@ async def tts_generate(api_key: str, uri: str, text: str, *, schedule=(90, 160, 
             out["close"] = {"code": ws.close_code, "reason": (ws.close_reason or "")[:120]}
     except Exception as exc:  # noqa: BLE001 — recorded by type, the run continues
         out["error"] = out["error"] or f"{type(exc).__name__}:{str(exc)[:120]}"
+        body = getattr(getattr(exc, "response", None), "body", None)
+        if body:   # a refused handshake: the provider's own validation message, never the key
+            out["rejected"] = body[:300].decode("utf-8", "replace")
     out["audio_ms"] = len(pcm) / (22050 * 2) * 1000
     if keep_audio:
         out["pcm"] = bytes(pcm)

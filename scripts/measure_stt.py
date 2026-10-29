@@ -19,6 +19,15 @@ when difflib's ratio is ≥ NEAR (fixed before any run), `miss` below it, `empty
 `failed` otherwise. Nothing else about the words is printed or stored.
 Sultan authorised sending these clips; DEC-159 ⑦ records the provider's default
 retention, the same on both paths (neither sends `enable_logging`).
+
+    .venv\\Scripts\\python.exe scripts\\measure_stt.py transcripts
+
+TRANSCRIPTS — the one exception to "never text", and only on the CONSOLE. The four
+clips are scripted test phrases Sultan recorded for this purpose, and he authorised
+printing their transcripts to explain the realtime miss on the search clip. One
+realtime and one batch transcription per clip; each is printed beside the phrase,
+with both normalised forms and the tokens that differ. The record file keeps the
+classes and ratios, never the words.
 """
 
 from __future__ import annotations
@@ -70,7 +79,7 @@ def clips() -> list[tuple[str, str, bytes, bytes, float]]:
     return out
 
 
-async def realtime(api_key: str, pcm: bytes, phrase: str) -> dict:
+async def realtime(api_key: str, pcm: bytes, phrase: str, keep_text: bool = False) -> dict:
     import websockets
     row: dict = {"path": "realtime", "error": None}
     step = int(16000 * 2 * CHUNK_S)
@@ -115,10 +124,12 @@ async def realtime(api_key: str, pcm: bytes, phrase: str) -> dict:
         row["error"] = row["error"] or type(exc).__name__
     row["session_s"] = time.perf_counter() - started
     row["match"] = match(text, phrase) if not row["error"] else "failed"
+    if keep_text:          # `transcripts` only: printed to the console, never written
+        row["text"] = text
     return row
 
 
-async def batch(api_key: str, wav: bytes, phrase: str) -> dict:
+async def batch(api_key: str, wav: bytes, phrase: str, keep_text: bool = False) -> dict:
     from muthis.stt import STT
     row: dict = {"path": "batch", "error": None}
     started = time.perf_counter()
@@ -130,7 +141,46 @@ async def batch(api_key: str, wav: bytes, phrase: str) -> dict:
         row["error"] = {"type": type(exc).__name__, "status": getattr(response, "status_code", None)}
     row["request_to_text_ms"] = (time.perf_counter() - started) * 1000
     row["match"] = match(text, phrase) if not row["error"] else "failed"
+    if keep_text:
+        row["text"] = text
     return row
+
+
+def ratio(transcript: str | None, phrase: str) -> float:
+    from muthis.kernel.verbosity import normalize_ar
+    return round(difflib.SequenceMatcher(None, normalize_ar(transcript or ""), normalize_ar(phrase)).ratio(), 3)
+
+
+async def transcripts() -> int:
+    """One batch + one realtime transcription per clip, PRINTED; the record keeps no words."""
+    from muthis.kernel.verbosity import normalize_ar
+    lc.console()
+    api_key, material, kept = lc.key("ELEVENLABS_API_KEY"), clips(), []
+    spend, before, folder = lc.Spend("transcripts"), lc.log_guard(), lc.results_dir("stt-transcripts")
+    for scenario, phrase, wav, pcm, seconds in material:
+        said = normalize_ar(phrase)
+        print(f"\n=== {scenario} ({seconds:.2f} s of audio)\n  phrase        {phrase}\n  phrase, norm  {said}")
+        for path in ("batch", "realtime"):
+            spend.allow(usd=(seconds + 5.0) * USD_PER_HOUR[path] / 3600)
+            row = await (batch(api_key, wav, phrase, keep_text=True) if path == "batch"
+                         else realtime(api_key, pcm, phrase, keep_text=True))
+            spend.add(usd=row.get("session_s", seconds) * USD_PER_HOUR[path] / 3600)
+            text = row.pop("text", None)
+            heard = normalize_ar(text or "")
+            print(f"  {path:13} {text!r}\n  {path + ', norm':13} {heard}\n"
+                  f"  {'':13} class {row['match']} · ratio {ratio(text, phrase)} · heard, not said "
+                  f"{[t for t in heard.split() if t not in said.split()]} · said, not heard "
+                  f"{[t for t in said.split() if t not in heard.split()]} · Latin letters "
+                  f"{any('a' <= c.lower() <= 'z' for c in text or '')}"
+                  f"{'  ERROR ' + str(row['error']) if row['error'] else ''}")
+            kept.append({"scenario": scenario, "path": path, "match": row["match"],
+                         "ratio": ratio(text, phrase), "error": row["error"]})
+    out = lc.write(folder, "transcripts.json", {
+        "schema": "stt-transcripts/1", "created_utc": lc.utc_stamp(), "rows": kept,
+        "note": "transcripts were printed to the console only; no words are stored here",
+        "spend": spend.as_dict(), "durable_log_changes": lc.log_changes(before)})
+    print(f"\nspend ${spend.usd:.4f}; record {out}")
+    return 0
 
 
 def plan() -> dict:
@@ -183,4 +233,5 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["plan"]:
         print(json.dumps(plan(), indent=1))
         sys.exit(0)
-    sys.exit(asyncio.run(run()) if sys.argv[1:] == ["run"] else print(__doc__) or 2)
+    runner = {"run": run, "transcripts": transcripts}.get(sys.argv[1] if sys.argv[1:] else "")
+    sys.exit(asyncio.run(runner()) if runner else print(__doc__) or 2)

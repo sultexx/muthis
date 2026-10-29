@@ -16,6 +16,14 @@ VARIANTS, ten runs each, round-robin:
              that long before B0's first feed
 The same fixed sentence every run, diacritized as the app sends it; the app's
 voice (ELEVENLABS_VOICE_ID) and default settings (`.env` carries no override).
+
+    .venv\\Scripts\\python.exe scripts\\measure_voice_start.py probe   ONE eleven_v4_turbo call
+
+THE eleven_v4_turbo PROBE (its own 6,000-character share, `latency_common.ROUNDS`):
+ElevenLabs documents v4 Turbo on the Text to Dialogue websocket only. The probe asks
+the app's stream-input endpoint once, with `language_code=ar`; a variant is added
+here only if it is accepted. On 2026-10-29 it was REFUSED at the handshake (HTTP 400
+`unsupported_model`), before any text was sent, so it cost no characters.
 """
 
 from __future__ import annotations
@@ -46,6 +54,25 @@ def plan() -> dict:
     return {"variants": [f"{s}/{k}" for s in SETTINGS for k in SOCKETS], "runs": RUNS,
             "calls": calls, "chars_per_call": chars_per_call(), "projected_chars": chars,
             "projected_usd": round(chars * lc.TTS_USD_PER_CHAR, 4), "share": lc.SHARES["voice_start"]}
+
+
+async def probe() -> int:
+    """ONE call: eleven_v4_turbo with language_code=ar on the app's stream-input endpoint."""
+    lc.console()
+    api_key, voice = lc.key("ELEVENLABS_API_KEY"), lc.key("ELEVENLABS_VOICE_ID")
+    spend, before, folder = lc.Spend("v4_turbo"), lc.log_guard(), lc.results_dir("v4-probe")
+    spend.allow(usd=chars_per_call() * lc.TTS_USD_PER_CHAR, chars=chars_per_call())
+    row = await lc.tts_generate(api_key, lc.tts_uri(voice, extra="&language_code=ar", model=lc.V4_TURBO),
+                                SENTENCE)
+    spend.add(usd=row["chars_sent"] * lc.TTS_USD_PER_CHAR, chars=row["chars_sent"])
+    verdict = {"model": lc.V4_TURBO, "uri_extra": "&language_code=ar",
+               "accepted": not row["error"] and row["audio_ms"] > 0,
+               **{k: row.get(k) for k in ("error", "rejected", "close", "first_audio_ms", "chars_sent")}}
+    out = lc.write(folder, "probe.json", {"schema": "v4-probe/1", "created_utc": lc.utc_stamp(),
+                                          "verdict": verdict, "spend": spend.as_dict(),
+                                          "durable_log_changes": lc.log_changes(before)})
+    print(json.dumps(verdict, ensure_ascii=False, indent=1) + f"\nrecord {out}")
+    return 0
 
 
 async def run() -> int:
@@ -86,4 +113,5 @@ if __name__ == "__main__":
     if sys.argv[1:] == ["plan"]:
         print(json.dumps(plan(), indent=1))
         sys.exit(0)
-    sys.exit(asyncio.run(run()) if sys.argv[1:] == ["run"] else print(__doc__) or 2)
+    runner = {"run": run, "probe": probe}.get(sys.argv[1] if sys.argv[1:] else "")
+    sys.exit(asyncio.run(runner()) if runner else print(__doc__) or 2)

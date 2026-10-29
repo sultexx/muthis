@@ -15,6 +15,9 @@ ARMS — the text and the URI are the only things that change:
   C  a kernel normalizer: the same sentences with the numbers written in WORDS
      (hand-written below — Sultan reviews that column with `plan` before running)
   D  `language_code=ar`, on the same digits
+  (E  `eleven_v4_turbo` is NOT an arm: the app's stream-input endpoint refuses the
+     model at the handshake, HTTP 400 `unsupported_model`, and ElevenLabs documents
+     it on the Text to Dialogue websocket only — `measure_voice_start.py probe`.)
 Each item is generated TWICE (the provider is not deterministic). Every take is
 then played once, in one random order, with its written reference on screen and its
 arm hidden: 1 correct · 2 understandable but off · 3 garbled (r replays). Only then
