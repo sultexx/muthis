@@ -20278,3 +20278,77 @@ and the priority order (DEC-156 ③).
 - **Next round:** B0, once Sultan has recorded the four clips.
 
 ---
+
+## DEC-158 (2026-10-29) — **THE DRAW-BEFORE-SPEECH RULE STAYS UNTIL B0 IS MEASURED; THEN THREE ALTERNATIVES ARE COMPARED ON B0's DATA AND THE RULE IS DECIDED BEFORE THE NEW LAWS ARE WRITTEN.** Its pure cost is the first_token → first_audio gap on a tool-free turn, reported per scenario · evidence from a pointing-only application does not transfer by itself · the voice instrument's dry run PASSED and the six commits are pushed — RULED (Sultan), RECORDED; **NOTHING of the rule is changed**
+
+Sultan's ruling after the voice instrument's build, which the same brief approved. Recorded before B0
+runs, so the comparison it orders is fixed before any of its data exists. `src/` untouched by this
+commit.
+
+---
+
+## ① THE RULING, VERBATIM
+
+**The approval:** "The build is APPROVED. The equivalence proof is the model for any future change to the
+start path: the old run and the new build-and-serve pair making the same 56 calls in the same order with
+the same arguments — and the check proven able to see a difference, by swapping two shutdown lines and by
+giving the microphone an argument. Catching the scanner’s own control as a false hit is the same discipline
+turned on the safety tool itself. And holding the push until the dry run validates the instrument was the
+right order — the refusal firing in 0.48 s against the running app, touching nothing, is the isolation
+guard proven live."
+
+**The ruling:** "the draw-before-speech rule STAYS until B0 is measured. Then the alternatives — keep it ·
+stream at once and treat already-spoken text as the ack if a tool call follows · speak alongside the pointer
+— are compared on B0’s data, and the rule is decided BEFORE the new laws are written. It is not changed
+because another project does otherwise: Mut’his has search, code execution and document tools, so evidence
+from a pointing-only application does not transfer by itself."
+
+**The measurement:** "The measurement that decides it: on a tool-free turn, the gap between first_token and
+first_audio is the rule’s pure cost — paid on turns that never draw, because the kernel buffers in case a
+draw comes. B0 must report that gap per scenario."
+
+## ② WHAT THE RULE IS IN THE TREE, AND WHAT THE GAP CONTAINS
+
+- **The rule** is two rulings working together. Decision 13: a pass streams to the voice ONLY when its
+  `tool_choice` is `"none"` (`kernel/turn_pass.py:172-177`), because only there can no draw arrive
+  mid-stream. Option A: every `"auto"` pass is buffered whole, and at its sync point the ONE buffered draw
+  is applied and THEN the text is handed to the voice (`:257-269`). A tool-free single-pass turn is an
+  `"auto"` pass, so its whole reply waits for the pass to end before any of it is spoken.
+- **The gap, as ruled:** `first_audio − first_token`, both on the instrument's clock (`turn_timing.py`,
+  milliseconds since the F9 release), per repetition, summarised per scenario.
+- **What it contains — a fact recorded with the ruling, not a change to it:** the rest of the pass's
+  generation after its first token, PLUS the voice's own time to first audio once it is handed the text.
+  The second part is paid by every alternative, so the gap is an UPPER bound on the rule's cost. B0 also
+  records the pass's end — the `[budget] recorded` line that `record_turn` writes before the sync point
+  (`kernel/turn_pass.py:256`) — so the gap splits into its two parts with no change to `src/`.
+
+## ③ PREMISES CHECKED
+
+- "Mut’his has search, code execution and document tools": held — the twelve-tool catalogue the model is
+  handed includes `web__search`, `web__fetch`, `sandbox__run_code`, `docs__open` and `docs__query`.
+- "the refusal firing in 0.48 s against the running app": held — the child refused at 481 ms by the driver's
+  clock, naming pids 16680 and 17308.
+- **Not held as stated, from the same brief:** "both the search announcement and streaming land" in
+  `turn_pass.py`. Streaming does: the gate is `turn_pass.py:177`. The announcement, fed BEFORE the search
+  call (DEC-157 ③), lands where that call is made — `router.service` inside `service_pass_calls`
+  (`kernel/pass_servicing.py:163`), the module that already feeds the kernel's spoken confirm request
+  (`:215-228`); `pass_servicing.py` is 233 lines and unpinned.
+
+## ④ THE DRY RUN, AND THE PUSH
+
+With the real app closed, the driver ran the 0.2 s silent clip once. The child built the real app (luna,
+`gpt-5.6-luna`; Tavily; Docker live), pressed F9 through the built controller, released it after 0.20 s;
+the mic returned an empty capture (below the 0.35 s floor); Scribe answered the header-only WAV with 400, so
+the transcript was empty and the turn ended BEFORE any reasoner call — no `[pass]` and no `[budget]` line;
+the kernel spoke its 32-character empty-transcript sentence; `[timing] first_audio +4470 ms`; the turn ended
+and the app shut down. Exit 0. The durable log UNCHANGED by content, `budget.json` byte-identical, the record
+outside the repository with no transcript in it. Then the pre-push scan (control 12/12; one distinct value,
+the canary) and the push: origin `main` `cc8bfc8 → d5d825f`, confirmed by `git ls-remote`.
+
+## THE STATE THIS LEAVES
+
+- **Ruled and recorded:** the rule stays; the three alternatives wait for B0; the gap is the measure.
+- **Next, Sultan's:** record the four clips, then run B0 with the guided command (this round's next commit).
+- **Next, mine:** the analysis of B0, per scenario, with the gap split as above.
+
+---
