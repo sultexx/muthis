@@ -20613,3 +20613,278 @@ The repetition-1 cold run: first_audio 6,012, gap 1,049.
 - **Next:** the instruction rebuild's shadow step.
 
 ---
+
+## DEC-160 (2026-10-29) — **SULTAN'S SPEED REQUIREMENT: THE FIRST SPOKEN WORD WITHIN ABOUT 1.5–2 s, MOST REPLIES SHORT, LONG ONLY ON THE USER'S EXPLICIT REQUEST — AND THE PRINCIPLE THAT RESOLVES SPEED AGAINST ACCURACY: FAST AND SHORT BY DEFAULT, DEEP AND LONG WHEN THE USER SAYS SO, DETECTED STRUCTURALLY.** Sultan's stage estimates recorded AS ESTIMATES, with three standalone measurements beside them · lighter default reasoning is NOT adopted until the behaviour harness measures its quality cost · the code-path defect enters the first behaviour batch — RULED (Sultan), RECORDED; **`src/` untouched: the measurements are scripts, outside the app and the durable log**
+
+Sultan approved DEC-159's round and accepted its five corrections. This entry records his new
+requirement, his feasibility estimates as estimates, and the principle, then the measurements that
+replace the estimates where a measurement could.
+
+---
+
+## ① THE REQUIREMENT, VERBATIM
+
+> "the first spoken word of a reply within about 1.5–2 s; most replies short; long replies only when
+> the user explicitly asks, e.g. «خذ وقتك»."
+
+## ② SULTAN'S FEASIBILITY ANALYSIS — RECORDED AS ESTIMATES, TO BE REPLACED BY MEASUREMENT
+
+> "transcription ~1.6 → ~0.4 s with realtime streaming · capture ~0.24 → ~0 in parallel · reasoner ~3.5
+> → ~1.0 s with a lighter request and lighter default reasoning · buffering ~0.29 → ~0.15 s with shorter
+> answers · voice start ~0.7 → ~0.35 s with a pre-opened socket and lower-latency streaming settings.
+> About 2 s for a simple turn in the best case; 1.5 s at the edge, needing the reasoner under ~0.7 s."
+
+## ③ THE PRINCIPLE, VERBATIM
+
+> "fast and short by default; deep and long on the user’s explicit request. The kernel does not guess a
+> question’s difficulty — the no-interpretation rule forbids it — the user states it with a fixed phrase
+> the kernel detects structurally. The existing spoken verbosity commands are the precedent. Lighter
+> default reasoning is NOT adopted until the behaviour harness measures its quality cost, since DEC-98
+> declined medium on quality."
+
+## ④ THE CODE-PATH DEFECT — INTO THE FIRST BEHAVIOUR BATCH
+
+Sultan's characterisation of DEC-159 ⑤'s diagnosis, recorded with it: a mandatory read in the persona
+(`persona_rules.py:100-104`), a tool schema that asks for an absolute path and models one on a user
+folder (`muthis_plugins/file_read/schema.py:16-31`), a VS Code tab that shows only a file name, and a
+not-found note that orders the model to ask the user (`file_reader_notes.py:51-56`) — three texts and
+one screen fact, each reasonable alone, that combine into "give me the path" with the code on screen.
+
+## ⑤ THE THREE MEASUREMENTS — standalone, ten runs per variant, median (min–max)
+
+**How they were run.**
+- **Five scripts** under `scripts/`, inside the no-durable-log guard (`d4ca999`). The three
+  measurements each snapshotted `~/.muthis/logs` before and after, and none found a change. The probe's
+  two calls ran without a snapshot, a gap closed in the next commit. The log's last write, 10:01:38Z,
+  precedes both B0 and the probe.
+- **Results** are in `~/Desktop/muthis_voice/results/`, outside the repository.
+- **Projected before any call:**
+  - (A) $0.17 expected
+  - (B) $0.033
+  - (C) 3,600 characters, $0.144
+  - the probe, under $0.01
+- **Spent:**
+  - (A) $0.0414, from the API's own usage
+  - (B) $0.0246, estimated from the published hourly rates
+  - (C) 3,600 characters, $0.144
+  - the probe, 58 characters, $0.0023
+  - **Total:** $0.212 and 3,658 ElevenLabs characters, against the $0.50 and 15,000 caps.
+
+**(A) THE REASONER IN APP SHAPE** (`measure_reasoner.py`):
+- **The setup:**
+  - the real `LunaAgent`, the production persona and the pinned v8 catalogue;
+  - the app's downscale of DEC-98's desktop shot to 1280×720;
+  - B0's tool-free phrase;
+  - a NEW connection per run.
+- **The split** comes from httpcore's trace extension on the agent's `http_client` seam.
+- **The request.** Every request was 8,951 input tokens; from the second call on, 7,831 of them are the
+  cached instructions and tools. The PNG frame is 414,820 bytes, in a 594,441-byte body.
+- **Accepted efforts:** `none`, `low`, `medium`, `high`, `xhigh` and `max`. `minimal` is refused (400
+  `unsupported_value`, `reasoning.effort`).
+- **Every reply's first event was text.**
+
+The table gives repetitions 2–10, ms. Repetition 1 of every variant paid the provider's cache write.
+
+| variant | first token | server | stream | connect |
+|---|---|---|---|---|
+| `high` · PNG, fresh image (today) | 2,562 (1,741–4,222) | 1,536 | 665 | 111 |
+| `none` | 2,267 (1,905–2,934) | 1,792 | 353 | 133 |
+| `low` | 2,605 (1,798–3,064) | 1,679 | 597 | 134 |
+| `medium` | 2,475 (1,883–3,287) | 1,589 | 782 | 130 |
+| `xhigh` | 3,524 (2,138–5,605) | 1,683 | 1,076 | 121 |
+| `max` | 3,455 (2,585–6,970) | 1,744 | 1,587 | 154 |
+| `high` · the SAME image every run (control) | 1,993 (1,766–2,363) | 1,604 | 355 | 128 |
+| `high` · lossless WebP | 2,012 (1,602–3,507) | 1,588 | 224 | 127 |
+| `high` · JPEG q90 | 1,774 (1,458–3,177) | 1,168 | 422 | 123 |
+
+**Build** is 4–6 ms on every call but one: the FIRST call of the process took **736 ms**.
+
+**What the table settles:**
+- **Effort barely moves the first token.**
+  - `none` is 295 ms faster than `high`.
+  - `low` and `medium` are within the spread of `high`.
+  - `xhigh` and `max` cost about a second.
+  - The server phase — the body written until the response headers — is 1.5–1.8 s for EVERY effort.
+    Effort reaches only the stream phase after it.
+- **A cached image saves about 0.57 s.** It is the same-image control against a fresh one, so it is an
+  unchanged screen, not a lever.
+- **The formats must be read against the control, not against fresh PNG.**
+  - From the second call on, the provider's cache treated the one-pixel-changed WebP and JPEG images as
+    already seen (8,948 cached tokens). It never did so for the PNG ones (7,831).
+  - **Against the control, lossless WebP gains nothing.** It encodes in 240 ms against PNG's 23.
+  - **Against the control, JPEG q90 is 219 ms faster**, with a body of 231,098 bytes instead of 594,437.
+  - JPEG changes pixels, so it is not adoptable before the pointing measurement.
+- **Where the server phase goes, DERIVED.**
+  - Assuming upload time is linear in body size, JPEG's 363,339 smaller bytes and 436 ms shorter server
+    phase give about 1.23 ms per KB.
+  - That makes about **713 ms of PNG upload**, and about **891 ms of provider time before the response
+    headers**.
+  - The derivation stands on one pair of variants at n = 9.
+- **B0's 3,542 ms is NOT the reasoner a long-running app sees.**
+  - Every B0 repetition was a fresh process, and a fresh process's first call pays the SDK's one-time
+    setup: 736 ms here.
+  - An app pays that on its first turn only.
+  - httpx keeps an idle connection 5.0 s (`Limits(keepalive_expiry=5.0)`, httpx 0.28.1). The app warms
+    TLS once, at startup (`main.py:182`), so in normal use every turn after a pause opens a new
+    connection: 111–154 ms.
+
+**(B) REALTIME TRANSCRIPTION** (`measure_stt.py`):
+- **The setup:**
+  - B0's four clips through `scribe_v2_realtime`, `language_code=ar`, manual commit;
+  - paced in 100 ms chunks on the clock;
+  - against the app's own batch request (`stt.STT._scribe_request`, a new connection per call,
+    `stt.py:91`).
+- **Realtime:** end of audio to committed transcript in **304 ms (236–680)** over all 40 runs.
+  - The socket opens in about 628 ms (555–1,377), which in the app would happen while F9 is held.
+  - The first partial came about 2.3 s after the audio began.
+- **Batch:** the request to the text in **1,461 ms (1,197–3,050)**.
+- **Match classes:**
+  - **Equal on three clips:** match on 10 of 10 for both paths.
+  - **The search clip:** batch "near" on 10 of 10, realtime "miss" on 10 of 10.
+  - By the brief's rule nothing beyond the class was printed or kept, so why realtime misses that
+    phrase is not known. **It is a precondition before realtime can be adopted.**
+- **No failed or empty transcription on either path in 80 runs** — B0 had 2 of 24.
+
+**(C) VOICE START** (`measure_voice_start.py`):
+- **What was measured:** text sent to first audio frame on `eleven_flash_v2_5`, at the provider only.
+- **The setup:** one 58-character sentence, sent as the app sends a complete reply (with flush and
+  try_trigger_generation).
+
+| variant | pre-opened (idle 4 s) | cold: text → audio | cold: connect |
+|---|---|---|---|
+| today's settings | **348 (316–434)** | 448 | 505 |
+| `auto_mode=true` | 414 | 539 | 509 |
+| first chunk 50 | 339 (312–385) | 455 | 523 |
+
+- **The app ALREADY pre-opens the socket at turn start** (`kernel/orchestrator.py:199`), about 4 s
+  before B0's first feed. Today's voice start at the provider is therefore about 0.35 s, which is
+  Sultan's target.
+- **The rest of B0's 722 ms — about 374 ms — is spent inside the app** between the pass end and the
+  first chunk reaching the device. That covers the budget write, the overlay and caption calls, the
+  send, the reader and the player queue. The `first_audio` stamp is taken before the device write
+  (`tts_ws_player.py:162-164`), so a blocking write is not in it. Splitting it needs `src/` stamps (⑧).
+- **`auto_mode` is slower.** Its first chunk is also 997 ms of audio against 481.
+- **The smaller first chunk is inert:** 9 ms, inside the spread, because the reply is flushed.
+
+**THE BY-EAR NUMBER TEST** (`tts_numbers_ab.py`):
+- **Built for Sultan** to run with `run`, about 4,266 characters.
+- **Arms:** A (as written), C (in words) and D (`language_code=ar`) are always in. B
+  (`apply_text_normalization=on`) depended on its probe.
+- **The probe accepted both B and D:** audio came back with no error.
+  - Accepted is not applied. ElevenLabs' models page says normalization is off by default on Flash v2.5
+    and enterprise-only to enable.
+  - Whether B changes anything is the ear's to say.
+- **Before running:** Sultan reviews the words column with `plan`.
+
+## ⑥ THE STAGE BUDGET — MEASURED IN PLACE OF THE ESTIMATES (tool-free turn, ms)
+
+| stage | B0 in app | Sultan's estimate | measured, standalone |
+|---|---|---|---|
+| transcription | 1,560 | ~400 | realtime **304** after the audio, plus the app's own release-to-request time, unmeasured — B0's 1,560 against this round's 1,361 (same clip, batch) puts it near 200 — ≈ **500** |
+| capture | 243 | ~0 in parallel | not measured — today it runs AFTER the transcript (`orchestrator.py:154`, then `:239`); 243 < 500, so in parallel it hides |
+| reasoner | 3,542 | ~1,000 | **2,562** today's request · 2,451 on a reused connection · 2,267 at `none` · 1,774 JPEG on a cached image |
+| buffering | 291 | ~150 | not measured |
+| voice start | 722 | ~350 | **348 at the provider** + ~374 in the app, unmeasured |
+
+**WHICH COMBINATION REACHES ABOUT 2 s — NONE MEASURED HERE.** These are sums of medians, not a measured
+turn.
+
+1. **Adoptable without a quality question:**
+   - **The levers:** realtime transcription once its search-clip miss is explained, the capture in
+     parallel, a reused connection, and the SDK warmed.
+   - **The sum:** 500 + 0 + 2,451 + 291 + 722 ≈ **4.0 s**.
+2. **The app's ~374 ms voice remainder also removed:** ≈ **3.6 s**.
+3. **Effort `none` and JPEG together, at 150 ms buffering:**
+   - Effort `none` needs the harness's quality measurement, and JPEG needs the pointing measurement.
+   - Reasoner ≈ 2,267 − 219.
+   - **The sum:** 500 + 2,048 + 150 + 350 ≈ **3.0 s**.
+
+**THE STAGE THAT DECIDES THE REQUIREMENT IS THE REASONER'S SERVER PHASE.** It is about 1.2–1.8 s in every
+variant, and no effort setting reaches it.
+
+To reach about 2 s, the reasoner must come down to about 1.1 s. That needs the upload off the critical
+path AND the provider's time to headers below about 0.9 s. Nothing measured here does either.
+
+**Candidates, named and not measured:**
+- **A smaller frame.** It touches pointing accuracy (`DEFAULT_VISION_MAX_WIDTH`, `vision/downscale.py:46`).
+- **A faster model.** That is the model comparison's.
+- **Uploading the frame while F9 is held.** On this provider that means a stored file, against the
+  `store=False` privacy control (`cloud/luna_agent.py:50`, `:177`).
+
+## ⑦ PREMISES CHECKED
+
+- **"voice start ~0.7 → ~0.35 s with a pre-opened socket":** the socket is ALREADY pre-opened
+  (`orchestrator.py:199`). The provider's part is already 0.35 s, and what remains is in the app.
+- **"capture ~0.24 → ~0 in parallel":** holds as arithmetic. Today the capture is sequential, after the
+  transcript.
+- **"reasoner ~3.5 → ~1.0 s with a lighter request and lighter default reasoning":** NOT supported by
+  any measured lever.
+  - The lightest effort gives 2.27 s, and the smallest measured body 1.77 s.
+  - B0's 3.5 s itself carried each fresh process's 736 ms first-call setup.
+- **"DEC-98 declined medium on quality":** holds (`DECISIONS.md:11274-11277`). Measured here, `medium` is
+  87 ms faster than `high`, inside both spreads, so there is no latency case for it at n = 9.
+- **"the no-interpretation rule":** DEC-66 (`DECISIONS.md:5702-5709`).
+- **"the existing spoken verbosity commands are the precedent":** holds. They are fixed phrases matched
+  on a normalized copy of the RAW transcript (⑧). DEC-157 ④ left open whether a pattern check counts as
+  representation (`:20181`). A fixed phrase the USER speaks is the shape the verbosity detector already
+  has.
+
+## ⑧ THE VERBOSITY COMMANDS TODAY, AND WHERE A PER-MODE EFFORT COULD BIND — DESIGNED, NOT BUILT
+
+**Today** (`kernel/verbosity.py`):
+- **The phrases:**
+  - **Matched anywhere** on the normalized transcript, reset first (`:84-92`):
+    - «طولك الطبيعي» and «رجع للوضع الطبيعي» → NORMAL;
+    - «بالتفصيل», «اشرح اكثر» and «وضح اكثر» → DETAILED;
+    - «باختصار» and «بايجاز» → SHORT.
+  - **Matched only as the WHOLE utterance** (`:96-100`): «اختصر» → SHORT; «اطول» and «طول» → DETAILED.
+  - **EXACT N** (`:104-113`): «ب<N> كلمات», «بكلمتين», «بكلمة وحدة».
+- **Lifetime:** SHORT and DETAILED are STICKY until another command or the reset phrase. EXACT is
+  one-shot for the whole utterance and decays at `end_turn` (`:191`). Every launch starts at NORMAL.
+- **What each changes is ONE Arabic internal directive** prepended to the user message
+  (`attach`, `:211`; the texts at `:54-67`).
+  - SHORT says "one or two sentences at most", DETAILED "exceed the usual brevity limit", EXACT "about N
+    words". NORMAL adds nothing.
+  - **Nothing else changes:** not the effort, not `max_output_tokens`, not the system prompt, which is
+    frozen at composition (`:5-10`).
+- **Detection:** `begin_turn` (`:218`) runs on the raw transcript, called from the turn prelude
+  (`turn_prelude.py:140`). It runs after the mode expiry check and the exit word, before anything is
+  prepended.
+
+**Where a per-mode effort could bind:**
+- **The effort today.** It is a module global read at call time (`cloud/luna_agent.py:90`, used at
+  `:183`). The provider contract `run(user_input, screenshot, history, tool_choice)` carries no effort.
+  `UserInput` carries only `text` (`cloud/protocol.py:80-84`).
+- **The smallest vendor-blind binding:**
+  - A `depth` field on `UserInput` with a default, the DEC-34 optional-field shape. The kernel says
+    "deep", never an effort name.
+  - **Set from the verbosity state** by the orchestrator where it builds `UserInput` (`orchestrator.py:238`,
+    and the continuations at `:288-289`). It must ride EVERY pass of the turn — the lesson EXACT's
+    lifetime records.
+  - **Mapped inside each agent:** luna's `reasoning` at `:183`. Claude has no reasoning knob today
+    (`claude_agent.py`).
+- **The constraint.** `orchestrator.py` is at 298/300, so the field must ride the existing lines.
+- **Two decisions this needs, both Sultan's:**
+  - **Whether «خذ وقتك» joins DETAILED (sticky) or a new ONE-SHOT level.** A sticky mode keeps every later
+    reply long until the reset phrase, while the requirement says long ONLY when asked.
+  - **What the DEFAULT depth is.** That waits for the harness's quality measurement (③).
+
+**And in `src/`, designed for a later round:**
+- Stamps at the send in `tts_session.feed` (`:160`) and at the reader's first audio frame. Together they
+  split the app's ~374 ms voice remainder.
+- The speech-end and spoken-length stamps DEC-159 ⑥ designed.
+
+## THE STATE THIS LEAVES
+
+- **Ruled and recorded:** the requirement, the principle, and the defect for the first batch.
+- **Measured:** realtime transcription meets its estimate, but its search-clip miss blocks adoption.
+  Voice start at the provider already meets its estimate.
+- **Unmeasured or refuted:** the reasoner estimate is not met by any measured lever, and it decides the
+  requirement.
+- **Sultan's:**
+  - the by-ear number test;
+  - the one-shot or sticky question;
+  - whether to examine the realtime miss beyond its class.
+- **Next:** the instruction rebuild's shadow step.
+
+---
