@@ -20352,3 +20352,264 @@ the canary) and the push: origin `main` `cc8bfc8 → d5d825f`, confirmed by `git
 - **Next, mine:** the analysis of B0, per scenario, with the gap split as above.
 
 ---
+
+## DEC-159 (2026-10-29) — **B0 IS MEASURED AND THE DRAW-BEFORE-SPEECH RULE STAYS: ON A TOOL-FREE TURN ITS PURE COST IS 291 ms OF A 6,364 ms WAIT, WHILE THE REASONER TAKES 56% AND TRANSCRIPTION 25%.** Isolation held 24 of 24 · eight findings · speech length dominates the turn · every search turn that reached the reasoner ended on a refused FETCH · two empty transcriptions from a clip that worked four times · two defects in the instrument's analysis, corrected AFTER the data and re-summarised beside the untouched original · the code path reads first and misses the file · numbers garble on a model whose provider normalization is off by default · the provider retains by default · overlap is computable · the `turn_pass.py` extraction is NOT needed now — RULED (delegated by Sultan), RECORDED; **`src/` untouched: the instrument's correction is scripts only**
+
+Sultan ran B0 himself with the guided command (`scripts/voice_b0.py`, `4e87d57`) and delegated the
+decision on it. This entry records the decision as ruled, the eight findings that came with it, every
+number recomputed from the 24 stored records, and the correction to the instrument's analysis.
+
+---
+
+## ① B0 — WHAT RAN
+
+- **24 turns**, 4 scenarios × 6 repetitions, run records stamped 10:34:34Z to 11:50:58Z, in
+  `~/Desktop/muthis_voice/results/b0-20261029T103140Z/`, outside the repository.
+- **Every record shows** exit 0, the durable log UNCHANGED with no attach line, git HEAD `4e87d57`
+  with a clean tree, and the same clip sha256 across a scenario's six repetitions. Each of those four
+  hashes matches its clip on disk today. **Isolation held 24 of 24.**
+- **The child built** luna (`gpt-5.6-luna`) and Tavily in every repetition.
+- **Spend: $0.0649 logged**, against a $0.2285 projection.
+  - $0.0329 is the reasoner, over 45 recorded passes.
+  - The other $0.0320 is exactly 4 Tavily queries at $0.008 each.
+- **The two clocks agree.** Every `[timing]` line arrived at the driver within 1 ms of the value it
+  carries, so the app-clock stages and the driver-clock stages can be subtracted from each other.
+
+## ② THE DECISION, VERBATIM
+
+> "draw-before-speech STAYS. On tool-free turns the rule’s pure cost — first_token to the end of pass 1
+> — has a warm median of about 291 ms (204–414) against a first_audio of about 6,364 ms: roughly 5%. The
+> rest of the gap is voice start (~722 ms), which every alternative pays. On pointing turns the voice
+> already follows the draw by about half a second. Caveat to record: B0’s tool-free answer was short; a
+> long tool-free answer buffers longer — unmeasured — and the brevity work will shorten answers.
+> Consequence: the turn_pass.py extraction is NOT needed now — streaming was its only reason, and per
+> DEC-158 the search announcement lands in pass_servicing.py."
+
+> "WHERE THE TIME GOES — tool-free, warm median: transcription ~1,560 · capture ~243 · reasoner to first
+> token ~3,542 · buffering ~291 · voice start ~722 ms. The reasoner is ~56% of the wait, transcription
+> ~25%. The in-app reasoner figure is roughly twice the probe’s earlier time-to-first-word for the same
+> model and effort, so the effort decision rested on a probe that did not represent the app."
+
+This is DEC-158's comparison, made on B0's data. Of DEC-158's three alternatives:
+- **Streaming at once** could save at most the buffering.
+- **Speaking alongside the pointer** competes with a voice that already starts about half a second
+  after the draw.
+- **The rule is kept.** The new laws are not yet written, so DEC-158's order holds.
+
+## ③ THE NUMBERS, RECOMPUTED FROM THE RECORDS — every one in the brief holds
+
+**Tool-free, repetitions 2–6** (n = 5, no flags), as median (min–max):
+
+| stage or split | from → to | median (range), ms | brief |
+|---|---|---|---|
+| transcription | F9 release → transcript | 1,560 (1,453–1,902) | ~1,560 |
+| capture | transcript → frame ready (`[vision] downscaled`) | 243 (232–249) | ~243 |
+| reasoner to first token | frame ready → first_token | 3,542 (3,048–4,162) | ~3,542 |
+| buffering — the rule's pure cost | first_token → end of pass 1 | 291 (204–414) | ~291 (204–414) |
+| voice start | end of pass 1 → first_audio | 722 (371–913) | ~722 |
+| first_audio | F9 release → first_audio | 6,364 (5,757–7,298) | ~6,364 |
+
+- **Shares of first_audio:** buffering is 4.6% ("roughly 5%"), the reasoner 55.7% ("~56%"),
+  transcription 24.5% ("~25%").
+- **Medians do not add.** The five parts' medians sum to 6,358, against the 6,364 median of the whole.
+- **Pointing** (n = 5): the voice follows the draw by 495 ms (437–936), "about half a second".
+
+**What two of the labels span.** These are facts about the clocks, not corrections to the brief.
+- **"Capture"** is screen capture plus downscale.
+- **"Reasoner to first token"** is everything from the downscaled frame to the first `TextDelta`. That
+  includes assembling and uploading the request. It is not the model's time alone.
+
+**"Roughly twice the probe's time-to-first-word": HOLDS as a ratio, 1.86×.**
+- **The probe's figure** is from DEC-98: `gpt-5.6-luna` at `high`, "first useful" 1.90 s
+  (`DECISIONS.md:11171`, `:11192-11196`).
+- **The app runs the same model at the same effort** (`REASONING_EFFORT = "high"`,
+  `cloud/luna_agent.py:90`).
+- **What the probe's clock did not span** is the app's request: its full instructions, its tool
+  catalogue and its 1280×720 frame.
+- **Recorded beside it:** DEC-98 declined `medium` on quality first. Its words are "a third of a second
+  does not justify risk on paths this sweep did not measure" (`DECISIONS.md:11274-11277`).
+- **So the unrepresentative part is the latency it weighed.** What `medium` would save inside the app
+  is unmeasured.
+
+## ④ THE EIGHT FINDINGS — each in Sultan's words, then what the tree and the records add
+
+**① "Speech length dominates the turn, not the start."**
+
+- **Pointing:** the turn ends 37,677 ms (35,526–39,424) after release, and 29,432 ms (28,711–32,516)
+  of that comes after the first audio.
+- **Code:** the turn ends 40,304 ms (28,085–64,816) after release.
+- **The 40–60-word law** is at `persona_rules.py:59`, `:93`, `:115` and `:118`.
+- **TURN END EQUALS SPEECH END — VERIFIED, by reading and on one path by measurement:**
+  - **The chain to `[main] turn ended`.** `run_turn`'s finally awaits `turn_voice.finish()`
+    (`kernel/orchestrator.py:211`). That awaits the session's `close()`, which awaits
+    `self._player.finish()` (`tts_session.py:197`). That joins the worker thread
+    (`tts_ws_player.py:119`), whose `stream.stop()` drains the pending audio (`:180`).
+  - **After the drain** only synchronous bookkeeping runs before `[main] turn ended`
+    (`activation.py:190`).
+  - **On the buffered path it is measured.** In both turns with no reasoner call, the `(32 chars)` tts
+    line and `[main] turn ended` arrived in the same millisecond. That line is logged after playback
+    (`voice_out.py:161`).
+  - **The limit:** the streamed path logs no line of its own at speech end.
+- **"After the first audio" is not all speech.** It includes any silence while a later pass generates.
+
+**② "Every search turn that reached the reasoner — 4 of 4 — went search → fetch → fetch refused → spoken request, ending ~60–69 s."**
+
+- **The shape is confirmed in 4 of 4** (repetitions 1, 2, 3 and 6): `web__search`, then `web__fetch`,
+  then a pass with no tool.
+- **The refusal** is `[confirm-gate] high-impact web__fetch refused` at the end of pass 2, 10,087–11,665
+  ms after release.
+- **The turns end** at 60,155–68,833 ms.
+- **The spoken request is NOT in the record.** No line marks it. It rests on DEC-138's design and on
+  Sultan's ear.
+- **The mechanism.** A high-impact call is refused only in a tainted session
+  (`trust/confirm_gate.py:231`). The first search runs because the first tainting call of a process
+  cannot be gated (`:227-230`). Its result taints the session, and the fetch is refused.
+- **So B0's search ran in the world that DEC-156 ① ("SEARCH needs no approval; FETCH stays per-call")
+  would create.** The fetch is what stood between the question and a direct answer, and that ruling
+  keeps the fetch per call.
+- **The rarity ground fails a second time.** DEC-147 ④ recorded the note that fetch "is rare with
+  Tavily" (`DECISIONS.md:18916`), and DEC-148 withdrew it (`:19003-19004`). B0 adds 4 of 4.
+- **`voice_b0.py`'s own docstring had anticipated a second SEARCH.** It now names both.
+
+**③ "Transcription failed on 2 of 24 turns (search 4 and 5 … the 32-character “didn’t hear you”
+sentence) on a clip that succeeded the other four times, with a slow tail of about 3–5.7 s on four
+turns."**
+
+- **Confirmed:**
+  - Repetitions 4 and 5 have no `[pass]` and no `[budget]` line.
+  - Their only spoken line is 32 characters, the length of `STT_EMPTY_AR` (`kernel/turn.py:117`).
+  - The clip's sha256 is identical in all six.
+- **The slow tail** is 3,116, 4,061, 5,372 and 5,660 ms (search 6, pointing 5, search 4, search 5).
+  - Two of those four are the failures themselves.
+  - Three are consecutive repetitions: search 4, 5 and 6, 10:41:15Z to 10:42:48Z.
+- **"Failed" cannot be told apart from "returned empty" in these records.** `transcribe()` returns ""
+  for both a Scribe error and an empty text (`stt.py:73-85`), and schema 2 kept no `[STT]` line.
+- **It is not a timeout.** The request timeout is 20 s (`stt.py:42`).
+
+**④ "Two analysis defects in the instrument: the search summary’s medians came from those two failed
+turns; and confirm_in_turn excluded whole repetitions although the refusal came after first_token and
+first_audio, which are therefore valid."**
+
+- **Both are confirmed.** The pre-registered `summary.json` built the search medians from repetitions 4
+  and 5 alone (n = 2): transcript 5,516, first_audio 6,661, end 9,691.
+- **The refusals came after first_token and first_audio:** refusals at 10,087–11,665 ms, first_token at
+  4,963–6,433 ms, first_audio at 6,012–7,497 ms.
+- **This was corrected in ⑤ below**, after the data existed. That is why the original summary is kept
+  untouched.
+
+**⑤ "Code turns called read_local_file on pass 1 in 6 of 6, twice in 2 of 6. Sultan heard Mut’his say it
+cannot see the file and ask for a full path, with the code on screen."**
+
+- **The counts are confirmed.** Repetitions 4 and 6 read on passes 1 and 2.
+- **What schema 2 does NOT tell:** how many of the reads missed, and what path was sent. It kept no
+  `[file_reader]` line and no arguments.
+- **A fact that narrows it.** CAPTURE_GUIDE opens VS Code on the repository (`code .`,
+  `scripts/harness/CAPTURE_GUIDE.md:166`). The B0 child's working directory is that same repository
+  root, and a relative path resolves against the APP's working directory (`file_reader.py:219-220`). So
+  in B0 a workspace-relative path WOULD have been found.
+- **So the miss Sultan heard came from some other path.** In normal use the app's working directory is
+  not the editor's workspace, so the defect is general.
+- **Known defect for the first behaviour batch.**
+
+**⑥ "Sultan reports numbers spoken as garble. ElevenLabs’ own help page names numbers, dates and symbols
+as ambiguous and lists the remedies: write them in words, apply_text_normalization (which adds latency),
+language_code (not supported on eleven_multilingual_v2)."**
+
+- **The help page holds:** "Why are numbers, dates, symbols and acronyms not properly pronounced…".
+  - It names writing them in words.
+  - It names `apply_text_normalization`, saying "This option does add latency".
+  - It names `language_code`.
+- **The multilingual_v2 exclusion is in the API reference, not the help page:** "This parameter is not
+  supported for multilingual_v2 models".
+- **NOT the app's model.** The app speaks through `eleven_flash_v2_5` (`tts_elevenlabs.py:41`). No
+  `ELEVENLABS_MODEL_ID` override is set in `.env` or the environment: only the key's PRESENCE was
+  counted, and no value was read.
+- **For Flash v2.5, ElevenLabs' models page says:**
+  - "By default, normalization is disabled for Flash v2.5 to maintain the low latency".
+  - "Enterprise customers can now enable text normalization for v2.5 models".
+  - "The Multilingual v2 model does a better job of normalizing numbers".
+- **Digits reach the TTS as digits.** The only rewrite on the way is the diacritics word map
+  (`tts_session.py:160`, `tts_diacritics.py`).
+
+**⑦ "per ElevenLabs’ API reference, batch speech-to-text and the TTS websocket both default
+enable_logging=true; zero retention is enterprise-only."**
+
+- **Confirmed.**
+  - On batch STT: default true, and "Zero retention mode may only be used by enterprise customers".
+  - On the TTS WebSocket: default `true`.
+  - On the realtime STT WebSocket, checked for this entry: default `true`, with the same enterprise
+    sentence.
+- **The app passes no `enable_logging`** (`stt.py:95-98`, `tts_elevenlabs.py:63-69`), so the defaults
+  apply today. On those defaults, realtime transcription adds no new retention.
+
+**⑧ "Sultan observes luna sometimes draws overlapping shapes."**
+
+- **Deferred to the model comparison.**
+- **Overlap is computable.** Every `draw_shapes` shape carries one uniform `(x1, y1, x2, y2)`
+  (`cloud/tool_schemas.py:19-22`), so pairwise overlap is arithmetic.
+- **The record keeps tool NAMES only**, so measuring it needs those arguments kept.
+
+## ⑤ THE INSTRUMENT, CORRECTED — scripts only
+
+**`scripts/voice_drive.py`**, schema `voice-run/3`:
+- **Flags:**
+  - **`no_reasoner_call`** is set when the release was seen and no pass ran.
+  - **Each confirm refusal** is recorded with its TOOL and its time.
+- **Outcome classes, never content:**
+  - **The transcription:** ok, empty, failed, no_audio or no_key, with the error TYPE and the HTTP
+    status only.
+  - **Each file read:** found, not_found, refused or failed, with the EXTENSION only.
+  - **The spoken length** where the app already logs it, which is the buffered `speak()` path only.
+- **No marker inside the transcript is read as a log line.**
+- **A frame-ready stage** comes from the `[vision]` line.
+- **`reclassify`** re-derives all of this from a stored record's kept lines. Flags are the union.
+  Transcription and file reads stay None where schema 2 did not keep them.
+
+**`scripts/voice_b0.py`**, summary `voice-b0/2`:
+- **`confirm_in_turn`** drops only the stages AFTER its first refusal.
+- **Every other flag** drops the whole repetition.
+- **Fail closed:** a flag nobody named, or a refusal without a time, also drops the whole repetition.
+- **The splits** above are reported per scenario.
+- **`resummarise <folder>`** writes `summary-2.json` BESIDE `summary.json` and touches no record. All 25
+  original files were sha256-identical afterwards.
+
+**Tests:** 7 new (`tests/test_voice_b0_exclusions.py`) and 3 updated. 12 of 12 mutants were RED and
+the files restored. The suite: 2,318 passed.
+
+**THE CORRECTED SEARCH BASELINE** — warm repetitions 2, 3 and 6, n = 3, which is below the five the plan
+registered (repetitions 4 and 5 are `no_reasoner_call`):
+
+| stage or split | median (range), ms |
+|---|---|
+| transcript | 1,892 (1,807–3,116) |
+| first_token | 5,578 (5,269–6,433) |
+| end of pass 1 | 6,127 (5,885–7,093) |
+| first_audio | 6,817 (6,693–7,497) |
+| gap first_token → first_audio | 1,239 (1,064–1,424) |
+| buffering / voice start | 616 / 690 |
+| turn end | excluded — after the refusal in every repetition |
+
+The repetition-1 cold run: first_audio 6,012, gap 1,049.
+
+## ⑥ WHAT NEEDS `src/` — DESIGNED, NOT BUILT
+
+- **The constraint.** `turn_voice.py` is at 300/300, so neither stamp can live there.
+- **Speech end.**
+  - A `[timing]` mark at the drain in the player worker, right after `stream.stop()`
+    (`tts_ws_player.py:180`), on the normal path only.
+  - It must be emitted at every drain and read as the LAST one, because `stage()` emits once per turn.
+- **Per-turn spoken length.**
+  - A count of what each feed actually sends — the diacritized copy, which is what the provider bills —
+    added up in `tts_session.feed` (`:160`).
+  - It would be emitted once at `close()` under the same debug gate as `[timing]`.
+
+## THE STATE THIS LEAVES
+
+- **Ruled and recorded:** the rule stays. The extraction is not needed now.
+- **The ledger now holds:**
+  - ⑤ as a known defect for the first behaviour batch.
+  - ⑧ deferred to the model comparison.
+  - The fetch request's form, which is Sultan's to rule separately.
+- **Next:** the instruction rebuild's shadow step.
+
+---
