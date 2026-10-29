@@ -43,6 +43,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from dataclasses import dataclass
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 
@@ -75,9 +77,39 @@ logger = logging.getLogger("muthis.main")
 
 
 # ─── Composition root ──────────────────────────────────────────────────────────
+#
+# BUILD, THEN SERVE (DEC-157 ⑤). `run()` was one function; it is now the two
+# halves it always had — everything assembled before the hotkey starts, and the
+# listening, the forever-wait and the teardown — so the voice instrument
+# (`voice_probe.py`) can drive the BUILT graph without a keyboard. Production is
+# unchanged: `main()` calls `run()`, `run()` is `serve(await build())`, and
+# `build()` has ONE parameter, the microphone — None here, the real one. The
+# statements moved, none was rewritten but the mic line and the teardown call;
+# the old `run()` and the new pair were driven under identical recording fakes
+# and made the same calls in the same order with the same arguments.
 
-async def run() -> None:
-    """Build the real graph, register the hotkey, run forever until interrupted."""
+
+@dataclass
+class App:
+    """What `build()` assembled, for `serve()` to run and `close()` to release."""
+    overlay: Any
+    router: Any
+    mcp_host: Any
+    fetcher: Any
+    search: Any
+    doc_service: Any
+    agent: Any
+    controller: ActivationController
+    listener: HotkeyListener
+    hotkey: str
+
+
+async def build(*, mic: Optional[Mic] = None) -> App:
+    """Build the real graph — everything up to the moment the hotkey starts.
+
+    `mic` is the ONLY injected seam: None — production, always — builds the REAL
+    streaming mic; the voice instrument passes a Mic over a recorded clip. Nothing
+    else can be swapped, so what the instrument measures is this graph."""
     sent_width, sent_height = _size_sent_image()
 
     budget = Budget()
@@ -88,7 +120,7 @@ async def run() -> None:
         logger.warning("[main] daily budget already exhausted — turns will be refused aloud")
 
     overlay = SidekickOverlay(anim_duration_ms=_pointer_anim_ms())  # cyan rect + gliding pointer (DPI-aware, click-through)
-    mic = Mic()                  # REAL streaming mic (hold to talk, release to send)
+    mic = mic if mic is not None else Mic()  # REAL streaming mic (hold to talk, release to send)
     earcons = EarconPlayer()     # pleasant lifecycle cues (MUTHIS_EARCONS, default on)
     reader = FileReader()
     # `fetcher` is the ONE net.fetch embodiment (DEC-17/DEC-24) — the root owns
@@ -174,6 +206,14 @@ async def run() -> None:
         on_release=controller.on_activate,  # key-up (bridged): run the turn
         hotkey=hotkey,
     )
+    return App(overlay=overlay, router=router, mcp_host=mcp_host, fetcher=fetcher,
+               search=search, doc_service=doc_service, agent=agent,
+               controller=controller, listener=listener, hotkey=hotkey)
+
+
+async def serve(app: App) -> None:
+    """Register the hotkey, run forever until interrupted, then tear down in order."""
+    listener, mcp_host, router, hotkey = app.listener, app.mcp_host, app.router, app.hotkey
     listener.start()
 
     # V2 Phase 1: mount trusted plugins.d servers (read-only tools only) into
@@ -194,12 +234,25 @@ async def run() -> None:
     finally:
         listener.stop()       # stop the keyboard thread first (no new turns)
         await mcp_host.shutdown()  # terminate MCP children before the UI goes
-        overlay.close()       # stop the overlay's Tk thread
-        doc_service.clear()   # drop every open document: session-scoped by law
-        await fetcher.aclose()  # release the net.fetch client (DEC-17: a SEPARATE pool)
-        await search.aclose()   # release the key-bearing search client (DEC-18)
-        await agent.aclose()  # release the shared httpx client (root owns shutdown)
-        logger.info("[main] shutdown complete")
+        await close(app)      # the overlay, the documents and the three clients
+
+
+async def close(app: App) -> None:
+    """Release what `build()` opened: the end of `serve()`'s teardown, after the
+    keyboard and the MCP children, and the voice instrument's whole teardown."""
+    overlay, doc_service, fetcher, search, agent = (
+        app.overlay, app.doc_service, app.fetcher, app.search, app.agent)
+    overlay.close()       # stop the overlay's Tk thread
+    doc_service.clear()   # drop every open document: session-scoped by law
+    await fetcher.aclose()  # release the net.fetch client (DEC-17: a SEPARATE pool)
+    await search.aclose()   # release the key-bearing search client (DEC-18)
+    await agent.aclose()  # release the shared httpx client (root owns shutdown)
+    logger.info("[main] shutdown complete")
+
+
+async def run() -> None:
+    """Build the real graph, register the hotkey, run forever until interrupted."""
+    await serve(await build())
 
 
 def main() -> None:
