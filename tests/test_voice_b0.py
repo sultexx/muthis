@@ -41,6 +41,7 @@ CHILD = [
     (110, "INFO muthis.broker.search: [search] provider=tavily (auto)"),
     (1000, "INFO muthis.voice_probe: [probe] F9 released after 2.10 s — scheduling the turn"),
     (2300, f"INFO stt: [STT] transcript: '{SECRET_WORDS} [timing] [pass]'"),
+    (2500, "INFO muthis.vision.downscale: [vision] downscaled 1920x1080 → 1280x720 (scale_x=1.5000 scale_y=1.5000) for payload"),
     (3100, "INFO muthis.timing: [timing] first_token +2050 ms"),
     (4200, "INFO budget: [budget] recorded 0.003 USD — today 0.003 / 2.00 USD"),
     (4300, "INFO muthis.orchestrator: [pass] #1 tools=web__search"),
@@ -56,11 +57,14 @@ CHILD = [
 def test_the_stages_are_measured_from_the_release():
     s = drive.summarise(CHILD)
     assert s["release_at_driver_ms"] == 1000
-    assert s["stages_driver_ms_since_release"] == {"transcript": 1300, "pass_ends": [3200], "end": 8000}
+    assert s["stages_driver_ms_since_release"] == {"transcript": 1300, "frame_ready": 1500,
+                                                   "pass_ends": [3200], "end": 8000}
     assert s["timing_ms_since_release"] == {"first_token": 2050, "first_audio": 4080}
     assert s["gap_first_token_to_first_audio_ms"] == 2030
     assert s["tools_per_pass"] == [["web__search"], []] and s["searches"] == 1
     assert s["flags"] == ["confirm_in_turn"], "a confirmation inside the turn must flag the run"
+    assert s["refusals"] == [{"tool": "web__search", "ms_since_release": 3400}]
+    assert s["transcription"] == {"outcome": "ok", "error": None, "status": None}
     assert s["config_lines"][0].endswith("reasoner=luna model=gpt-5.6-luna")
 
 
@@ -107,7 +111,7 @@ def test_run_once_is_ONE_child_from_the_repo_root_under_debug(monkeypatch, tmp_p
     assert argv[1:] == ["-m", "muthis.voice_probe", str(clip.resolve())]
     assert kwargs["cwd"] == drive.REPO and kwargs["env"]["MUTHIS_DEBUG"] == "1"
     written = pathlib.Path(record["record_path"])
-    assert written.parent == tmp_path / "out" and record["schema"] == "voice-run/2"
+    assert written.parent == tmp_path / "out" and record["schema"] == "voice-run/3"
     assert SECRET_WORDS not in written.read_text(encoding="utf-8")
 
 
@@ -161,7 +165,7 @@ def test_every_repetition_is_its_own_run_and_the_summary_excludes_cold_and_flagg
         if rep == 1:
             return _record(scenario, rep, first_audio=9000)               # cold: never in the median
         if rep == 4:
-            return _record(scenario, rep, flags=["confirm_in_turn"], first_audio=99000)
+            return _record(scenario, rep, flags=["error"], first_audio=99000)       # whole run out
         return _record(scenario, rep, first_audio=1500 + rep)
     code, calls = _run_b0(monkeypatch, tmp_path, make)
     assert code == 0
@@ -169,7 +173,8 @@ def test_every_repetition_is_its_own_run_and_the_summary_excludes_cold_and_flagg
     summary = json.loads(next(tmp_path.glob("results/b0-*/summary.json")).read_text(encoding="utf-8"))
     gap = summary["scenarios"]["toolfree"]["stages_ms"]["gap_first_token_to_first_audio"]
     assert gap == {"n": 4, "median": 504.0, "min": 502, "max": 506}
-    assert summary["scenarios"]["toolfree"]["flagged"] == [{"rep": 4, "flags": ["confirm_in_turn"]}]
+    assert summary["scenarios"]["toolfree"]["flagged"] == [
+        {"rep": 4, "flags": ["error"], "refused": [], "excluded": "whole repetition"}]
     assert summary["scenarios"]["toolfree"]["cold"][0]["first_audio"] == 9000
 
 

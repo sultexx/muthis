@@ -2,6 +2,7 @@
 voice_b0.py — B0, the baseline (DEC-157 ②, DEC-158), run by Sultan himself:
 
     .venv\\Scripts\\python.exe scripts\\voice_b0.py
+    .venv\\Scripts\\python.exe scripts\\voice_b0.py resummarise <results\\b0-folder>
 
 He must be present: every scenario needs its screen arranged by hand, so this
 cannot run unattended. For each scenario it names the screen, waits for Enter,
@@ -18,15 +19,24 @@ THE PLAN IS PRE-REGISTERED HERE, before any B0 data exists (DEC-158):
     `cloud/luna_agent.py:38-48`), and the first turn after a pause pays the write.
     Repetitions 2–6 give the median and the spread (min–max): five is the smallest
     count whose median survives two bad runs, and a single turn is not a baseline;
-  * a repetition the driver FLAGS (a confirmation inside the turn, an error, a turn
-    that did not end) is listed and kept out of every median.
+  * a repetition the driver FLAGS is listed; every flag but one keeps the WHOLE
+    repetition out of every median (an error, a turn that did not end, a turn that
+    never reached the reasoner, a budget refusal — and any flag not named here).
+
+THE EXCLUSION RULES WERE CORRECTED AFTER B0's DATA EXISTED (DEC-159 ④), so the
+pre-registered summary is never rewritten: `resummarise <folder>` writes
+`summary-2.json` BESIDE `summary.json` and touches no record. Two defects: a turn
+with no reasoner call was folded into the medians, and a confirmation excluded the
+whole repetition although its refusal came after first_token and first_audio. Now
+`confirm_in_turn` drops only the stages AFTER the first refusal, which names its
+tool; a refusal with no time drops the whole repetition (fail closed).
 
 EVERY REPETITION IS A CLEAN SESSION: each is its own child process, its own app,
 its own SessionTaint (`composition.py:170`), so no taint from an earlier
 repetition can make a search ask for approval. What a fresh process cannot
-prevent is the model searching TWICE in one turn: the first result taints the
-session, so the second search asks (`trust/confirm_gate.py:231`). The driver
-flags that `confirm_in_turn` and it stays out of the medians.
+prevent is a high-impact call AFTER the turn's first result: that result taints
+the session, so a second search or a fetch asks (`trust/confirm_gate.py:231`) —
+B0 measured the fetch, in every search turn that reached the reasoner.
 
 B0 STOPS, never continues, if the durable log changes, the probe refuses to start
 (the real app came back), or the budget gate closes. Records go to
@@ -87,8 +97,17 @@ PLAN = (
              "scripts\\harness\\fixtures\\explain_me.py, one tab, no side panels.",
              "press Alt + Tab once (back to VS Code)"),
 )
-STAGES = ("transcript", "first_token", "draw", "first_audio", "first_pass_end", "end",
-          "gap_first_token_to_first_audio")
+STAGES = ("transcript", "frame_ready", "first_token", "draw", "first_audio", "first_pass_end", "end")
+SPLITS = {  # name: (from, to) — a split survives only if BOTH ends do
+    "capture": ("transcript", "frame_ready"),
+    "reasoner_to_first_token": ("frame_ready", "first_token"),
+    "buffering": ("first_token", "first_pass_end"),      # DEC-158's rule cost on a one-pass turn
+    "voice_start": ("first_pass_end", "first_audio"),
+    "draw_to_audio": ("draw", "first_audio"),
+    "after_first_audio": ("first_audio", "end"),
+    "gap_first_token_to_first_audio": ("first_token", "first_audio"),
+}
+PARTIAL_FLAGS = {"confirm_in_turn"}      # every other flag excludes the whole repetition
 
 
 def _env_flags() -> dict:
@@ -132,30 +151,77 @@ def preflight() -> dict:
 def _measures(record: dict) -> dict:
     timing = record["timing_ms_since_release"]
     driver = record["stages_driver_ms_since_release"]
-    return {"transcript": driver["transcript"], "first_token": timing.get("first_token"),
-            "draw": timing.get("draw"), "first_audio": timing.get("first_audio"),
-            "first_pass_end": (driver["pass_ends"] or [None])[0], "end": driver["end"],
-            "gap_first_token_to_first_audio": record["gap_first_token_to_first_audio_ms"]}
+    return {"transcript": driver["transcript"], "frame_ready": driver.get("frame_ready"),
+            "first_token": timing.get("first_token"), "draw": timing.get("draw"),
+            "first_audio": timing.get("first_audio"),
+            "first_pass_end": (driver["pass_ends"] or [None])[0], "end": driver["end"]}
+
+
+def usable(record: dict) -> dict | None:
+    """The stages and splits a median may use, or None when a flag drops the whole
+    repetition. After a confirm refusal only stages no later than the FIRST refusal
+    survive; the clocks agree to within 1 ms (the timing lines arrive on time)."""
+    flags = set(record["flags"])
+    if flags - PARTIAL_FLAGS:
+        return None
+    stages = _measures(record)
+    if flags:
+        times = [r["ms_since_release"] for r in record.get("refusals") or [] if r["ms_since_release"] is not None]
+        if not times:
+            return None
+        stages = {k: v if v is not None and v <= min(times) else None for k, v in stages.items()}
+    splits = {name: stages[b] - stages[a] if stages[a] is not None and stages[b] is not None else None
+              for name, (a, b) in SPLITS.items()}
+    return {**stages, **splits}
+
+
+def _stats(values: list) -> dict:
+    values = [v for v in values if v is not None]
+    return ({"n": len(values), "median": statistics.median(values), "min": min(values),
+             "max": max(values)} if values else {"n": 0})
+
+
+def _flagged(record: dict) -> dict:
+    kept, measured = usable(record), _measures(record)
+    return {"rep": record["rep"], "flags": record["flags"], "refused": record.get("refusals") or [],
+            "excluded": "whole repetition" if kept is None
+            else [s for s in STAGES if measured[s] is not None and kept[s] is None]}
 
 
 def summarise(records: list[dict]) -> dict:
-    """Per scenario: the cold repetition apart, the median and min–max of the rest,
-    flagged repetitions listed and excluded."""
+    """Per scenario: the cold repetition apart, the median and min–max of the rest
+    with DEC-159's exclusions, flagged repetitions listed with what they lost, and
+    the outcome classes per repetition (None where the record did not retain one)."""
     out = {}
     for scenario in PLAN:
-        mine = [r for r in records if r["scenario"] == scenario.name]
-        used = [r for r in mine if r["rep"] > COLD_REPS and not r["flags"]]
-        stages = {}
-        for stage in STAGES:
-            values = [v for r in used for v in [_measures(r)[stage]] if v is not None]
-            stages[stage] = ({"n": len(values), "median": statistics.median(values),
-                              "min": min(values), "max": max(values)} if values else {"n": 0})
+        mine = sorted((r for r in records if r["scenario"] == scenario.name), key=lambda r: r["rep"])
+        used = [u for r in mine if r["rep"] > COLD_REPS for u in [usable(r)] if u is not None]
         out[scenario.name] = {
-            "cold": [_measures(r) for r in mine if r["rep"] <= COLD_REPS],
-            "stages_ms": stages,
-            "flagged": [{"rep": r["rep"], "flags": r["flags"]} for r in mine if r["flags"]],
+            "cold": [{"rep": r["rep"], "flags": r["flags"], **(usable(r) or {"excluded": "whole repetition"})}
+                     for r in mine if r["rep"] <= COLD_REPS],
+            "stages_ms": {name: _stats([u[name] for u in used]) for name in (*STAGES, *SPLITS)},
+            "flagged": [_flagged(r) for r in mine if r["flags"]],
+            "transcription_per_rep": [r.get("transcription") for r in mine],
+            "file_reads_per_rep": [r.get("file_reads") for r in mine],
+            "spoken_chars_logged_per_rep": [r.get("spoken_chars_logged") for r in mine],
+            "tools_per_pass_per_rep": [r.get("tools_per_pass") for r in mine],
             "searches_per_rep": [r["searches"] for r in mine],
         }
+    return out
+
+
+def resummarise(folder: pathlib.Path) -> pathlib.Path:
+    """Re-summarise a finished B0 from its STORED records (DEC-159 ④): no turn is
+    re-run, and neither a record nor the pre-registered summary.json is touched."""
+    folder = voice_drive._outside_repo(folder)
+    names = tuple(f"{s.name}-" for s in PLAN)
+    records = [voice_drive.reclassify(json.loads(p.read_text(encoding="utf-8")))
+               for p in sorted(folder.glob("*.json")) if p.name.startswith(names)]
+    original = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+    summary = {**original, "schema": "voice-b0/2", "resummarised_from": "summary.json",
+               "records": len(records), "scenarios": summarise(records)}
+    out = folder / "summary-2.json"
+    out.write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     return out
 
 
@@ -168,7 +234,13 @@ def _beep() -> None:
         print("\a\a")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    if argv and argv[0] == "resummarise" and len(argv) == 2:
+        out = resummarise(pathlib.Path(argv[1]))
+        for name, s in json.loads(out.read_text(encoding="utf-8"))["scenarios"].items():
+            print(f"{name}: " + ", ".join(f"{k} {v['median']}" for k, v in s["stages_ms"].items() if v["n"]))
+        print(f"written beside the original: {out}")
+        return 0
     check = preflight()
     if check["problems"]:
         print("B0 cannot start:")
@@ -206,7 +278,7 @@ def main() -> int:
                 return 4
             time.sleep(PAUSE_S)
         _beep()
-    summary = {"schema": "voice-b0/1", "created_utc": stamp, "reps": REPS, "cold_reps": COLD_REPS,
+    summary = {"schema": "voice-b0/2", "created_utc": stamp, "reps": REPS, "cold_reps": COLD_REPS,
                "plan": [asdict(s) for s in PLAN], "preflight": {k: v for k, v in check.items()
                                                                 if k not in ("clips", "problems")},
                "clips": {r["scenario"]: r["clip"] for r in records},
@@ -218,4 +290,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
