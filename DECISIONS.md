@@ -20147,3 +20147,134 @@ rule winning, and today the laws stand in the order they were ruled (`persona_ru
   set, then runs once: old, old again, new.
 
 ---
+
+## DEC-157 (2026-10-29) — **SIX RULINGS AFTER THE FACTS ROUND: SHADOW, NOT MOVE — THE OLD COMPOSITION STAYS IN PRODUCTION UNTIL A SWITCH PROVEN BY REQUEST-BODY EQUALITY · B0 BEFORE ANY CHANGE · ONE FIXED SEARCH PHRASE PER TURN, QUERIES IN WRITING ONLY · THE QUERY FILTER STUDIED, NOT ADOPTED · THE VOICE INSTRUMENT ISOLATED · EVERYTHING ELSE UNCHANGED.** The meta-test design is the standard the rebuild is held to · in-band pointing and realtime transcription recorded as notes — RULED (Sultan), RECORDED; **the voice instrument and the scanner are BUILT in this round's later commits; NOTHING of the instruction rebuild is built**
+
+Sultan's rulings after the facts round, which the same brief approved. Recorded before anything is
+built, so every later commit of this round can cite a ruling that already exists. `src/` untouched by
+this commit; suite 2,263 green.
+
+---
+
+## ① THE RULINGS, VERBATIM
+
+**The approval and the standard:** "The facts round is APPROVED. Your meta-test design — check 6
+catching a byte-hash guard that passes checks 2–5, and a positive control of six broken guards each
+rejected at a stated check — is the standard the rebuild will be held to."
+
+**①** "SHADOW, NOT MOVE. The old composition stays in production; no old test or guard is retired
+until the new architecture is tested and proven. The registry is a data file outside src/*.py. Record
+your finding plainly: it passes the “one home” tests by their letter, not their intent — a DECLARED,
+TEMPORARY second source, guarded by an equality test at two or more screen sizes. The old source
+retires only at the switch, which will be proven by nonce-masked per-pass request-body equality."
+
+**②** "B0 before ANY change, saved comparably."
+
+**③** "The search announcement: one fixed short phrase, once per turn, at the first search · each
+query shown in writing, never spoken · no repetition. Record your implementation facts for the search
+step: sent before the call, not after · the model’s announce law removed or scoped so the user never
+hears two · the echo-guard interaction."
+
+**④** "The query filter: STUDIED, NOT ADOPTED. Record your finding: under taint it is a tripwire, not
+a boundary — the injected content chooses the encoding, and your measured misses are the way around
+it. Its real value is catching ACCIDENTAL personal data. Deferred until after the rebuild. Whether a
+pattern check counts as representation under the no-interpretation rule stays open."
+
+**⑤** "The voice instrument must be isolated: never reachable from normal operation, never writing
+the durable log."
+
+**⑥** "Unchanged: look-only · search without per-call approval · fetch per call · the priority order."
+
+**Also recorded, by the same brief:** "in-band pointing makes only pointing-only turns tool-free, so
+streaming does not follow under the existing ruling · realtime transcription exists, Arabic is
+unconfirmed for it, and its endpoint logs by default — data policy comes before any live test."
+
+## ② WHAT EACH RULING RESTS ON — THE FINDINGS, WITH THEIR CITATIONS
+
+**① SHADOW.** Seven tests pin a law to ONE file by scanning `src/**/*.py` for its text and asserting the
+holder's name (`holders == [...]`): `test_ack_scope.py:145`, `test_persona_code_law.py:214`,
+`test_persona_execute_first.py:208`, `test_persona_judgement_law.py:207`,
+`test_persona_pass_economy_law.py:196`, `test_persona_step_result_law.py:252`,
+`test_persona_verify_order_law.py:172`. **A registry kept as a data file outside `src/*.py` passes them
+by their letter, not their intent:** every law then exists twice, which is exactly the drift those tests
+exist to prevent, and they cannot see it because they read only `*.py`. It is therefore a DECLARED,
+TEMPORARY second source. What holds it honest while it exists is the equality test: the registry's
+rendering equals `build_saudi_persona_prompt(w, h)` at two or more screen sizes, because the
+sent-image clause is a template whose rendered length varies with the size (`persona.py:140-149`). The
+ten prefix anchors, DEC-84's pins and every other persona guard stay until the switch. **The switch is
+proven by nonce-masked, per-pass request-body equality**, measured offline in the facts round: both
+agents accept an injected `http_client` (`cloud/claude_agent.py:108`, `cloud/luna_agent.py:108`), and
+tool-free bodies were byte-identical within a process and across two hash seeds (46,803 bytes Claude,
+47,103 luna); a body carrying external content differs only by the wrap's nonce, drawn from `secrets`
+by design and never a parameter (`kernel/untrusted_content.py:53-60`).
+
+**② B0.** Before any change, the current production is measured through the voice instrument on four
+recorded clips, and each run is saved in a fixed, versioned record (git SHA, clip sha256, the three
+timing lines, the cost lines) outside the repository, so every later configuration compares against the
+same fields.
+
+**③ The search step — implementation facts, recorded, not built:**
+- **Sent BEFORE the call, not after.** Kernel speech today is fed LAST in servicing, after the router
+  call has returned (`kernel/pass_servicing.py:215-228`); the phrase reused there would play after the
+  search had already left. It must be fed before the router call.
+- **Once per turn, at the first search.** At most three searches can occur in a turn: the fourth pass
+  is always text (`kernel/highlight_gate.py:162`, `passes_serviced` starts at 0), and each pass
+  services one router call (`kernel/turn_pass.py:192-213`).
+- **The model's announce law** is C047 (`persona_laws.py:68-69`, "انطق ما تدوّر عليه في كلمتين … قبل ما
+  يطلع"). Left as it stands, the user hears the model's announcement AND the kernel's. It is removed or
+  scoped in the rebuild, never left beside the kernel's.
+- **The echo-guard interaction.** Kernel speech goes through `TurnVoice.speak_or_feed`, which first
+  passes the text through the one-shot `EchoGuard` (`turn_voice.py:141`; `speech_stream.py:257-268`): a
+  kernel line fed after the model's short ack CONSUMES the guard that ack armed, and a kernel line that
+  opens by repeating that ack loses the repeat. The confirm request (DEC-138) already takes this path.
+- **Queries in writing, never spoken.** At the measured 10.87 chars/s (DEC-128 ②), a fixed ten-character
+  phrase is 0.92 s; a framed verbatim query of median length (36 chars, on my hand-written set) is
+  3.31 s, and three of them 9.9 s, queued ahead of the answer in the turn's one speech generation.
+
+**④ The query filter.** Measured on 121 queries I wrote myself (so the rates are optimistic): 6 of 89
+benign-like queries flagged (one true false positive, a Unix timestamp passing the ID checksum; three
+public values; two ambiguous); 3 of 30 sensitive queries missed — "at … dot" in place of `@`, digits
+spelled out, and a key split by a space. **Under taint it is a tripwire, not a boundary:** taint means
+injected content steers the query, so it chooses the encoding, and those misses are the way around it.
+Its real value is catching ACCIDENTAL personal data. Deferred until after the rebuild. **Open:** DEC-66
+says the kernel "STORES, NUMBERS AND BOUNDS-CHECKS — IT NEVER INTERPRETS TEXT" (`DECISIONS.md:5702-5709`)
+and DEC-109 that it "validates STRUCTURAL REPRESENTATION ONLY" (`:12625`); no ruling names pattern
+detection on model-authored query text as either.
+
+**⑤ The voice instrument** is built in this round's later commits, under this ruling.
+
+**⑥ Unchanged:** LOOK-only (DEC-6), search without per-call approval and fetch per call (DEC-156 ①),
+and the priority order (DEC-156 ③).
+
+**The two notes.**
+- **In-band pointing** makes only pointing-only turns tool-free. An `auto` pass can still end in another
+  tool call, and streaming only `tool_choice="none"` passes is DEC-128's ruled gate, with shapes A and B
+  rejected (`DECISIONS.md:15396-15412`), so streaming does not follow from it.
+- **Realtime transcription exists:** Scribe v2 Realtime (`scribe_v2_realtime`), over WebSocket at
+  `wss://api.elevenlabs.io/v1/speech-to-text/realtime`, per the provider's API reference. **Arabic is
+  unconfirmed for it:** that reference lists no languages, and the one list naming Arabic (tier "Good",
+  >10% to ≤20% WER) is labelled Scribe v2, the batch model. **Its endpoint logs by default:** the
+  reference documents `enable_logging` with default `true`; what that logging retains is not stated
+  there. Today's batch call sends only `model_id` and `language_code` (`stt.py:95-98`). The data-policy
+  gate comes before any live test (DEC-103).
+
+## ③ PREMISES CHECKED
+
+- "main at cc8bfc8, in sync": held — `git ls-remote` returned `cc8bfc8` for `refs/heads/main`.
+- The meta-test standard: held as stated. Check 6 (an edit to a word in no family must PASS) is the check
+  that rejects a byte-hash guard, which fails on checks 2–5 like a real guard would; the positive control
+  is six broken guards (disabled · length only · byte hash · first family only · reads the live prompt ·
+  fails without naming the family), each rejected at a stated check, plus a correct reference guard that
+  must be accepted.
+- "its endpoint logs by default": held at the level the reference supports — a documented default of
+  `true` for `enable_logging`; the reference does not say what is retained.
+
+## THE STATE THIS LEAVES
+
+- **Ruled and recorded:** ① – ⑥ and the two notes. **Nothing of the instruction rebuild is built.**
+- **Next in this round:** the secret scanner committed under `scripts/` with its positive control; the
+  stale anchor quote in `AGENTS.md`; the design page's two slips corrected; the voice instrument built and
+  dry-run with a silent clip, no reasoner call.
+- **Next round:** B0, once Sultan has recorded the four clips.
+
+---
