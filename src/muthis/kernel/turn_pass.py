@@ -45,6 +45,7 @@ from .pass_servicing import PassServiced, service_pass_calls
 from .tool_router import ToolRouter
 from .tool_result_pairing import NAV_TOOLS, PRECONDITION_TOOLS
 from .turn import ROUTER_SERVICED_TOOLS, RUN_CODE_TOOL, TurnResult
+from .. import turn_timing
 from ..turn_voice import TurnVoice
 
 # Kept on the orchestrator's logger: the log surface is unchanged by the split.
@@ -176,6 +177,7 @@ class TurnPass:
         streamed = tool_choice == "none" and await turn_voice.ensure_open()
 
         async for event in self._reasoner.run(user_input, screenshot, history, tool_choice=tool_choice):
+            turn_timing.model_event(event)  # DEC-157 ⑤: debug-only, the instrument's clock
             if isinstance(event, TextDelta):
                 result.spoken_text += event.text
                 message_text += event.text

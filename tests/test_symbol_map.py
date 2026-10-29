@@ -89,7 +89,10 @@ def test_the_map_describes_the_WHOLE_file_including_what_was_NOT_delivered():
     # passed into `service_pass_calls`. A COORDINATE moved; the property this
     # test states — the map describes a tail the reader never delivered — is
     # untouched, and the delivered/total span below is what proves it.
-    assert "consume 139-291" in out
+    # 139-291 -> 140-293 (DEC-157 ⑤): the `turn_timing` import above the class
+    # and the ONE first-token stamp inside `consume` — a coordinate again, the
+    # property again untouched.
+    assert "consume 140-293" in out
     delivered_tail = out.split(MAP_HEADER_AR)[0]
     assert "   290 |" not in delivered_tail, "line 290 WAS delivered — the fixture stopped truncating"
 

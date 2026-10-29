@@ -26,6 +26,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from .. import turn_timing
 from ..cloud.protocol import ToolCall
 from .highlight_gate import HighlightGate
 from ..shapes import Shape, parse_shapes_args, scale_shapes_to_physical
@@ -57,6 +58,7 @@ class PendingDraw:
         """Draw on the overlay (LOOK-only graphics). An overlay without
         draw_shapes (e.g. stub_overlay) logs and skips — a draw must never
         crash the turn; the pairing/gate upstream still run normally."""
+        turn_timing.stage("draw")  # DEC-157 ⑤: debug-only, the instrument's clock
         if self.highlight is not None:
             await overlay.show(*self.highlight)
         elif self.shapes:

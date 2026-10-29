@@ -32,6 +32,8 @@ import threading
 import time
 from typing import Callable, Optional
 
+from . import turn_timing
+
 logger = logging.getLogger("tts")
 
 # Pushed onto the queue to tell the worker "no more audio — drain & stop".
@@ -159,6 +161,7 @@ class PcmStreamPlayer:
                     now = time.monotonic()
                     if self._first_write_t is None:
                         self._first_write_t = now
+                        turn_timing.stage("first_audio")  # DEC-157 ⑤: debug-only
                     else:
                         deficit_s = now - (self._first_write_t + self._audio_written_s)
                         if deficit_s > 0.02:

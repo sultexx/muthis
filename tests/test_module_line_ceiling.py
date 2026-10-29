@@ -144,7 +144,12 @@ def test_no_module_in_src_exceeds_the_three_hundred_line_law():
     # existed (appending the kwarg to the call's existing tail) and was
     # REFUSED on DEC-66's precedent — a pin that reads 293 because a line was
     # stuffed is a lie in the pin. SIX lines of headroom remain.
-    ("kernel/turn_pass.py", 294),
+    # 294 -> 296, DECLARED (DEC-157 ⑤): TWO lines — the `turn_timing` import and
+    # ONE `model_event(event)` call at the top of the reasoner loop, the voice
+    # instrument's first-token stamp. It is debug-only and inert unless the
+    # instrument started the clock. No other line of the file changed. FOUR
+    # lines of headroom remain.
+    ("kernel/turn_pass.py", 296),
     # 269 -> 300 at `702f9d1` (2026-08-06), UNDECLARED, landing the file exactly
     # ON the limit — where nothing read it for thirteen days. AGENTS.md said
     # `~269`, which was TRUE WHEN WRITTEN at `1520c26` and went stale at that
