@@ -161,10 +161,11 @@ async def run() -> int:
 
 async def probe_only() -> int:
     lc.console()
-    spend, folder = lc.Spend("numbers_probe"), lc.results_dir("numbers-probe")
+    spend, folder, before = lc.Spend("numbers_probe"), lc.results_dir("numbers-probe"), lc.log_guard()
     verdicts = await probe(lc.key("ELEVENLABS_API_KEY"), lc.key("ELEVENLABS_VOICE_ID"), spend)
     out = lc.write(folder, "probe.json", {"schema": "numbers-probe/1", "created_utc": lc.utc_stamp(),
-                                          "verdicts": verdicts, "spend": spend.as_dict()})
+                                          "verdicts": verdicts, "spend": spend.as_dict(),
+                                          "durable_log_changes": lc.log_changes(before)})
     print(json.dumps(verdicts, ensure_ascii=False, indent=1) + f"\nrecord {out}")
     return 0
 
