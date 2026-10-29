@@ -18,11 +18,18 @@ and then proves the durable log UNTOUCHED by content: `harness.prodlog` snapshot
 it exits. Only that directory check crosses a process boundary; the probe checks
 its own handlers in-process.
 
-THE RECORD IS SAVED COMPARABLY (DEC-157 ②): one JSON per run, a fixed schema —
-git HEAD and whether the tree was dirty, the clip's sha256 and length, the three
-`[timing]` lines, and only the lines on an allow-list (timing, probe, pass, budget,
-mic, vision, voice). Never the transcript: under debug the child prints it, the
-console shows it, and the record does not keep it.
+THE RECORD IS SAVED COMPARABLY (DEC-157 ②): one JSON per run, schema
+`voice-run/2` — git HEAD and whether the tree was dirty, the clip's sha256 and
+length, the reasoner and search provider the child built, the three `[timing]`
+lines (the app's clock), the transcript, pass ends and turn end on the driver's
+clock (all relative to the F9 release), the tool NAMES per pass, the
+first_token → first_audio gap (DEC-158), flags that keep a run out of a median,
+and only allow-listed lines. Never the transcript's TEXT: under debug the child
+prints it, the console shows it, and no record keeps it.
+
+EVERY RUN IS A CLEAN SESSION: `run_once` starts one child, which builds one app
+and runs one turn, so taint, the confirm gate and the documents never outlive it.
+`scripts/voice_b0.py` is B0's guided command over `run_once`.
 
 Console posture only: no `configure_logging`, no `muthis.main`, no file handler
 (`tests/test_no_script_attaches_the_durable_log.py`).
@@ -48,11 +55,21 @@ sys.path[:0] = [str(REPO / "src"), str(REPO / "scripts")]
 from harness import prodlog  # noqa: E402
 
 CLIP_HOME = pathlib.Path.home() / "Desktop" / "muthis_voice"
-SCHEMA = "voice-run/1"
-KEEP = ("[timing]", "[probe]", "[pass]", "[budget]", "[mic]", "[vision]",
-        "[orchestrator] tts", "voice_probe: REFUSED", "[main] turn")
+SCHEMA = "voice-run/2"
+KEEP = ("[timing]", "[probe]", "[pass]", "[budget]", "[mic]", "[vision]", "[cloud] reasoner=",
+        "[search] provider=", "[confirm-gate]", "[orchestrator] tts", "budget gate closed",
+        "voice_probe: REFUSED", "[main] turn")
+NEVER_KEPT = "[STT] transcript"          # under debug the child prints it; no record keeps it
 TIMING = re.compile(r"\[timing\] (\w+) \+(\d+) ms")
+TOOLS = re.compile(r"\[pass\] #\d+ tools=(\S+)")
 ATTACHED = "durable log attached"
+FLAGS = {  # a flagged repetition is reported, never folded into a median
+    "confirm_in_turn": ("[confirm-gate] high-impact",),
+    "budget_refused": ("budget gate closed",),
+    "turn_did_not_end": ("[probe] turn DID NOT END",),
+    "refused_to_start": ("voice_probe: REFUSED",),
+    "error": ("LOOK-only violation", "without TurnComplete", "turn failed unexpectedly", "Traceback"),
+}
 
 
 def _outside_repo(path: pathlib.Path) -> pathlib.Path:
@@ -107,7 +124,42 @@ def _git(*args: str) -> str:
                           text=True, check=True).stdout.strip()
 
 
-def run(clip: pathlib.Path, label: str) -> int:
+def summarise(lines: list[tuple[int, str]]) -> dict:
+    """The child's output, stamped on the driver's clock, as one run's measurements.
+    Driver-clock stages are relative to the F9 release line; `timing` is the app's
+    own clock (ms since the release). The transcript's TEXT never leaves here."""
+    release = next((at for at, text in lines if "[probe] F9 released" in text), None)
+    since = (lambda at: at - release) if release is not None else (lambda at: None)
+
+    def first(*markers):
+        return next((since(at) for at, text in lines if any(m in text for m in markers)), None)
+
+    timing = {m.group(1): int(m.group(2)) for _, text in lines for m in [TIMING.search(text)] if m}
+    passes = [m.group(1).split(",") for _, text in lines for m in [TOOLS.search(text)] if m]
+    gap = (timing["first_audio"] - timing["first_token"]
+           if {"first_audio", "first_token"} <= timing.keys() else None)
+    return {
+        "release_at_driver_ms": release,
+        "stages_driver_ms_since_release": {
+            "transcript": first("[STT] transcript", "[STT] Scribe OK", "empty transcript"),
+            "pass_ends": [since(at) for at, text in lines if "[budget] recorded" in text],
+            "end": first("[main] turn ended")},
+        "timing_ms_since_release": timing,
+        "gap_first_token_to_first_audio_ms": gap,
+        "tools_per_pass": [[] if tools == ["-"] else tools for tools in passes],
+        "searches": sum(tools.count("web__search") for tools in passes),
+        "flags": sorted(name for name, markers in FLAGS.items()
+                        if any(m in text for _, text in lines for m in markers)),
+        "config_lines": [text for _, text in lines if "[cloud] reasoner=" in text or "[search] provider=" in text],
+        "kept_lines": [[at, text] for at, text in lines
+                       if NEVER_KEPT not in text and any(m in text for m in KEEP)],
+    }
+
+
+def run_once(clip: pathlib.Path, label: str = "", *, scenario: str = "", rep: int = 0,
+             results_dir: pathlib.Path | None = None) -> dict:
+    """ONE child process, ONE fresh app, ONE turn — so every run starts from a clean
+    session: taint, the confirm gate and the documents live in that process only."""
     clip = _outside_repo(clip)
     data = clip.read_bytes()
     with wave.open(str(clip), "rb") as wav:
@@ -119,38 +171,43 @@ def run(clip: pathlib.Path, label: str) -> int:
     child = subprocess.Popen([sys.executable, "-m", "muthis.voice_probe", str(clip)], cwd=REPO,
                              env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              text=True, encoding="utf-8", errors="replace")
-    kept, attached, release_ms = [], False, None
+    lines = []
     for line in child.stdout:
-        at_ms = round((time.monotonic() - launched) * 1000)
-        line = line.rstrip("\n")
-        print(f"{at_ms:>7} ms | {line}")
-        attached = attached or ATTACHED in line
-        if "[probe] F9 released" in line:
-            release_ms = at_ms
-        if any(marker in line for marker in KEEP):
-            kept.append([at_ms, line])
+        lines.append((round((time.monotonic() - launched) * 1000), line.rstrip("\n")))
+        print(f"{lines[-1][0]:>7} ms | {lines[-1][1]}")
     code = child.wait()
     findings = prodlog.changes(before, prodlog.snapshot())
-    timing = {m.group(1): int(m.group(2)) for _, text in kept for m in [TIMING.search(text)] if m}
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     result = {
-        "schema": SCHEMA, "created_utc": stamp, "label": label,
+        "schema": SCHEMA, "created_utc": stamp, "label": label, "scenario": scenario, "rep": rep,
         "git_head": _git("rev-parse", "HEAD"), "git_dirty": bool(_git("status", "--porcelain")),
         "clip": {"name": clip.name, "sha256": hashlib.sha256(data).hexdigest(),
                  "seconds": round(clip_seconds, 3)},
-        "exit_code": code, "timing_ms_since_release": timing,
-        "release_at_driver_ms": release_ms,
-        "durable_log": {"changes": findings, "attach_line_seen": attached},
-        "kept_lines": kept,
+        "exit_code": code,
+        "durable_log": {"changes": findings,
+                        "attach_line_seen": any(ATTACHED in text for _, text in lines)},
+        **summarise(lines),
     }
-    results = CLIP_HOME / "results"
+    results = results_dir or CLIP_HOME / "results"
     results.mkdir(parents=True, exist_ok=True)
-    out = _outside_repo(results / f"{clip.stem}-{stamp}.json")
+    name = f"{scenario}-{rep}" if scenario else clip.stem
+    out = _outside_repo(results / f"{name}-{stamp}.json")
     out.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
-    clean = not findings and not attached
-    print(f"\nexit={code} timing={timing} durable_log={'UNCHANGED' if clean else 'CHANGED: ' + str(findings)}")
-    print(f"record: {out}")
-    return code if clean else 4
+    result["record_path"] = str(out)
+    return result
+
+
+def log_clean(result: dict) -> bool:
+    return not result["durable_log"]["changes"] and not result["durable_log"]["attach_line_seen"]
+
+
+def run(clip: pathlib.Path, label: str) -> int:
+    result = run_once(clip, label)
+    clean = log_clean(result)
+    print(f"\nexit={result['exit_code']} timing={result['timing_ms_since_release']} "
+          f"flags={result['flags']} durable_log={'UNCHANGED' if clean else 'CHANGED'}")
+    print(f"record: {result['record_path']}")
+    return result["exit_code"] if clean else 4
 
 
 def main(argv: list[str]) -> int:
