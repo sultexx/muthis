@@ -257,6 +257,5 @@ def test_each_stage_has_exactly_one_carrier():
 def test_only_the_instrument_starts_the_clock():
     starters = sorted(path.relative_to(SRC).as_posix() for path in SRC.rglob("*.py")
                       if _calls(path, "turn_started"))
-    assert starters == [], (
-        f"the clock is started inside the app: {starters} — only the voice "
-        "instrument may start it")
+    assert starters == ["voice_probe.py"], (
+        f"the clock is started outside the voice instrument: {starters}")
