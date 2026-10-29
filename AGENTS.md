@@ -1026,6 +1026,13 @@ in DECISIONS.md (DEC-43).
   only, with `main^{tree}` proven byte-identical before and after. Resolve any such SHA through
   [`docs/reports/commit-map-2026-08.txt`](docs/reports/commit-map-2026-08.txt). Commit with the repo's
   configured noreply identity; never restore a personal address to `user.email`.
+- **Before every push, the full-history secret scan — the CONTROL FIRST, then the scan** (this repository is
+  PUBLIC): `.venv/Scripts/python.exe scripts/secret_scan.py <empty-dir> control`, then
+  `.venv/Scripts/python.exe scripts/secret_scan.py . scan`. It prints lengths, entropy and booleans, never a
+  value. **Clean = exactly ONE distinct value: the `tvly-` SENTINEL_KEY canary in
+  `tests/test_search_provider.py`**; anything else is a STOP. The tool is in the tree since DEC-157's round —
+  it had lived only in scratch folders and was lost with one — and `tests/test_secret_scan.py` runs its
+  12-value positive control on every suite run. No hook enforces the scan; running it is the procedure.
 - **Phase/milestone reports are version-controlled** (convention set 2026-07-18): write each to
   `docs/reports/phaseN.md` — clean UTF-8 markdown, English, all-ASCII content so the bytes cannot
   reverse — inside that phase's closing commit. Never an external paste or PDF. Each report carries at
